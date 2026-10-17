@@ -1,4 +1,6 @@
-import type { EnemyId, MoveId, PokemonId } from '../data/content';
+import type { EnemyId, PokemonId } from '../data/content';
+import type { MoveId } from '../data/moves';
+import type { BoostId, ItemId } from '../data/upgrades';
 import type { Rng } from './rng';
 import type { SpatialHash } from './spatialHash';
 
@@ -46,6 +48,7 @@ export interface Projectile {
   vy: number;
   radius: number;
   damage: number;
+  critChance: number;
   lifeLeft: number;
   dead: boolean;
 }
@@ -60,9 +63,64 @@ export interface Gem {
   collected: boolean;
 }
 
+/** Build-wide multipliers from boosts and held items. */
+export interface Modifiers {
+  damageMult: number;
+  cooldownMult: number;
+  areaMult: number;
+  durationMult: number;
+  critChance: number;
+  moveSpeedMult: number;
+  pickupMult: number;
+  maxHpBonus: number;
+  regenPerSec: number;
+}
+
+/** Effective numbers for one equipped move; `area` and `duration` are multipliers on the move's base values. */
+export interface MoveStats {
+  damage: number;
+  cooldown: number;
+  area: number;
+  duration: number;
+  critChance: number;
+}
+
 export interface MoveSlot {
   readonly moveId: MoveId;
   cooldownLeft: number;
+  /** Seconds an orbit or beam has left on screen. */
+  activeLeft: number;
+  /** Orbit rotation in radians. */
+  angle: number;
+  /** Beam direction, locked at cast. */
+  dirX: number;
+  dirY: number;
+  /** Seconds until the next beam damage tick. */
+  tickLeft: number;
+  /** Enemy id → seconds before this move may hit it again (orbits). */
+  hitCooldowns: Map<number, number>;
+  stats: MoveStats;
+}
+
+/** A melee swipe kept around briefly so it can be drawn. */
+export interface Swing {
+  x: number;
+  y: number;
+  dirX: number;
+  dirY: number;
+  reach: number;
+  halfArc: number;
+  lifeLeft: number;
+}
+
+export type Card =
+  | { readonly kind: 'move'; readonly moveId: MoveId }
+  | { readonly kind: 'boost'; readonly boostId: BoostId }
+  | { readonly kind: 'item'; readonly itemId: ItemId }
+  | { readonly kind: 'potion' };
+
+export interface LevelUpOffer {
+  readonly cards: readonly Card[];
 }
 
 export type RunStatus = 'running' | 'fainted' | 'survived';
@@ -74,13 +132,21 @@ export interface World {
   enemies: Enemy[];
   projectiles: Projectile[];
   gems: Gem[];
+  swings: Swing[];
+  /** Slot 0 is the signature move; the rest are learnset moves. */
   moves: MoveSlot[];
+  /** Times each generic boost has been picked. */
+  boosts: Record<BoostId, number>;
+  items: ItemId[];
+  mods: Modifiers;
   kills: number;
   level: number;
   /** XP collected towards the next level. */
   xp: number;
-  /** Level-ups not yet shown to the player (the card window consumes these from P2b). */
+  /** Level-ups not yet resolved by a card choice. */
   pendingLevelUps: number;
+  /** Cards waiting for a choice; the sim is paused while this is set. */
+  offer: LevelUpOffer | null;
   nextId: number;
   spawnEnabled: boolean;
   spawnTimer: number;

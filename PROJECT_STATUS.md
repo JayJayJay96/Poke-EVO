@@ -3,9 +3,10 @@
 ## Current state
 - **Phase:** P0 done. **P1 done: the owner playtest passed the gate on 2026-10-17.**
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
-- **Committed:** `844afd4` (P0 docs + P1 toy); P2a commit follows this update.
-- **P2a done** (2026-10-17): XP gems + magnet, level curve, XP bar + level-up toast, wave table with Pidgey/Raticate variants and HP scaling, 15:00 "Survived!" screen.
-- **Next task:** build **P2b** (move framework + Scratch / Fire Spin / Dragon Rage + normal level-up card window).
+- **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a); P2b commit follows this update.
+- **P2a done** (2026-10-17): XP gems + magnet, level curve, XP bar, wave table with Pidgey/Raticate variants and HP scaling, 15:00 "Survived!" screen.
+- **P2b done** (2026-10-17): 4 move forms, Charmander learnset, generic boosts, held items, level-up card window.
+- **Next task:** build **P2c**: 3 sockets per move, augment level every 3rd level, the 2-window augment flow + Reroll, ranks I–III, ~10 🟢 augments, build panel on pause.
 
 ## P2 plan (owner-approved 2026-10-17)
 **Gate:** do testers press "play again" unasked? Do two testers build the same move differently?
@@ -31,6 +32,27 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 ---
 
 ## Session log
+
+### 2026-10-17 — P2b: move framework and level-up cards
+**Files**
+- `src/data/moves.ts` (new): typed `MoveDef` union by form. Ember (projectile), Scratch (melee arc 110°, reach 60), Fire Spin (2 orbiting balls, 3.5 s out of every 6 s, 0.5 s per-enemy hit interval), Dragon Rage (260 px beam, 3 ticks over 0.6 s). Numbers provisional.
+- `src/data/upgrades.ts` (new): 6 generic boosts (max 5 picks each, D9), 4 held items (3 slots), Potion fallback, crit ×1.5, 4 learnset slots, 3 cards per offer.
+- `src/data/content.ts`: move data moved out; Charmander `learnset`; Flying/Dragon types.
+- `src/sim/stats.ts` (new): `computeModifiers` (boosts additive, cooldown multiplicative, items), `computeMoveStats` (the hook point for P2c augments), `refreshStats` (max-HP gain also heals), `createSlot`.
+- `src/sim/combat.ts` (new): `queryEnemies`, `findNearestEnemy`, `damageEnemy` (crit roll only when crit > 0, to keep runs reproducible), `dropGem`.
+- `src/sim/progression.ts` (new): XP functions moved here; `buildCardPool`, `makeOffer` (3 distinct, or a Potion), `chooseCard` (applies, refreshes stats, chains pending level-ups).
+- `src/sim/forms/{projectile,melee,orbit,beam}.ts` (new): cast + update per form. Moves cast and act in the same step.
+- `src/sim/world.ts`: dispatches moves by form; the sim pauses while `world.offer` is set; regen; swings.
+- `src/scenes/RunScene.ts`: card window (keys 1/2/3 or click; 250 ms input guard), beam/swipe/orbit drawing, HUD line listing moves and items. The P2a toast was removed.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **41/41 passed** (14 new: melee arc hit/miss and no-target, orbit hit interval, beam line hit/miss, modifier stacking, refreshStats, move stats, crit ×1.5, Leftovers regen, card pool contents and exclusions, 3 distinct cards / Potion fallback, pause-while-offering + chained offers, Potion cap); `npm run build` passed.
+- Browser (:5180): the level-up opened the card window and froze the clock; key 2 took Leftovers (regen 1/s); forced offers added Scratch, Fire Spin and Dragon Rage via key 1; orbit balls, purple beam, swipe slice and hit flashes all drew; a mouse click on the middle card took Focus (crit 0.05).
+- The console showed only stale errors stamped with `?t=` HMR timestamps from mid-edit module states before the reload. No new errors during the checks.
+
+**Notes**
+- Every level is currently a normal (card) level; the augment rhythm arrives in P2c.
+- Card layout is fixed at 3 × 210 px wide; check that it still fits narrow windows during the playtest.
 
 ### 2026-10-17 — P2a: XP, levels, waves, 15-min run
 **Files**

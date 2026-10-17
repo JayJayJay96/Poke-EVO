@@ -1,0 +1,55 @@
+import type { OrbitMoveDef } from '../../data/moves';
+import { damageEnemy, queryEnemies } from '../combat';
+import type { MoveSlot, Player, World } from '../types';
+
+const neighbours: number[] = [];
+
+export interface OrbitBall {
+  x: number;
+  y: number;
+  r: number;
+}
+
+/** Orbits need no target: casting just sends the balls out. */
+export function castOrbit(_world: World, slot: MoveSlot, def: OrbitMoveDef): boolean {
+  slot.activeLeft = def.duration * slot.stats.duration;
+  slot.hitCooldowns.clear();
+  return true;
+}
+
+export function orbitBalls(slot: MoveSlot, def: OrbitMoveDef, player: Player): OrbitBall[] {
+  const radius = def.orbitRadius * slot.stats.area;
+  const r = def.ballRadius * slot.stats.area;
+  const balls: OrbitBall[] = [];
+  for (let i = 0; i < def.count; i++) {
+    const angle = slot.angle + (i * Math.PI * 2) / def.count;
+    balls.push({ x: player.x + Math.cos(angle) * radius, y: player.y + Math.sin(angle) * radius, r });
+  }
+  return balls;
+}
+
+export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt: number): void {
+  if (slot.activeLeft <= 0) return;
+  slot.activeLeft -= dt;
+  slot.angle += def.angularSpeed * dt;
+
+  for (const [enemyId, left] of slot.hitCooldowns) {
+    if (left - dt <= 0) slot.hitCooldowns.delete(enemyId);
+    else slot.hitCooldowns.set(enemyId, left - dt);
+  }
+
+  const { enemies } = world;
+  for (const ball of orbitBalls(slot, def, world.player)) {
+    queryEnemies(world, ball.x, ball.y, ball.r, neighbours);
+    for (const j of neighbours) {
+      const enemy = enemies[j]!;
+      if (enemy.hp <= 0 || slot.hitCooldowns.has(enemy.id)) continue;
+      const dx = enemy.x - ball.x;
+      const dy = enemy.y - ball.y;
+      const reach = enemy.radius + ball.r;
+      if (dx * dx + dy * dy > reach * reach) continue;
+      damageEnemy(world, enemy, slot.stats.damage, slot.stats.critChance);
+      slot.hitCooldowns.set(enemy.id, def.hitInterval);
+    }
+  }
+}

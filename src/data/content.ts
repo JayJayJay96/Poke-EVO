@@ -1,29 +1,13 @@
 // Game content as typed data. Every number here is provisional tuning (PROJECT.md).
+import type { MoveId } from './moves';
 
 export type PokemonType = 'Normal' | 'Fire' | 'Water' | 'Grass' | 'Flying' | 'Dragon';
 export type FormTag = 'Projectile' | 'Area' | 'Beam' | 'Melee' | 'Aura' | 'Zone' | 'Orbit';
 export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' | 'Ball' | 'Contact';
 export type MoveTag = PokemonType | FormTag | FlagTag;
 
-export type MoveId = 'ember';
 export type PokemonId = 'charmander';
 export type EnemyId = 'rattata' | 'pidgey' | 'raticate';
-
-export interface ProjectileMoveDef {
-  readonly id: MoveId;
-  readonly name: string;
-  readonly tags: readonly MoveTag[];
-  /** Seconds between casts. */
-  readonly cooldown: number;
-  readonly damage: number;
-  /** Auto-target search radius in px. */
-  readonly range: number;
-  /** px per second. */
-  readonly projectileSpeed: number;
-  readonly projectileRadius: number;
-  /** Seconds before an unhit projectile disappears. */
-  readonly projectileLifetime: number;
-}
 
 export interface PokemonDef {
   readonly id: PokemonId;
@@ -34,6 +18,8 @@ export interface PokemonDef {
   readonly speed: number;
   readonly radius: number;
   readonly signatureMove: MoveId;
+  /** Moves that can be offered on level-up cards. */
+  readonly learnset: readonly MoveId[];
 }
 
 export interface EnemyDef {
@@ -49,20 +35,6 @@ export interface EnemyDef {
   readonly xp: number;
 }
 
-export const MOVES: Readonly<Record<MoveId, ProjectileMoveDef>> = {
-  ember: {
-    id: 'ember',
-    name: 'Ember',
-    tags: ['Fire', 'Projectile'],
-    cooldown: 1.0,
-    damage: 10,
-    range: 320,
-    projectileSpeed: 380,
-    projectileRadius: 6,
-    projectileLifetime: 1.2,
-  },
-};
-
 export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
   charmander: {
     id: 'charmander',
@@ -72,6 +44,8 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
     speed: 150,
     radius: 12,
     signatureMove: 'ember',
+    // P2 subset (D9); Smokescreen, Wing Attack and Slash come later.
+    learnset: ['scratch', 'fireSpin', 'dragonRage'],
   },
 };
 

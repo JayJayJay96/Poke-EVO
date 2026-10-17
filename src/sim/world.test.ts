@@ -1,23 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { ENEMIES, MOVES, POKEMON, TUNING, type EnemyId } from '../data/content';
+import { ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
+import { MOVES, type MoveId } from '../data/moves';
+import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
 import { WAVES } from '../data/waves';
+import { damageEnemy, dropGem, findNearestEnemy } from './combat';
+import { buildCardPool, chooseCard, gainXp, makeOffer, xpToNext } from './progression';
 import { createSeededRng } from './rng';
 import { SpatialHash } from './spatialHash';
+import { computeModifiers, createSlot, refreshStats } from './stats';
 import type { InputState, World } from './types';
-import {
-  createWorld,
-  dropGem,
-  findNearestEnemy,
-  gainXp,
-  pickEnemyKind,
-  spawnEnemy,
-  step,
-  waveAt,
-  xpToNext,
-} from './world';
+import { createWorld, pickEnemyKind, spawnEnemy, step, waveAt } from './world';
 
 const DT = TUNING.stepSeconds;
 const IDLE: InputState = { moveX: 0, moveY: 0 };
+const NO_BOOSTS = Object.fromEntries(BOOST_IDS.map((id) => [id, 0])) as World['boosts'];
 
 function makeWorld(options: { spawnEnabled?: boolean; seed?: number } = {}): World {
   return createWorld({
@@ -25,6 +21,14 @@ function makeWorld(options: { spawnEnabled?: boolean; seed?: number } = {}): Wor
     spawnRadius: 600,
     spawnEnabled: options.spawnEnabled ?? false,
   });
+}
+
+/** A world whose only move is `moveId`. */
+function worldWithMove(moveId: MoveId): World {
+  const world = makeWorld();
+  world.moves = [createSlot(moveId)];
+  refreshStats(world);
+  return world;
 }
 
 function run(world: World, seconds: number, input: InputState = IDLE): void {
@@ -87,7 +91,7 @@ describe('player movement', () => {
   });
 });
 
-describe('Ember auto-fire', () => {
+describe('Ember (projectile form)', () => {
   it('does not fire without a target', () => {
     const world = makeWorld();
     run(world, 2);
@@ -102,8 +106,7 @@ describe('Ember auto-fire', () => {
     expect(world.projectiles).toHaveLength(1);
     expect(world.projectiles[0]!.vx).toBeGreaterThan(0);
 
-    const hitsToKill = Math.ceil(ENEMIES.rattata.maxHp / MOVES.ember.damage);
-    expect(hitsToKill).toBe(2);
+    expect(Math.ceil(ENEMIES.rattata.maxHp / MOVES.ember.damage)).toBe(2);
     run(world, 2);
     expect(world.kills).toBe(1);
     expect(world.enemies).toHaveLength(0);
@@ -117,6 +120,68 @@ describe('Ember auto-fire', () => {
     expect(findNearestEnemy(world, 50)).toBeUndefined();
     near.hp = 0;
     expect(findNearestEnemy(world, 300)).toBe(far);
+  });
+});
+
+describe('Scratch (melee form)', () => {
+  it('hits enemies inside the arc toward the target and misses those behind', () => {
+    const world = worldWithMove('scratch');
+    world.player.invulnLeft = 99;
+    const front = spawnEnemy(world, 'raticate', 40, 0);
+    const behind = spawnEnemy(world, 'raticate', -45, 0);
+    front.speed = 0;
+    behind.speed = 0;
+    step(world, IDLE, DT);
+    expect(front.hp).toBeCloseTo(front.maxHp - MOVES.scratch.damage);
+    expect(behind.hp).toBe(behind.maxHp);
+    expect(world.swings).toHaveLength(1);
+  });
+
+  it('does not swing when nothing is in reach', () => {
+    const world = worldWithMove('scratch');
+    const far = spawnEnemy(world, 'raticate', 300, 0);
+    far.speed = 0;
+    step(world, IDLE, DT);
+    expect(world.swings).toHaveLength(0);
+    expect(world.moves[0]!.cooldownLeft).toBe(0);
+  });
+});
+
+describe('Fire Spin (orbit form)', () => {
+  it('hits enemies the balls pass through, limited by the hit interval', () => {
+    const world = worldWithMove('fireSpin');
+    world.player.invulnLeft = 99;
+    const def = MOVES.fireSpin;
+    if (def.form !== 'orbit') throw new Error('fireSpin should be an orbit');
+    const target = spawnEnemy(world, 'raticate', def.orbitRadius, 0, 10);
+    target.speed = 0;
+
+    step(world, IDLE, DT);
+    expect(target.hp).toBeCloseTo(target.maxHp - def.damage);
+
+    run(world, def.duration);
+    const hits = Math.round((target.maxHp - target.hp) / def.damage);
+    expect(hits).toBeGreaterThanOrEqual(2);
+    expect(hits).toBeLessThanOrEqual(Math.ceil(def.duration / def.hitInterval) + 1);
+    expect(world.moves[0]!.activeLeft).toBeLessThanOrEqual(0);
+  });
+});
+
+describe('Dragon Rage (beam form)', () => {
+  it('ticks damage along the line and misses enemies beside it', () => {
+    const world = worldWithMove('dragonRage');
+    world.player.invulnLeft = 99;
+    const def = MOVES.dragonRage;
+    if (def.form !== 'beam') throw new Error('dragonRage should be a beam');
+    const onLine = spawnEnemy(world, 'raticate', 150, 0);
+    const beside = spawnEnemy(world, 'raticate', 150, 60);
+    onLine.speed = 0;
+    beside.speed = 0;
+
+    run(world, def.duration + 0.05);
+    const ticks = Math.round((onLine.maxHp - onLine.hp) / def.damage);
+    expect(ticks).toBeGreaterThanOrEqual(Math.floor(def.duration / def.tickInterval));
+    expect(beside.hp).toBe(beside.maxHp);
   });
 });
 
@@ -278,6 +343,116 @@ describe('XP and levels', () => {
     dropGem(world, 0, 5000, 4);
     expect(world.gems).toHaveLength(TUNING.xp.maxGems);
     expect(world.gems[0]!.value).toBe(5);
+  });
+});
+
+describe('stats', () => {
+  it('stacks boosts additively and cooldown multiplicatively, plus items', () => {
+    const m = computeModifiers({ ...NO_BOOSTS, damage: 2, cooldown: 2 }, ['quickClaw']);
+    expect(m.damageMult).toBeCloseTo(1.2);
+    expect(m.cooldownMult).toBeCloseTo(0.92 * 0.92 * 0.85);
+  });
+
+  it('refreshStats applies max HP (with the matching heal), speed and pickup', () => {
+    const world = makeWorld();
+    world.player.hp = 50;
+    world.boosts.hp = 1;
+    world.boosts.speed = 1;
+    world.items.push('expShare');
+    refreshStats(world);
+    expect(world.player.maxHp).toBe(120);
+    expect(world.player.hp).toBe(70);
+    expect(world.player.speed).toBeCloseTo(POKEMON.charmander.speed * 1.08);
+    expect(world.player.pickupRadius).toBeCloseTo(TUNING.player.baseMagnetRadius * 1.5);
+  });
+
+  it('move stats follow damage and cooldown modifiers', () => {
+    const world = makeWorld();
+    world.boosts.damage = 1;
+    refreshStats(world);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * 1.1);
+  });
+
+  it('a guaranteed crit deals ×1.5', () => {
+    const world = makeWorld();
+    const enemy = spawnEnemy(world, 'rattata', 500, 0);
+    damageEnemy(world, enemy, 10, 1);
+    expect(enemy.hp).toBe(enemy.maxHp - 15);
+  });
+
+  it('Leftovers regenerates HP over time', () => {
+    const world = makeWorld();
+    world.items.push('leftovers');
+    refreshStats(world);
+    world.player.hp = 50;
+    run(world, 2);
+    expect(world.player.hp).toBeCloseTo(52, 0);
+  });
+});
+
+describe('level-up cards', () => {
+  it('the pool offers learnset moves, every boost and every item at the start', () => {
+    const world = makeWorld();
+    const pool = buildCardPool(world);
+    const learnset = POKEMON.charmander.learnset.length;
+    expect(pool).toHaveLength(learnset + BOOST_IDS.length + ITEM_IDS.length);
+  });
+
+  it('drops owned moves, maxed boosts and items once the item slots are full', () => {
+    const world = makeWorld();
+    world.moves.push(createSlot('scratch'));
+    world.boosts.damage = BOOST_MAX_PICKS;
+    world.items = ITEM_IDS.slice(0, MAX_ITEMS);
+    const pool = buildCardPool(world);
+    expect(pool.some((c) => c.kind === 'move' && c.moveId === 'scratch')).toBe(false);
+    expect(pool.some((c) => c.kind === 'boost' && c.boostId === 'damage')).toBe(false);
+    expect(pool.some((c) => c.kind === 'item')).toBe(false);
+  });
+
+  it('offers 3 distinct cards, or a Potion when nothing is left', () => {
+    const world = makeWorld();
+    const offer = makeOffer(world);
+    expect(offer.cards).toHaveLength(3);
+    expect(new Set(offer.cards.map((c) => JSON.stringify(c))).size).toBe(3);
+
+    for (const id of BOOST_IDS) world.boosts[id] = BOOST_MAX_PICKS;
+    world.items = ITEM_IDS.slice(0, MAX_ITEMS);
+    for (const id of POKEMON.charmander.learnset) world.moves.push(createSlot(id));
+    expect(makeOffer(world).cards).toEqual([{ kind: 'potion' }]);
+  });
+
+  it('pauses the run while cards wait, applies the choice and chains pending level-ups', () => {
+    const world = makeWorld();
+    gainXp(world, xpToNext(1) + xpToNext(2)); // two level-ups
+    step(world, IDLE, DT);
+    expect(world.offer).not.toBeNull();
+
+    const pausedAt = world.time;
+    run(world, 1);
+    expect(world.time).toBe(pausedAt);
+
+    world.offer = { cards: [{ kind: 'move', moveId: 'fireSpin' }] };
+    chooseCard(world, 0);
+    expect(world.moves.map((s) => s.moveId)).toContain('fireSpin');
+    expect(world.pendingLevelUps).toBe(1);
+    expect(world.offer).not.toBeNull(); // the second level-up is offered right away
+
+    world.offer = { cards: [{ kind: 'boost', boostId: 'damage' }] };
+    chooseCard(world, 0);
+    expect(world.boosts.damage).toBe(1);
+    expect(world.offer).toBeNull();
+    run(world, 0.5);
+    expect(world.time).toBeGreaterThan(pausedAt);
+  });
+
+  it('a Potion heals without exceeding max HP', () => {
+    const world = makeWorld();
+    world.player.hp = world.player.maxHp - 5;
+    world.pendingLevelUps = 1;
+    world.offer = { cards: [{ kind: 'potion' }] };
+    chooseCard(world, 0);
+    expect(world.player.hp).toBe(world.player.maxHp);
+    expect(POTION_HEAL).toBeGreaterThan(5);
   });
 });
 

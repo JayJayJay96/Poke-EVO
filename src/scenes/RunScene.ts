@@ -1,8 +1,13 @@
 import Phaser from 'phaser';
 import { POKEMON, TUNING, type EnemyId } from '../data/content';
+import { MOVES } from '../data/moves';
+import { BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
+import { beamLength } from '../sim/forms/beam';
+import { orbitBalls } from '../sim/forms/orbit';
+import { chooseCard, xpToNext } from '../sim/progression';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
-import type { InputState, World } from '../sim/types';
-import { createWorld, step, xpToNext } from '../sim/world';
+import type { Card, InputState, LevelUpOffer, World } from '../sim/types';
+import { createWorld, step } from '../sim/world';
 
 // Grey-box colours until real sprites arrive in P6.
 const COLORS = {
@@ -10,12 +15,16 @@ const COLORS = {
   player: 0xff7a2f,
   flash: 0xffffff,
   projectile: 0xffb347,
+  orbit: 0xff5a1f,
+  beam: 0x7b5cff,
+  swing: 0xffffff,
   hpBack: 0x3a1e1e,
   hpFill: 0x4cd964,
   gem: 0x5ad1ff,
   bigGem: 0x5dff8a,
   xpBack: 0x10202a,
   xpFill: 0x5ad1ff,
+  cardBg: 0x1c2233,
 } as const;
 const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   rattata: 0x9b6bc8,
@@ -24,12 +33,29 @@ const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
 };
 /** Gems worth at least this much draw bigger and green. */
 const BIG_GEM_VALUE = 5;
-const TOAST_SECONDS = 1.2;
 const GRID_SIZE = 64;
 /** Cap on simulated time per frame so a hitch never fast-forwards the run. */
 const MAX_FRAME_SECONDS = 0.25;
+const CARD_W = 210;
+const CARD_H = 170;
+const CARD_GAP = 18;
+/** Ignore card keys briefly after the window opens so a held key can't pick blindly. */
+const CARD_INPUT_DELAY_MS = 250;
 
-type KeyName = 'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd' | 'restart' | 'pause';
+type KeyName =
+  | 'up'
+  | 'down'
+  | 'left'
+  | 'right'
+  | 'w'
+  | 'a'
+  | 's'
+  | 'd'
+  | 'restart'
+  | 'pause'
+  | 'one'
+  | 'two'
+  | 'three';
 type Keys = Record<KeyName, Phaser.Input.Keyboard.Key>;
 
 export class RunScene extends Phaser.Scene {
@@ -39,8 +65,9 @@ export class RunScene extends Phaser.Scene {
   private hudGfx!: Phaser.GameObjects.Graphics;
   private hud!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
-  private toast!: Phaser.GameObjects.Text;
-  private toastLeft = 0;
+  private overlay: Phaser.GameObjects.GameObject[] = [];
+  private overlayFor: LevelUpOffer | null = null;
+  private overlayOpenedAt = 0;
   private accumulator = 0;
   private paused = false;
 
@@ -56,6 +83,8 @@ export class RunScene extends Phaser.Scene {
     }
     this.accumulator = 0;
     this.paused = false;
+    this.overlay = [];
+    this.overlayFor = null;
 
     this.keys = this.input.keyboard!.addKeys({
       up: 'UP',
@@ -68,21 +97,17 @@ export class RunScene extends Phaser.Scene {
       d: 'D',
       restart: 'R',
       pause: 'ESC',
+      one: 'ONE',
+      two: 'TWO',
+      three: 'THREE',
     }) as Keys;
 
-    this.toastLeft = 0;
     this.gfx = this.add.graphics();
     this.hudGfx = this.add.graphics().setScrollFactor(0).setDepth(9);
     this.hud = this.add
-      .text(16, 14, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff' })
+      .text(16, 14, '', { fontFamily: 'monospace', fontSize: '16px', color: '#ffffff', lineSpacing: 4 })
       .setScrollFactor(0)
       .setDepth(10);
-    this.toast = this.add
-      .text(0, 64, '', { fontFamily: 'monospace', fontSize: '24px', color: '#5ad1ff', fontStyle: 'bold' })
-      .setOrigin(0.5, 0)
-      .setScrollFactor(0)
-      .setDepth(15)
-      .setAlpha(0);
     this.banner = this.add
       .text(0, 0, '', {
         fontFamily: 'monospace',
@@ -98,35 +123,46 @@ export class RunScene extends Phaser.Scene {
       .setVisible(false);
   }
 
-  update(_time: number, deltaMs: number): void {
+  update(time: number, deltaMs: number): void {
     const { JustDown } = Phaser.Input.Keyboard;
-    if (JustDown(this.keys.pause) && this.world.status === 'running') this.paused = !this.paused;
-    if (JustDown(this.keys.restart) && this.world.status !== 'running') {
+    const { world } = this;
+
+    if (JustDown(this.keys.restart) && world.status !== 'running') {
       this.scene.restart();
       return;
     }
 
-    const cam = this.cameras.main;
-    this.world.spawnRadius = Math.hypot(cam.width, cam.height) / 2 + TUNING.spawn.ringPadding;
+    if (world.offer && world.status === 'running') {
+      if (time - this.overlayOpenedAt >= CARD_INPUT_DELAY_MS) {
+        if (JustDown(this.keys.one)) this.choose(0);
+        else if (JustDown(this.keys.two)) this.choose(1);
+        else if (JustDown(this.keys.three)) this.choose(2);
+      }
+    } else if (JustDown(this.keys.pause) && world.status === 'running') {
+      this.paused = !this.paused;
+    }
 
-    if (!this.paused) {
+    const cam = this.cameras.main;
+    world.spawnRadius = Math.hypot(cam.width, cam.height) / 2 + TUNING.spawn.ringPadding;
+
+    if (!this.paused && !world.offer) {
       this.accumulator += Math.min(deltaMs / 1000, MAX_FRAME_SECONDS);
       const input = this.readInput();
-      while (this.accumulator >= TUNING.stepSeconds) {
-        step(this.world, input, TUNING.stepSeconds);
+      while (this.accumulator >= TUNING.stepSeconds && !world.offer) {
+        step(world, input, TUNING.stepSeconds);
         this.accumulator -= TUNING.stepSeconds;
       }
     }
+    // Don't bank time while the card window is open.
+    if (world.offer) this.accumulator = 0;
 
-    // Until the card window exists (P2b), a level-up is just announced.
-    if (this.world.pendingLevelUps > 0) {
-      this.world.pendingLevelUps = 0;
-      this.toast.setText(`LEVEL UP!  Lv ${this.world.level}`);
-      this.toastLeft = TOAST_SECONDS;
-    }
-    this.toastLeft = Math.max(0, this.toastLeft - deltaMs / 1000);
-
+    this.syncOverlay(time);
     this.draw();
+  }
+
+  private choose(index: number): void {
+    if (!this.world.offer) return;
+    chooseCard(this.world, index);
   }
 
   private readInput(): InputState {
@@ -138,8 +174,64 @@ export class RunScene extends Phaser.Scene {
     return { moveX: right - left, moveY: down - up };
   }
 
+  /** Builds or tears down the level-up card window to match the current offer. */
+  private syncOverlay(time: number): void {
+    const offer = this.world.status === 'running' ? this.world.offer : null;
+    if (offer === this.overlayFor) return;
+    for (const obj of this.overlay) obj.destroy();
+    this.overlay = [];
+    this.overlayFor = offer;
+    if (!offer) return;
+
+    this.overlayOpenedAt = time;
+    const cam = this.cameras.main;
+    const dim = this.add
+      .rectangle(0, 0, cam.width, cam.height, 0x000000, 0.6)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(30);
+    const cardsTop = Math.max(40, cam.height / 2 - CARD_H / 2 + 10);
+    const title = this.add
+      .text(cam.width / 2, cardsTop - 12, `Level ${this.world.level}!  Pick one: 1 / 2 / 3`, {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 1)
+      .setScrollFactor(0)
+      .setDepth(31);
+    this.overlay.push(dim, title);
+
+    const n = offer.cards.length;
+    const startX = cam.width / 2 - (n * CARD_W + (n - 1) * CARD_GAP) / 2;
+    offer.cards.forEach((card, i) => {
+      const d = describeCard(this.world, card);
+      const x = startX + i * (CARD_W + CARD_GAP);
+      const bg = this.add
+        .rectangle(x, cardsTop, CARD_W, CARD_H, COLORS.cardBg, 0.97)
+        .setOrigin(0)
+        .setStrokeStyle(2, d.color)
+        .setScrollFactor(0)
+        .setDepth(31)
+        .setInteractive({ useHandCursor: true });
+      bg.on('pointerdown', () => this.choose(i));
+      const text = this.add
+        .text(x + 12, cardsTop + 10, `[${i + 1}] ${d.heading}\n\n${d.title}\n\n${d.body}`, {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#ffffff',
+          lineSpacing: 2,
+          wordWrap: { width: CARD_W - 24 },
+        })
+        .setScrollFactor(0)
+        .setDepth(32);
+      this.overlay.push(bg, text);
+    });
+  }
+
   private draw(): void {
-    const { player, enemies, projectiles, gems } = this.world;
+    const { player, enemies, projectiles, gems, swings, moves } = this.world;
     const cam = this.cameras.main;
     cam.centerOn(player.x, player.y);
 
@@ -167,12 +259,35 @@ export class RunScene extends Phaser.Scene {
       g.fillTriangle(gem.x - w, gem.y, gem.x + w, gem.y, gem.x, gem.y + h);
     }
 
+    // Beams under everything else that moves.
+    for (const slot of moves) {
+      const def = MOVES[slot.moveId];
+      if (def.form !== 'beam' || slot.activeLeft <= 0) continue;
+      const len = beamLength(slot, def);
+      g.lineStyle(def.width * slot.stats.area, COLORS.beam, 0.85);
+      g.lineBetween(player.x, player.y, player.x + slot.dirX * len, player.y + slot.dirY * len);
+    }
+
+    for (const swing of swings) {
+      const angle = Math.atan2(swing.dirY, swing.dirX);
+      g.fillStyle(COLORS.swing, 0.45 * Math.min(1, swing.lifeLeft / 0.15));
+      g.slice(swing.x, swing.y, swing.reach, angle - swing.halfArc, angle + swing.halfArc, false);
+      g.fillPath();
+    }
+
     g.fillStyle(COLORS.projectile, 1);
     for (const p of projectiles) g.fillCircle(p.x, p.y, p.radius);
 
     for (const e of enemies) {
       g.fillStyle(e.hitFlashLeft > 0 ? COLORS.flash : ENEMY_COLORS[e.kind], 1);
       g.fillCircle(e.x, e.y, e.radius);
+    }
+
+    for (const slot of moves) {
+      const def = MOVES[slot.moveId];
+      if (def.form !== 'orbit' || slot.activeLeft <= 0) continue;
+      g.fillStyle(COLORS.orbit, 1);
+      for (const ball of orbitBalls(slot, def, player)) g.fillCircle(ball.x, ball.y, ball.r);
     }
 
     // Blink while invulnerable.
@@ -194,11 +309,14 @@ export class RunScene extends Phaser.Scene {
   }
 
   private drawHud(): void {
-    const { player, time, kills, status, enemies, level, xp } = this.world;
+    const { player, time, kills, status, enemies, level, xp, moves, items } = this.world;
     const name = POKEMON[player.pokemonId].name;
+    const moveNames = moves.map((s) => MOVES[s.moveId].name).join(', ');
+    const itemNames = items.length ? items.map((id) => ITEMS[id].name).join(', ') : '—';
     this.hud.setText(
       `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${player.maxHp}   ` +
-        `${formatTime(time)} / ${formatTime(TUNING.runSeconds)}   KOs ${kills}   on field ${enemies.length}`,
+        `${formatTime(time)} / ${formatTime(TUNING.runSeconds)}   KOs ${kills}   on field ${enemies.length}\n` +
+        `Moves: ${moveNames}   Items: ${itemNames}`,
     );
 
     const cam = this.cameras.main;
@@ -210,8 +328,6 @@ export class RunScene extends Phaser.Scene {
     h.fillRect(0, 0, cam.width, 6);
     h.fillStyle(COLORS.xpFill, 1);
     h.fillRect(0, 0, (cam.width * xp) / xpToNext(level), 6);
-
-    this.toast.setPosition(cam.width / 2, 64).setAlpha(Math.min(1, this.toastLeft / 0.4));
 
     this.banner.setPosition(cam.width / 2, cam.height / 2);
     if (status === 'survived') {
@@ -227,6 +343,33 @@ export class RunScene extends Phaser.Scene {
     } else {
       this.banner.setVisible(false);
     }
+  }
+}
+
+interface CardText {
+  heading: string;
+  title: string;
+  body: string;
+  color: number;
+}
+
+function describeCard(world: World, card: Card): CardText {
+  switch (card.kind) {
+    case 'move': {
+      const move = MOVES[card.moveId];
+      return { heading: 'NEW MOVE', title: move.name, body: `${move.tags.join(' · ')}\n${move.description}`, color: 0xff9a4d };
+    }
+    case 'boost': {
+      const boost = BOOSTS[card.boostId];
+      const next = world.boosts[card.boostId] + 1;
+      return { heading: 'BOOST', title: `${boost.name} ${next}/${BOOST_MAX_PICKS}`, body: boost.description, color: 0x5ad1ff };
+    }
+    case 'item': {
+      const item = ITEMS[card.itemId];
+      return { heading: 'HELD ITEM', title: item.name, body: item.description, color: 0xc77dff };
+    }
+    case 'potion':
+      return { heading: 'POTION', title: 'Potion', body: `Heal ${POTION_HEAL} HP`, color: 0x4cd964 };
   }
 }
 
