@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import { AUGMENT_IDS, AUGMENTS, MAX_RANK, MAX_SOCKETS, REROLLS_PER_RUN } from '../data/augments';
 import { ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
 import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
 import { WAVES } from '../data/waves';
 import { damageEnemy, dropGem, findNearestEnemy } from './combat';
-import { buildCardPool, chooseCard, gainXp, makeOffer, xpToNext } from './progression';
+import {
+  augmentPool,
+  buildCardPool,
+  canReroll,
+  chooseAugment,
+  chooseCard,
+  chooseSkill,
+  gainXp,
+  isAugmentLevel,
+  makeOffer,
+  rerollAugments,
+  xpToNext,
+} from './progression';
 import { createSeededRng } from './rng';
 import { SpatialHash } from './spatialHash';
 import { computeModifiers, createSlot, refreshStats } from './stats';
@@ -410,15 +423,16 @@ describe('level-up cards', () => {
   });
 
   it('offers 3 distinct cards, or a Potion when nothing is left', () => {
-    const world = makeWorld();
+    const world = makeWorld(); // next level is 2: a normal level
     const offer = makeOffer(world);
+    if (offer.kind !== 'cards') throw new Error('expected a normal card offer');
     expect(offer.cards).toHaveLength(3);
     expect(new Set(offer.cards.map((c) => JSON.stringify(c))).size).toBe(3);
 
     for (const id of BOOST_IDS) world.boosts[id] = BOOST_MAX_PICKS;
     world.items = ITEM_IDS.slice(0, MAX_ITEMS);
     for (const id of POKEMON.charmander.learnset) world.moves.push(createSlot(id));
-    expect(makeOffer(world).cards).toEqual([{ kind: 'potion' }]);
+    expect(makeOffer(world)).toEqual({ kind: 'cards', cards: [{ kind: 'potion' }] });
   });
 
   it('pauses the run while cards wait, applies the choice and chains pending level-ups', () => {
@@ -431,13 +445,13 @@ describe('level-up cards', () => {
     run(world, 1);
     expect(world.time).toBe(pausedAt);
 
-    world.offer = { cards: [{ kind: 'move', moveId: 'fireSpin' }] };
+    world.offer = { kind: 'cards', cards: [{ kind: 'move', moveId: 'fireSpin' }] };
     chooseCard(world, 0);
     expect(world.moves.map((s) => s.moveId)).toContain('fireSpin');
     expect(world.pendingLevelUps).toBe(1);
     expect(world.offer).not.toBeNull(); // the second level-up is offered right away
 
-    world.offer = { cards: [{ kind: 'boost', boostId: 'damage' }] };
+    world.offer = { kind: 'cards', cards: [{ kind: 'boost', boostId: 'damage' }] };
     chooseCard(world, 0);
     expect(world.boosts.damage).toBe(1);
     expect(world.offer).toBeNull();
@@ -449,10 +463,149 @@ describe('level-up cards', () => {
     const world = makeWorld();
     world.player.hp = world.player.maxHp - 5;
     world.pendingLevelUps = 1;
-    world.offer = { cards: [{ kind: 'potion' }] };
+    world.offer = { kind: 'cards', cards: [{ kind: 'potion' }] };
     chooseCard(world, 0);
     expect(world.player.hp).toBe(world.player.maxHp);
     expect(POTION_HEAL).toBeGreaterThan(5);
+  });
+});
+
+describe('augments', () => {
+  /** Puts the world on a pending augment level (Lv 3) with the given moves equipped. */
+  function onAugmentLevel(moveIds: MoveId[] = []): World {
+    const world = makeWorld();
+    for (const id of moveIds) world.moves.push(createSlot(id));
+    refreshStats(world);
+    world.level = 3;
+    world.pendingLevelUps = 1;
+    world.offer = makeOffer(world);
+    return world;
+  }
+
+  it('every 3rd level is an augment level', () => {
+    expect([1, 2, 3, 4, 5, 6, 9, 10].map(isAugmentLevel)).toEqual([false, false, true, false, false, true, true, false]);
+    const world = onAugmentLevel(['scratch']);
+    expect(world.offer).toEqual({ kind: 'pickSkill', slots: [0, 1] });
+  });
+
+  it('pools only augments the move tags allow', () => {
+    const world = onAugmentLevel(['scratch', 'fireSpin']);
+    const ids = (slot: number) => augmentPool(world, slot).map((c) => c.augmentId);
+    // Ember is a projectile: projectile-only augments are allowed.
+    expect(ids(0)).toEqual(expect.arrayContaining(['multishot', 'scatter', 'velocity', 'extend']));
+    // Scratch (melee) gets neither projectile augments nor Extend.
+    expect(ids(1)).not.toContain('multishot');
+    expect(ids(1)).not.toContain('extend');
+    expect(ids(1)).toContain('powerUp');
+    // Fire Spin (orbit) can Extend but not Multishot.
+    expect(ids(2)).toContain('extend');
+    expect(ids(2)).not.toContain('velocity');
+  });
+
+  it('pick skill → 3 distinct augment cards → socketed at rank I', () => {
+    const world = onAugmentLevel();
+    chooseSkill(world, 0);
+    const offer = world.offer;
+    if (offer?.kind !== 'augment') throw new Error('expected an augment offer');
+    expect(offer.slot).toBe(0);
+    expect(offer.cards).toHaveLength(3);
+    expect(new Set(offer.cards.map((c) => c.augmentId)).size).toBe(3);
+    expect(offer.cards.every((c) => c.rank === 1)).toBe(true);
+
+    const picked = offer.cards[0]!.augmentId;
+    chooseAugment(world, 0);
+    expect(world.moves[0]!.sockets).toEqual([{ augmentId: picked, rank: 1 }]);
+    expect(world.offer).toBeNull();
+    expect(world.pendingLevelUps).toBe(0);
+  });
+
+  it('picking an owned augment ranks it up in the same socket, never a duplicate', () => {
+    const world = onAugmentLevel();
+    world.moves[0]!.sockets.push({ augmentId: 'multishot', rank: 1 });
+    world.offer = { kind: 'augment', slot: 0, cards: [{ augmentId: 'multishot', rank: 2 }] };
+    chooseAugment(world, 0);
+    expect(world.moves[0]!.sockets).toEqual([{ augmentId: 'multishot', rank: 2 }]);
+  });
+
+  it('full sockets offer only rank-ups, and maxed augments drop out', () => {
+    const world = onAugmentLevel();
+    world.moves[0]!.sockets = [
+      { augmentId: 'powerUp', rank: MAX_RANK },
+      { augmentId: 'multishot', rank: 1 },
+      { augmentId: 'velocity', rank: 2 },
+    ];
+    expect(world.moves[0]!.sockets).toHaveLength(MAX_SOCKETS);
+    expect(augmentPool(world, 0)).toEqual([
+      { augmentId: 'multishot', rank: 2 },
+      { augmentId: 'velocity', rank: 3 },
+    ]);
+  });
+
+  it('falls back to Power Surge when nothing can be augmented', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [
+      { augmentId: 'powerUp', rank: MAX_RANK },
+      { augmentId: 'multishot', rank: MAX_RANK },
+      { augmentId: 'velocity', rank: MAX_RANK },
+    ];
+    world.level = 3;
+    world.pendingLevelUps = 1;
+    world.offer = makeOffer(world);
+    expect(world.offer).toEqual({ kind: 'cards', cards: [{ kind: 'bigBoost' }] });
+    const before = world.moves[0]!.stats.damage;
+    chooseCard(world, 0);
+    expect(world.bigBoosts).toBe(1);
+    expect(world.moves[0]!.stats.damage).toBeGreaterThan(before);
+  });
+
+  it('rerolls are limited per run and only offered when the pool is bigger than the hand', () => {
+    const world = onAugmentLevel();
+    chooseSkill(world, 0);
+    expect(canReroll(world)).toBe(true);
+    for (let i = 0; i < REROLLS_PER_RUN; i++) expect(rerollAugments(world)).toBe(true);
+    expect(world.rerollsLeft).toBe(0);
+    expect(rerollAugments(world)).toBe(false);
+    expect(world.offer?.kind).toBe('augment');
+  });
+
+  it('augment ranks change move stats', () => {
+    const world = makeWorld();
+    const ember = world.moves[0]!;
+    ember.sockets = [
+      { augmentId: 'powerUp', rank: 1 },
+      { augmentId: 'multishot', rank: 2 },
+    ];
+    refreshStats(world);
+    expect(ember.stats.damage).toBeCloseTo(MOVES.ember.damage * 1.15);
+    expect(ember.stats.cooldown).toBeCloseTo(MOVES.ember.cooldown * 1.4);
+    expect(ember.stats.extraCount).toBe(2);
+  });
+
+  it('Multishot makes Ember fire extra projectiles', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [{ augmentId: 'multishot', rank: 2 }];
+    refreshStats(world);
+    spawnEnemy(world, 'rattata', 250, 0);
+    step(world, IDLE, DT);
+    expect(world.projectiles).toHaveLength(3);
+  });
+
+  it('Glass raises the damage the player takes', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [{ augmentId: 'glass', rank: 1 }];
+    refreshStats(world);
+    world.moves = [];
+    const enemy = spawnEnemy(world, 'rattata', 0, 0);
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBeCloseTo(world.player.maxHp - enemy.contactDamage * 1.1);
+  });
+
+  it('every augment has three ranks, each with card text', () => {
+    for (const id of AUGMENT_IDS) {
+      const ranks = AUGMENTS[id].ranks;
+      expect(ranks).toHaveLength(3);
+      for (const rank of ranks) expect(rank.text.length).toBeGreaterThan(0);
+    }
   });
 });
 

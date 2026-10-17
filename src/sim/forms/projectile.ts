@@ -12,15 +12,17 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
   if (!target) return false; // stays ready and fires the moment something is in range
   const { player } = world;
   const base = Math.atan2(target.y - player.y, target.x - player.x);
-  for (let i = 0; i < def.count; i++) {
-    const angle = base + (i - (def.count - 1) / 2) * SPREAD_RADIANS;
+  const count = def.count + slot.stats.extraCount;
+  const speed = def.projectileSpeed * slot.stats.speedMult;
+  for (let i = 0; i < count; i++) {
+    const angle = base + (i - (count - 1) / 2) * SPREAD_RADIANS;
     world.projectiles.push({
       id: world.nextId++,
       moveId: def.id,
       x: player.x,
       y: player.y,
-      vx: Math.cos(angle) * def.projectileSpeed,
-      vy: Math.sin(angle) * def.projectileSpeed,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
       radius: def.projectileRadius * slot.stats.area,
       damage: slot.stats.damage,
       critChance: slot.stats.critChance,

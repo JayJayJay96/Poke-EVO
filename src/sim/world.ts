@@ -1,3 +1,4 @@
+import { REROLLS_PER_RUN } from '../data/augments';
 import { ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
 import { MOVES, type MoveDef } from '../data/moves';
 import { BOOST_IDS, type BoostId } from '../data/upgrades';
@@ -53,6 +54,8 @@ export function createWorld({
     moves: [createSlot(def.signatureMove)],
     boosts: Object.fromEntries(BOOST_IDS.map((id) => [id, 0])) as Record<BoostId, number>,
     items: [],
+    bigBoosts: 0,
+    rerollsLeft: REROLLS_PER_RUN,
     mods: emptyModifiers(),
     kills: 0,
     level: 1,
@@ -291,7 +294,7 @@ function applyContactDamage(world: World): void {
     const dy = enemy.y - player.y;
     const reach = enemy.radius + player.radius;
     if (dx * dx + dy * dy > reach * reach) continue;
-    player.hp = Math.max(0, player.hp - enemy.contactDamage);
+    player.hp = Math.max(0, player.hp - enemy.contactDamage * world.mods.damageTakenMult);
     player.invulnLeft = TUNING.player.invulnSeconds;
     player.hurtFlashLeft = TUNING.player.hurtFlashSeconds;
     if (player.hp <= 0) world.status = 'fainted';

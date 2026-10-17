@@ -1,3 +1,4 @@
+import type { AugmentId } from '../data/augments';
 import type { EnemyId, PokemonId } from '../data/content';
 import type { MoveId } from '../data/moves';
 import type { BoostId, ItemId } from '../data/upgrades';
@@ -74,15 +75,26 @@ export interface Modifiers {
   pickupMult: number;
   maxHpBonus: number;
   regenPerSec: number;
+  /** Multiplier on damage the player takes (Glass). */
+  damageTakenMult: number;
 }
 
-/** Effective numbers for one equipped move; `area` and `duration` are multipliers on the move's base values. */
+/** Effective numbers for one equipped move; `area`, `duration` and `speedMult` multiply the move's base values. */
 export interface MoveStats {
   damage: number;
   cooldown: number;
   area: number;
   duration: number;
   critChance: number;
+  /** Projectiles added to each cast. */
+  extraCount: number;
+  speedMult: number;
+}
+
+export interface AugmentSocket {
+  readonly augmentId: AugmentId;
+  /** 1..3 (I–III). */
+  rank: number;
 }
 
 export interface MoveSlot {
@@ -99,6 +111,8 @@ export interface MoveSlot {
   tickLeft: number;
   /** Enemy id → seconds before this move may hit it again (orbits). */
   hitCooldowns: Map<number, number>;
+  /** Up to 3; each augment appears at most once and ranks up in place. */
+  sockets: AugmentSocket[];
   stats: MoveStats;
 }
 
@@ -117,11 +131,22 @@ export type Card =
   | { readonly kind: 'move'; readonly moveId: MoveId }
   | { readonly kind: 'boost'; readonly boostId: BoostId }
   | { readonly kind: 'item'; readonly itemId: ItemId }
-  | { readonly kind: 'potion' };
+  | { readonly kind: 'potion' }
+  | { readonly kind: 'bigBoost' };
 
-export interface LevelUpOffer {
-  readonly cards: readonly Card[];
+/** An augment offered for a move: new at rank 1, or the next rank of one already socketed. */
+export interface AugmentCard {
+  readonly augmentId: AugmentId;
+  readonly rank: number;
 }
+
+export type LevelUpOffer =
+  /** Normal level: pick one card. */
+  | { readonly kind: 'cards'; readonly cards: readonly Card[] }
+  /** Augment level, window 1: pick which move (indices into `World.moves`). */
+  | { readonly kind: 'pickSkill'; readonly slots: readonly number[] }
+  /** Augment level, window 2: pick an augment for that move. */
+  | { readonly kind: 'augment'; readonly slot: number; readonly cards: readonly AugmentCard[] };
 
 export type RunStatus = 'running' | 'fainted' | 'survived';
 
@@ -138,6 +163,9 @@ export interface World {
   /** Times each generic boost has been picked. */
   boosts: Record<BoostId, number>;
   items: ItemId[];
+  /** Power Surge picks from the augment-level fallback. */
+  bigBoosts: number;
+  rerollsLeft: number;
   mods: Modifiers;
   kills: number;
   level: number;

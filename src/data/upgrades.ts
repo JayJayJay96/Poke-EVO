@@ -50,5 +50,13 @@ export const ITEMS: Readonly<Record<ItemId, UpgradeDef<ItemId>>> = {
   expShare: { id: 'expShare', name: 'Exp. Share', description: '+50% pickup radius', effect: { pickupPct: 0.5 } },
 };
 
+/** Augment-level fallback when every socket is full and every augment is maxed. Not capped. */
+export const BIG_BOOST: UpgradeDef<'bigBoost'> = {
+  id: 'bigBoost',
+  name: 'Power Surge',
+  description: '+15% damage, +20 max HP',
+  effect: { damagePct: 0.15, maxHp: 20 },
+};
+
 export const BOOST_IDS = Object.keys(BOOSTS) as BoostId[];
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[];

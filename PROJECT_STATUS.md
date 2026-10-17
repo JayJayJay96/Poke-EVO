@@ -3,10 +3,11 @@
 ## Current state
 - **Phase:** P0 done. **P1 done: the owner playtest passed the gate on 2026-10-17.**
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
-- **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a); P2b commit follows this update.
+- **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a), `778aff0` (P2b); P2c commit follows this update.
 - **P2a done** (2026-10-17): XP gems + magnet, level curve, XP bar, wave table with Pidgey/Raticate variants and HP scaling, 15:00 "Survived!" screen.
-- **P2b done** (2026-10-17): 4 move forms, Charmander learnset, generic boosts, held items, level-up card window.
-- **Next task:** build **P2c**: 3 sockets per move, augment level every 3rd level, the 2-window augment flow + Reroll, ranks I–III, ~10 🟢 augments, build panel on pause.
+- **P2b done** (2026-10-17): 4 move forms, Charmander learnset, generic boosts, held items, level-up card window. Owner playtest: "currently is good".
+- **P2c done** (2026-10-17): sockets, augment levels, 2-window flow + reroll, ranks I–III, 10 augments, Power Surge fallback, build panel. **The build panel (Esc) still needs a check in the owner's playtest.**
+- **Next task:** build **P2d**: projectile pool + 500 cap, `?stress=1` mode (500 enemies + maxed build) with an FPS readout; record FPS. Then the owner playtests the P2 gate.
 
 ## P2 plan (owner-approved 2026-10-17)
 **Gate:** do testers press "play again" unasked? Do two testers build the same move differently?
@@ -32,6 +33,25 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 ---
 
 ## Session log
+
+### 2026-10-17 — P2c: augments
+**Files**
+- `src/data/augments.ts` (new): 10 augments with ranks I–III (rank values are totals). Stat: Power Up, Quick Cast, Enlarge, Extend (Projectile/Orbit/Beam only), Keen Edge, Multishot, Velocity (Projectile only). Trade-offs: Concentrated, Glass (player takes more damage), Scatter (Projectile only). Multishot and Scatter pay for extra projectiles with cooldown. 3 sockets, max rank III, augment every 3rd level, 2 rerolls per run.
+- `src/data/upgrades.ts`: `BIG_BOOST` (Power Surge: +15% damage, +20 max HP, uncapped) as the augment-level fallback.
+- `src/sim/types.ts`: `AugmentSocket`, `MoveSlot.sockets`, `MoveStats.extraCount/speedMult`, `Modifiers.damageTakenMult`, `LevelUpOffer` is now a union (`cards` | `pickSkill` | `augment`), world `bigBoosts`/`rerollsLeft`.
+- `src/sim/stats.ts`: augments fold into `computeMoveStats` (damage/area floors so trade-offs can't zero a move); Glass feeds `damageTakenMult`.
+- `src/sim/progression.ts`: `isAugmentLevel`, `resolvingLevel`, tag-filtered `augmentPool` (rank-ups + new augments while a socket is free), `chooseSkill`, `chooseAugment` (rank-up in place, never a duplicate), `canReroll`/`rerollAugments`, Power Surge/Potion fallbacks.
+- `src/sim/forms/projectile.ts`: extra projectiles and speed from augments. `world.ts`: contact damage × `damageTakenMult`.
+- `src/scenes/RunScene.ts`: one overlay builder for all three windows (gold frame on augment levels, red border = trade-off, gold = rank-up), keys 1–5 or click, R / click to reroll, card width shrinks to fit up to 5 moves, title shows the level being resolved, pause = build panel (moves, sockets, boosts, items, rerolls).
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **52/52 passed** (11 new: augment-level rhythm + pickSkill offer, tag-filtered pools, skill → 3 distinct augments → socketed, rank-up in place, full sockets → rank-ups only, Power Surge fallback, reroll limit, augment stat math, Multishot fires 3, Glass damage taken, rank data present); `npm run build` passed.
+- Browser (:5180): an injected 13 XP gem queued Lv 2 + Lv 3. The Lv 2 card window opened; clicking Fire Spin opened the gold "AUGMENT LEVEL 3!" window with Ember and Fire Spin showing empty sockets; clicking Ember showed 3 rank-I cards (trade-offs in red) with "[R] Reroll (2 left)"; clicking Reroll dealt new cards ("1 left"); picking Power Up gave Ember `powerUp` rank 1 and damage 11.5 (10 × 1.15). No new console errors (only the stale pre-reload HMR entries).
+- **Found and fixed during the check:** the window title showed the current level instead of the level being resolved when several level-ups were queued.
+- **Not verified in the browser:** keyboard picks (1–5, R) and the Esc build panel. The pane's page was reported hidden, so Phaser's loop barely ran and dropped key input. Keys worked in earlier phases, and the pick/reroll logic is covered by unit tests and click checks.
+
+**Notes**
+- Augment numbers are provisional; watch Scatter/Multishot stacking on Ember in playtests (worst case 10 projectiles per cast at cooldown ×2.9).
 
 ### 2026-10-17 — P2b: move framework and level-up cards
 **Files**
