@@ -41,12 +41,24 @@ export function abilityDamageMult(world: World): number {
   return 1 + ABILITIES[POKEMON[world.player.pokemonId].ability].damageBonus;
 }
 
-/** Applies a hit, rolling for a crit. A killing hit counts the KO and drops the gem. */
-export function damageEnemy(world: World, enemy: Enemy, damage: number, critChance = 0): void {
+/**
+ * Applies a hit, rolling for a crit. Live multipliers (ability, Blaze Core's
+ * `missingHpBonus`) use the player's HP at the moment the hit lands.
+ * A killing hit counts the KO and drops the gem.
+ */
+export function damageEnemy(
+  world: World,
+  enemy: Enemy,
+  damage: number,
+  critChance = 0,
+  missingHpBonus = 0,
+): void {
   if (enemy.hp <= 0) return;
   // Only consume RNG when a crit is possible, so crit-free runs stay reproducible.
   const crit = critChance > 0 && world.rng.next() < critChance;
-  enemy.hp -= (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world);
+  const { hp, maxHp } = world.player;
+  const missing = missingHpBonus > 0 ? missingHpBonus * Math.max(0, 1 - hp / maxHp) : 0;
+  enemy.hp -= (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world) * (1 + missing);
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
   if (enemy.hp <= 0) {
     world.kills++;

@@ -1,4 +1,5 @@
 import type { MoveTag } from './content';
+import type { MoveId } from './moves';
 
 // Move augments (PROJECT.md §8, owner decisions D7/D8). All values provisional.
 
@@ -12,7 +13,11 @@ export type AugmentId =
   | 'glass'
   | 'multishot'
   | 'scatter'
-  | 'velocity';
+  | 'velocity'
+  | 'wideBlast'
+  | 'linger'
+  | 'blazeCore'
+  | 'megaFlare';
 
 /** Values are the totals at that rank, not increments. Percentages are fractions. */
 export interface AugmentEffect {
@@ -27,6 +32,12 @@ export interface AugmentEffect {
   readonly projectileSpeedPct?: number;
   /** Player-wide: extra damage taken from every hit. */
   readonly damageTakenPct?: number;
+  /** Explosion and crater radius only. */
+  readonly blastRadiusPct?: number;
+  readonly zoneDurationPct?: number;
+  readonly zoneDamagePct?: number;
+  /** Extra damage at 0 HP, scaling linearly with missing HP (applied when the hit lands). */
+  readonly missingHpDamagePct?: number;
 }
 
 export interface AugmentRank {
@@ -40,6 +51,8 @@ export interface AugmentDef {
   readonly kind: 'stat' | 'tradeoff';
   /** The move needs at least one of these tags; empty means any move. */
   readonly requiresAny: readonly MoveTag[];
+  /** Signature-exclusive: only these moves can roll it (§8.2). */
+  readonly exclusiveTo?: readonly MoveId[];
   readonly ranks: readonly [AugmentRank, AugmentRank, AugmentRank];
 }
 
@@ -159,6 +172,62 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
       { effect: { projectileSpeedPct: 0.3, damagePct: 0.05 }, text: '+30% projectile speed, +5% damage' },
       { effect: { projectileSpeedPct: 0.6, damagePct: 0.1 }, text: '+60% projectile speed, +10% damage' },
       { effect: { projectileSpeedPct: 1, damagePct: 0.15 }, text: '+100% projectile speed, +15% damage' },
+    ],
+  },
+  wideBlast: {
+    id: 'wideBlast',
+    name: 'Wide Blast',
+    kind: 'stat',
+    requiresAny: ['Area'],
+    ranks: [
+      { effect: { blastRadiusPct: 0.25 }, text: '+25% blast radius' },
+      { effect: { blastRadiusPct: 0.5 }, text: '+50% blast radius' },
+      { effect: { blastRadiusPct: 0.8 }, text: '+80% blast radius' },
+    ],
+  },
+  linger: {
+    id: 'linger',
+    name: 'Linger',
+    kind: 'stat',
+    requiresAny: ['Zone'],
+    ranks: [
+      { effect: { zoneDurationPct: 0.4 }, text: '+40% zone duration' },
+      { effect: { zoneDurationPct: 0.8 }, text: '+80% zone duration' },
+      { effect: { zoneDurationPct: 1.2 }, text: '+120% zone duration' },
+    ],
+  },
+  // Charmander-line exclusives (D10).
+  blazeCore: {
+    id: 'blazeCore',
+    name: 'Blaze Core',
+    kind: 'stat',
+    requiresAny: [],
+    exclusiveTo: ['ember', 'flameBurst', 'blastBurn'],
+    ranks: [
+      { effect: { missingHpDamagePct: 0.3 }, text: 'Up to +30% damage as your HP drops' },
+      { effect: { missingHpDamagePct: 0.5 }, text: 'Up to +50% damage as your HP drops' },
+      { effect: { missingHpDamagePct: 0.8 }, text: 'Up to +80% damage as your HP drops' },
+    ],
+  },
+  megaFlare: {
+    id: 'megaFlare',
+    name: 'Mega Flare',
+    kind: 'stat',
+    requiresAny: ['Zone'],
+    exclusiveTo: ['blastBurn'],
+    ranks: [
+      {
+        effect: { blastRadiusPct: 0.2, zoneDurationPct: 0.3, zoneDamagePct: 0.3 },
+        text: 'Crater +20% size, +30% duration, +30% damage',
+      },
+      {
+        effect: { blastRadiusPct: 0.35, zoneDurationPct: 0.5, zoneDamagePct: 0.5 },
+        text: 'Crater +35% size, +50% duration, +50% damage',
+      },
+      {
+        effect: { blastRadiusPct: 0.5, zoneDurationPct: 0.8, zoneDamagePct: 0.8 },
+        text: 'Crater +50% size, +80% duration, +80% damage',
+      },
     ],
   },
 };

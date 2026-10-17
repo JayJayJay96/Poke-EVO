@@ -14,6 +14,7 @@ import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
 import type { Enemy, InputState, MoveSlot, World } from './types';
+import { updateZones } from './zones';
 
 const ENEMY_IDS = Object.keys(ENEMIES) as EnemyId[];
 
@@ -54,8 +55,10 @@ export function createWorld({
     projectiles: [],
     projectilePool: [],
     gems: [],
+    zones: [],
     swings: [],
-    moves: [createSlot(def.signatureMove)],
+    blasts: [],
+    moves: [createSlot(firstStage.signatureMove)],
     boosts: Object.fromEntries(BOOST_IDS.map((id) => [id, 0])) as Record<BoostId, number>,
     items: [],
     bigBoosts: 0,
@@ -93,6 +96,7 @@ export function step(world: World, input: InputState, dt: number): void {
   moveEnemies(world, dt);
   updateMoves(world, dt);
   updateProjectiles(world, dt);
+  updateZones(world, dt);
   updateGems(world, dt);
   applyContactDamage(world);
   removeDead(world);
@@ -168,6 +172,7 @@ function tickTimers(world: World, dt: number): void {
     enemy.hitFlashLeft = Math.max(0, enemy.hitFlashLeft - dt);
   }
   for (const swing of world.swings) swing.lifeLeft -= dt;
+  for (const blast of world.blasts) blast.lifeLeft -= dt;
 }
 
 function movePlayer(world: World, input: InputState, dt: number): void {
@@ -326,7 +331,9 @@ function removeDead(world: World): void {
     return !p.dead;
   });
   compact(world.gems, (g) => !g.collected);
+  compact(world.zones, (z) => z.lifeLeft > 0);
   compact(world.swings, (s) => s.lifeLeft > 0);
+  compact(world.blasts, (b) => b.lifeLeft > 0);
 }
 
 function lerp(a: number, b: number, t: number): number {

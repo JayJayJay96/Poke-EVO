@@ -6,6 +6,7 @@ import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } fro
 import { isAbilityActive } from '../sim/combat';
 import { dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
 import { beamLength } from '../sim/forms/beam';
+import { BLAST_SECONDS } from '../sim/forms/projectile';
 import { orbitBalls } from '../sim/forms/orbit';
 import {
   canReroll,
@@ -40,6 +41,9 @@ const COLORS = {
   cardBg: 0x1c2233,
   augment: 0xffd34d,
   blaze: 0xff3b30,
+  crater: 0xff6a00,
+  blast: 0xffd27f,
+  exclusive: 0xff8c42,
 } as const;
 const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   rattata: 0x9b6bc8,
@@ -460,6 +464,9 @@ export class RunScene extends Phaser.Scene {
     const stages = POKEMON[pokemonId].stages;
     const from = stages[evolution.fromStage]!;
     const to = stages[evolution.toStage]!;
+    const fromMove = MOVES[from.signatureMove];
+    const toMove = MOVES[to.signatureMove];
+    const newTags = toMove.tags.filter((tag) => !fromMove.tags.includes(tag));
     const dim = this.add
       .rectangle(0, 0, cam.width, cam.height, 0x000000, 0.6)
       .setOrigin(0)
@@ -468,13 +475,15 @@ export class RunScene extends Phaser.Scene {
     const lines = [
       `${from.name} evolved into ${to.name}!`,
       '',
-      `Max HP   ${from.maxHp} → ${to.maxHp}`,
-      `Speed    ${from.speed} → ${to.speed}`,
-      `Damage   ×${from.damageMult.toFixed(2)} → ×${to.damageMult.toFixed(2)}`,
-      `Size     ${from.radius} → ${to.radius}`,
-      '',
-      '[Enter / Space / 1 / click] Continue',
+      `Max HP     ${from.maxHp} → ${to.maxHp}`,
+      `Speed      ${from.speed} → ${to.speed}`,
+      `Damage     ×${from.damageMult.toFixed(2)} → ×${to.damageMult.toFixed(2)}`,
+      `Size       ${from.radius} → ${to.radius}`,
+      `Signature  ${fromMove.name} → ${toMove.name}`,
+      `           ${toMove.description}`,
     ];
+    if (newTags.length > 0) lines.push(`New tags   ${newTags.join(', ')}  (new augments unlocked)`);
+    lines.push('', 'Augments carried over.', '', '[Enter / Space / 1 / click] Continue');
     const card = this.add
       .text(cam.width / 2, cam.height / 2, lines.join('\n'), {
         fontFamily: 'monospace',
@@ -526,7 +535,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private draw(): void {
-    const { player, enemies, projectiles, gems, swings, moves } = this.world;
+    const { player, enemies, projectiles, gems, swings, moves, zones, blasts } = this.world;
     const cam = this.cameras.main;
     cam.centerOn(player.x, player.y);
 
@@ -542,6 +551,15 @@ export class RunScene extends Phaser.Scene {
     }
     for (let y = Math.floor(top / GRID_SIZE) * GRID_SIZE; y <= top + cam.height; y += GRID_SIZE) {
       g.lineBetween(left, y, left + cam.width, y);
+    }
+
+    // Burning craters on the ground, fading out at the end.
+    for (const zone of zones) {
+      const fade = Math.min(1, zone.lifeLeft / 0.5);
+      g.fillStyle(COLORS.crater, 0.22 * fade);
+      g.fillCircle(zone.x, zone.y, zone.radius);
+      g.lineStyle(2, COLORS.crater, 0.6 * fade);
+      g.strokeCircle(zone.x, zone.y, zone.radius);
     }
 
     // XP gems as small diamonds.
@@ -572,6 +590,13 @@ export class RunScene extends Phaser.Scene {
 
     g.fillStyle(COLORS.projectile, 1);
     for (const p of projectiles) g.fillCircle(p.x, p.y, p.radius);
+
+    // Explosion flashes: bright, quick, slightly expanding.
+    for (const blast of blasts) {
+      const t = 1 - blast.lifeLeft / BLAST_SECONDS;
+      g.fillStyle(COLORS.blast, 0.55 * (1 - t));
+      g.fillCircle(blast.x, blast.y, blast.radius * (0.7 + 0.3 * t));
+    }
 
     for (const e of enemies) {
       g.fillStyle(e.hitFlashLeft > 0 ? COLORS.flash : ENEMY_COLORS[e.kind], 1);
@@ -698,11 +723,26 @@ function describeSkill(slot: MoveSlot): CardView {
 function describeAugment(card: AugmentCard): CardView {
   const def = AUGMENTS[card.augmentId];
   const rankUp = card.rank > 1;
+  const exclusive = def.exclusiveTo !== undefined;
+  const heading = rankUp
+    ? 'RANK UP ⬆'
+    : exclusive
+      ? 'NEW · EXCLUSIVE'
+      : def.kind === 'tradeoff'
+        ? 'NEW · TRADE-OFF'
+        : 'NEW AUGMENT';
+  const color = rankUp
+    ? COLORS.augment
+    : exclusive
+      ? COLORS.exclusive
+      : def.kind === 'tradeoff'
+        ? 0xff6b6b
+        : 0x5ad1ff;
   return {
-    heading: rankUp ? 'RANK UP ⬆' : def.kind === 'tradeoff' ? 'NEW · TRADE-OFF' : 'NEW AUGMENT',
+    heading,
     title: `${def.name} ${RANK_NUMERALS[card.rank - 1]}`,
     body: def.ranks[card.rank - 1].text,
-    color: rankUp ? COLORS.augment : def.kind === 'tradeoff' ? 0xff6b6b : 0x5ad1ff,
+    color,
   };
 }
 

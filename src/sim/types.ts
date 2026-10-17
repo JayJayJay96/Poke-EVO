@@ -53,8 +53,42 @@ export interface Projectile {
   radius: number;
   damage: number;
   critChance: number;
+  /** Blaze Core: extra damage at 0 HP, scaled by missing HP when the hit lands. */
+  missingHpBonus: number;
+  /** 0 = no explosion. */
+  explodeRadius: number;
+  explodeFraction: number;
+  /** 0 = no crater. */
+  craterRadius: number;
+  craterDuration: number;
+  craterTick: number;
+  /** Damage per crater tick. */
+  craterDamage: number;
   lifeLeft: number;
   dead: boolean;
+}
+
+/** A lingering damage area (Blast Burn's crater). Never spawns further effects. */
+export interface Zone {
+  readonly id: number;
+  x: number;
+  y: number;
+  radius: number;
+  lifeLeft: number;
+  /** Total lifetime, for fading. */
+  duration: number;
+  tickInterval: number;
+  tickLeft: number;
+  damage: number;
+  critChance: number;
+}
+
+/** An explosion kept briefly so it can be drawn. Presentation only. */
+export interface Blast {
+  x: number;
+  y: number;
+  radius: number;
+  lifeLeft: number;
 }
 
 export interface Gem {
@@ -92,6 +126,11 @@ export interface MoveStats {
   /** Projectiles added to each cast. */
   extraCount: number;
   speedMult: number;
+  /** Explosion and crater radius. */
+  blastRadiusMult: number;
+  zoneDurationMult: number;
+  zoneDamageMult: number;
+  missingHpBonus: number;
 }
 
 export interface AugmentSocket {
@@ -101,7 +140,8 @@ export interface AugmentSocket {
 }
 
 export interface MoveSlot {
-  readonly moveId: MoveId;
+  /** Changes only for the signature slot, when evolving to the next tier. */
+  moveId: MoveId;
   cooldownLeft: number;
   /** Seconds an orbit or beam has left on screen. */
   activeLeft: number;
@@ -173,7 +213,9 @@ export interface World {
   /** Dead projectiles waiting to be reused. */
   projectilePool: Projectile[];
   gems: Gem[];
+  zones: Zone[];
   swings: Swing[];
+  blasts: Blast[];
   /** Slot 0 is the signature move; the rest are learnset moves. */
   moves: MoveSlot[];
   /** Times each generic boost has been picked. */

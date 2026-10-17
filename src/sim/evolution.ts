@@ -28,6 +28,10 @@ export function finishEvolutionCinematic(world: World): void {
   const evo = world.evolution;
   if (evo?.phase !== 'cinematic') return;
   world.player.stage = evo.toStage;
+  // The signature slot upgrades to the new tier. Its augments stay valid:
+  // each tier keeps the previous tags and only adds new ones (§8.6).
+  const signature = world.moves[0];
+  if (signature) signature.moveId = POKEMON[world.player.pokemonId].stages[evo.toStage]!.signatureMove;
   refreshStats(world);
   evo.phase = 'summary';
 }

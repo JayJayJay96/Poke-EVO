@@ -74,8 +74,9 @@ export function augmentPool(world: World, slotIndex: number): AugmentCard[] {
   if (slot.sockets.length < MAX_SOCKETS) {
     for (const id of AUGMENT_IDS) {
       if (slot.sockets.some((s) => s.augmentId === id)) continue;
-      const { requiresAny } = AUGMENTS[id];
+      const { requiresAny, exclusiveTo } = AUGMENTS[id];
       if (requiresAny.length > 0 && !requiresAny.some((tag) => tags.includes(tag))) continue;
+      if (exclusiveTo && !exclusiveTo.includes(slot.moveId)) continue;
       pool.push({ augmentId: id, rank: 1 });
     }
   }

@@ -25,6 +25,7 @@ import { computeModifiers, createSlot, refreshStats } from './stats';
 import { STRESS_ENEMIES, setupStress, topUpStress } from './stress';
 import type { InputState, Projectile, World } from './types';
 import { createWorld, pickEnemyKind, spawnEnemy, step, waveAt } from './world';
+import { spawnZone } from './zones';
 
 const DT = TUNING.stepSeconds;
 const IDLE: InputState = { moveX: 0, moveY: 0 };
@@ -624,6 +625,13 @@ describe('performance budgets', () => {
       radius: 1,
       damage: 0,
       critChance: 0,
+      missingHpBonus: 0,
+      explodeRadius: 0,
+      explodeFraction: 0,
+      craterRadius: 0,
+      craterDuration: 0,
+      craterTick: 0,
+      craterDamage: 0,
       lifeLeft: 99,
       dead: false,
     };
@@ -731,7 +739,8 @@ describe('evolution', () => {
     expect(world.player.hp).toBe(50 + (s1.maxHp - stages[0]!.maxHp));
     expect(world.player.speed).toBeCloseTo(s1.speed);
     expect(world.player.radius).toBe(s1.radius);
-    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * s1.damageMult);
+    expect(world.moves[0]!.moveId).toBe(s1.signatureMove);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES[s1.signatureMove].damage * s1.damageMult);
     expect(world.evolution?.phase).toBe('summary');
   });
 
@@ -767,6 +776,117 @@ describe('evolution', () => {
     finishEvolutionCinematic(world);
     expect(world.evolution).toBeNull();
     expect(world.player.stage).toBe(0);
+  });
+});
+
+describe('signature tiers', () => {
+  const stages = POKEMON.charmander.stages;
+
+  /** Pushes the world straight into the summary of evolving to `toStage`. */
+  function evolveTo(world: World, toStage: number): void {
+    world.evolution = { fromStage: world.player.stage, toStage, phase: 'cinematic' };
+    finishEvolutionCinematic(world);
+    world.evolution = null;
+  }
+
+  it('each tier keeps every tag of the previous tier (evolution only adds tags)', () => {
+    for (let i = 1; i < stages.length; i++) {
+      const before = MOVES[stages[i - 1]!.signatureMove].tags;
+      const after = MOVES[stages[i]!.signatureMove].tags;
+      for (const tag of before) expect(after).toContain(tag);
+      expect(after.length).toBeGreaterThan(before.length);
+    }
+  });
+
+  it('evolving swaps the signature move in place and keeps its augments', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [{ augmentId: 'powerUp', rank: 1 }];
+    refreshStats(world);
+    evolveTo(world, 1);
+    const slot = world.moves[0]!;
+    expect(slot.moveId).toBe('flameBurst');
+    expect(slot.sockets).toEqual([{ augmentId: 'powerUp', rank: 1 }]);
+    expect(slot.stats.damage).toBeCloseTo(MOVES.flameBurst.damage * stages[1]!.damageMult * 1.15);
+  });
+
+  it('carried augments stay valid and never duplicate after two evolutions', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [
+      { augmentId: 'multishot', rank: 1 },
+      { augmentId: 'blazeCore', rank: 1 },
+    ];
+    evolveTo(world, 1);
+    evolveTo(world, 2);
+    expect(world.moves[0]!.moveId).toBe('blastBurn');
+    const pool = augmentPool(world, 0);
+    const newOnes = pool.filter((c) => c.rank === 1).map((c) => c.augmentId);
+    expect(newOnes).not.toContain('multishot');
+    expect(newOnes).not.toContain('blazeCore');
+    expect(pool).toContainEqual({ augmentId: 'multishot', rank: 2 });
+  });
+
+  it('Flame Burst splashes enemies near the impact and spares those further out', () => {
+    const world = worldWithMove('flameBurst');
+    world.player.invulnLeft = 99;
+    const primary = spawnEnemy(world, 'raticate', 150, 0);
+    const nearby = spawnEnemy(world, 'raticate', 150, 30);
+    const far = spawnEnemy(world, 'raticate', 150, 130);
+    for (const e of [primary, nearby, far]) e.speed = 0;
+    run(world, 0.5);
+    const def = MOVES.flameBurst;
+    if (def.form !== 'projectile' || !def.explosion) throw new Error('flameBurst should explode');
+    expect(primary.hp).toBeCloseTo(primary.maxHp - def.damage);
+    expect(nearby.hp).toBeCloseTo(nearby.maxHp - def.damage * def.explosion.damageFraction);
+    expect(far.hp).toBe(far.maxHp);
+  });
+
+  it('Blast Burn leaves a crater that ticks for its duration, then disappears', () => {
+    const world = worldWithMove('blastBurn');
+    world.player.invulnLeft = 99;
+    const def = MOVES.blastBurn;
+    if (def.form !== 'projectile' || !def.crater || !def.explosion) throw new Error('blastBurn should leave a crater');
+    const target = spawnEnemy(world, 'raticate', 150, 0, 20);
+    target.speed = 0;
+    run(world, 0.5);
+    expect(world.zones).toHaveLength(1);
+    world.moves[0]!.cooldownLeft = 999; // isolate the crater from further casts
+    const afterImpact = target.hp;
+    run(world, def.crater.duration + 0.5);
+    const tickDamage = def.damage * def.crater.damageFraction;
+    const ticks = Math.round((afterImpact - target.hp) / tickDamage);
+    const expected = def.crater.duration / def.crater.tickInterval;
+    expect(ticks).toBeGreaterThanOrEqual(expected - 1);
+    expect(ticks).toBeLessThanOrEqual(expected);
+    expect(world.zones).toHaveLength(0);
+  });
+
+  it('the zone budget skips new zones once full', () => {
+    const world = makeWorld();
+    for (let i = 0; i < TUNING.budget.maxZones; i++) expect(spawnZone(world, i * 10, 0, 20, 5, 0.5, 1, 0)).toBe(true);
+    expect(spawnZone(world, 0, 0, 20, 5, 0.5, 1, 0)).toBe(false);
+    expect(world.zones).toHaveLength(TUNING.budget.maxZones);
+  });
+
+  it('tag and exclusive augments only appear on the right moves', () => {
+    const world = makeWorld();
+    world.moves = ['ember', 'flameBurst', 'blastBurn', 'scratch'].map((id) => createSlot(id as MoveId));
+    const has = (slot: number, id: string) => augmentPool(world, slot).some((c) => c.augmentId === id);
+    expect(has(0, 'wideBlast')).toBe(false);
+    expect(has(1, 'wideBlast')).toBe(true);
+    expect(has(1, 'linger')).toBe(false);
+    expect(has(2, 'linger')).toBe(true);
+    expect(has(0, 'blazeCore')).toBe(true);
+    expect(has(3, 'blazeCore')).toBe(false);
+    expect(has(1, 'megaFlare')).toBe(false);
+    expect(has(2, 'megaFlare')).toBe(true);
+  });
+
+  it('Blaze Core scales damage with missing HP when the hit lands', () => {
+    const world = makeWorld();
+    world.player.hp = world.player.maxHp * 0.5; // above Blaze's 30% threshold
+    const enemy = spawnEnemy(world, 'raticate', 500, 0);
+    damageEnemy(world, enemy, 10, 0, 0.8);
+    expect(enemy.hp).toBeCloseTo(enemy.maxHp - 10 * (1 + 0.8 * 0.5));
   });
 });
 

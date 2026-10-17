@@ -22,6 +22,8 @@ export interface EvolutionStage {
   readonly radius: number;
   /** Multiplies all of the player's damage. */
   readonly damageMult: number;
+  /** Signature tier at this stage; replaces the previous tier in slot 0, keeping its augments. */
+  readonly signatureMove: MoveId;
 }
 
 export interface PokemonDef {
@@ -29,7 +31,6 @@ export interface PokemonDef {
   readonly types: readonly PokemonType[];
   readonly stages: readonly EvolutionStage[];
   readonly ability: AbilityId;
-  readonly signatureMove: MoveId;
   /** Moves that can be offered on level-up cards. */
   readonly learnset: readonly MoveId[];
 }
@@ -63,12 +64,11 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
     types: ['Fire'],
     // Stage numbers are provisional (D10).
     stages: [
-      { name: 'Charmander', level: 1, maxHp: 100, speed: 150, radius: 12, damageMult: 1 },
-      { name: 'Charmeleon', level: 10, maxHp: 140, speed: 160, radius: 15, damageMult: 1.15 },
-      { name: 'Charizard', level: 25, maxHp: 200, speed: 175, radius: 19, damageMult: 1.35 },
+      { name: 'Charmander', level: 1, maxHp: 100, speed: 150, radius: 12, damageMult: 1, signatureMove: 'ember' },
+      { name: 'Charmeleon', level: 10, maxHp: 140, speed: 160, radius: 15, damageMult: 1.15, signatureMove: 'flameBurst' },
+      { name: 'Charizard', level: 25, maxHp: 200, speed: 175, radius: 19, damageMult: 1.35, signatureMove: 'blastBurn' },
     ],
     ability: 'blaze',
-    signatureMove: 'ember',
     // P2 subset (D9); Smokescreen, Wing Attack and Slash come later.
     learnset: ['scratch', 'fireSpin', 'dragonRage'],
   },
@@ -154,5 +154,7 @@ export const TUNING = {
   budget: {
     /** Past this, a cast spawns fewer projectiles that carry the missing damage. */
     maxProjectiles: 500,
+    /** Lingering zones (craters); new ones are skipped past this. */
+    maxZones: 40,
   },
 } as const;

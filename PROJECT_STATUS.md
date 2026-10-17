@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **Next: build P3b** (Flame Burst / Blast Burn tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare).
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **Next: build P3c** (on-hit hooks + status effects; Pierce, Homing, Return, Knockback, Burn, Lifesteal).
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
 - **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a), `778aff0` (P2b), `9d0c3b1` (P2c); P2d commit follows this update.
 - **P2d done** (2026-10-17): projectile pool + 500 cap, `?stress=1` mode, `?perf=1` readout, `npm run bench`. Stress: ~160 FPS with 500 enemies + maxed build; sim 0.82 ms/step (bench mean).
@@ -44,6 +44,26 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-17 — P3b: signature tiers, zones, tag/exclusive augments
+**Files**
+- `src/data/moves.ts`: `flameBurst` `[Fire, Projectile, Area]` (13 dmg, explosion r45 × 60% splash) and `blastBurn` `[+Zone]` (18 dmg, cd 1.2, explosion r65 × 70%, crater r55 for 2.5 s ticking every 0.5 s at 30%); optional `explosion` / `crater` on projectile defs. Numbers provisional.
+- `src/data/content.ts`: each `EvolutionStage` names its `signatureMove` (ember → flameBurst → blastBurn); `TUNING.budget.maxZones = 40`.
+- `src/data/augments.ts`: Wide Blast (Area: blast radius), Linger (Zone: duration), Blaze Core (exclusive to the 3 signature tiers: up to +30/50/80% damage as HP drops), Mega Flare (exclusive to Blast Burn: crater size/duration/damage); `exclusiveTo` field.
+- `src/sim/zones.ts` (new): `spawnZone` (respects the budget), `updateZones` (ticks damage; zones never spawn effects).
+- `src/sim/forms/projectile.ts`: projectiles carry explosion/crater payloads scaled by area, blast radius, duration, zone multipliers; `detonate` on hit splashes everyone else in the radius and drops the crater; explosion flashes recorded in `world.blasts`.
+- `src/sim/evolution.ts`: evolving swaps slot 0 to the new tier in place, keeping its sockets.
+- `src/sim/stats.ts` / `combat.ts` / `progression.ts`: new move stats (blast radius, zone duration/damage, missing-HP bonus); `damageEnemy` applies Blaze Core live; the pool honours `exclusiveTo`.
+- `src/scenes/RunScene.ts`: crater fill + ring fading out, explosion flash, summary card shows signature change + new tags + "Augments carried over", exclusive augment cards (orange, "NEW · EXCLUSIVE").
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **71/71 passed** (8 new: tiers only add tags, signature swap keeps augments + correct damage, carried augments rank up and never duplicate, Flame Burst splash near/far, Blast Burn crater ticks 4–5 times over 2.5 s then expires, zone budget, tag/exclusive pools per move, Blaze Core scaling); `npm run build` passed; `npm run bench` 0.91 ms/step mean.
+- Browser (pane visible): a 1300 XP gem → Lv 25; two cinematics chained (Charmander → Charmeleon with `flameBurst`, → Charizard with `blastBurn`); against a 12-enemy cluster Blast Burn hurt 9 enemies via splash and left 3 craters, drawn as orange rings; HUD "Charizard Lv 25 … Moves: Blast Burn".
+- Console: only HMR-stamped errors from mid-edit states before the reload.
+
+**Notes**
+- The explosion flash lasts 0.18 s and wasn't caught in a screenshot; the splash damage was observed through the sim.
+- The stress build still uses Ember; consider a Blast Burn stress variant when zones get heavier (Bulbasaur, P4).
 
 ### 2026-10-17 — P3a: evolution core
 **Files**

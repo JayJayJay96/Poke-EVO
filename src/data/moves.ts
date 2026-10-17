@@ -2,7 +2,24 @@ import type { MoveTag } from './content';
 
 // Move definitions. All numbers provisional (PROJECT.md).
 
-export type MoveId = 'ember' | 'scratch' | 'fireSpin' | 'dragonRage';
+export type MoveId = 'ember' | 'flameBurst' | 'blastBurn' | 'scratch' | 'fireSpin' | 'dragonRage';
+
+/** Splash around the impact point. */
+export interface ExplosionDef {
+  readonly radius: number;
+  /** Splash damage to everyone else in the radius, as a fraction of the hit. */
+  readonly damageFraction: number;
+}
+
+/** A burning area left at the impact point. */
+export interface CraterDef {
+  readonly radius: number;
+  /** Seconds the crater stays. */
+  readonly duration: number;
+  readonly tickInterval: number;
+  /** Damage per tick, as a fraction of the hit. */
+  readonly damageFraction: number;
+}
 
 interface MoveDefBase {
   readonly id: MoveId;
@@ -24,6 +41,9 @@ export interface ProjectileMoveDef extends MoveDefBase {
   readonly projectileRadius: number;
   readonly projectileLifetime: number;
   readonly count: number;
+  /** Signature tiers gain these as they gain the Area / Zone tags. */
+  readonly explosion?: ExplosionDef;
+  readonly crater?: CraterDef;
 }
 
 /** Instant arc swipe toward the nearest enemy. */
@@ -77,6 +97,38 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileRadius: 6,
     projectileLifetime: 1.2,
     count: 1,
+  },
+  // Charmander-line signature tiers: each keeps the previous tags and adds one (§8.6).
+  flameBurst: {
+    id: 'flameBurst',
+    name: 'Flame Burst',
+    description: 'Fireball that bursts on impact',
+    tags: ['Fire', 'Projectile', 'Area'],
+    form: 'projectile',
+    cooldown: 1.0,
+    damage: 13,
+    range: 340,
+    projectileSpeed: 380,
+    projectileRadius: 7,
+    projectileLifetime: 1.2,
+    count: 1,
+    explosion: { radius: 45, damageFraction: 0.6 },
+  },
+  blastBurn: {
+    id: 'blastBurn',
+    name: 'Blast Burn',
+    description: 'Huge blast that leaves a burning crater',
+    tags: ['Fire', 'Projectile', 'Area', 'Zone'],
+    form: 'projectile',
+    cooldown: 1.2,
+    damage: 18,
+    range: 360,
+    projectileSpeed: 360,
+    projectileRadius: 9,
+    projectileLifetime: 1.3,
+    count: 1,
+    explosion: { radius: 65, damageFraction: 0.7 },
+    crater: { radius: 55, duration: 2.5, tickInterval: 0.5, damageFraction: 0.3 },
   },
   scratch: {
     id: 'scratch',
