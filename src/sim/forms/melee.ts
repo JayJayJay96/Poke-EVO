@@ -1,6 +1,7 @@
 import type { MeleeMoveDef } from '../../data/moves';
 import { MAX_ENEMY_RADIUS, damageEnemy, findNearestEnemy, makeHitInfo, queryEnemies } from '../combat';
 import type { MoveSlot, World } from '../types';
+import { spawnZone } from '../zones';
 
 /** How long the swipe stays visible. Presentation only. */
 export const SWING_SECONDS = 0.15;
@@ -41,5 +42,27 @@ export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): bool
   }
 
   world.swings.push({ x: player.x, y: player.y, dirX, dirY, reach, halfArc, lifeLeft: SWING_SECONDS });
+
+  // Frenzy Plant: the swing leaves a root field on its target (part of the move, not a proc).
+  const field = def.field;
+  if (field) {
+    const s = slot.stats;
+    spawnZone(
+      world,
+      target.x,
+      target.y,
+      field.radius * s.area * s.blastRadiusMult,
+      field.duration * s.duration * s.zoneDurationMult,
+      field.tickInterval,
+      s.damage * field.damageFraction * s.zoneDamageMult,
+      s.critChance,
+      {
+        slow: field.onTick?.slow ?? 0,
+        stun: field.onTick?.stun ?? 0,
+        poisonDps: s.damage * (field.onTick?.poisonPct ?? 0),
+        attackType: s.attackType,
+      },
+    );
+  }
   return true;
 }

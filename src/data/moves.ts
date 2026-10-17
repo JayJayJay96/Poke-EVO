@@ -22,6 +22,17 @@ export type MoveId =
   | 'surf'
   | 'hydroPump'
   | 'flashCannon'
+  // Bulbasaur line (P4c)
+  | 'vineWhip'
+  | 'powerWhip'
+  | 'frenzyPlant'
+  | 'razorLeaf'
+  | 'leechSeed'
+  | 'poisonPowder'
+  | 'sleepPowder'
+  | 'sludge'
+  | 'petalDance'
+  | 'solarBeam'
   // Shared / other lines
   | 'tackle'
   | 'iceBeam';
@@ -53,6 +64,8 @@ export interface InnateEffects {
   readonly poisonPct?: number;
   /** Innate push distance in px (adds to the Knockback augment). */
   readonly knockback?: number;
+  /** Leech Seed: damage per second as a fraction of the hit, for TUNING.status.seedSeconds; heals the player. */
+  readonly seedPct?: number;
 }
 
 interface MoveDefBase {
@@ -102,12 +115,23 @@ export interface ZoneMoveDef extends MoveDefBase {
   readonly tickInterval: number;
 }
 
+/** A lingering field left by a melee swing on its target (Frenzy Plant's roots). */
+export interface FieldDef {
+  readonly radius: number;
+  readonly duration: number;
+  readonly tickInterval: number;
+  /** Damage per tick as a fraction of the swing's damage. */
+  readonly damageFraction: number;
+  readonly onTick?: InnateEffects;
+}
+
 /** Instant arc swipe toward the nearest enemy. */
 export interface MeleeMoveDef extends MoveDefBase {
   readonly form: 'melee';
   /** px from the player's centre. */
   readonly reach: number;
   readonly arcDegrees: number;
+  readonly field?: FieldDef;
 }
 
 /** Balls circling the player for a while after each cast. */
@@ -415,6 +439,143 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileLifetime: 1.0,
     count: 1,
     pierce: 2,
+  },
+  // Bulbasaur-line signature tiers (D13): long whips → 360° sweep → sweep that leaves roots.
+  vineWhip: {
+    id: 'vineWhip',
+    name: 'Vine Whip',
+    description: 'Two long vines lash in front of you',
+    tags: ['Grass', 'Melee'],
+    form: 'melee',
+    cooldown: 1.0,
+    damage: 13,
+    reach: 75,
+    arcDegrees: 140,
+  },
+  powerWhip: {
+    id: 'powerWhip',
+    name: 'Power Whip',
+    description: 'A 360° vine sweep',
+    tags: ['Grass', 'Melee', 'Area'],
+    form: 'melee',
+    cooldown: 1.1,
+    damage: 18,
+    reach: 95,
+    arcDegrees: 360,
+  },
+  frenzyPlant: {
+    id: 'frenzyPlant',
+    name: 'Frenzy Plant',
+    description: 'A 360° sweep that leaves a slowing root field',
+    tags: ['Grass', 'Melee', 'Area', 'Zone'],
+    form: 'melee',
+    cooldown: 1.4,
+    damage: 26,
+    reach: 105,
+    arcDegrees: 360,
+    field: { radius: 60, duration: 2.5, tickInterval: 0.5, damageFraction: 0.35, onTick: { slow: 0.4 } },
+  },
+  razorLeaf: {
+    id: 'razorLeaf',
+    name: 'Razor Leaf',
+    description: 'Two sharp leaves',
+    tags: ['Grass', 'Projectile', 'Slicing'],
+    form: 'projectile',
+    cooldown: 1.0,
+    damage: 9,
+    range: 320,
+    projectileSpeed: 420,
+    projectileRadius: 6,
+    projectileLifetime: 1.0,
+    count: 2,
+  },
+  leechSeed: {
+    id: 'leechSeed',
+    name: 'Leech Seed',
+    description: 'Plants a seed that drains the enemy and heals you',
+    tags: ['Grass', 'Projectile'],
+    form: 'projectile',
+    cooldown: 2.5,
+    damage: 4,
+    range: 320,
+    projectileSpeed: 300,
+    projectileRadius: 6,
+    projectileLifetime: 1.4,
+    count: 1,
+    onHit: { seedPct: 1.5 },
+  },
+  poisonPowder: {
+    id: 'poisonPowder',
+    name: 'Poison Powder',
+    description: 'A cloud that poisons everything inside',
+    tags: ['Poison', 'Zone'],
+    form: 'zone',
+    cooldown: 4.5,
+    damage: 3,
+    range: 300,
+    radius: 60,
+    duration: 3,
+    tickInterval: 0.5,
+    onHit: { poisonPct: 1 },
+  },
+  sleepPowder: {
+    id: 'sleepPowder',
+    name: 'Sleep Powder',
+    description: 'A cloud that puts enemies to sleep',
+    tags: ['Grass', 'Zone'],
+    form: 'zone',
+    cooldown: 6,
+    damage: 1,
+    range: 300,
+    radius: 55,
+    duration: 2,
+    tickInterval: 0.5,
+    onHit: { stun: 0.8 },
+  },
+  sludge: {
+    id: 'sludge',
+    name: 'Sludge',
+    description: 'A toxic glob that poisons',
+    tags: ['Poison', 'Projectile', 'Ball'],
+    form: 'projectile',
+    cooldown: 1.3,
+    damage: 12,
+    range: 320,
+    projectileSpeed: 330,
+    projectileRadius: 8,
+    projectileLifetime: 1.2,
+    count: 1,
+    onHit: { poisonPct: 0.5 },
+  },
+  petalDance: {
+    id: 'petalDance',
+    name: 'Petal Dance',
+    description: 'A swirl of petals around you',
+    tags: ['Grass', 'Orbit'],
+    form: 'orbit',
+    cooldown: 5,
+    damage: 10,
+    count: 4,
+    orbitRadius: 80,
+    ballRadius: 9,
+    angularSpeed: 4,
+    duration: 3.5,
+    hitInterval: 0.4,
+  },
+  // Venusaur only (kit rule 4).
+  solarBeam: {
+    id: 'solarBeam',
+    name: 'Solar Beam',
+    description: 'Venusaur gathers light into a massive beam',
+    tags: ['Grass', 'Beam'],
+    form: 'beam',
+    cooldown: 4.5,
+    damage: 22,
+    range: 380,
+    length: 380,
+    width: 26,
+    duration: 0.8,
+    tickInterval: 0.2,
   },
   dragonRage: {
     id: 'dragonRage',

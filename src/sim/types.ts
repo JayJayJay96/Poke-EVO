@@ -62,6 +62,10 @@ export interface Enemy {
   stunLeft: number;
   /** Type multiplier of the last hit, for the hit-flash colour (D14). */
   lastEffectiveness: number;
+  /** Leech Seed: ticks like poison, and each tick heals the player. */
+  seedDps: number;
+  seedLeft: number;
+  seedTickLeft: number;
 }
 
 /** Pooled: dead projectiles are reused, so every field is reassigned on spawn. */
@@ -129,6 +133,8 @@ export interface HitInfo {
   poisonDps: number;
   /** The move's type for the type chart (null = typeless, e.g. burn/poison ticks). */
   attackType: PokemonType | null;
+  /** Leech Seed damage per second to apply (0 = none). */
+  seedDps: number;
 }
 
 /** An Oran Berry on the ground: walk over it to heal (D12). Not magnetized. */
@@ -231,6 +237,8 @@ export interface MoveStats {
   poisonPct: number;
   /** For the type chart (D14). */
   attackType: PokemonType | null;
+  /** Leech Seed damage per second as a fraction of the hit. */
+  seedPct: number;
 }
 
 export interface AugmentSocket {

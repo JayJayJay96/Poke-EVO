@@ -91,6 +91,7 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
     p.hit.stun = s.stun;
     p.hit.poisonDps = damage * s.poisonPct;
     p.hit.attackType = s.attackType;
+    p.hit.seedDps = damage * s.seedPct;
     p.hit.critChance = s.critChance;
     p.hit.missingHpBonus = s.missingHpBonus;
     p.hit.lifesteal = s.lifesteal;

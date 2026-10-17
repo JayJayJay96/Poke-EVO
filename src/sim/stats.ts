@@ -143,6 +143,7 @@ export function computeMoveStats(
     slow: def.onHit?.slow ?? 0,
     stun: def.onHit?.stun ?? 0,
     poisonPct: def.onHit?.poisonPct ?? 0,
+    seedPct: def.onHit?.seedPct ?? 0,
     attackType: moveType(def.tags),
   };
 }

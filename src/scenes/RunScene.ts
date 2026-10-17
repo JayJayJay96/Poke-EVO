@@ -52,6 +52,7 @@ const COLORS = {
   stun: 0xffe84d,
   superEffective: 0xfff200,
   notVery: 0x7a7a7a,
+  seed: 0x4cd964,
   berry: 0x2f7ff5,
   exclusive: 0xff8c42,
 } as const;
@@ -801,6 +802,7 @@ export class RunScene extends Phaser.Scene {
       ring(e.poisonLeft > 0, COLORS.poison);
       ring(e.slowLeft > 0, COLORS.slow);
       ring(e.stunLeft > 0, COLORS.stun);
+      ring(e.seedLeft > 0, COLORS.seed);
     }
 
     // Chain lightning arcs.

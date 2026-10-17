@@ -18,7 +18,7 @@ export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' 
 export type MoveTag = PokemonType | FormTag | FlagTag;
 
 /** An evolution line, named after its first stage. */
-export type PokemonId = 'charmander' | 'squirtle';
+export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur';
 export type EnemyId = 'rattata' | 'pidgey' | 'raticate';
 export type AbilityId =
   | 'blaze'
@@ -211,6 +211,55 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
       { move: 'flashCannon', fromStage: 2 },
     ],
   },
+  // P4c (D13): sustain / zones / damage over time. Numbers provisional.
+  bulbasaur: {
+    id: 'bulbasaur',
+    role: 'Sustain / zones: poison, sleep, roots, and healing',
+    stages: [
+      {
+        name: 'Bulbasaur',
+        level: 1,
+        types: ['Grass', 'Poison'],
+        maxHp: 110,
+        speed: 145,
+        radius: 12,
+        damageMult: 0.95,
+        signatureMove: 'vineWhip',
+      },
+      {
+        name: 'Ivysaur',
+        level: 10,
+        types: ['Grass', 'Poison'],
+        maxHp: 150,
+        speed: 152,
+        radius: 15,
+        damageMult: 1.1,
+        signatureMove: 'powerWhip',
+      },
+      {
+        name: 'Venusaur',
+        level: 25,
+        types: ['Grass', 'Poison'],
+        maxHp: 220,
+        speed: 158,
+        radius: 20,
+        damageMult: 1.3,
+        signatureMove: 'frenzyPlant',
+        abilityChoices: ['overgrowPlus', 'chlorophyll'],
+      },
+    ],
+    ability: 'leech',
+    learnset: [
+      { move: 'tackle', fromStage: 0 },
+      { move: 'razorLeaf', fromStage: 0 },
+      { move: 'leechSeed', fromStage: 0 },
+      { move: 'poisonPowder', fromStage: 0 },
+      { move: 'sleepPowder', fromStage: 0 },
+      { move: 'sludge', fromStage: 0 },
+      { move: 'petalDance', fromStage: 0 },
+      { move: 'solarBeam', fromStage: 2 },
+    ],
+  },
 };
 
 export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
@@ -379,6 +428,9 @@ export const TUNING = {
     /** Slow and poison durations (the strength comes from the move). */
     slowSeconds: 1.5,
     poisonSeconds: 3,
+    /** Leech Seed lasts this long; each tick heals the player this share of the damage dealt. */
+    seedSeconds: 4,
+    seedHealFraction: 0.5,
     burnSeconds: 3,
     /** DoT tick (budget §11.1: not every frame). */
     burnTick: 0.25,

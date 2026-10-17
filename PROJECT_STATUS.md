@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **Next: build P4c** (Bulbasaur line, checked against the kit rules). Lapras's level-based signature tiers moved to P4d (built with Lapras so they can be tested on real data).
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **Next: build P4d** (Pikachu + Lapras, first gamble balance pass). Lapras's level-based signature tiers moved to P4d (built with Lapras so they can be tested on real data).
 
 ## P4 plan (owner-approved 2026-10-17, D13)
 **Gate:** do the starters feel truly different? Is picking a tier (3-stage / 2-stage / no evolution) a real gamble?
@@ -56,6 +56,22 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-18 — P4c: Bulbasaur line
+**Files**
+- `PROJECT.md`: §6 Bulbasaur kit gains Solar Beam as the Venusaur-only unlock (kit rule 4).
+- `src/data/content.ts`: Bulbasaur → Ivysaur (Lv 10) → Venusaur (Lv 25), Grass/Poison, Leech ability, Venusaur traits Overgrow+ / Chlorophyll; learnset Tackle, Razor Leaf, Leech Seed, Poison Powder, Sleep Powder, Sludge, Petal Dance, Solar Beam (stage 2). `TUNING.status.seedSeconds 4`, `seedHealFraction 0.5`.
+- `src/data/moves.ts`: Vine Whip (arc 140°) → Power Whip (360°) → Frenzy Plant (360° + root field: r60, 2.5 s, 35% damage ticks, slow 40%); Razor Leaf (2 leaves), Leech Seed (`seedPct`), Poison Powder / Sleep Powder zones, Sludge, Petal Dance orbit, Solar Beam beam. `FieldDef` on melee moves.
+- `src/sim/*`: new **seed** status (`Enemy.seedDps/seedLeft/seedTickLeft`, `HitInfo.seedDps`, `MoveStats.seedPct`); seed ticks heal the player half the damage dealt (a plain tick, no procs). `castMelee` spawns the move's field zone at the target.
+- `src/scenes/RunScene.ts`: green seed status ring.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **132/132 passed** (7 new Bulbasaur tests: start state + Leech, Vine Whip front-only vs Power Whip 360°, Frenzy Plant slowing field, Leech Seed 4 s drain + 50% heal, Poison/Sleep Powder statuses, Solar Beam Venusaur-gated, Grass ×0.5 on Pidgey). The per-line data and kit-rule tests now cover Bulbasaur too. `npm run build` passed; bench 0.77 ms/step mean.
+- Browser: select screen shows 3 cards; Bulbasaur run starts (Lv 1, HP 110, Vine Whip), front arc drawn, Lv 2 card offered Sludge and adding it worked; no new console errors. **Not visually verified:** Ivysaur/Venusaur evolution, Frenzy Plant field, seed ring (unit-tested only).
+
+**Notes**
+- Swing arcs are drawn white for every melee move (existing behaviour), not in type colour.
+- Next: P4d — Pikachu (Thunder Shock chain → Thunderbolt; Raichu Lv 16 unlocks Thunder) and Lapras (level-based signature tiers), then the gamble balance pass.
 
 ### 2026-10-18 — P4b rework: kit rules, Squirtle redesign, type chart, weight (D14)
 **Owner feedback:** Squirtle's kit felt incoherent (Ice Beam, Bite) compared with Charmander's; knockback too strong for Lv 1 (wants a stagger); wants type effectiveness and heavier enemies resisting knockback.

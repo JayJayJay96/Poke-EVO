@@ -19,6 +19,7 @@ export const NO_HIT: Readonly<HitInfo> = {
   slow: 0,
   stun: 0,
   poisonDps: 0,
+  seedDps: 0,
   attackType: null,
 };
 
@@ -36,6 +37,7 @@ export function makeHitInfo(stats: MoveStats): HitInfo {
     stun: stats.stun,
     poisonDps: stats.damage * stats.poisonPct,
     attackType: stats.attackType,
+    seedDps: stats.damage * stats.seedPct,
   };
 }
 
@@ -114,6 +116,13 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   }
   if (hit.burnDps > 0) applyBurn(enemy, hit.burnDps);
   applyStatuses(enemy, hit);
+  if (hit.seedDps > 0) {
+    // Leech Seed: refreshes; a stronger seed replaces a weaker one.
+    const seeded = enemy.seedLeft > 0;
+    enemy.seedDps = seeded ? Math.max(enemy.seedDps, hit.seedDps) : hit.seedDps;
+    if (!seeded) enemy.seedTickLeft = TUNING.status.burnTick;
+    enemy.seedLeft = TUNING.status.seedSeconds;
+  }
   if (hit.knockback > 0) {
     // Exponential decay makes the total push ≈ the knockback distance; heavy enemies resist.
     const v = hit.knockback * TUNING.status.knockbackDecay * (1 - knockbackResistance(def.weightKg));
@@ -182,6 +191,18 @@ export function updateStatuses(world: World, dt: number): void {
         enemy.poisonTickLeft += tick;
       }
       if (enemy.poisonLeft <= 0) enemy.poisonDps = 0;
+    }
+    if (enemy.seedLeft > 0 && enemy.hp > 0) {
+      enemy.seedLeft -= dt;
+      enemy.seedTickLeft -= dt;
+      while (enemy.seedTickLeft <= TICK_EPSILON && enemy.hp > 0) {
+        // A plain hit (no proc-from-proc); part of the damage dealt heals the player.
+        const dealt = damageEnemy(world, enemy, enemy.seedDps * tick);
+        const p = world.player;
+        p.hp = Math.min(p.maxHp, p.hp + dealt * TUNING.status.seedHealFraction);
+        enemy.seedTickLeft += tick;
+      }
+      if (enemy.seedLeft <= 0) enemy.seedDps = 0;
     }
     if (enemy.slowLeft > 0) {
       enemy.slowLeft -= dt;

@@ -84,7 +84,7 @@ Each signature tier keeps its previous tags and adds new ones (§8.6).
   - Vine Whip `[Grass, Melee]`: two side lashes
   - → Power Whip `[+Area]`: 360° vine sweep
   - → Frenzy Plant `[+Zone]`: root field dropped on the nearest enemy
-- **Learnset:** Tackle, Razor Leaf, Leech Seed (DoT that heals), Poison Powder (poison zone), Sleep Powder (sleep zone), Sludge, Petal Dance.
+- **Learnset:** Tackle, Razor Leaf, Leech Seed (DoT that heals), Poison Powder (poison zone), Sleep Powder (sleep zone), Sludge, Petal Dance. **Venusaur only (kit rule 4):** Solar Beam (heavy Grass beam).
 - **Final trait pick:** Overgrow+ or Chlorophyll (speed).
 
 ### Pikachu → Raichu (Lv 16) — *speed / chain* (Electric; 2-stage gamble line, D13)

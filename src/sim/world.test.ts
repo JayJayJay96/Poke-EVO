@@ -15,6 +15,7 @@ import {
   maybeDropBerry,
   applyStatuses,
   knockbackResistance,
+  makeHitInfo,
   updateStatuses,
 } from './combat';
 import { castMelee } from './forms/melee';
@@ -46,7 +47,7 @@ import type { AugmentSocket, InputState, Projectile, World } from './types';
 import { createWorld, pickEnemyKind, spawnEnemy, step, waveAt } from './world';
 import { spawnZone } from './zones';
 
-// P4a adds statuses, abilities, zone-cast and chain tests at the end; P4b the Squirtle line.
+// P4a adds statuses, abilities, zone-cast and chain tests at the end; P4b Squirtle; P4c Bulbasaur.
 const DT = TUNING.stepSeconds;
 /** Charmander is Fire, so Fire moves carry the same-type bonus (D11). */
 const STAB = 1 + TUNING.stabBonus;
@@ -1482,6 +1483,104 @@ describe('Squirtle line (P4b, redesigned D14)', () => {
     expect(moveCards()).toEqual(['rapidSpin', 'surf', 'waterGun', 'whirlpool', 'withdraw']);
     world.player.stage = 2;
     expect(moveCards()).toEqual(['flashCannon', 'hydroPump', 'rapidSpin', 'surf', 'waterGun', 'whirlpool', 'withdraw']);
+  });
+});
+
+describe('Bulbasaur line (P4c)', () => {
+  function bulbasaur(): World {
+    return createWorld({ rng: createSeededRng(5), spawnRadius: 600, spawnEnabled: false, pokemonId: 'bulbasaur' });
+  }
+  function still(world: World, x: number, y: number, kind: EnemyId = 'raticate') {
+    const e = spawnEnemy(world, kind, x, y, 10);
+    e.speed = 0;
+    return e;
+  }
+
+  it('starts as Grass/Poison Bulbasaur with Leech (3% lifesteal on every move) and Vine Whip', () => {
+    const world = bulbasaur();
+    expect(currentStage(world).types).toEqual(['Grass', 'Poison']);
+    expect(world.player.ability).toBe('leech');
+    expect(world.moves[0]!.moveId).toBe('vineWhip');
+    expect(world.moves[0]!.stats.lifesteal).toBeCloseTo(0.03);
+  });
+
+  it('Vine Whip lashes in front only; Power Whip sweeps all around', () => {
+    const world = bulbasaur();
+    world.player.invulnLeft = 99;
+    const front = still(world, 60, 0);
+    const behind = still(world, -65, 0);
+    step(world, IDLE, DT);
+    expect(front.hp).toBeLessThan(front.maxHp);
+    expect(behind.hp).toBe(behind.maxHp);
+
+    world.moves = [createSlot('powerWhip')];
+    refreshStats(world);
+    step(world, IDLE, DT);
+    expect(behind.hp).toBeLessThan(behind.maxHp);
+  });
+
+  it('Frenzy Plant leaves a slowing root field on its target', () => {
+    const world = bulbasaur();
+    world.player.invulnLeft = 99;
+    world.moves = [createSlot('frenzyPlant')];
+    refreshStats(world);
+    const target = still(world, 90, 0);
+    step(world, IDLE, DT);
+    expect(world.zones).toHaveLength(1);
+    expect(world.zones[0]!.x).toBe(90);
+    expect(world.zones[0]!.slow).toBeCloseTo(0.4);
+    run(world, 0.6);
+    expect(target.slowLeft).toBeGreaterThan(0);
+  });
+
+  it('Leech Seed drains over 4 s and heals the player half the damage', () => {
+    const world = bulbasaur();
+    world.moves = [];
+    world.player.ability = 'blaze'; // isolate the seed's own healing from Leech
+    refreshStats(world);
+    world.player.hp = 50;
+    const target = still(world, 500, 0);
+    damageEnemy(world, target, 4, { ...NO_HIT, seedDps: 6 });
+    const afterHit = target.hp;
+    for (let i = 0; i < Math.round(TUNING.status.seedSeconds / DT) + 30; i++) updateStatuses(world, DT);
+    const drained = afterHit - target.hp;
+    expect(drained).toBeCloseTo(6 * TUNING.status.seedSeconds, 0);
+    expect(world.player.hp).toBeCloseTo(50 + drained * TUNING.status.seedHealFraction, 0);
+  });
+
+  it('Poison Powder poisons and Sleep Powder puts enemies to sleep', () => {
+    const world = bulbasaur();
+    world.player.invulnLeft = 99;
+    world.moves = [createSlot('poisonPowder')];
+    refreshStats(world);
+    const a = still(world, 150, 0);
+    step(world, IDLE, DT);
+    run(world, 0.6);
+    expect(a.poisonLeft).toBeGreaterThan(0);
+
+    const world2 = bulbasaur();
+    world2.player.invulnLeft = 99;
+    world2.moves = [createSlot('sleepPowder')];
+    refreshStats(world2);
+    const b = still(world2, 150, 0);
+    step(world2, IDLE, DT);
+    run(world2, 0.6);
+    expect(b.stunLeft).toBeGreaterThan(0);
+  });
+
+  it('Solar Beam appears on cards only as Venusaur', () => {
+    const world = bulbasaur();
+    const hasSolar = () => buildCardPool(world).some((c) => c.kind === 'move' && c.moveId === 'solarBeam');
+    expect(hasSolar()).toBe(false);
+    world.player.stage = 2;
+    expect(hasSolar()).toBe(true);
+  });
+
+  it('Grass is not very effective on Pidgey (Normal/Flying), so Razor Leaf hits it for ×0.5', () => {
+    const world = bulbasaur();
+    const pidgey = still(world, 500, 0, 'pidgey');
+    damageEnemy(world, pidgey, 10, makeHitInfo(createSlot('razorLeaf').stats));
+    expect(pidgey.lastEffectiveness).toBe(0.5);
   });
 });
 
