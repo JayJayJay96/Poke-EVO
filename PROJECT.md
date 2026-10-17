@@ -59,27 +59,37 @@ Each signature tier keeps its previous tags and adds new ones (§8.6).
 - **Learnset:** Scratch, Fire Spin, Smokescreen, Dragon Rage, Wing Attack, Slash.
 - **Evolution twist:** Charizard flies, gaining move speed and ignoring ground hazards.
 
-### Squirtle → Wartortle → Blastoise — *tank / control*
+### Squirtle → Wartortle → Blastoise — *tank / control* (Water; owner-approved kit D13)
 - **Ability, Shell:** blocks one hit every 8 s, shown as a visible bubble.
 - **Signature:**
   - Bubble `[Water, Projectile]`: slowing bubbles
-  - → Bubble Beam `[+Beam]`: bubble stream
-  - → Hydro Cannon `[+Pulse]`: twin cannons with a knockback blast
-- **Learnset:** Tackle, Withdraw, Rapid Spin, Bite, Ice Beam, Surf.
-- **Evolution twist:** Blastoise's cannons turn toward the densest crowd.
+  - → Water Pulse `[+Pulse]`: bubbles burst into a knockback ring
+  - → Hydro Cannon `[+Area]`: heavy shot with a big knockback burst
+- **Learnset:** Tackle, Bite, Rapid Spin, Ice Beam (slows), Surf (360° wave).
+- **Final trait pick:** Torrent+ (low-HP Water boost) or Rain Dish (regen).
 
-### Bulbasaur → Ivysaur → Venusaur — *sustain / zones / damage over time*
+### Bulbasaur → Ivysaur → Venusaur — *sustain / zones / damage over time* (Grass/Poison; D13)
 - **Ability, Leech:** 3% of damage dealt heals you.
 - **Signature:**
   - Vine Whip `[Grass, Melee]`: two side lashes
-  - → Power Whip `[+Area]`: spinning vine sweep
-  - → Frenzy Plant `[+Zone]`: root eruption field
-- **Learnset:** Tackle, Razor Leaf, Leech Seed, Poison Powder, Sleep Powder, Sludge, Petal Dance.
-- **Evolution twist:** Venusaur leaves a healing flower trail.
+  - → Power Whip `[+Area]`: 360° vine sweep
+  - → Frenzy Plant `[+Zone]`: root field dropped on the nearest enemy
+- **Learnset:** Tackle, Razor Leaf, Leech Seed (DoT that heals), Poison Powder (poison zone), Sleep Powder (sleep zone), Sludge, Petal Dance.
+- **Final trait pick:** Overgrow+ or Chlorophyll (speed).
+
+### Pikachu → Raichu (Lv 16) — *speed / chain* (Electric; 2-stage gamble line, D13)
+- **Ability, Static:** enemies touching you get paralysed.
+- **Signature:** Thunder Shock `[Electric, Projectile]` (chains to 2 enemies) → Thunderbolt `[+Area]` (chains to 3). Chain is innate to this signature only, capped at 3 jumps; no Chain augment until P5.
+- **Learnset:** Quick Attack, Spark, Electro Ball, Thunder Wave, Iron Tail.
+- **Final trait pick:** Static+ or Lightning Rod.
+
+### Lapras — *early bulldozer* (Water/Ice; non-evolver gamble line, D13)
+- **Ability, Shell Armor:** take −15% damage.
+- **Signature, tiers by level (Lv 10 / 25):** Ice Shard `[Ice, Projectile]` → Frost Breath `[+Area]` → Sheer Cold `[+Zone]` (freezing field that slows).
+- **Learnset:** Body Slam, Surf, Ice Beam, Hydro Pump.
+- **No trait pick** (no evolution); strongest start, lowest ceiling (§5).
 
 **Test:** a tester must be able to describe each playstyle in one sentence without being told.
-
-**Gamble test lines (proposal, needed to prove §5):** Pikachu → Raichu (2-stage, speed / chain lightning) and Lapras (non-evolver, tanky early bulldozer). Kits designed in P4.
 
 ## 7. Run structure (15 min) *(provisional)*
 | Time | Event |
@@ -251,6 +261,7 @@ Online play, accounts, co-op, gacha, mobile/touch, all 151 Pokémon, shinies, we
 | D6 | Engine | **Approved:** browser-playable; Phaser recommended |
 | D7 | Skill building | **Approved 2026-10-17:** tags + 3 sockets per move; augment level every 3rd level; 2 windows + limited reroll; signature = 3 sockets + exclusives; trade-offs yes; evolution only adds tags; combined skill = 4 behaviours on one shared cooldown with 12 inherited augments |
 | D8 | Augment stacking | **Approved 2026-10-17:** no duplicate sockets; an owned augment ranks up I → III in its socket when picked again (§8.2a). Rank values, rank III bonus and card weighting provisional |
+| D13 | P4 scope | **Approved 2026-10-17:** simple starter select screen in P4 (polish stays P7); every evolving line's final stage offers a trait pick (Lapras none); Pikachu's signature chains innately, capped at 3 jumps (Chain augment stays P5); kits per §6 as the starting point (numbers provisional) |
 | D12 | P3 re-playtest revisions | **Approved 2026-10-17:** healing = **rare Oran Berry drops** (no flat regen; Raticate often, others rarely; walk over to heal); "damage taken" trade-offs (Glass) stay **+10/15/20%** but are **shown clearly** (HUD + red damage numbers on the player); **Back** from the augment cards to move selection (cards kept per move, so Back is not a free reroll); Return gets a trade-off (−30% damage, provisional) |
 | D11 | P3 playtest revisions | **Approved 2026-10-17:** evolution cinematic **5 s, skippable after 2 s**; Blast Burn crater spawns **once per projectile** (Pierce can't chain craters); **augment replacement**: with full sockets the window still shows 3 cards and a new augment replaces a chosen socket at rank I (Back to cancel); each augment window **guarantees ≥ 1 behaviour/exclusive card** when available; **Pokémon types per stage** (Charizard = Fire/Flying) unlocking stage-gated Flying moves + **STAB +20%** for moves matching the Pokémon's types; **Charizard chooses 1 of 2 traits** at evolution (Blaze+ or Solar Power). Numbers provisional |
 | D10 | P3 scope | **Approved 2026-10-17:** evolution triggers automatically at Lv 10/25; ~2 s cinematic (pause, flash, grow) + "what changed" card; P3 behaviour augments = Pierce, Homing, Return, Knockback, Burn, Lifesteal; Charmander-line exclusives = Blaze Core (any tier) + Mega Flare (Blast Burn only). Stage stats provisional |
