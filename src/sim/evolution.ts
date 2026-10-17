@@ -39,6 +39,23 @@ export function finishEvolutionCinematic(world: World): void {
   evo.traitChoices = stage.abilityChoices && stage.abilityChoices.length > 0 ? stage.abilityChoices : null;
 }
 
+/**
+ * Non-evolvers (Lapras): the signature tiers up by level instead of by evolving (§4).
+ * Same in-place swap as evolution, so augments carry over. Returns whether it changed.
+ */
+export function upgradeSignatureByLevel(world: World): boolean {
+  const tiers = POKEMON[world.player.pokemonId].signatureTiers;
+  const signature = world.moves[0];
+  if (!tiers || !signature) return false;
+  let move = signature.moveId;
+  for (const tier of tiers) if (world.level >= tier.level) move = tier.move;
+  if (move === signature.moveId) return false;
+  world.signatureTierUp = { from: signature.moveId, to: move };
+  signature.moveId = move;
+  refreshStats(world);
+  return true;
+}
+
 /** Summary card with a trait choice: takes the chosen trait and continues. */
 export function chooseEvolutionTrait(world: World, index: number): void {
   const evo = world.evolution;

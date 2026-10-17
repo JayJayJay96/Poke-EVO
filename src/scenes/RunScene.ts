@@ -80,6 +80,8 @@ const BIG_GEM_VALUE = 5;
 const GRID_SIZE = 64;
 /** Cap on simulated time per frame so a hitch never fast-forwards the run. */
 const MAX_FRAME_SECONDS = 0.25;
+/** How long the signature tier-up notice stays (ms). */
+const TIER_NOTICE_MS = 3000;
 const CARD_MAX_W = 210;
 const CARD_H = 170;
 const CARD_GAP = 16;
@@ -130,6 +132,9 @@ export class RunScene extends Phaser.Scene {
   private hudGfx!: Phaser.GameObjects.Graphics;
   private hud!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
+  /** Non-evolver signature tier-up notice (Lapras) and when it hides. */
+  private tierText!: Phaser.GameObjects.Text;
+  private tierTextUntil = 0;
   private panel!: Phaser.GameObjects.Text;
   /** Draws above the overlay dim: the evolving player during the cinematic. */
   private fxGfx!: Phaser.GameObjects.Graphics;
@@ -233,6 +238,19 @@ export class RunScene extends Phaser.Scene {
       .text(16, 58, '', { fontFamily: 'monospace', fontSize: '14px', color: '#ff6b6b' })
       .setScrollFactor(0)
       .setDepth(10);
+    this.tierText = this.add
+      .text(this.cameras.main.width / 2, 96, '', {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#9ff3ff',
+        fontStyle: 'bold',
+        backgroundColor: '#000000aa',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(15)
+      .setVisible(false);
     this.floaters = [];
     this.lastHp = this.world.player.hp;
     this.banner = this.add
@@ -330,10 +348,23 @@ export class RunScene extends Phaser.Scene {
     const drawStart = performance.now();
 
     this.trackPlayerDamage(deltaMs);
+    this.showSignatureTierUp(time);
     this.syncOverlay(time);
     this.draw();
 
     this.updatePerf(time, drawStart - simStart, performance.now() - drawStart);
+  }
+
+  /** Lapras's signature tiers up by level instead of evolving: a short notice says so. */
+  private showSignatureTierUp(time: number): void {
+    const up = this.world.signatureTierUp;
+    if (up) {
+      this.world.signatureTierUp = null;
+      this.tierText.setText(`${MOVES[up.from].name} → ${MOVES[up.to].name}!`).setVisible(true);
+      this.tierTextUntil = time + TIER_NOTICE_MS;
+    } else if (this.tierText.visible && time > this.tierTextUntil) {
+      this.tierText.setVisible(false);
+    }
   }
 
   /** FPS, sim and draw cost per frame, and entity counts (with `?stress=1` or `?perf=1`). */

@@ -21,7 +21,13 @@ import {
 import { castMelee } from './forms/melee';
 import { castProjectile, createProjectile } from './forms/projectile';
 import { castZone } from './forms/zoneCast';
-import { chooseEvolutionTrait, dismissEvolution, dueEvolutionStage, finishEvolutionCinematic } from './evolution';
+import {
+  chooseEvolutionTrait,
+  dismissEvolution,
+  dueEvolutionStage,
+  finishEvolutionCinematic,
+  upgradeSignatureByLevel,
+} from './evolution';
 import {
   augmentPool,
   backFromReplace,
@@ -1581,6 +1587,125 @@ describe('Bulbasaur line (P4c)', () => {
     const pidgey = still(world, 500, 0, 'pidgey');
     damageEnemy(world, pidgey, 10, makeHitInfo(createSlot('razorLeaf').stats));
     expect(pidgey.lastEffectiveness).toBe(0.5);
+  });
+});
+
+describe('Pikachu line (P4d)', () => {
+  function pikachu(): World {
+    return createWorld({ rng: createSeededRng(7), spawnRadius: 600, spawnEnabled: false, pokemonId: 'pikachu' });
+  }
+  function still(world: World, x: number, y: number, kind: EnemyId = 'raticate') {
+    const e = spawnEnemy(world, kind, x, y, 10);
+    e.speed = 0;
+    return e;
+  }
+
+  it('starts as Electric Pikachu with Static and Thunder Shock, and evolves once at Lv 16 with a trait pick', () => {
+    const world = pikachu();
+    expect(currentStage(world).types).toEqual(['Electric']);
+    expect(world.player.ability).toBe('static');
+    expect(world.moves[0]!.moveId).toBe('thunderShock');
+    world.level = 15;
+    expect(dueEvolutionStage(world)).toBeNull();
+    world.level = 16;
+    expect(dueEvolutionStage(world)).toBe(1);
+    expect(POKEMON.pikachu.stages[1]!.abilityChoices).toEqual(['staticPlus', 'lightningRod']);
+  });
+
+  it('Thunder Shock jumps to 2 more enemies; Thunderbolt to 3', () => {
+    for (const [moveId, jumps] of [
+      ['thunderShock', 2],
+      ['thunderbolt', 3],
+    ] as const) {
+      const world = pikachu();
+      world.player.invulnLeft = 99;
+      // A column 90 px apart: inside chain range, outside Thunderbolt's burst.
+      const row = [0, 90, 180, 270, 360].map((y) => still(world, 100, y));
+      const slot = createSlot(moveId);
+      world.moves = [];
+      expect(castProjectile(world, slot, MOVES[moveId] as ProjectileMoveDef)).toBe(true);
+      run(world, 0.5);
+      expect(row.filter((e) => e.hp < e.maxHp)).toHaveLength(1 + jumps);
+      expect(row[jumps + 1]!.hp).toBe(row[jumps + 1]!.maxHp);
+      if (moveId === 'thunderShock') expect(row[1]!.hp).toBeCloseTo(row[1]!.maxHp - slot.stats.damage * 0.7);
+    }
+  });
+
+  it('Thunder is Raichu-only and strikes half a second later, paralysing', () => {
+    const world = pikachu();
+    const hasThunder = () => buildCardPool(world).some((c) => c.kind === 'move' && c.moveId === 'thunder');
+    expect(hasThunder()).toBe(false);
+    world.player.stage = 1;
+    expect(hasThunder()).toBe(true);
+
+    world.player.invulnLeft = 99;
+    world.moves = [createSlot('thunder')];
+    refreshStats(world);
+    const target = still(world, 150, 0);
+    step(world, IDLE, DT);
+    expect(world.zones).toHaveLength(1);
+    expect(target.hp).toBe(target.maxHp);
+    run(world, 0.55);
+    expect(target.hp).toBeLessThan(target.maxHp);
+    expect(target.stunLeft).toBeGreaterThan(0);
+  });
+});
+
+describe('Lapras (P4d, non-evolver)', () => {
+  function lapras(): World {
+    return createWorld({ rng: createSeededRng(9), spawnRadius: 600, spawnEnabled: false, pokemonId: 'lapras' });
+  }
+
+  it('starts strongest: tougher and harder-hitting than Charmander, Shell Armor, never evolves', () => {
+    const world = lapras();
+    const charmander = POKEMON.charmander.stages[0]!;
+    expect(currentStage(world).types).toEqual(['Water', 'Ice']);
+    expect(world.player.maxHp).toBeGreaterThan(charmander.maxHp);
+    expect(currentStage(world).damageMult).toBeGreaterThan(charmander.damageMult);
+    expect(world.player.ability).toBe('shellArmor');
+    expect(world.mods.damageTakenMult).toBeCloseTo(0.85);
+    world.level = 40;
+    expect(dueEvolutionStage(world)).toBeNull();
+  });
+
+  it('the signature tiers up at Lv 10 and Lv 25, keeping its augments, and tells the scene', () => {
+    const world = lapras();
+    world.moves[0]!.sockets.push({ augmentId: 'powerUp', rank: 2 });
+    expect(world.moves[0]!.moveId).toBe('iceShard');
+    world.level = 9;
+    expect(upgradeSignatureByLevel(world)).toBe(false);
+    world.level = 10;
+    expect(upgradeSignatureByLevel(world)).toBe(true);
+    expect(world.moves[0]!.moveId).toBe('frostBreath');
+    expect(world.moves[0]!.sockets).toEqual([{ augmentId: 'powerUp', rank: 2 }]);
+    expect(world.signatureTierUp).toEqual({ from: 'iceShard', to: 'frostBreath' });
+    world.level = 30; // a big XP jump still lands on the right tier
+    upgradeSignatureByLevel(world);
+    expect(world.moves[0]!.moveId).toBe('sheerCold');
+    for (const tag of MOVES.frostBreath.tags) expect(MOVES.sheerCold.tags).toContain(tag);
+  });
+
+  it('tiers up during play as soon as the level is reached', () => {
+    const world = lapras();
+    gainXp(world, 1000);
+    step(world, IDLE, DT);
+    expect(world.moves[0]!.moveId).not.toBe('iceShard');
+  });
+
+  it("Sheer Cold's freezing field slows; Ice is super effective on Pidgey", () => {
+    const world = lapras();
+    world.player.invulnLeft = 99;
+    world.moves = [createSlot('sheerCold')];
+    refreshStats(world);
+    const target = spawnEnemy(world, 'raticate', 120, 0, 10);
+    target.speed = 0;
+    run(world, 0.5);
+    expect(world.zones.length).toBeGreaterThan(0);
+    expect(world.zones[0]!.slow).toBeCloseTo(0.5);
+
+    const pidgey = spawnEnemy(world, 'pidgey', 500, 500, 10);
+    damageEnemy(world, pidgey, 1, makeHitInfo(createSlot('iceShard').stats));
+    expect(pidgey.lastEffectiveness).toBe(2);
   });
 });
 

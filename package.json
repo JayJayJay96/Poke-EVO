@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "bench": "vitest bench --run --reporter=verbose",
+    "bench": "vitest bench --run --reporter=verbose src/sim/stress.bench.ts",
+    "balance": "vitest bench --run src/sim/balance.bench.ts",
     "preview": "vite preview"
   },
   "dependencies": {

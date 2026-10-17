@@ -18,7 +18,7 @@ export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' 
 export type MoveTag = PokemonType | FormTag | FlagTag;
 
 /** An evolution line, named after its first stage. */
-export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur';
+export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur' | 'pikachu' | 'lapras';
 export type EnemyId = 'rattata' | 'pidgey' | 'raticate';
 export type AbilityId =
   | 'blaze'
@@ -54,6 +54,12 @@ export interface EvolutionStage {
   readonly abilityChoices?: readonly AbilityId[];
 }
 
+/** Non-evolver signature tier (§4): replaces the signature at this level, keeping its augments. */
+export interface SignatureTier {
+  readonly level: number;
+  readonly move: MoveId;
+}
+
 /** A learnset move and the stage from which it can appear on cards. */
 export interface LearnsetEntry {
   readonly move: MoveId;
@@ -69,6 +75,8 @@ export interface PokemonDef {
   readonly ability: AbilityId;
   /** Moves that can be offered on level-up cards. */
   readonly learnset: readonly LearnsetEntry[];
+  /** Non-evolvers only (Lapras): signature tiers unlocked by level instead of by evolving. */
+  readonly signatureTiers?: readonly SignatureTier[];
 }
 
 export interface AbilityDef {
@@ -258,6 +266,71 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
       { move: 'sludge', fromStage: 0 },
       { move: 'petalDance', fromStage: 0 },
       { move: 'solarBeam', fromStage: 2 },
+    ],
+  },
+  // P4d (D13): 2-stage gamble line. Medium start, evolves once at Lv 16. Numbers provisional.
+  pikachu: {
+    id: 'pikachu',
+    role: 'Speed / chain: lightning that jumps, paralysis on touch',
+    stages: [
+      {
+        name: 'Pikachu',
+        level: 1,
+        types: ['Electric'],
+        maxHp: 105,
+        speed: 165,
+        radius: 11,
+        damageMult: 1.05,
+        signatureMove: 'thunderShock',
+      },
+      {
+        name: 'Raichu',
+        level: 16,
+        types: ['Electric'],
+        maxHp: 170,
+        speed: 178,
+        radius: 15,
+        damageMult: 1.25,
+        signatureMove: 'thunderbolt',
+        abilityChoices: ['staticPlus', 'lightningRod'],
+      },
+    ],
+    ability: 'static',
+    learnset: [
+      { move: 'quickAttack', fromStage: 0 },
+      { move: 'spark', fromStage: 0 },
+      { move: 'electroBall', fromStage: 0 },
+      { move: 'thunderWave', fromStage: 0 },
+      { move: 'ironTail', fromStage: 0 },
+      { move: 'thunder', fromStage: 1 },
+    ],
+  },
+  // P4d (D13): non-evolver. Strongest from minute 1, no stat growth; the signature tiers up by level.
+  lapras: {
+    id: 'lapras',
+    role: 'Early bulldozer: strong and tough from the start, no evolution',
+    stages: [
+      {
+        name: 'Lapras',
+        level: 1,
+        types: ['Water', 'Ice'],
+        maxHp: 170,
+        speed: 135,
+        radius: 18,
+        damageMult: 1.2,
+        signatureMove: 'iceShard',
+      },
+    ],
+    ability: 'shellArmor',
+    signatureTiers: [
+      { level: 10, move: 'frostBreath' },
+      { level: 25, move: 'sheerCold' },
+    ],
+    learnset: [
+      { move: 'bodySlam', fromStage: 0 },
+      { move: 'surf', fromStage: 0 },
+      { move: 'iceBeam', fromStage: 0 },
+      { move: 'hydroPump', fromStage: 0 },
     ],
   },
 };

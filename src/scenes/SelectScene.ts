@@ -52,37 +52,45 @@ export class SelectScene extends Phaser.Scene {
     const n = lines.length;
     const cardW = Math.min(CARD_W, (cam.width - 40 - (n - 1) * CARD_GAP) / n);
     const startX = cam.width / 2 - (n * cardW + (n - 1) * CARD_GAP) / 2;
-    const top = Math.max(84, cam.height / 2 - CARD_H / 2);
+    const top = Math.max(84, cam.height / 2 - CARD_H / 2 - 40);
 
-    lines.forEach((def, i) => {
+    // Narrow windows wrap the text, so the cards grow to fit the tallest one.
+    const cards = lines.map((def, i) => {
       const first = def.stages[0]!;
       const last = def.stages[def.stages.length - 1]!;
       const names = def.stages.map((s) => s.name).join(' → ');
       const ability = ABILITIES[def.ability];
+      const tiers = def.signatureTiers?.length ? ` (stronger at Lv ${def.signatureTiers.map((t) => t.level).join(' / ')})` : '';
       const x = startX + i * (cardW + CARD_GAP);
-      const bg = this.add
-        .rectangle(x, top, cardW, CARD_H, 0x1c2233, 0.97)
+      const text = this.add
+        .text(
+          x + 10,
+          top + 10,
+          [
+            `[${i + 1}] ${names}`,
+            `${first.types.join('/')}${last.types.length > first.types.length ? ` → ${last.types.join('/')}` : ''} · ${tierLabel(def)}`,
+            '',
+            def.role,
+            '',
+            `Ability: ${ability.name}`,
+            ability.description,
+            '',
+            `Signature: ${MOVES[first.signatureMove].name}${tiers}`,
+          ].join('\n'),
+          { fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', lineSpacing: 2, wordWrap: { width: cardW - 20 } },
+        )
+        .setDepth(1);
+      return { def, x, text };
+    });
+    const cardH = Math.max(CARD_H, ...cards.map((c) => c.text.height + 20));
+    for (const { def, x } of cards) {
+      this.add
+        .rectangle(x, top, cardW, cardH, 0x1c2233, 0.97)
         .setOrigin(0)
         .setStrokeStyle(2, 0xffd34d)
-        .setInteractive({ useHandCursor: true });
-      bg.on('pointerdown', () => this.start(def.id));
-      this.add.text(
-        x + 10,
-        top + 10,
-        [
-          `[${i + 1}] ${names}`,
-          `${first.types.join('/')}${last.types.length > first.types.length ? ` → ${last.types.join('/')}` : ''} · ${tierLabel(def)}`,
-          '',
-          def.role,
-          '',
-          `Ability: ${ability.name}`,
-          ability.description,
-          '',
-          `Signature: ${MOVES[first.signatureMove].name}`,
-        ].join('\n'),
-        { fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', lineSpacing: 2, wordWrap: { width: cardW - 20 } },
-      );
-    });
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this.start(def.id));
+    }
 
     const keyboard = this.input.keyboard!;
     lines.forEach((def, i) => {

@@ -4,7 +4,7 @@ import { MOVES, type MoveDef } from '../data/moves';
 import { BOOST_IDS, type BoostId } from '../data/upgrades';
 import { WAVES, type WaveKeyframe } from '../data/waves';
 import { queryEnemies, updateStatuses } from './combat';
-import { startEvolutionIfDue } from './evolution';
+import { startEvolutionIfDue, upgradeSignatureByLevel } from './evolution';
 import { castBeam, updateBeam } from './forms/beam';
 import { castMelee } from './forms/melee';
 import { castOrbit, updateOrbit } from './forms/orbit';
@@ -75,6 +75,7 @@ export function createWorld({
     pendingLevelUps: 0,
     offer: null,
     evolution: null,
+    signatureTierUp: null,
     nextId: 1,
     spawnEnabled,
     spawnTimer: WAVES[0]!.spawnInterval,
@@ -108,6 +109,7 @@ export function step(world: World, input: InputState, dt: number): void {
   applyContactDamage(world);
   removeDead(world);
   if (world.status !== 'running') return;
+  upgradeSignatureByLevel(world);
   if (world.time >= TUNING.runSeconds) world.status = 'survived';
   // Evolution first; its summary card hands over to any queued level-up cards.
   else if (!startEvolutionIfDue(world) && world.pendingLevelUps > 0) world.offer = makeOffer(world);

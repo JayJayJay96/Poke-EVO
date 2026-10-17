@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **Next: build P4d** (Pikachu + Lapras, first gamble balance pass). Lapras's level-based signature tiers moved to P4d (built with Lapras so they can be tested on real data).
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. **Next: build P4e** (ability ↔ tag links, §8.7), then the owner's P4 gate playtest. Lapras's level-based signature tiers moved to P4d (built with Lapras so they can be tested on real data).
 
 ## P4 plan (owner-approved 2026-10-17, D13)
 **Gate:** do the starters feel truly different? Is picking a tier (3-stage / 2-stage / no evolution) a real gamble?
@@ -56,6 +56,36 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-18 — P4d: Pikachu, Lapras, first gamble balance pass
+**Files**
+- `src/data/content.ts`: Pikachu (Lv 1, Electric, HP 105, speed 165, ×1.05, Static) → Raichu (Lv 16, HP 170, ×1.25, traits Static+ / Lightning Rod); learnset Quick Attack, Spark, Electro Ball, Thunder Wave, Iron Tail, Raichu-only Thunder. Lapras (Water/Ice, HP 170, speed 135, ×1.2, Shell Armor, one stage) with `signatureTiers` Ice Shard → Frost Breath (Lv 10) → Sheer Cold (Lv 25); learnset Body Slam, Surf, Ice Beam, Hydro Pump. New `SignatureTier` / `PokemonDef.signatureTiers`.
+- `src/data/moves.ts`: 12 new moves. Thunder Shock (chain 2 × 0.7) → Thunderbolt (burst + chain 3 × 0.8); Thunder = delayed 0.5 s strike zone with stun. `CraterDef.slow` (Sheer Cold's freezing field).
+- `src/sim/evolution.ts`: `upgradeSignatureByLevel` swaps the signature in place by level (augments kept), called each step; sets `World.signatureTierUp` for the scene.
+- `src/sim/forms/projectile.ts`, `types.ts`: crater slow.
+- `src/scenes/SelectScene.ts`: 5 cards; cards grow to fit wrapped text; Lapras card says "stronger at Lv 10 / 25". `RunScene.ts`: 3 s "Ice Shard → Frost Breath!" notice.
+- **Balance tool:** `src/sim/balance.ts` + `balance.bench.ts`, `npm run balance` (~4 min): a bot plays each line 15 min (invulnerable, random card picks, collects every gem) and at 5 / 9 / 15 min measures DPS on a pinned 16-dummy ring. Report → `balance-report.md` (gitignored). `npm run bench` now runs only the stress bench. `src/node-fs.d.ts` types the one Node call instead of adding @types/node.
+- **Tuning (provisional):** Bulbasaur was the outlier (Ivysaur by 5 min, 1371 DPS at 15): Vine Whip 13→11, Power Whip 18→15 / reach 85, Frenzy Plant 26→21 / reach 95 / field 0.3. Lapras tiers made smaller (Frost Breath 13, Sheer Cold 12). Thunderbolt 16, chain 0.8; Raichu ×1.25.
+
+**Balance report after tuning (4 seeds, DPS / level)**
+| Line | 5 min | 9 min | 15 min |
+|---|---|---|---|
+| Charmander | 47 / Lv 7 | 180 / Lv 14 | 841 / Lv 36 |
+| Squirtle | 102 / Lv 10 | 223 / Lv 17 | 523 / Lv 36 (highest eHP 285) |
+| Bulbasaur | 255 / Lv 15 | 428 / Lv 26 | 1001 / Lv 42 |
+| Pikachu | 121 / Lv 14 | 339 / Lv 23 | 478 / Lv 36 |
+| Lapras | 197 / Lv 17 | 462 / Lv 29 | 732 / Lv 46 |
+
+- §5 target: Lapras ahead at 5 min ✓; at 9 min still ahead of Charmander/Squirtle (target "about level") ✗; at 15 min behind Charizard and Venusaur ✓, ahead of Blastoise (which trades DPS for eHP) and Pikachu ✗.
+- Random picks make it noisy (Lapras's 5-min DPS rose after a nerf), so no further tuning against it. **Owner input needed at the gate:** (1) Charmander reaches only Lv 7 by 5 min, so Charmeleon arrives ~6 min, not the §5 target of 3–4 min (owner-playtested line, untouched); (2) Lapras snowballs levels from early kills (Lv 46 at 15:00); (3) Pikachu's late game sits below Lapras.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **143/143 passed** (11 new: per-line data/kit rules for Pikachu and Lapras; Pikachu start + Lv 16 evolution + traits, Thunder Shock 2 jumps / Thunderbolt 3, Raichu-only Thunder delayed strike + stun; Lapras start vs Charmander + Shell Armor + never evolves, tiers at 10 / 25 keeping augments + scene notice, tier-up during play, Sheer Cold slowing field, Ice ×2 on Pidgey). `npm run build` passed; bench 0.74 ms/step mean. `npm run balance` completed (table above); every line ran 15 min headless without errors.
+- Browser: select screen shows 5 cards with wrapped text fitting; Lapras run starts (Lv 1, HP 170, Ice Shard). **Not visually verified:** the pane was throttled to ~2 fps (window not in view), so the run clock did not advance; Pikachu/Lapras play, chain arcs, Thunder strike, tier-up notice and Raichu evolution are covered only by unit tests and the headless runs.
+
+**Notes**
+- Windows Python wrote CRLF into some files mid-session; normalised back to LF.
+- Next: P4e (ability ↔ tag links §8.7), then the owner's P4 gate playtest (do starters feel different? is the tier a real gamble?).
 
 ### 2026-10-18 — P4c: Bulbasaur line
 **Files**

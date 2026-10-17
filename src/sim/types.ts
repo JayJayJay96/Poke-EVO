@@ -87,6 +87,8 @@ export interface Projectile {
   craterTick: number;
   /** Damage per crater tick. */
   craterDamage: number;
+  /** Slow applied by each crater tick (Sheer Cold). */
+  craterSlow: number;
   /** A projectile leaves at most one crater, on its first hit (D11). */
   craterSpawned: boolean;
   /** Innate chain: jumps after the first hit, and damage per jump as a fraction. */
@@ -158,7 +160,7 @@ export interface Zone {
   tickLeft: number;
   damage: number;
   critChance: number;
-  /** Innate statuses applied on each tick (zone-cast moves); craters have none. */
+  /** Innate statuses applied on each tick (zone-cast moves, Sheer Cold's freezing crater). */
   slow: number;
   stun: number;
   poisonDps: number;
@@ -370,6 +372,8 @@ export interface World {
   offer: LevelUpOffer | null;
   /** Evolution in progress; takes priority over level-up cards and pauses the sim. */
   evolution: EvolutionState | null;
+  /** Set when a non-evolver's signature tiers up by level; the scene shows it and clears it. */
+  signatureTierUp: { readonly from: MoveId; readonly to: MoveId } | null;
   nextId: number;
   spawnEnabled: boolean;
   spawnTimer: number;

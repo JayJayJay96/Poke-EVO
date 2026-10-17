@@ -33,6 +33,20 @@ export type MoveId =
   | 'sludge'
   | 'petalDance'
   | 'solarBeam'
+  // Pikachu line (P4d)
+  | 'thunderShock'
+  | 'thunderbolt'
+  | 'quickAttack'
+  | 'spark'
+  | 'electroBall'
+  | 'thunderWave'
+  | 'ironTail'
+  | 'thunder'
+  // Lapras (P4d)
+  | 'iceShard'
+  | 'frostBreath'
+  | 'sheerCold'
+  | 'bodySlam'
   // Shared / other lines
   | 'tackle'
   | 'iceBeam';
@@ -52,6 +66,8 @@ export interface CraterDef {
   readonly tickInterval: number;
   /** Damage per tick, as a fraction of the hit. */
   readonly damageFraction: number;
+  /** Slow strength 0..1 applied on each tick (Sheer Cold's freezing field). */
+  readonly slow?: number;
 }
 
 /** On-hit statuses built into a move (P4a). Not augments: they never proc anything else. */
@@ -448,7 +464,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     tags: ['Grass', 'Melee'],
     form: 'melee',
     cooldown: 1.0,
-    damage: 13,
+    damage: 11,
     reach: 75,
     arcDegrees: 140,
   },
@@ -459,8 +475,8 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     tags: ['Grass', 'Melee', 'Area'],
     form: 'melee',
     cooldown: 1.1,
-    damage: 18,
-    reach: 95,
+    damage: 15,
+    reach: 85,
     arcDegrees: 360,
   },
   frenzyPlant: {
@@ -470,10 +486,10 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     tags: ['Grass', 'Melee', 'Area', 'Zone'],
     form: 'melee',
     cooldown: 1.4,
-    damage: 26,
-    reach: 105,
+    damage: 21,
+    reach: 95,
     arcDegrees: 360,
-    field: { radius: 60, duration: 2.5, tickInterval: 0.5, damageFraction: 0.35, onTick: { slow: 0.4 } },
+    field: { radius: 60, duration: 2.5, tickInterval: 0.5, damageFraction: 0.3, onTick: { slow: 0.4 } },
   },
   razorLeaf: {
     id: 'razorLeaf',
@@ -576,6 +592,181 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     width: 26,
     duration: 0.8,
     tickInterval: 0.2,
+  },
+  // Pikachu-line signature tiers (D13): chain is innate to these two only, ≤ 3 jumps.
+  thunderShock: {
+    id: 'thunderShock',
+    name: 'Thunder Shock',
+    description: 'A bolt that jumps to 2 more enemies',
+    tags: ['Electric', 'Projectile'],
+    form: 'projectile',
+    cooldown: 0.9,
+    damage: 9,
+    range: 320,
+    projectileSpeed: 480,
+    projectileRadius: 5,
+    projectileLifetime: 1.0,
+    count: 1,
+    chain: { jumps: 2, damageFraction: 0.7 },
+  },
+  thunderbolt: {
+    id: 'thunderbolt',
+    name: 'Thunderbolt',
+    description: 'A crackling bolt that bursts and jumps to 3 more enemies',
+    tags: ['Electric', 'Projectile', 'Area'],
+    form: 'projectile',
+    cooldown: 0.9,
+    damage: 16,
+    range: 340,
+    projectileSpeed: 500,
+    projectileRadius: 7,
+    projectileLifetime: 1.0,
+    count: 1,
+    explosion: { radius: 35, damageFraction: 0.5 },
+    chain: { jumps: 3, damageFraction: 0.8 },
+  },
+  quickAttack: {
+    id: 'quickAttack',
+    name: 'Quick Attack',
+    description: 'A very fast strike in front of you',
+    tags: ['Normal', 'Melee', 'Contact'],
+    form: 'melee',
+    cooldown: 0.6,
+    damage: 8,
+    reach: 60,
+    arcDegrees: 100,
+  },
+  spark: {
+    id: 'spark',
+    name: 'Spark',
+    description: 'Charged sparks circle you and paralyse briefly',
+    tags: ['Electric', 'Orbit', 'Contact'],
+    form: 'orbit',
+    cooldown: 4.5,
+    damage: 8,
+    count: 2,
+    orbitRadius: 55,
+    ballRadius: 9,
+    angularSpeed: 5.5,
+    duration: 3,
+    hitInterval: 0.4,
+    onHit: { stun: 0.2 },
+  },
+  electroBall: {
+    id: 'electroBall',
+    name: 'Electro Ball',
+    description: 'A slow electric ball that rolls through enemies',
+    tags: ['Electric', 'Projectile', 'Ball'],
+    form: 'projectile',
+    cooldown: 1.8,
+    damage: 16,
+    range: 340,
+    projectileSpeed: 260,
+    projectileRadius: 10,
+    projectileLifetime: 1.6,
+    count: 1,
+    pierce: 2,
+  },
+  thunderWave: {
+    id: 'thunderWave',
+    name: 'Thunder Wave',
+    description: 'A field that paralyses everything inside',
+    tags: ['Electric', 'Zone'],
+    form: 'zone',
+    cooldown: 6,
+    damage: 1,
+    range: 300,
+    radius: 60,
+    duration: 2,
+    tickInterval: 0.5,
+    onHit: { stun: 0.6 },
+  },
+  ironTail: {
+    id: 'ironTail',
+    name: 'Iron Tail',
+    description: 'A heavy steel tail swing',
+    tags: ['Steel', 'Melee', 'Contact'],
+    form: 'melee',
+    cooldown: 2.2,
+    damage: 24,
+    reach: 80,
+    arcDegrees: 180,
+    onHit: { knockback: 15 },
+  },
+  // Raichu only (D14). The strike lands half a second after the cast.
+  thunder: {
+    id: 'thunder',
+    name: 'Thunder',
+    description: 'Raichu calls down a lightning strike that paralyses',
+    tags: ['Electric', 'Zone'],
+    form: 'zone',
+    cooldown: 3.5,
+    damage: 30,
+    range: 340,
+    radius: 45,
+    duration: 0.55,
+    tickInterval: 0.5,
+    onHit: { stun: 0.5 },
+  },
+  // Lapras signature tiers by level (Lv 10 / 25): smaller steps than an evolution.
+  iceShard: {
+    id: 'iceShard',
+    name: 'Ice Shard',
+    description: 'A fast shard of ice',
+    tags: ['Ice', 'Projectile'],
+    form: 'projectile',
+    cooldown: 0.7,
+    damage: 13,
+    range: 320,
+    projectileSpeed: 520,
+    projectileRadius: 6,
+    projectileLifetime: 0.9,
+    count: 1,
+  },
+  frostBreath: {
+    id: 'frostBreath',
+    name: 'Frost Breath',
+    description: 'An icy burst that slows',
+    tags: ['Ice', 'Projectile', 'Area'],
+    form: 'projectile',
+    cooldown: 0.8,
+    damage: 13,
+    range: 330,
+    projectileSpeed: 480,
+    projectileRadius: 8,
+    projectileLifetime: 0.9,
+    count: 1,
+    explosion: { radius: 45, damageFraction: 0.5 },
+    onHit: { slow: 0.3 },
+  },
+  sheerCold: {
+    id: 'sheerCold',
+    name: 'Sheer Cold',
+    description: 'An icy burst that leaves a freezing field',
+    tags: ['Ice', 'Projectile', 'Area', 'Zone'],
+    form: 'projectile',
+    cooldown: 0.9,
+    damage: 12,
+    range: 340,
+    projectileSpeed: 460,
+    projectileRadius: 9,
+    projectileLifetime: 1.0,
+    count: 1,
+    explosion: { radius: 55, damageFraction: 0.4 },
+    crater: { radius: 55, duration: 2.5, tickInterval: 0.5, damageFraction: 0.2, slow: 0.5 },
+    onHit: { slow: 0.35 },
+  },
+  bodySlam: {
+    id: 'bodySlam',
+    name: 'Body Slam',
+    description: 'Lapras crushes what is in front, paralysing it briefly',
+    tags: ['Normal', 'Melee', 'Contact'],
+    form: 'melee',
+    cooldown: 1.4,
+    damage: 20,
+    reach: 70,
+    arcDegrees: 140,
+    onHit: { stun: 0.25, knockback: 15 },
   },
   dragonRage: {
     id: 'dragonRage',

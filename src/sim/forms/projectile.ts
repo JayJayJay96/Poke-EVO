@@ -33,6 +33,7 @@ export function createProjectile(): Projectile {
     craterDuration: 0,
     craterTick: 0,
     craterDamage: 0,
+    craterSlow: 0,
     craterSpawned: false,
     chainJumps: 0,
     chainFraction: 0,
@@ -84,6 +85,7 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
     p.craterDuration = crater ? crater.duration * s.duration * s.zoneDurationMult : 0;
     p.craterTick = crater?.tickInterval ?? 0;
     p.craterDamage = crater ? damage * crater.damageFraction * s.zoneDamageMult : 0;
+    p.craterSlow = crater?.slow ?? 0;
     p.craterSpawned = false;
     p.chainJumps = def.chain?.jumps ?? 0;
     p.chainFraction = def.chain?.damageFraction ?? 0;
@@ -254,7 +256,7 @@ function detonate(world: World, proj: Projectile, primary: Enemy): void {
       proj.craterTick,
       proj.craterDamage,
       proj.hit.critChance,
-      { ...NO_HIT, attackType: proj.hit.attackType },
+      { ...NO_HIT, slow: proj.craterSlow, attackType: proj.hit.attackType },
     );
   }
 }
