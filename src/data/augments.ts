@@ -17,7 +17,13 @@ export type AugmentId =
   | 'wideBlast'
   | 'linger'
   | 'blazeCore'
-  | 'megaFlare';
+  | 'megaFlare'
+  | 'pierce'
+  | 'homing'
+  | 'boomerang'
+  | 'knockback'
+  | 'burn'
+  | 'lifesteal';
 
 /** Values are the totals at that rank, not increments. Percentages are fractions. */
 export interface AugmentEffect {
@@ -38,6 +44,18 @@ export interface AugmentEffect {
   readonly zoneDamagePct?: number;
   /** Extra damage at 0 HP, scaling linearly with missing HP (applied when the hit lands). */
   readonly missingHpDamagePct?: number;
+  // Behaviour (🟡, §11.2): each changes how one projectile or hit behaves.
+  /** Extra enemies a projectile passes through. */
+  readonly pierce?: number;
+  readonly homing?: boolean;
+  /** Projectile flies out and back to the player, passing through enemies both ways. */
+  readonly returns?: boolean;
+  /** Push distance in px. */
+  readonly knockback?: number;
+  /** Burn damage per second as a fraction of the hit. */
+  readonly burnPct?: number;
+  /** Heal as a fraction of damage dealt. */
+  readonly lifestealPct?: number;
 }
 
 export interface AugmentRank {
@@ -53,7 +71,8 @@ export interface AugmentDef {
   readonly requiresAny: readonly MoveTag[];
   /** Signature-exclusive: only these moves can roll it (§8.2). */
   readonly exclusiveTo?: readonly MoveId[];
-  readonly ranks: readonly [AugmentRank, AugmentRank, AugmentRank];
+  /** 1–3 entries; the length is the augment's max rank (single-rank augments: §8.2a). */
+  readonly ranks: readonly [AugmentRank, ...AugmentRank[]];
 }
 
 export const MAX_SOCKETS = 3;
@@ -230,7 +249,70 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
       },
     ],
   },
+  // Behaviour augments (P3c, D10).
+  pierce: {
+    id: 'pierce',
+    name: 'Pierce',
+    kind: 'stat',
+    requiresAny: ['Projectile'],
+    ranks: [
+      { effect: { pierce: 1 }, text: 'Passes through 1 enemy' },
+      { effect: { pierce: 2 }, text: 'Passes through 2 enemies' },
+      { effect: { pierce: 4 }, text: 'Passes through 4 enemies' },
+    ],
+  },
+  homing: {
+    id: 'homing',
+    name: 'Homing',
+    kind: 'stat',
+    requiresAny: ['Projectile'],
+    ranks: [{ effect: { homing: true }, text: 'Projectiles curve toward enemies' }],
+  },
+  boomerang: {
+    id: 'boomerang',
+    name: 'Return',
+    kind: 'stat',
+    requiresAny: ['Projectile'],
+    ranks: [{ effect: { returns: true }, text: 'Flies out and back, passing through enemies both ways' }],
+  },
+  knockback: {
+    id: 'knockback',
+    name: 'Knockback',
+    kind: 'stat',
+    requiresAny: ['Melee', 'Projectile'],
+    ranks: [
+      { effect: { knockback: 40 }, text: 'Knocks enemies back 40 px' },
+      { effect: { knockback: 70 }, text: 'Knocks enemies back 70 px' },
+      { effect: { knockback: 110 }, text: 'Knocks enemies back 110 px' },
+    ],
+  },
+  burn: {
+    id: 'burn',
+    name: 'Burn',
+    kind: 'stat',
+    requiresAny: ['Fire'],
+    ranks: [
+      { effect: { burnPct: 0.2 }, text: 'Burns: 20% of the hit per second for 3 s' },
+      { effect: { burnPct: 0.35 }, text: 'Burns: 35% of the hit per second for 3 s' },
+      { effect: { burnPct: 0.5 }, text: 'Burns: 50% of the hit per second for 3 s' },
+    ],
+  },
+  lifesteal: {
+    id: 'lifesteal',
+    name: 'Lifesteal',
+    kind: 'stat',
+    requiresAny: [],
+    ranks: [
+      { effect: { lifestealPct: 0.02 }, text: 'Heal 2% of damage dealt' },
+      { effect: { lifestealPct: 0.04 }, text: 'Heal 4% of damage dealt' },
+      { effect: { lifestealPct: 0.06 }, text: 'Heal 6% of damage dealt' },
+    ],
+  },
 };
 
 export const AUGMENT_IDS = Object.keys(AUGMENTS) as AugmentId[];
+
+export function maxRankOf(id: AugmentId): number {
+  return AUGMENTS[id].ranks.length;
+}
 export const RANK_NUMERALS = ['I', 'II', 'III'] as const;

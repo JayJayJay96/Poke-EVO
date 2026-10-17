@@ -1,5 +1,5 @@
 import type { MeleeMoveDef } from '../../data/moves';
-import { MAX_ENEMY_RADIUS, damageEnemy, findNearestEnemy, queryEnemies } from '../combat';
+import { MAX_ENEMY_RADIUS, damageEnemy, findNearestEnemy, makeHitInfo, queryEnemies } from '../combat';
 import type { MoveSlot, World } from '../types';
 
 /** How long the swipe stays visible. Presentation only. */
@@ -21,6 +21,7 @@ export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): bool
   const dirY = tdist > 0 ? ty / tdist : 0;
   const halfArc = (def.arcDegrees * Math.PI) / 360;
   const cosHalf = Math.cos(halfArc);
+  const hit = makeHitInfo(slot.stats);
 
   queryEnemies(world, player.x, player.y, reach, neighbours);
   for (const j of neighbours) {
@@ -33,7 +34,10 @@ export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): bool
     // Enemies overlapping the player's centre are always inside the swipe.
     const inArc = dist <= enemy.radius || (dx * dirX + dy * dirY) / dist >= cosHalf;
     if (!inArc) continue;
-    damageEnemy(world, enemy, slot.stats.damage, slot.stats.critChance);
+    // Knock away from the player.
+    hit.dirX = dist > 0 ? dx / dist : dirX;
+    hit.dirY = dist > 0 ? dy / dist : dirY;
+    damageEnemy(world, enemy, slot.stats.damage, hit);
   }
 
   world.swings.push({ x: player.x, y: player.y, dirX, dirY, reach, halfArc, lifeLeft: SWING_SECONDS });

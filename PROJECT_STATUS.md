@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **Next: build P3c** (on-hit hooks + status effects; Pierce, Homing, Return, Knockback, Burn, Lifesteal).
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 is code-complete. Next: the owner playtests the P3 gate** ("Is evolving the best moment of the run?"), also checking Enter/Space on the evolution card and how the behaviour augments feel live (not observable in the hidden pane).
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
 - **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a), `778aff0` (P2b), `9d0c3b1` (P2c); P2d commit follows this update.
 - **P2d done** (2026-10-17): projectile pool + 500 cap, `?stress=1` mode, `?perf=1` readout, `npm run bench`. Stress: ~160 FPS with 500 enemies + maxed build; sim 0.82 ms/step (bench mean).
@@ -44,6 +44,25 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-17 — P3c: behaviour augments
+**Files**
+- `src/data/augments.ts`: Pierce I–III (1/2/4 enemies), Homing (single rank), Return (`boomerang`, single rank: out and back, passing through enemies both ways), Knockback I–III (40/70/110 px; Melee/Projectile), Burn I–III (20/35/50% of the hit per second for 3 s; Fire only), Lifesteal I–III (2/4/6% of damage dealt). `ranks` is now 1–3 entries; `maxRankOf`.
+- `src/data/content.ts`: `TUNING.status` (burn 3 s, 0.25 s ticks, knockback decay) and `TUNING.homing` (250 px search, 6 rad/s turn).
+- `src/sim/types.ts`: `HitInfo` (on-hit effects); enemy knockback velocity + burn state; projectile `hit`, pierce/homing/return state, `hitIds` (reused, max 16) so pierce/return never re-hit the same enemy on a leg.
+- `src/sim/combat.ts` (rewritten): `damageEnemy(world, enemy, damage, hit)` applies crit, Blaze, Blaze Core, lifesteal (on damage actually dealt), burn, knockback; `NO_HIT`/`makeHitInfo`; `updateStatuses` (knockback motion + burn ticks as plain hits, i.e. no proc-from-proc); `findNearestEnemy` can search around any point.
+- `src/sim/forms/projectile.ts` (rewritten): pierce, homing steering with a turn limit, Return legs; `createProjectile` for the pool and tests. Melee/orbit/beam pass `HitInfo` (melee and beam set the knockback direction); zones deal plain hits.
+- `src/sim/progression.ts`: rank-ups honour each augment's max rank. `src/sim/stress.ts`: the stress build now uses Homing, Knockback, Burn and Lifesteal.
+- `src/scenes/RunScene.ts`: orange ring on burning enemies; single-rank augments show no numeral.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **81/81 passed** (10 new: no pierce stops at first, Pierce I stops at the second, Homing curves to an off-line enemy, Return hits once per leg and ends at the player, Knockback > 60 px at rank III, Burn = dps × 3 s in ticks, burn ticks don't lifesteal, lifesteal capped at max HP, single-rank never ranks up, Burn/Knockback tag gating); `npm run build` passed; `npm run bench` (stress now with homing/burn/knockback/lifesteal) **mean 0.78 ms, p99 1.20 ms, max 4.0 ms**.
+- Browser: Burn, Knockback and Pierce were picked on Ember through the real augment window (page-dispatched key 1, then mouse clicks); stats updated (burn 0.2, knockback 40, pierce 1). **Live combat effects were not observable**: the pane's page stayed `visibilityState: hidden`, so game time barely advanced. No new console errors from this load.
+
+**Design note (my call within D10, flag for the owner):** Return passes through enemies on **both** legs (a boomerang). Dying on the first outbound hit would almost never return.
+
+**Risks**
+- Homing re-targets with a linear enemy scan when its target dies; fine at current counts (bench max 4 ms), but switch to a hash query if projectile counts grow.
 
 ### 2026-10-17 — P3b: signature tiers, zones, tag/exclusive augments
 **Files**

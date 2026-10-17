@@ -40,6 +40,13 @@ export interface Enemy {
   maxHp: number;
   contactDamage: number;
   hitFlashLeft: number;
+  /** Knockback velocity, decaying each step. */
+  kbX: number;
+  kbY: number;
+  /** Burn: damage per second while burnLeft > 0, applied in 0.25 s ticks. */
+  burnDps: number;
+  burnLeft: number;
+  burnTickLeft: number;
 }
 
 /** Pooled: dead projectiles are reused, so every field is reassigned on spawn. */
@@ -52,9 +59,6 @@ export interface Projectile {
   vy: number;
   radius: number;
   damage: number;
-  critChance: number;
-  /** Blaze Core: extra damage at 0 HP, scaled by missing HP when the hit lands. */
-  missingHpBonus: number;
   /** 0 = no explosion. */
   explodeRadius: number;
   explodeFraction: number;
@@ -64,8 +68,39 @@ export interface Projectile {
   craterTick: number;
   /** Damage per crater tick. */
   craterDamage: number;
+  /** On-hit effects carried to every enemy this projectile hits. */
+  hit: HitInfo;
+  /** Enemies it may still pass through. */
+  pierceLeft: number;
+  homing: boolean;
+  homingTarget: Enemy | null;
+  returns: boolean;
+  /** On the way back to the player. Return projectiles pierce on both legs. */
+  returning: boolean;
+  /** Remaining life at which a Return projectile turns around. */
+  turnAt: number;
+  speed: number;
+  /** Ids already hit this leg, so pierce/return never hit the same enemy twice in a row. Reused. */
+  hitIds: number[];
   lifeLeft: number;
   dead: boolean;
+}
+
+/**
+ * On-hit effects of a move, applied by damageEnemy (§8.8 onHit).
+ * Splash damage carries them too; zone and burn ticks do not (no proc-from-proc).
+ */
+export interface HitInfo {
+  critChance: number;
+  missingHpBonus: number;
+  /** Heal as a fraction of damage dealt. */
+  lifesteal: number;
+  /** Burn damage per second to apply (0 = none). */
+  burnDps: number;
+  /** Push distance in px (0 = none), along dirX/dirY. */
+  knockback: number;
+  dirX: number;
+  dirY: number;
 }
 
 /** A lingering damage area (Blast Burn's crater). Never spawns further effects. */
@@ -131,6 +166,13 @@ export interface MoveStats {
   zoneDurationMult: number;
   zoneDamageMult: number;
   missingHpBonus: number;
+  pierce: number;
+  homing: boolean;
+  returns: boolean;
+  knockback: number;
+  /** Burn damage per second as a fraction of the hit. */
+  burnPct: number;
+  lifesteal: number;
 }
 
 export interface AugmentSocket {

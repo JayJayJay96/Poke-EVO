@@ -1,57 +1,187 @@
 import { TUNING } from '../../data/content';
 import type { ProjectileMoveDef } from '../../data/moves';
-import { damageEnemy, findNearestEnemy, queryEnemies } from '../combat';
+import { NO_HIT, damageEnemy, findNearestEnemy, queryEnemies } from '../combat';
 import type { Enemy, MoveSlot, Projectile, World } from '../types';
 import { spawnZone } from '../zones';
 
 /** How long an explosion stays visible. Presentation only. */
 export const BLAST_SECONDS = 0.18;
-
 /** Angle between neighbouring projectiles when a cast fires several. */
 const SPREAD_RADIANS = 0.21;
+/** Hits remembered per leg so pierce/return never re-hit the same enemy; oldest forgotten past this. */
+const MAX_HIT_MEMORY = 16;
 
 const neighbours: number[] = [];
 const blastNeighbours: number[] = [];
+
+/** A blank projectile; every field is reassigned when it is fired. */
+export function createProjectile(): Projectile {
+  return {
+    id: 0,
+    moveId: 'ember',
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    radius: 0,
+    damage: 0,
+    explodeRadius: 0,
+    explodeFraction: 0,
+    craterRadius: 0,
+    craterDuration: 0,
+    craterTick: 0,
+    craterDamage: 0,
+    hit: { ...NO_HIT },
+    pierceLeft: 0,
+    homing: false,
+    homingTarget: null,
+    returns: false,
+    returning: false,
+    turnAt: 0,
+    speed: 0,
+    hitIds: [],
+    lifeLeft: 0,
+    dead: true,
+  };
+}
 
 export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMoveDef): boolean {
   const target = findNearestEnemy(world, def.range);
   if (!target) return false; // stays ready and fires the moment something is in range
   const { player } = world;
-  const wanted = def.count + slot.stats.extraCount;
+  const s = slot.stats;
+  const wanted = def.count + s.extraCount;
   // Budget: never exceed the projectile cap. A clipped cast fires fewer, heavier
   // projectiles so its total damage is unchanged; a full budget spends the cast.
   const room = TUNING.budget.maxProjectiles - world.projectiles.length;
   if (room <= 0) return true;
   const count = Math.min(wanted, room);
-  const damage = slot.stats.damage * (wanted / count);
-  const speed = def.projectileSpeed * slot.stats.speedMult;
-  const s = slot.stats;
+  const damage = s.damage * (wanted / count);
+  const speed = def.projectileSpeed * s.speedMult;
+  const lifetime = def.projectileLifetime * s.duration;
   const { explosion, crater } = def;
   const base = Math.atan2(target.y - player.y, target.x - player.x);
   for (let i = 0; i < count; i++) {
     const angle = base + (i - (count - 1) / 2) * SPREAD_RADIANS;
-    const p = acquireProjectile(world);
+    const p = world.projectilePool.pop() ?? createProjectile();
     p.id = world.nextId++;
     p.moveId = def.id;
     p.x = player.x;
     p.y = player.y;
     p.vx = Math.cos(angle) * speed;
     p.vy = Math.sin(angle) * speed;
-    p.radius = def.projectileRadius * slot.stats.area;
+    p.speed = speed;
+    p.radius = def.projectileRadius * s.area;
     p.damage = damage;
-    p.critChance = s.critChance;
-    p.missingHpBonus = s.missingHpBonus;
     p.explodeRadius = explosion ? explosion.radius * s.area * s.blastRadiusMult : 0;
     p.explodeFraction = explosion?.damageFraction ?? 0;
     p.craterRadius = crater ? crater.radius * s.area * s.blastRadiusMult : 0;
     p.craterDuration = crater ? crater.duration * s.duration * s.zoneDurationMult : 0;
     p.craterTick = crater?.tickInterval ?? 0;
     p.craterDamage = crater ? damage * crater.damageFraction * s.zoneDamageMult : 0;
-    p.lifeLeft = def.projectileLifetime * s.duration;
+    p.hit.critChance = s.critChance;
+    p.hit.missingHpBonus = s.missingHpBonus;
+    p.hit.lifesteal = s.lifesteal;
+    p.hit.burnDps = damage * s.burnPct;
+    p.hit.knockback = s.knockback;
+    p.pierceLeft = s.pierce;
+    p.homing = s.homing;
+    p.homingTarget = null;
+    p.returns = s.returns;
+    p.returning = false;
+    // Return: fly out for half the lifetime, then come back.
+    p.turnAt = s.returns ? lifetime / 2 : 0;
+    p.hitIds.length = 0;
+    p.lifeLeft = lifetime;
     p.dead = false;
     world.projectiles.push(p);
   }
   return true;
+}
+
+export function updateProjectiles(world: World, dt: number): void {
+  const { enemies, player } = world;
+  const maxTurn = TUNING.homing.turnRate * dt;
+  for (const proj of world.projectiles) {
+    if (proj.dead) continue;
+
+    if (proj.returning) {
+      steer(proj, player.x, player.y, Math.PI); // straight back
+    } else if (proj.homing) {
+      const target = homingTarget(world, proj);
+      if (target) steer(proj, target.x, target.y, maxTurn);
+    }
+
+    proj.x += proj.vx * dt;
+    proj.y += proj.vy * dt;
+    proj.lifeLeft -= dt;
+
+    if (proj.returning) {
+      const dx = player.x - proj.x;
+      const dy = player.y - proj.y;
+      const reach = player.radius + proj.radius;
+      if (dx * dx + dy * dy <= reach * reach) {
+        proj.dead = true;
+        continue;
+      }
+    } else if (proj.returns && proj.lifeLeft <= proj.turnAt) {
+      proj.returning = true;
+      proj.hitIds.length = 0; // the way back may hit the same enemies again
+      proj.lifeLeft = proj.turnAt * 2 + 1; // safety cap for the trip home
+    }
+    if (proj.lifeLeft <= 0) {
+      proj.dead = true;
+      continue;
+    }
+
+    queryEnemies(world, proj.x, proj.y, proj.radius, neighbours);
+    for (const j of neighbours) {
+      const enemy = enemies[j]!;
+      if (enemy.hp <= 0 || proj.hitIds.includes(enemy.id)) continue;
+      const dx = enemy.x - proj.x;
+      const dy = enemy.y - proj.y;
+      const reach = enemy.radius + proj.radius;
+      if (dx * dx + dy * dy > reach * reach) continue;
+      proj.hit.dirX = proj.vx / proj.speed;
+      proj.hit.dirY = proj.vy / proj.speed;
+      damageEnemy(world, enemy, proj.damage, proj.hit);
+      detonate(world, proj, enemy);
+      remember(proj, enemy.id);
+      if (proj.returns) continue; // a boomerang passes through everything, both ways
+      if (proj.pierceLeft > 0) {
+        proj.pierceLeft--;
+        continue;
+      }
+      proj.dead = true;
+      break;
+    }
+  }
+}
+
+/** Keeps or finds the nearest living enemy around the projectile. */
+function homingTarget(world: World, proj: Projectile): Enemy | null {
+  const current = proj.homingTarget;
+  if (current && current.hp > 0 && !proj.hitIds.includes(current.id)) return current;
+  const found = findNearestEnemy(world, TUNING.homing.range, proj.x, proj.y);
+  proj.homingTarget = found && !proj.hitIds.includes(found.id) ? found : null;
+  return proj.homingTarget;
+}
+
+/** Turns the velocity toward (tx, ty) by at most maxTurn radians, keeping speed. */
+function steer(proj: Projectile, tx: number, ty: number, maxTurn: number): void {
+  const current = Math.atan2(proj.vy, proj.vx);
+  const desired = Math.atan2(ty - proj.y, tx - proj.x);
+  let diff = desired - current;
+  if (diff > Math.PI) diff -= Math.PI * 2;
+  else if (diff < -Math.PI) diff += Math.PI * 2;
+  const angle = current + Math.max(-maxTurn, Math.min(maxTurn, diff));
+  proj.vx = Math.cos(angle) * proj.speed;
+  proj.vy = Math.sin(angle) * proj.speed;
+}
+
+function remember(proj: Projectile, enemyId: number): void {
+  if (proj.hitIds.length >= MAX_HIT_MEMORY) proj.hitIds.shift();
+  proj.hitIds.push(enemyId);
 }
 
 /** Splash everyone else in the radius and leave the crater, if the projectile carries them. */
@@ -66,64 +196,20 @@ function detonate(world: World, proj: Projectile, primary: Enemy): void {
       const dy = enemy.y - proj.y;
       const reach = proj.explodeRadius + enemy.radius;
       if (dx * dx + dy * dy > reach * reach) continue;
-      damageEnemy(world, enemy, proj.damage * proj.explodeFraction, proj.critChance, proj.missingHpBonus);
+      damageEnemy(world, enemy, proj.damage * proj.explodeFraction, proj.hit);
     }
     world.blasts.push({ x: proj.x, y: proj.y, radius: proj.explodeRadius, lifeLeft: BLAST_SECONDS });
   }
   if (proj.craterRadius > 0) {
-    spawnZone(world, proj.x, proj.y, proj.craterRadius, proj.craterDuration, proj.craterTick, proj.craterDamage, proj.critChance);
-  }
-}
-
-/** Reuses a dead projectile when one is available. */
-function acquireProjectile(world: World): Projectile {
-  return (
-    world.projectilePool.pop() ?? {
-      id: 0,
-      moveId: 'ember',
-      x: 0,
-      y: 0,
-      vx: 0,
-      vy: 0,
-      radius: 0,
-      damage: 0,
-      critChance: 0,
-      missingHpBonus: 0,
-      explodeRadius: 0,
-      explodeFraction: 0,
-      craterRadius: 0,
-      craterDuration: 0,
-      craterTick: 0,
-      craterDamage: 0,
-      lifeLeft: 0,
-      dead: true,
-    }
-  );
-}
-
-export function updateProjectiles(world: World, dt: number): void {
-  const { enemies } = world;
-  for (const proj of world.projectiles) {
-    if (proj.dead) continue;
-    proj.x += proj.vx * dt;
-    proj.y += proj.vy * dt;
-    proj.lifeLeft -= dt;
-    if (proj.lifeLeft <= 0) {
-      proj.dead = true;
-      continue;
-    }
-    queryEnemies(world, proj.x, proj.y, proj.radius, neighbours);
-    for (const j of neighbours) {
-      const enemy = enemies[j]!;
-      if (enemy.hp <= 0) continue;
-      const dx = enemy.x - proj.x;
-      const dy = enemy.y - proj.y;
-      const reach = enemy.radius + proj.radius;
-      if (dx * dx + dy * dy > reach * reach) continue;
-      damageEnemy(world, enemy, proj.damage, proj.critChance, proj.missingHpBonus);
-      detonate(world, proj, enemy);
-      proj.dead = true; // no pierce yet
-      break;
-    }
+    spawnZone(
+      world,
+      proj.x,
+      proj.y,
+      proj.craterRadius,
+      proj.craterDuration,
+      proj.craterTick,
+      proj.craterDamage,
+      proj.hit.critChance,
+    );
   }
 }

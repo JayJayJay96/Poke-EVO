@@ -4,7 +4,16 @@ import { ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
 import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
 import { WAVES } from '../data/waves';
-import { abilityDamageMult, damageEnemy, dropGem, findNearestEnemy, isAbilityActive } from './combat';
+import {
+  NO_HIT,
+  abilityDamageMult,
+  damageEnemy,
+  dropGem,
+  findNearestEnemy,
+  isAbilityActive,
+  updateStatuses,
+} from './combat';
+import { createProjectile } from './forms/projectile';
 import { dismissEvolution, dueEvolutionStage, finishEvolutionCinematic } from './evolution';
 import {
   augmentPool,
@@ -23,7 +32,7 @@ import { createSeededRng } from './rng';
 import { SpatialHash } from './spatialHash';
 import { computeModifiers, createSlot, refreshStats } from './stats';
 import { STRESS_ENEMIES, setupStress, topUpStress } from './stress';
-import type { InputState, Projectile, World } from './types';
+import type { AugmentSocket, InputState, Projectile, World } from './types';
 import { createWorld, pickEnemyKind, spawnEnemy, step, waveAt } from './world';
 import { spawnZone } from './zones';
 
@@ -392,7 +401,7 @@ describe('stats', () => {
   it('a guaranteed crit deals ×1.5', () => {
     const world = makeWorld();
     const enemy = spawnEnemy(world, 'rattata', 500, 0);
-    damageEnemy(world, enemy, 10, 1);
+    damageEnemy(world, enemy, 10, { ...NO_HIT, critChance: 1 });
     expect(enemy.hp).toBe(enemy.maxHp - 15);
   });
 
@@ -603,10 +612,11 @@ describe('augments', () => {
     expect(world.player.hp).toBeCloseTo(world.player.maxHp - enemy.contactDamage * 1.1);
   });
 
-  it('every augment has three ranks, each with card text', () => {
+  it('every augment has 1–3 ranks, each with card text', () => {
     for (const id of AUGMENT_IDS) {
       const ranks = AUGMENTS[id].ranks;
-      expect(ranks).toHaveLength(3);
+      expect(ranks.length).toBeGreaterThanOrEqual(1);
+      expect(ranks.length).toBeLessThanOrEqual(MAX_RANK);
       for (const rank of ranks) expect(rank.text.length).toBeGreaterThan(0);
     }
   });
@@ -615,26 +625,7 @@ describe('augments', () => {
 describe('performance budgets', () => {
   /** A harmless projectile parked far away, to fill the budget. */
   function filler(id: number): Projectile {
-    return {
-      id,
-      moveId: 'ember',
-      x: 50_000,
-      y: 50_000,
-      vx: 0,
-      vy: 0,
-      radius: 1,
-      damage: 0,
-      critChance: 0,
-      missingHpBonus: 0,
-      explodeRadius: 0,
-      explodeFraction: 0,
-      craterRadius: 0,
-      craterDuration: 0,
-      craterTick: 0,
-      craterDamage: 0,
-      lifeLeft: 99,
-      dead: false,
-    };
+    return Object.assign(createProjectile(), { id, x: 50_000, y: 50_000, radius: 1, speed: 1, lifeLeft: 99, dead: false });
   }
 
   it('a cast clipped by the projectile cap fires fewer, heavier projectiles', () => {
@@ -885,8 +876,134 @@ describe('signature tiers', () => {
     const world = makeWorld();
     world.player.hp = world.player.maxHp * 0.5; // above Blaze's 30% threshold
     const enemy = spawnEnemy(world, 'raticate', 500, 0);
-    damageEnemy(world, enemy, 10, 0, 0.8);
+    damageEnemy(world, enemy, 10, { ...NO_HIT, missingHpBonus: 0.8 });
     expect(enemy.hp).toBeCloseTo(enemy.maxHp - 10 * (1 + 0.8 * 0.5));
+  });
+});
+
+describe('behaviour augments', () => {
+  /** Ember with the given augments, facing a line of stationary Raticates along +x. */
+  function emberVsLine(augments: { augmentId: AugmentSocket['augmentId']; rank: number }[], xs: number[]): {
+    world: World;
+    targets: ReturnType<typeof spawnEnemy>[];
+  } {
+    const world = makeWorld();
+    world.player.invulnLeft = 99;
+    world.moves[0]!.sockets = augments;
+    refreshStats(world);
+    const targets = xs.map((x) => {
+      const e = spawnEnemy(world, 'raticate', x, 0, 10);
+      e.speed = 0;
+      return e;
+    });
+    return { world, targets };
+  }
+
+  it('without Pierce a projectile stops at the first enemy', () => {
+    const { world, targets } = emberVsLine([], [100, 160]);
+    step(world, IDLE, DT);
+    world.moves[0]!.cooldownLeft = 999;
+    run(world, 0.8);
+    expect(targets[0]!.hp).toBeLessThan(targets[0]!.maxHp);
+    expect(targets[1]!.hp).toBe(targets[1]!.maxHp);
+  });
+
+  it('Pierce I passes through one enemy and stops at the next', () => {
+    const { world, targets } = emberVsLine([{ augmentId: 'pierce', rank: 1 }], [100, 160, 220]);
+    step(world, IDLE, DT);
+    world.moves[0]!.cooldownLeft = 999;
+    run(world, 1);
+    expect(targets[0]!.hp).toBeLessThan(targets[0]!.maxHp);
+    expect(targets[1]!.hp).toBeLessThan(targets[1]!.maxHp);
+    expect(targets[2]!.hp).toBe(targets[2]!.maxHp);
+  });
+
+  it('Homing curves toward an enemy the straight shot would miss', () => {
+    const world = makeWorld();
+    world.player.invulnLeft = 99;
+    world.moves[0]!.sockets = [{ augmentId: 'homing', rank: 1 }];
+    refreshStats(world);
+    const aimed = spawnEnemy(world, 'raticate', 200, 0, 10);
+    aimed.speed = 0;
+    step(world, IDLE, DT); // fires along +x
+    aimed.hp = 0; // the original target vanishes mid-flight
+    const other = spawnEnemy(world, 'raticate', 150, 90, 10);
+    other.speed = 0;
+    world.moves[0]!.cooldownLeft = 999;
+    run(world, 1);
+    expect(other.hp).toBeLessThan(other.maxHp);
+  });
+
+  it('Return passes through on the way out, hits again on the way back and ends at the player', () => {
+    const { world, targets } = emberVsLine([{ augmentId: 'boomerang', rank: 1 }], [80]);
+    const lifetime = MOVES.ember.form === 'projectile' ? MOVES.ember.projectileLifetime : 0;
+    step(world, IDLE, DT);
+    world.moves[0]!.cooldownLeft = 999;
+    const proj = world.projectiles[0]!;
+    run(world, lifetime / 2 + 0.05);
+    expect(proj.returning).toBe(true);
+    run(world, lifetime);
+    expect(world.projectiles).toHaveLength(0);
+    const hits = Math.round((targets[0]!.maxHp - targets[0]!.hp) / MOVES.ember.damage);
+    expect(hits).toBe(2); // once on each leg
+  });
+
+  it('Knockback pushes an enemy away from the hit', () => {
+    const { world, targets } = emberVsLine([{ augmentId: 'knockback', rank: 3 }], [120]);
+    const startX = targets[0]!.x;
+    run(world, 1);
+    expect(targets[0]!.x - startX).toBeGreaterThan(60);
+  });
+
+  it('Burn deals damage over 3 s in 0.25 s ticks after the hit', () => {
+    const world = makeWorld();
+    const enemy = spawnEnemy(world, 'raticate', 500, 0, 10);
+    enemy.speed = 0;
+    damageEnemy(world, enemy, 10, { ...NO_HIT, burnDps: 4 });
+    const afterHit = enemy.hp;
+    for (let i = 0; i < Math.round(TUNING.status.burnSeconds / DT) + 30; i++) updateStatuses(world, DT);
+    expect(afterHit - enemy.hp).toBeCloseTo(4 * TUNING.status.burnSeconds, 0);
+    expect(enemy.burnLeft).toBeLessThanOrEqual(0);
+  });
+
+  it('Burn ticks are plain hits: no lifesteal from them', () => {
+    const world = makeWorld();
+    world.player.hp = 50;
+    const enemy = spawnEnemy(world, 'raticate', 500, 0, 10);
+    damageEnemy(world, enemy, 10, { ...NO_HIT, burnDps: 4, lifesteal: 0.5 });
+    expect(world.player.hp).toBeCloseTo(55); // 50% of the 10 hit
+    for (let i = 0; i < 60; i++) updateStatuses(world, DT);
+    expect(world.player.hp).toBeCloseTo(55);
+  });
+
+  it('Lifesteal heals a share of damage actually dealt, capped at max HP', () => {
+    const world = makeWorld();
+    world.player.hp = world.player.maxHp - 1;
+    const enemy = spawnEnemy(world, 'rattata', 500, 0);
+    damageEnemy(world, enemy, 1000, { ...NO_HIT, lifesteal: 0.5 });
+    expect(world.player.hp).toBe(world.player.maxHp);
+  });
+
+  it('single-rank augments never offer a rank-up', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [
+      { augmentId: 'homing', rank: 1 },
+      { augmentId: 'boomerang', rank: 1 },
+    ];
+    const pool = augmentPool(world, 0);
+    expect(pool.some((c) => c.augmentId === 'homing')).toBe(false);
+    expect(pool.some((c) => c.augmentId === 'boomerang')).toBe(false);
+  });
+
+  it('Burn only rolls on Fire moves, Knockback not on beams or orbits', () => {
+    const world = makeWorld();
+    world.moves = (['ember', 'scratch', 'fireSpin', 'dragonRage'] as MoveId[]).map((id) => createSlot(id));
+    const has = (slot: number, id: string) => augmentPool(world, slot).some((c) => c.augmentId === id);
+    expect(has(0, 'burn')).toBe(true);
+    expect(has(1, 'burn')).toBe(false);
+    expect(has(1, 'knockback')).toBe(true);
+    expect(has(2, 'knockback')).toBe(false);
+    expect(has(3, 'knockback')).toBe(false);
   });
 });
 

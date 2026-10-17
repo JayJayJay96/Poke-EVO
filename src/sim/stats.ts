@@ -73,6 +73,12 @@ export function computeMoveStats(def: MoveDef, m: Modifiers, sockets: readonly A
   let zoneDurationPct = 0;
   let zoneDamagePct = 0;
   let missingHpBonus = 0;
+  let pierce = 0;
+  let homing = false;
+  let returns = false;
+  let knockback = 0;
+  let burnPct = 0;
+  let lifesteal = 0;
   for (const socket of sockets) {
     const e = AUGMENTS[socket.augmentId].ranks[socket.rank - 1].effect;
     damagePct += e.damagePct ?? 0;
@@ -86,6 +92,12 @@ export function computeMoveStats(def: MoveDef, m: Modifiers, sockets: readonly A
     zoneDurationPct += e.zoneDurationPct ?? 0;
     zoneDamagePct += e.zoneDamagePct ?? 0;
     missingHpBonus += e.missingHpDamagePct ?? 0;
+    pierce += e.pierce ?? 0;
+    homing ||= e.homing ?? false;
+    returns ||= e.returns ?? false;
+    knockback += e.knockback ?? 0;
+    burnPct += e.burnPct ?? 0;
+    lifesteal += e.lifestealPct ?? 0;
   }
   return {
     damage: def.damage * m.damageMult * Math.max(MIN_DAMAGE_FACTOR, 1 + damagePct),
@@ -99,6 +111,12 @@ export function computeMoveStats(def: MoveDef, m: Modifiers, sockets: readonly A
     zoneDurationMult: 1 + zoneDurationPct,
     zoneDamageMult: 1 + zoneDamagePct,
     missingHpBonus,
+    pierce,
+    homing,
+    returns,
+    knockback,
+    burnPct,
+    lifesteal,
   };
 }
 

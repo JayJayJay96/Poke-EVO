@@ -1,4 +1,4 @@
-import { AUGMENT_EVERY_N_LEVELS, AUGMENT_IDS, AUGMENTS, MAX_RANK, MAX_SOCKETS } from '../data/augments';
+import { AUGMENT_EVERY_N_LEVELS, AUGMENT_IDS, AUGMENTS, MAX_SOCKETS, maxRankOf } from '../data/augments';
 import { POKEMON, TUNING } from '../data/content';
 import { MOVES } from '../data/moves';
 import {
@@ -60,8 +60,8 @@ export function buildCardPool(world: World): Card[] {
 }
 
 /**
- * Augments a move could take now: the next rank of each socketed augment below III,
- * plus (while a socket is free) every unowned augment its tags allow.
+ * Augments a move could take now: the next rank of each socketed augment below its
+ * max rank, plus (while a socket is free) every unowned augment its tags allow.
  */
 export function augmentPool(world: World, slotIndex: number): AugmentCard[] {
   const slot = world.moves[slotIndex];
@@ -69,7 +69,7 @@ export function augmentPool(world: World, slotIndex: number): AugmentCard[] {
   const tags = MOVES[slot.moveId].tags;
   const pool: AugmentCard[] = [];
   for (const socket of slot.sockets) {
-    if (socket.rank < MAX_RANK) pool.push({ augmentId: socket.augmentId, rank: socket.rank + 1 });
+    if (socket.rank < maxRankOf(socket.augmentId)) pool.push({ augmentId: socket.augmentId, rank: socket.rank + 1 });
   }
   if (slot.sockets.length < MAX_SOCKETS) {
     for (const id of AUGMENT_IDS) {

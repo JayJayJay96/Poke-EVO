@@ -150,6 +150,19 @@ export const TUNING = {
     ringPadding: 48,
   },
   spatialCellSize: 64,
+  status: {
+    burnSeconds: 3,
+    /** DoT tick (budget §11.1: not every frame). */
+    burnTick: 0.25,
+    /** Knockback velocity decays by e^(−decay·t); total push ≈ the knockback distance. */
+    knockbackDecay: 10,
+  },
+  homing: {
+    /** px around a projectile searched for a homing target. */
+    range: 250,
+    /** Max turn in radians per second. */
+    turnRate: 6,
+  },
   /** Performance budgets (PROJECT.md §11.1). */
   budget: {
     /** Past this, a cast spawns fewer projectiles that carry the missing damage. */

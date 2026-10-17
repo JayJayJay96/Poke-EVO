@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS } from '../data/augments';
+import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
 import { ABILITIES, POKEMON, TUNING, type EnemyId } from '../data/content';
 import { MOVES } from '../data/moves';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
@@ -602,6 +602,11 @@ export class RunScene extends Phaser.Scene {
       g.fillStyle(e.hitFlashLeft > 0 ? COLORS.flash : ENEMY_COLORS[e.kind], 1);
       g.fillCircle(e.x, e.y, e.radius);
     }
+    // Burning enemies get an orange ring.
+    g.lineStyle(2, COLORS.crater, 0.9);
+    for (const e of enemies) {
+      if (e.burnLeft > 0) g.strokeCircle(e.x, e.y, e.radius + 2);
+    }
 
     for (const slot of moves) {
       const def = MOVES[slot.moveId];
@@ -740,8 +745,8 @@ function describeAugment(card: AugmentCard): CardView {
         : 0x5ad1ff;
   return {
     heading,
-    title: `${def.name} ${RANK_NUMERALS[card.rank - 1]}`,
-    body: def.ranks[card.rank - 1].text,
+    title: augmentLabel(card.augmentId, card.rank),
+    body: def.ranks[card.rank - 1]!.text,
     color,
   };
 }
@@ -750,9 +755,15 @@ function socketLines(slot: MoveSlot): string[] {
   const lines: string[] = [];
   for (let i = 0; i < MAX_SOCKETS; i++) {
     const socket = slot.sockets[i];
-    lines.push(socket ? `◆ ${AUGMENTS[socket.augmentId].name} ${RANK_NUMERALS[socket.rank - 1]}` : '◇ empty');
+    lines.push(socket ? `◆ ${augmentLabel(socket.augmentId, socket.rank)}` : '◇ empty');
   }
   return lines;
+}
+
+/** "Pierce II"; single-rank augments show just the name. */
+function augmentLabel(id: AugmentId, rank: number): string {
+  const name = AUGMENTS[id].name;
+  return maxRankOf(id) > 1 ? `${name} ${RANK_NUMERALS[rank - 1]}` : name;
 }
 
 /** Pause screen: the whole build at a glance. */

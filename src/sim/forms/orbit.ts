@@ -1,5 +1,5 @@
 import type { OrbitMoveDef } from '../../data/moves';
-import { damageEnemy, queryEnemies } from '../combat';
+import { damageEnemy, makeHitInfo, queryEnemies } from '../combat';
 import type { MoveSlot, Player, World } from '../types';
 
 const neighbours: number[] = [];
@@ -39,6 +39,7 @@ export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt:
   }
 
   const { enemies } = world;
+  const hit = makeHitInfo(slot.stats);
   for (const ball of orbitBalls(slot, def, world.player)) {
     queryEnemies(world, ball.x, ball.y, ball.r, neighbours);
     for (const j of neighbours) {
@@ -48,7 +49,7 @@ export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt:
       const dy = enemy.y - ball.y;
       const reach = enemy.radius + ball.r;
       if (dx * dx + dy * dy > reach * reach) continue;
-      damageEnemy(world, enemy, slot.stats.damage, slot.stats.critChance);
+      damageEnemy(world, enemy, slot.stats.damage, hit);
       slot.hitCooldowns.set(enemy.id, def.hitInterval);
     }
   }

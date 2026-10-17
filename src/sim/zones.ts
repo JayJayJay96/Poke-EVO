@@ -1,5 +1,5 @@
 import { TUNING } from '../data/content';
-import { damageEnemy, queryEnemies } from './combat';
+import { NO_HIT, damageEnemy, queryEnemies } from './combat';
 import type { World } from './types';
 
 // Lingering damage areas (Blast Burn's crater; Bulbasaur's fields in P4).
@@ -43,6 +43,8 @@ export function updateZones(world: World, dt: number): void {
     zone.tickLeft -= dt;
     if (zone.tickLeft > 0) continue;
     zone.tickLeft += zone.tickInterval;
+    // Zone ticks only deal damage (and may crit): no other on-hit effects.
+    const hit = zone.critChance > 0 ? { ...NO_HIT, critChance: zone.critChance } : NO_HIT;
     queryEnemies(world, zone.x, zone.y, zone.radius, neighbours);
     for (const j of neighbours) {
       const enemy = enemies[j]!;
@@ -51,7 +53,7 @@ export function updateZones(world: World, dt: number): void {
       const dy = enemy.y - zone.y;
       const reach = zone.radius + enemy.radius;
       if (dx * dx + dy * dy > reach * reach) continue;
-      damageEnemy(world, enemy, zone.damage, zone.critChance);
+      damageEnemy(world, enemy, zone.damage, hit);
     }
   }
 }

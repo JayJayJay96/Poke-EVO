@@ -3,7 +3,7 @@ import { ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/
 import { MOVES, type MoveDef } from '../data/moves';
 import { BOOST_IDS, type BoostId } from '../data/upgrades';
 import { WAVES, type WaveKeyframe } from '../data/waves';
-import { queryEnemies } from './combat';
+import { queryEnemies, updateStatuses } from './combat';
 import { startEvolutionIfDue } from './evolution';
 import { castBeam, updateBeam } from './forms/beam';
 import { castMelee } from './forms/melee';
@@ -94,6 +94,7 @@ export function step(world: World, input: InputState, dt: number): void {
   if (world.spawnEnabled) updateSpawner(world, dt);
   rebuildHash(world);
   moveEnemies(world, dt);
+  updateStatuses(world, dt);
   updateMoves(world, dt);
   updateProjectiles(world, dt);
   updateZones(world, dt);
@@ -158,6 +159,11 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     maxHp,
     contactDamage: def.contactDamage,
     hitFlashLeft: 0,
+    kbX: 0,
+    kbY: 0,
+    burnDps: 0,
+    burnLeft: 0,
+    burnTickLeft: 0,
   };
   world.enemies.push(enemy);
   return enemy;

@@ -1,5 +1,5 @@
 import type { BeamMoveDef } from '../../data/moves';
-import { damageEnemy, findNearestEnemy, queryEnemies } from '../combat';
+import { damageEnemy, findNearestEnemy, makeHitInfo, queryEnemies } from '../combat';
 import type { MoveSlot, World } from '../types';
 
 const neighbours: number[] = [];
@@ -34,6 +34,9 @@ export function updateBeam(world: World, slot: MoveSlot, def: BeamMoveDef, dt: n
   const halfWidth = (def.width * slot.stats.area) / 2;
   const midX = player.x + (slot.dirX * length) / 2;
   const midY = player.y + (slot.dirY * length) / 2;
+  const hit = makeHitInfo(slot.stats);
+  hit.dirX = slot.dirX;
+  hit.dirY = slot.dirY;
   queryEnemies(world, midX, midY, length / 2 + halfWidth, neighbours);
   for (const j of neighbours) {
     const enemy = enemies[j]!;
@@ -46,6 +49,6 @@ export function updateBeam(world: World, slot: MoveSlot, def: BeamMoveDef, dt: n
     const cy = ey - slot.dirY * along;
     const reach = halfWidth + enemy.radius;
     if (cx * cx + cy * cy > reach * reach) continue;
-    damageEnemy(world, enemy, slot.stats.damage, slot.stats.critChance);
+    damageEnemy(world, enemy, slot.stats.damage, hit);
   }
 }

@@ -1,4 +1,4 @@
-import { MAX_RANK, type AugmentId } from '../data/augments';
+import { MAX_RANK, maxRankOf, type AugmentId } from '../data/augments';
 import type { EnemyId } from '../data/content';
 import type { MoveId } from '../data/moves';
 import { BOOST_IDS, BOOST_MAX_PICKS } from '../data/upgrades';
@@ -15,18 +15,19 @@ const STRESS_HP_SCALE = 8;
 const STRESS_KINDS: readonly EnemyId[] = ['rattata', 'rattata', 'pidgey', 'raticate'];
 
 const STRESS_BUILD: ReadonlyArray<readonly [MoveId, readonly AugmentId[]]> = [
-  // Ember is the projectile-heaviest build possible: Multishot III + Scatter III.
-  ['ember', ['multishot', 'scatter', 'velocity']],
-  ['scratch', ['powerUp', 'enlarge', 'quickCast']],
-  ['fireSpin', ['powerUp', 'enlarge', 'quickCast']],
-  ['dragonRage', ['powerUp', 'enlarge', 'quickCast']],
+  // Ember: the most projectiles (Multishot + Scatter) with the costliest behaviour (Homing).
+  ['ember', ['multishot', 'scatter', 'homing']],
+  // The other moves exercise every on-hit path: knockback, burn ticks, lifesteal.
+  ['scratch', ['powerUp', 'enlarge', 'knockback']],
+  ['fireSpin', ['powerUp', 'enlarge', 'burn']],
+  ['dragonRage', ['powerUp', 'enlarge', 'lifesteal']],
 ];
 
 export function setupStress(world: World): void {
   world.spawnEnabled = false;
   world.moves = STRESS_BUILD.map(([moveId, augments]) => {
     const slot = createSlot(moveId);
-    slot.sockets = augments.map((augmentId) => ({ augmentId, rank: MAX_RANK }));
+    slot.sockets = augments.map((augmentId) => ({ augmentId, rank: Math.min(MAX_RANK, maxRankOf(augmentId)) }));
     return slot;
   });
   for (const id of BOOST_IDS) world.boosts[id] = BOOST_MAX_PICKS;
