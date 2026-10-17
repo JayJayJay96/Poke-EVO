@@ -9,6 +9,7 @@ import { castBeam, updateBeam } from './forms/beam';
 import { castMelee } from './forms/melee';
 import { castOrbit, updateOrbit } from './forms/orbit';
 import { castProjectile, updateProjectiles } from './forms/projectile';
+import { castZone } from './forms/zoneCast';
 import { gainXp, makeOffer } from './progression';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
@@ -51,6 +52,7 @@ export function createWorld({
       invulnLeft: 0,
       hurtFlashLeft: 0,
       pickupRadius: TUNING.player.baseMagnetRadius,
+      blockReadyLeft: 0,
     },
     enemies: [],
     projectiles: [],
@@ -60,6 +62,7 @@ export function createWorld({
     zones: [],
     swings: [],
     blasts: [],
+    arcs: [],
     moves: [createSlot(firstStage.signatureMove)],
     boosts: Object.fromEntries(BOOST_IDS.map((id) => [id, 0])) as Record<BoostId, number>,
     items: [],
@@ -167,6 +170,12 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     burnDps: 0,
     burnLeft: 0,
     burnTickLeft: 0,
+    poisonDps: 0,
+    poisonLeft: 0,
+    poisonTickLeft: 0,
+    slow: 0,
+    slowLeft: 0,
+    stunLeft: 0,
   };
   world.enemies.push(enemy);
   return enemy;
@@ -185,6 +194,8 @@ function tickTimers(world: World, dt: number): void {
   }
   for (const swing of world.swings) swing.lifeLeft -= dt;
   for (const blast of world.blasts) blast.lifeLeft -= dt;
+  for (const arc of world.arcs) arc.lifeLeft -= dt;
+  p.blockReadyLeft = Math.max(0, p.blockReadyLeft - dt);
 }
 
 function movePlayer(world: World, input: InputState, dt: number): void {
@@ -227,11 +238,14 @@ function moveEnemies(world: World, dt: number): void {
   const strength = TUNING.enemy.separationStrength;
   for (let i = 0; i < enemies.length; i++) {
     const enemy = enemies[i]!;
+    // Stunned enemies stay put (knockback still moves them, in updateStatuses).
+    if (enemy.stunLeft > 0) continue;
     const dx = player.x - enemy.x;
     const dy = player.y - enemy.y;
     const dist = Math.hypot(dx, dy) || 1;
-    let vx = (dx / dist) * enemy.speed;
-    let vy = (dy / dist) * enemy.speed;
+    const speed = enemy.speed * (1 - (enemy.slowLeft > 0 ? enemy.slow : 0));
+    let vx = (dx / dist) * speed;
+    let vy = (dy / dist) * speed;
 
     // Push apart from overlapping neighbours so the horde spreads instead of stacking.
     queryEnemies(world, enemy.x, enemy.y, enemy.radius, neighbours);
@@ -281,6 +295,8 @@ function castMove(world: World, slot: MoveSlot, def: MoveDef): boolean {
       return castOrbit(world, slot, def);
     case 'beam':
       return castBeam(world, slot, def);
+    case 'zone':
+      return castZone(world, slot, def);
   }
 }
 
@@ -321,10 +337,15 @@ function pickUpBerries(world: World): void {
   }
 }
 
+/**
+ * Touching enemies hurt the player, once per invulnerability window. Stunned enemies
+ * don't hurt. Static stuns everything touching the player; Shell blocks one hit then recharges.
+ */
 function applyContactDamage(world: World): void {
   const { player, enemies } = world;
-  if (player.invulnLeft > 0) return;
+  const ability = ABILITIES[player.ability];
   queryEnemies(world, player.x, player.y, player.radius, neighbours);
+  let hurt = false;
   for (const j of neighbours) {
     const enemy = enemies[j]!;
     if (enemy.hp <= 0) continue;
@@ -332,11 +353,19 @@ function applyContactDamage(world: World): void {
     const dy = enemy.y - player.y;
     const reach = enemy.radius + player.radius;
     if (dx * dx + dy * dy > reach * reach) continue;
-    player.hp = Math.max(0, player.hp - enemy.contactDamage * world.mods.damageTakenMult);
+    const wasStunned = enemy.stunLeft > 0;
+    if (ability.contactStun) enemy.stunLeft = Math.max(enemy.stunLeft, ability.contactStun);
+    if (hurt || wasStunned || player.invulnLeft > 0) continue;
+    hurt = true; // one hit per step
     player.invulnLeft = TUNING.player.invulnSeconds;
+    if (ability.blockEvery && player.blockReadyLeft <= 0) {
+      // Shell: this hit is blocked; the shell recharges.
+      player.blockReadyLeft = ability.blockEvery;
+      continue;
+    }
+    player.hp = Math.max(0, player.hp - enemy.contactDamage * world.mods.damageTakenMult);
     player.hurtFlashLeft = TUNING.player.hurtFlashSeconds;
     if (player.hp <= 0) world.status = 'fainted';
-    return; // one hit per invulnerability window
   }
 }
 
@@ -361,6 +390,7 @@ function removeDead(world: World): void {
   compact(world.zones, (z) => z.lifeLeft > 0);
   compact(world.swings, (s) => s.lifeLeft > 0);
   compact(world.blasts, (b) => b.lifeLeft > 0);
+  compact(world.arcs, (a) => a.lifeLeft > 0);
 }
 
 function lerp(a: number, b: number, t: number): number {

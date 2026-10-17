@@ -29,6 +29,8 @@ export interface Player {
   hurtFlashLeft: number;
   /** XP gems inside this radius fly to the player. */
   pickupRadius: number;
+  /** Shell: seconds until the next block is ready (0 = ready). */
+  blockReadyLeft: number;
 }
 
 export interface Enemy {
@@ -49,6 +51,15 @@ export interface Enemy {
   burnDps: number;
   burnLeft: number;
   burnTickLeft: number;
+  /** Poison: like burn, tracked separately so both can stack. */
+  poisonDps: number;
+  poisonLeft: number;
+  poisonTickLeft: number;
+  /** Slow strength 0..1 while slowLeft > 0. */
+  slow: number;
+  slowLeft: number;
+  /** Stunned (sleep / paralysis): no movement, no contact damage. */
+  stunLeft: number;
 }
 
 /** Pooled: dead projectiles are reused, so every field is reassigned on spawn. */
@@ -72,6 +83,9 @@ export interface Projectile {
   craterDamage: number;
   /** A projectile leaves at most one crater, on its first hit (D11). */
   craterSpawned: boolean;
+  /** Innate chain: jumps after the first hit, and damage per jump as a fraction. */
+  chainJumps: number;
+  chainFraction: number;
   /** On-hit effects carried to every enemy this projectile hits. */
   hit: HitInfo;
   /** Enemies it may still pass through. */
@@ -105,6 +119,12 @@ export interface HitInfo {
   knockback: number;
   dirX: number;
   dirY: number;
+  /** Slow strength 0..1 (0 = none). */
+  slow: number;
+  /** Stun seconds (0 = none). */
+  stun: number;
+  /** Poison damage per second to apply (0 = none). */
+  poisonDps: number;
 }
 
 /** An Oran Berry on the ground: walk over it to heal (D12). Not magnetized. */
@@ -128,6 +148,19 @@ export interface Zone {
   tickLeft: number;
   damage: number;
   critChance: number;
+  /** Innate statuses applied on each tick (zone-cast moves); craters have none. */
+  slow: number;
+  stun: number;
+  poisonDps: number;
+}
+
+/** A chain-lightning jump, kept briefly so it can be drawn. Presentation only. */
+export interface Arc {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  lifeLeft: number;
 }
 
 /** An explosion kept briefly so it can be drawn. Presentation only. */
@@ -185,6 +218,11 @@ export interface MoveStats {
   /** Burn damage per second as a fraction of the hit. */
   burnPct: number;
   lifesteal: number;
+  /** Innate statuses from the move (P4a). */
+  slow: number;
+  stun: number;
+  /** Poison damage per second as a fraction of the hit. */
+  poisonPct: number;
 }
 
 export interface AugmentSocket {
@@ -296,6 +334,7 @@ export interface World {
   zones: Zone[];
   swings: Swing[];
   blasts: Blast[];
+  arcs: Arc[];
   /** Slot 0 is the signature move; the rest are learnset moves. */
   moves: MoveSlot[];
   /** Times each generic boost has been picked. */

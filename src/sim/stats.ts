@@ -138,6 +138,9 @@ export function computeMoveStats(
     knockback,
     burnPct,
     lifesteal,
+    slow: def.onHit?.slow ?? 0,
+    stun: def.onHit?.stun ?? 0,
+    poisonPct: def.onHit?.poisonPct ?? 0,
   };
 }
 
@@ -168,6 +171,12 @@ export function refreshStats(world: World): void {
   const p = world.player;
   const stage = currentStage(world);
   m.damageMult *= stage.damageMult;
+  // Ability effects that act like build-wide modifiers (P4a).
+  const ability = ABILITIES[p.ability];
+  m.damageTakenMult = Math.max(0.1, m.damageTakenMult + (ability.damageTakenPct ?? 0));
+  m.regenPerSec += ability.regenPerSec ?? 0;
+  m.moveSpeedMult += ability.moveSpeedPct ?? 0;
+  m.cooldownMult *= 1 - (ability.cooldownPct ?? 0);
   world.mods = m;
   const newMax = stage.maxHp + m.maxHpBonus;
   // Gaining max HP (boosts or evolving) also heals by the same amount.
@@ -177,5 +186,9 @@ export function refreshStats(world: World): void {
   p.radius = stage.radius;
   p.pickupRadius = TUNING.player.baseMagnetRadius * m.pickupMult;
   const user: UserContext = { types: stage.types, ability: p.ability };
-  for (const slot of world.moves) slot.stats = computeMoveStats(MOVES[slot.moveId], m, slot.sockets, user);
+  for (const slot of world.moves) {
+    slot.stats = computeMoveStats(MOVES[slot.moveId], m, slot.sockets, user);
+    // Leech: the ability's lifesteal applies to every move.
+    slot.stats.lifesteal += ability.lifesteal ?? 0;
+  }
 }

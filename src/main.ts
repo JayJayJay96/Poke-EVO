@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { RunScene } from './scenes/RunScene';
+import { SelectScene } from './scenes/SelectScene';
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -10,5 +11,6 @@ new Phaser.Game({
     width: '100%',
     height: '100%',
   },
-  scene: [RunScene],
+  // The first scene starts automatically: pick a Pokémon, then run.
+  scene: [SelectScene, RunScene],
 });

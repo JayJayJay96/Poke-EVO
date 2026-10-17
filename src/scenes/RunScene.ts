@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
 import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
-import { ABILITIES, POKEMON, TUNING, type EnemyId } from '../data/content';
+import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
 import { MOVES } from '../data/moves';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { isAbilityActive } from '../sim/combat';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
 import { beamLength } from '../sim/forms/beam';
-import { BLAST_SECONDS } from '../sim/forms/projectile';
+import { ARC_SECONDS, BLAST_SECONDS } from '../sim/forms/projectile';
+import type { RunSceneData } from './SelectScene';
 import { orbitBalls } from '../sim/forms/orbit';
 import {
   canReroll,
@@ -46,6 +47,9 @@ const COLORS = {
   blaze: 0xff3b30,
   crater: 0xff6a00,
   blast: 0xffd27f,
+  poison: 0xb05cff,
+  slow: 0x8fd8ff,
+  stun: 0xffe84d,
   berry: 0x2f7ff5,
   exclusive: 0xff8c42,
 } as const;
@@ -88,6 +92,7 @@ type KeyName =
   | 's'
   | 'd'
   | 'restart'
+  | 'change'
   | 'pause'
   | 'confirm'
   | 'space'
@@ -133,12 +138,19 @@ export class RunScene extends Phaser.Scene {
   private drawMs = 0;
   private perfShownAt = 0;
 
+  /** The line chosen on the select screen; kept for R (restart). */
+  private pokemonId: PokemonId = 'charmander';
+
   constructor() {
     super('run');
   }
 
+  init(data: Partial<RunSceneData>): void {
+    this.pokemonId = data.pokemonId ?? 'charmander';
+  }
+
   create(): void {
-    this.world = createWorld({ rng: createSeededRng(createRandomSeed()) });
+    this.world = createWorld({ rng: createSeededRng(createRandomSeed()), pokemonId: this.pokemonId });
     if (import.meta.env.DEV) {
       // Dev-only handle for browser checks; stripped from production builds.
       (window as unknown as { __world?: World }).__world = this.world;
@@ -182,6 +194,7 @@ export class RunScene extends Phaser.Scene {
       s: 'S',
       d: 'D',
       restart: 'R',
+      change: 'C',
       pause: 'ESC',
       confirm: 'ENTER',
       space: 'SPACE',
@@ -272,7 +285,10 @@ export class RunScene extends Phaser.Scene {
         }
       }
     } else if (JustDown(this.keys.restart) && world.status !== 'running') {
-      this.scene.restart();
+      this.scene.restart({ pokemonId: this.pokemonId } satisfies RunSceneData);
+      return;
+    } else if (JustDown(this.keys.change) && world.status !== 'running') {
+      this.scene.start('select');
       return;
     } else if (JustDown(this.keys.pause) && world.status === 'running') {
       this.paused = !this.paused;
@@ -693,12 +709,13 @@ export class RunScene extends Phaser.Scene {
       g.lineBetween(left, y, left + cam.width, y);
     }
 
-    // Burning craters on the ground, fading out at the end.
+    // Zones on the ground, fading out at the end: craters orange; status zones by their effect.
     for (const zone of zones) {
       const fade = Math.min(1, zone.lifeLeft / 0.5);
-      g.fillStyle(COLORS.crater, 0.22 * fade);
+      const color = zone.poisonDps > 0 ? COLORS.poison : zone.stun > 0 ? COLORS.stun : zone.slow > 0 ? COLORS.slow : COLORS.crater;
+      g.fillStyle(color, 0.22 * fade);
       g.fillCircle(zone.x, zone.y, zone.radius);
-      g.lineStyle(2, COLORS.crater, 0.6 * fade);
+      g.lineStyle(2, color, 0.6 * fade);
       g.strokeCircle(zone.x, zone.y, zone.radius);
     }
 
@@ -750,10 +767,25 @@ export class RunScene extends Phaser.Scene {
       g.fillStyle(e.hitFlashLeft > 0 ? COLORS.flash : ENEMY_COLORS[e.kind], 1);
       g.fillCircle(e.x, e.y, e.radius);
     }
-    // Burning enemies get an orange ring.
-    g.lineStyle(2, COLORS.crater, 0.9);
+    // Status rings: burn orange, poison purple, slow light blue, stun yellow.
     for (const e of enemies) {
-      if (e.burnLeft > 0) g.strokeCircle(e.x, e.y, e.radius + 2);
+      let r = e.radius + 2;
+      const ring = (active: boolean, color: number): void => {
+        if (!active) return;
+        g.lineStyle(2, color, 0.9);
+        g.strokeCircle(e.x, e.y, r);
+        r += 3;
+      };
+      ring(e.burnLeft > 0, COLORS.crater);
+      ring(e.poisonLeft > 0, COLORS.poison);
+      ring(e.slowLeft > 0, COLORS.slow);
+      ring(e.stunLeft > 0, COLORS.stun);
+    }
+
+    // Chain lightning arcs.
+    for (const arc of this.world.arcs) {
+      g.lineStyle(3, COLORS.stun, Math.min(1, arc.lifeLeft / ARC_SECONDS));
+      g.lineBetween(arc.x1, arc.y1, arc.x2, arc.y2);
     }
 
     for (const slot of moves) {
@@ -768,6 +800,12 @@ export class RunScene extends Phaser.Scene {
       const pulse = 0.5 + 0.5 * Math.sin(this.time.now / 90);
       g.lineStyle(3, COLORS.blaze, 0.5 + 0.4 * pulse);
       g.strokeCircle(player.x, player.y, player.radius + 6 + 3 * pulse);
+    }
+
+    // Shell: a water bubble around the player while the next block is ready.
+    if (ABILITIES[player.ability].blockEvery && player.blockReadyLeft <= 0) {
+      g.lineStyle(2, COLORS.slow, 0.8);
+      g.strokeCircle(player.x, player.y, player.radius + 8);
     }
 
     // Blink while invulnerable.
@@ -821,11 +859,15 @@ export class RunScene extends Phaser.Scene {
     this.panel.setVisible(false);
     if (status === 'survived') {
       this.banner
-        .setText(`Survived ${formatTime(TUNING.runSeconds)}!\n\nLv ${level} · KOs ${kills}\n\nPress R to play again`)
+        .setText(
+          `Survived ${formatTime(TUNING.runSeconds)}!\n\nLv ${level} · KOs ${kills}\n\nR: play again · C: change Pokémon`,
+        )
         .setVisible(true);
     } else if (status === 'fainted') {
       this.banner
-        .setText(`${name} fainted!\n\nSurvived ${formatTime(time)} · Lv ${level} · KOs ${kills}\n\nPress R to restart`)
+        .setText(
+          `${name} fainted!\n\nSurvived ${formatTime(time)} · Lv ${level} · KOs ${kills}\n\nR: restart · C: change Pokémon`,
+        )
         .setVisible(true);
     } else if (this.paused) {
       this.banner.setVisible(false);

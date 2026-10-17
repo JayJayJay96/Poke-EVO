@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AUGMENT_IDS, AUGMENTS, MAX_RANK, MAX_SOCKETS, REROLLS_PER_RUN, isSpecialAugment } from '../data/augments';
 import { ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
-import { MOVES, type MoveId } from '../data/moves';
+import { MOVES, type MeleeMoveDef, type MoveId, type ProjectileMoveDef, type ZoneMoveDef } from '../data/moves';
 import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
 import { WAVES } from '../data/waves';
 import {
@@ -12,9 +12,12 @@ import {
   findNearestEnemy,
   isAbilityActive,
   maybeDropBerry,
+  applyStatuses,
   updateStatuses,
 } from './combat';
-import { createProjectile } from './forms/projectile';
+import { castMelee } from './forms/melee';
+import { castProjectile, createProjectile } from './forms/projectile';
+import { castZone } from './forms/zoneCast';
 import { chooseEvolutionTrait, dismissEvolution, dueEvolutionStage, finishEvolutionCinematic } from './evolution';
 import {
   augmentPool,
@@ -41,6 +44,7 @@ import type { AugmentSocket, InputState, Projectile, World } from './types';
 import { createWorld, pickEnemyKind, spawnEnemy, step, waveAt } from './world';
 import { spawnZone } from './zones';
 
+// P4a adds statuses, abilities, zone-cast and chain tests at the end.
 const DT = TUNING.stepSeconds;
 /** Charmander is Fire, so Fire moves carry the same-type bonus (D11). */
 const STAB = 1 + TUNING.stabBonus;
@@ -1220,6 +1224,141 @@ describe('P3 re-playtest revisions (D12)', () => {
     const enemy = spawnEnemy(world, 'rattata', 0, 0);
     step(world, IDLE, DT);
     expect(world.player.hp).toBeCloseTo(world.player.maxHp - enemy.contactDamage * 1.1);
+  });
+});
+
+describe('P4a engine: statuses, abilities, zone-cast, chain', () => {
+  function still(world: World, kind: EnemyId, x: number, y: number, hpScale = 10) {
+    const e = spawnEnemy(world, kind, x, y, hpScale);
+    e.speed = 0;
+    return e;
+  }
+
+  it('slow scales enemy movement for its duration', () => {
+    const world = makeWorld();
+    world.moves = [];
+    const normal = spawnEnemy(world, 'rattata', 1000, 0);
+    const slowed = spawnEnemy(world, 'rattata', 1000, 300);
+    applyStatuses(slowed, { slow: 0.5, stun: 0, poisonDps: 0 });
+    run(world, 1);
+    const moved = (e: { x: number; y: number }, x0: number, y0: number) => Math.hypot(e.x - x0, e.y - y0);
+    expect(moved(slowed, 1000, 300) / moved(normal, 1000, 0)).toBeCloseTo(0.5, 1);
+  });
+
+  it('stunned enemies neither move nor deal contact damage', () => {
+    const world = makeWorld();
+    world.moves = [];
+    const e = spawnEnemy(world, 'rattata', 0, 0);
+    applyStatuses(e, { slow: 0, stun: 2, poisonDps: 0 });
+    run(world, 1);
+    expect(world.player.hp).toBe(world.player.maxHp);
+    expect(e.x).toBe(0);
+  });
+
+  it('poison ticks dps × 3 s, like burn', () => {
+    const world = makeWorld();
+    const e = still(world, 'raticate', 500, 0);
+    applyStatuses(e, { slow: 0, stun: 0, poisonDps: 4 });
+    const before = e.hp;
+    for (let i = 0; i < Math.round(TUNING.status.poisonSeconds / DT) + 30; i++) updateStatuses(world, DT);
+    expect(before - e.hp).toBeCloseTo(4 * TUNING.status.poisonSeconds, 0);
+  });
+
+  it('Shell blocks one contact hit, then recharges', () => {
+    const world = makeWorld();
+    world.moves = [];
+    world.player.ability = 'shell';
+    refreshStats(world);
+    const e = spawnEnemy(world, 'rattata', 0, 0);
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBe(world.player.maxHp);
+    expect(world.player.blockReadyLeft).toBeGreaterThan(7);
+    run(world, TUNING.player.invulnSeconds + 0.1);
+    expect(world.player.hp).toBe(world.player.maxHp - e.contactDamage);
+  });
+
+  it('Shell Armor cuts damage taken by 15%', () => {
+    const world = makeWorld();
+    world.moves = [];
+    world.player.ability = 'shellArmor';
+    refreshStats(world);
+    const e = spawnEnemy(world, 'rattata', 0, 0);
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBeCloseTo(world.player.maxHp - e.contactDamage * 0.85);
+  });
+
+  it('Static paralyses enemies that touch the player', () => {
+    const world = makeWorld();
+    world.moves = [];
+    world.player.ability = 'static';
+    refreshStats(world);
+    const e = spawnEnemy(world, 'rattata', 0, 0);
+    step(world, IDLE, DT);
+    expect(e.stunLeft).toBeGreaterThan(0.9);
+  });
+
+  it('Leech gives every move lifesteal; Chlorophyll adds speed and cuts cooldowns; Rain Dish regenerates', () => {
+    const world = makeWorld();
+    world.moves.push(createSlot('scratch'));
+    world.player.ability = 'leech';
+    refreshStats(world);
+    expect(world.moves.every((s) => s.stats.lifesteal === 0.03)).toBe(true);
+
+    world.player.ability = 'chlorophyll';
+    refreshStats(world);
+    expect(world.player.speed).toBeCloseTo(POKEMON.charmander.stages[0]!.speed * 1.15);
+    expect(world.moves[0]!.stats.cooldown).toBeCloseTo(MOVES.ember.cooldown * 0.9);
+
+    world.player.ability = 'rainDish';
+    refreshStats(world);
+    expect(world.mods.regenPerSec).toBeCloseTo(1.5);
+  });
+
+  it('a zone-cast move drops a status zone on the nearest enemy that ticks its effects', () => {
+    const world = makeWorld();
+    const target = still(world, 'raticate', 120, 40);
+    const slot = createSlot('ember');
+    slot.stats.poisonPct = 0.5;
+    const def = { ...MOVES.ember, form: 'zone', range: 300, radius: 50, duration: 2, tickInterval: 0.5 } as unknown as ZoneMoveDef;
+    expect(castZone(world, slot, def)).toBe(true);
+    expect(world.zones).toHaveLength(1);
+    expect(world.zones[0]!.x).toBe(120);
+    expect(world.zones[0]!.poisonDps).toBeGreaterThan(0);
+    world.moves = [];
+    run(world, 0.6);
+    expect(target.poisonLeft).toBeGreaterThan(0);
+    expect(target.hp).toBeLessThan(target.maxHp);
+  });
+
+  it('innate chain jumps to nearby enemies, never back, up to its jump count', () => {
+    const world = makeWorld();
+    world.player.invulnLeft = 99;
+    const a = still(world, 'raticate', 100, 0);
+    const b = still(world, 'raticate', 100, 90);
+    const c = still(world, 'raticate', 100, 180);
+    const d = still(world, 'raticate', 100, 270);
+    const slot = createSlot('ember');
+    const def = { ...MOVES.ember, chain: { jumps: 2, damageFraction: 0.5 } } as ProjectileMoveDef;
+    world.moves = [];
+    expect(castProjectile(world, slot, def)).toBe(true);
+    run(world, 0.5);
+    expect(a.hp).toBeCloseTo(a.maxHp - slot.stats.damage);
+    expect(b.hp).toBeCloseTo(b.maxHp - slot.stats.damage * 0.5);
+    expect(c.hp).toBeCloseTo(c.maxHp - slot.stats.damage * 0.5);
+    expect(d.hp).toBe(d.maxHp);
+  });
+
+  it('a 360° melee swing hits enemies behind as well', () => {
+    const world = makeWorld();
+    const front = still(world, 'raticate', 40, 0);
+    const behind = still(world, 'raticate', -45, 0);
+    const slot = createSlot('scratch');
+    const def = { ...MOVES.scratch, arcDegrees: 360 } as MeleeMoveDef;
+    world.moves = [];
+    step(world, IDLE, DT); // builds the spatial hash the swing queries
+    expect(castMelee(world, slot, def)).toBe(true);
+    expect(front.hp).toBeLessThan(front.maxHp);
+    expect(behind.hp).toBeLessThan(behind.maxHp);
   });
 });
 

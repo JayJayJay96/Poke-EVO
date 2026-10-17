@@ -6,6 +6,8 @@ import { spawnZone } from '../zones';
 
 /** How long an explosion stays visible. Presentation only. */
 export const BLAST_SECONDS = 0.18;
+/** How long a chain-lightning arc stays visible. Presentation only. */
+export const ARC_SECONDS = 0.15;
 /** Angle between neighbouring projectiles when a cast fires several. */
 const SPREAD_RADIANS = 0.21;
 /** Hits remembered per leg so pierce/return never re-hit the same enemy; oldest forgotten past this. */
@@ -32,6 +34,8 @@ export function createProjectile(): Projectile {
     craterTick: 0,
     craterDamage: 0,
     craterSpawned: false,
+    chainJumps: 0,
+    chainFraction: 0,
     hit: { ...NO_HIT },
     pierceLeft: 0,
     homing: false,
@@ -81,6 +85,11 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
     p.craterTick = crater?.tickInterval ?? 0;
     p.craterDamage = crater ? damage * crater.damageFraction * s.zoneDamageMult : 0;
     p.craterSpawned = false;
+    p.chainJumps = def.chain?.jumps ?? 0;
+    p.chainFraction = def.chain?.damageFraction ?? 0;
+    p.hit.slow = s.slow;
+    p.hit.stun = s.stun;
+    p.hit.poisonDps = damage * s.poisonPct;
     p.hit.critChance = s.critChance;
     p.hit.missingHpBonus = s.missingHpBonus;
     p.hit.lifesteal = s.lifesteal;
@@ -149,6 +158,7 @@ export function updateProjectiles(world: World, dt: number): void {
       damageEnemy(world, enemy, proj.damage, proj.hit);
       detonate(world, proj, enemy);
       remember(proj, enemy.id);
+      chain(world, proj, enemy);
       if (proj.returns) continue; // a boomerang passes through everything, both ways
       if (proj.pierceLeft > 0) {
         proj.pierceLeft--;
@@ -179,6 +189,34 @@ function steer(proj: Projectile, tx: number, ty: number, maxTurn: number): void 
   const angle = current + Math.max(-maxTurn, Math.min(maxTurn, diff));
   proj.vx = Math.cos(angle) * proj.speed;
   proj.vy = Math.sin(angle) * proj.speed;
+}
+
+/**
+ * Innate chain (Pikachu, D13): jumps from the enemy just hit to the nearest enemy not yet
+ * hit by this projectile, up to its jump count (≤ 3). Part of the move's hit, not a proc,
+ * so it never chains again and never spawns craters.
+ */
+function chain(world: World, proj: Projectile, from: Enemy): void {
+  let current = from;
+  for (let jump = 0; jump < proj.chainJumps; jump++) {
+    let next: Enemy | undefined;
+    let bestDist2 = TUNING.chain.range * TUNING.chain.range;
+    for (const enemy of world.enemies) {
+      if (enemy.hp <= 0 || enemy === current || proj.hitIds.includes(enemy.id)) continue;
+      const dx = enemy.x - current.x;
+      const dy = enemy.y - current.y;
+      const dist2 = dx * dx + dy * dy;
+      if (dist2 <= bestDist2) {
+        next = enemy;
+        bestDist2 = dist2;
+      }
+    }
+    if (!next) return;
+    world.arcs.push({ x1: current.x, y1: current.y, x2: next.x, y2: next.y, lifeLeft: ARC_SECONDS });
+    damageEnemy(world, next, proj.damage * proj.chainFraction, proj.hit);
+    remember(proj, next.id);
+    current = next;
+  }
 }
 
 function remember(proj: Projectile, enemyId: number): void {

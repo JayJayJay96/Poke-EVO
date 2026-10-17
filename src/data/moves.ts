@@ -29,6 +29,16 @@ export interface CraterDef {
   readonly damageFraction: number;
 }
 
+/** On-hit statuses built into a move (P4a). Not augments: they never proc anything else. */
+export interface InnateEffects {
+  /** Slow strength 0..1 for TUNING.status.slowSeconds. */
+  readonly slow?: number;
+  /** Stun (sleep / paralysis) seconds. */
+  readonly stun?: number;
+  /** Poison damage per second as a fraction of the hit, for TUNING.status.poisonSeconds. */
+  readonly poisonPct?: number;
+}
+
 interface MoveDefBase {
   readonly id: MoveId;
   readonly name: string;
@@ -36,8 +46,16 @@ interface MoveDefBase {
   readonly tags: readonly MoveTag[];
   /** Seconds between casts. */
   readonly cooldown: number;
-  /** Damage per hit (per tick for beams). */
+  /** Damage per hit (per tick for beams and zones). */
   readonly damage: number;
+  readonly onHit?: InnateEffects;
+}
+
+/** Lightning that jumps from the first enemy hit to nearby ones (Pikachu, D13: ≤ 3 jumps). */
+export interface ChainDef {
+  readonly jumps: number;
+  /** Damage of each jump as a fraction of the hit. */
+  readonly damageFraction: number;
 }
 
 /** Fires projectiles at the nearest enemy. */
@@ -52,6 +70,18 @@ export interface ProjectileMoveDef extends MoveDefBase {
   /** Signature tiers gain these as they gain the Area / Zone tags. */
   readonly explosion?: ExplosionDef;
   readonly crater?: CraterDef;
+  readonly chain?: ChainDef;
+}
+
+/** Drops a lingering zone on the nearest enemy (Poison Powder, Sleep Powder…). */
+export interface ZoneMoveDef extends MoveDefBase {
+  readonly form: 'zone';
+  /** Auto-target search radius in px. */
+  readonly range: number;
+  readonly radius: number;
+  /** Seconds the zone stays. */
+  readonly duration: number;
+  readonly tickInterval: number;
 }
 
 /** Instant arc swipe toward the nearest enemy. */
@@ -88,7 +118,7 @@ export interface BeamMoveDef extends MoveDefBase {
   readonly tickInterval: number;
 }
 
-export type MoveDef = ProjectileMoveDef | MeleeMoveDef | OrbitMoveDef | BeamMoveDef;
+export type MoveDef = ProjectileMoveDef | MeleeMoveDef | OrbitMoveDef | BeamMoveDef | ZoneMoveDef;
 export type MoveForm = MoveDef['form'];
 
 export const MOVES: Readonly<Record<MoveId, MoveDef>> = {

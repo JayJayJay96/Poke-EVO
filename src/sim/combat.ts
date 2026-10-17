@@ -15,6 +15,9 @@ export const NO_HIT: Readonly<HitInfo> = {
   knockback: 0,
   dirX: 0,
   dirY: 0,
+  slow: 0,
+  stun: 0,
+  poisonDps: 0,
 };
 
 /** On-hit effects for a move with these stats. Callers set dirX/dirY per hit for knockback. */
@@ -27,6 +30,9 @@ export function makeHitInfo(stats: MoveStats): HitInfo {
     knockback: stats.knockback,
     dirX: 0,
     dirY: 0,
+    slow: stats.slow,
+    stun: stats.stun,
+    poisonDps: stats.damage * stats.poisonPct,
   };
 }
 
@@ -96,6 +102,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     return dealt;
   }
   if (hit.burnDps > 0) applyBurn(enemy, hit.burnDps);
+  applyStatuses(enemy, hit);
   if (hit.knockback > 0) {
     // Exponential decay makes the total push ≈ the knockback distance.
     const v = hit.knockback * TUNING.status.knockbackDecay;
@@ -111,6 +118,21 @@ export function applyBurn(enemy: Enemy, dps: number): void {
   enemy.burnDps = burning ? Math.max(enemy.burnDps, dps) : dps;
   if (!burning) enemy.burnTickLeft = TUNING.status.burnTick;
   enemy.burnLeft = TUNING.status.burnSeconds;
+}
+
+/** Slow, stun and poison from a hit or a zone tick. Stronger effects win; durations refresh. */
+export function applyStatuses(enemy: Enemy, effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps'>): void {
+  if (effects.slow > 0) {
+    enemy.slow = enemy.slowLeft > 0 ? Math.max(enemy.slow, effects.slow) : effects.slow;
+    enemy.slowLeft = TUNING.status.slowSeconds;
+  }
+  if (effects.stun > 0) enemy.stunLeft = Math.max(enemy.stunLeft, effects.stun);
+  if (effects.poisonDps > 0) {
+    const poisoned = enemy.poisonLeft > 0;
+    enemy.poisonDps = poisoned ? Math.max(enemy.poisonDps, effects.poisonDps) : effects.poisonDps;
+    if (!poisoned) enemy.poisonTickLeft = TUNING.status.burnTick;
+    enemy.poisonLeft = TUNING.status.poisonSeconds;
+  }
 }
 
 /** Absorbs float drift so a burn's last tick lands on the same step it expires. */
@@ -141,6 +163,20 @@ export function updateStatuses(world: World, dt: number): void {
       }
       if (enemy.burnLeft <= 0) enemy.burnDps = 0;
     }
+    if (enemy.poisonLeft > 0 && enemy.hp > 0) {
+      enemy.poisonLeft -= dt;
+      enemy.poisonTickLeft -= dt;
+      while (enemy.poisonTickLeft <= TICK_EPSILON && enemy.hp > 0) {
+        damageEnemy(world, enemy, enemy.poisonDps * tick);
+        enemy.poisonTickLeft += tick;
+      }
+      if (enemy.poisonLeft <= 0) enemy.poisonDps = 0;
+    }
+    if (enemy.slowLeft > 0) {
+      enemy.slowLeft -= dt;
+      if (enemy.slowLeft <= 0) enemy.slow = 0;
+    }
+    if (enemy.stunLeft > 0) enemy.stunLeft = Math.max(0, enemy.stunLeft - dt);
   }
 }
 

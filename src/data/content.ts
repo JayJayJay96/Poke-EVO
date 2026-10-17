@@ -1,7 +1,18 @@
 // Game content as typed data. Every number here is provisional tuning (PROJECT.md).
 import type { MoveId } from './moves';
 
-export type PokemonType = 'Normal' | 'Fire' | 'Water' | 'Grass' | 'Flying' | 'Dragon';
+export type PokemonType =
+  | 'Normal'
+  | 'Fire'
+  | 'Water'
+  | 'Grass'
+  | 'Flying'
+  | 'Dragon'
+  | 'Poison'
+  | 'Electric'
+  | 'Ice'
+  | 'Dark'
+  | 'Steel';
 export type FormTag = 'Projectile' | 'Area' | 'Beam' | 'Melee' | 'Aura' | 'Zone' | 'Orbit';
 export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' | 'Ball' | 'Contact';
 export type MoveTag = PokemonType | FormTag | FlagTag;
@@ -9,7 +20,20 @@ export type MoveTag = PokemonType | FormTag | FlagTag;
 /** An evolution line, named after its first stage. */
 export type PokemonId = 'charmander';
 export type EnemyId = 'rattata' | 'pidgey' | 'raticate';
-export type AbilityId = 'blaze' | 'blazePlus' | 'solarPower';
+export type AbilityId =
+  | 'blaze'
+  | 'blazePlus'
+  | 'solarPower'
+  | 'shell'
+  | 'torrentPlus'
+  | 'rainDish'
+  | 'leech'
+  | 'overgrowPlus'
+  | 'chlorophyll'
+  | 'static'
+  | 'staticPlus'
+  | 'lightningRod'
+  | 'shellArmor';
 
 /** One form of an evolution line. Later stages: bigger and stronger (D3 early-vs-late gamble). */
 export interface EvolutionStage {
@@ -38,6 +62,8 @@ export interface LearnsetEntry {
 
 export interface PokemonDef {
   readonly id: PokemonId;
+  /** One line for the starter select screen. */
+  readonly role: string;
   readonly stages: readonly EvolutionStage[];
   /** Starting trait. */
   readonly ability: AbilityId;
@@ -57,6 +83,18 @@ export interface AbilityDef {
   readonly typeBoost?: { readonly type: PokemonType; readonly damagePct: number };
   /** HP lost per second; never drops the player below 1 HP. */
   readonly hpDrainPerSec?: number;
+  /** Shell: blocks one contact hit, then recharges for this many seconds. */
+  readonly blockEvery?: number;
+  /** Change to damage taken (negative = less), e.g. Shell Armor −0.15. */
+  readonly damageTakenPct?: number;
+  /** Static: enemies touching the player are stunned for this many seconds. */
+  readonly contactStun?: number;
+  /** Leech: heal this fraction of all damage dealt. */
+  readonly lifesteal?: number;
+  readonly regenPerSec?: number;
+  readonly moveSpeedPct?: number;
+  /** Multiplicative cooldown cut, like a boost. */
+  readonly cooldownPct?: number;
 }
 
 export interface EnemyDef {
@@ -77,6 +115,7 @@ export interface EnemyDef {
 export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
   charmander: {
     id: 'charmander',
+    role: 'Aggressive glass cannon: big fire blasts, risky low-HP power',
     // Stage numbers are provisional (D10, D11).
     stages: [
       {
@@ -146,6 +185,55 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     typeBoost: { type: 'Fire', damagePct: 0.3 },
     hpDrainPerSec: 1,
   },
+  // P4 lines (D13). Final-stage traits keep the base ability and add to it.
+  shell: { id: 'shell', name: 'Shell', description: 'Blocks one hit every 8 s', blockEvery: 8 },
+  torrentPlus: {
+    id: 'torrentPlus',
+    name: 'Torrent+',
+    description: 'Shell, and below 40% HP: +70% damage',
+    blockEvery: 8,
+    lowHpThreshold: 0.4,
+    lowHpDamageBonus: 0.7,
+  },
+  rainDish: {
+    id: 'rainDish',
+    name: 'Rain Dish',
+    description: 'Shell, and regenerate 1.5 HP/s',
+    blockEvery: 8,
+    regenPerSec: 1.5,
+  },
+  leech: { id: 'leech', name: 'Leech', description: 'Heal 3% of all damage dealt', lifesteal: 0.03 },
+  overgrowPlus: {
+    id: 'overgrowPlus',
+    name: 'Overgrow+',
+    description: 'Leech, and below 40% HP: +70% damage',
+    lifesteal: 0.03,
+    lowHpThreshold: 0.4,
+    lowHpDamageBonus: 0.7,
+  },
+  chlorophyll: {
+    id: 'chlorophyll',
+    name: 'Chlorophyll',
+    description: 'Leech, +15% move speed, −10% cooldown',
+    lifesteal: 0.03,
+    moveSpeedPct: 0.15,
+    cooldownPct: 0.1,
+  },
+  static: { id: 'static', name: 'Static', description: 'Enemies touching you are paralysed for 1 s', contactStun: 1 },
+  staticPlus: {
+    id: 'staticPlus',
+    name: 'Static+',
+    description: 'Enemies touching you are paralysed for 2 s',
+    contactStun: 2,
+  },
+  lightningRod: {
+    id: 'lightningRod',
+    name: 'Lightning Rod',
+    description: 'Static, and Electric moves +30% damage',
+    contactStun: 1,
+    typeBoost: { type: 'Electric', damagePct: 0.3 },
+  },
+  shellArmor: { id: 'shellArmor', name: 'Shell Armor', description: 'Take 15% less damage', damageTakenPct: -0.15 },
 };
 
 export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
@@ -227,7 +315,14 @@ export const TUNING = {
     /** Budget: new drops are skipped past this. */
     maxBerries: 12,
   },
+  chain: {
+    /** px from the last enemy hit to the next chain target. */
+    range: 140,
+  },
   status: {
+    /** Slow and poison durations (the strength comes from the move). */
+    slowSeconds: 1.5,
+    poisonSeconds: 3,
     burnSeconds: 3,
     /** DoT tick (budget §11.1: not every frame). */
     burnTick: 0.25,

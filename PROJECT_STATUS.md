@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **Next: build P4a** (see the P4 plan below).
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **Next: build P4b** (Squirtle line). Lapras's level-based signature tiers moved to P4d (built with Lapras so they can be tested on real data).
 
 ## P4 plan (owner-approved 2026-10-17, D13)
 **Gate:** do the starters feel truly different? Is picking a tier (3-stage / 2-stage / no evolution) a real gamble?
@@ -56,6 +56,25 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-17 — P4a: multi-line engine + starter select
+**Files**
+- `src/data/content.ts`: types + Poison/Electric/Ice/Dark/Steel; `PokemonDef.role`; ability fields `blockEvery`, `damageTakenPct`, `contactStun`, `lifesteal`, `regenPerSec`, `moveSpeedPct`, `cooldownPct`; abilities for the P4 lines (Shell, Torrent+, Rain Dish, Leech, Overgrow+, Chlorophyll, Static, Static+, Lightning Rod, Shell Armor). Final-stage traits keep the base ability and add to it; `TUNING.chain` (140 px), slow 1.5 s, poison 3 s.
+- `src/data/moves.ts`: innate `onHit` (slow / stun / poisonPct), projectile `chain`, new `zone` form (`ZoneMoveDef`).
+- `src/sim/types.ts`: enemy poison/slow/stun state; `HitInfo` slow/stun/poisonDps; zone status effects; `Player.blockReadyLeft`; `World.arcs`; projectile chain fields.
+- `src/sim/combat.ts`: `applyStatuses` (strongest wins, durations refresh); poison ticks like burn; slow/stun timers.
+- `src/sim/stats.ts`: innate effects into move stats; abilities feed damage taken, regen, speed, cooldown and per-move lifesteal.
+- `src/sim/world.ts`: stunned enemies don't move or deal contact damage; slowed enemies move slower; contact handles Static (stuns touchers) and Shell (blocks a hit, recharges); dispatches the zone form.
+- `src/sim/zones.ts`: zones can carry statuses applied each tick. `src/sim/forms/zoneCast.ts` (new): zone on the nearest enemy. `src/sim/forms/projectile.ts`: innate chain (nearest unhit enemy within 140 px, up to the jump count, never back; arcs for drawing).
+- `src/scenes/SelectScene.ts` (new): starter select (lines from data, tier label, role, ability, signature; keys or click); `?stress=1` skips it. `main.ts`: Select then Run. `src/scenes/RunScene.ts`: starts with the chosen line; R restarts the same line; C changes Pokémon; status rings (burn/poison/slow/stun), status-coloured zones, chain arcs, Shell bubble.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **107/107 passed** (10 new: slow halves movement, stun stops movement and contact, poison ticks, Shell blocks then recharges, Shell Armor −15%, Static stuns touchers, Leech/Chlorophyll/Rain Dish, zone-cast drops a poison zone on the target, chain hits 2 extra and not a 4th, 360° melee hits behind); `npm run build` passed; bench 0.75 ms/step.
+- Browser: the select screen shows Charmander's card; click → run as Charmander; faint + R → new run, same starter; faint + C → select; key 1 starts; `?stress=1` skips select, 500 enemies at 117 FPS. Console: only old HMR-stamped errors from earlier phases.
+
+**Notes**
+- Only Charmander exists yet, so the select screen shows one card; the P4b–d lines add theirs.
+- Static stuns enemies after their hit lands (you still take the first touch).
 
 ### 2026-10-17 — P3e: re-playtest revisions (D12)
 **Owner feedback:** Return too strong (pierce + double hit); couldn't back out of an augment choice and got stuck replacing; late damage strong but OK for now; Glass on Fire Spin "didn't work" (no visible HP change); wanted some regen but saw the risk/reward.
