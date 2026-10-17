@@ -115,4 +115,9 @@ export const TUNING = {
     ringPadding: 48,
   },
   spatialCellSize: 64,
+  /** Performance budgets (PROJECT.md §11.1). */
+  budget: {
+    /** Past this, a cast spawns fewer projectiles that carry the missing damage. */
+    maxProjectiles: 500,
+  },
 } as const;

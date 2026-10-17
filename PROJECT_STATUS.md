@@ -3,11 +3,12 @@
 ## Current state
 - **Phase:** P0 done. **P1 done: the owner playtest passed the gate on 2026-10-17.**
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
-- **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a), `778aff0` (P2b); P2c commit follows this update.
+- **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a), `778aff0` (P2b), `9d0c3b1` (P2c); P2d commit follows this update.
+- **P2d done** (2026-10-17): projectile pool + 500 cap, `?stress=1` mode, `?perf=1` readout, `npm run bench`. Stress: ~160 FPS with 500 enemies + maxed build; sim 0.82 ms/step (bench mean).
+- **P2 is code-complete. Next: the owner playtests the P2 gate** ("play again" unasked? does each tester build the same move differently?). That playtest should also cover keys 1–5 / R and the Esc build panel, which couldn't be checked in a hidden pane.
 - **P2a done** (2026-10-17): XP gems + magnet, level curve, XP bar, wave table with Pidgey/Raticate variants and HP scaling, 15:00 "Survived!" screen.
 - **P2b done** (2026-10-17): 4 move forms, Charmander learnset, generic boosts, held items, level-up card window. Owner playtest: "currently is good".
 - **P2c done** (2026-10-17): sockets, augment levels, 2-window flow + reroll, ranks I–III, 10 augments, Power Surge fallback, build panel. **The build panel (Esc) still needs a check in the owner's playtest.**
-- **Next task:** build **P2d**: projectile pool + 500 cap, `?stress=1` mode (500 enemies + maxed build) with an FPS readout; record FPS. Then the owner playtests the P2 gate.
 
 ## P2 plan (owner-approved 2026-10-17)
 **Gate:** do testers press "play again" unasked? Do two testers build the same move differently?
@@ -33,6 +34,25 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 ---
 
 ## Session log
+
+### 2026-10-17 — P2d: performance budgets and stress test
+**Files**
+- `src/data/content.ts`: `TUNING.budget.maxProjectiles = 500`.
+- `src/sim/forms/projectile.ts`: pooled projectiles (`acquireProjectile`); the cap clips a cast to fewer projectiles carrying the same total damage; a full budget spends the cast.
+- `src/sim/types.ts` / `world.ts`: `projectilePool`; dead projectiles return to the pool.
+- `src/sim/stress.ts` (new): `setupStress` (4 moves with all 3 sockets at rank III, Ember = Multishot + Scatter + Velocity, all boosts maxed, 3 items, invulnerable) and `topUpStress` (holds 500 enemies at HP ×8, skips level-up windows).
+- `src/sim/stress.bench.ts` (new) + `npm run bench`: Vitest 5 `bench` test-context fixture (API checked via Context7: v5 removed the top-level `bench` export).
+- `src/scenes/RunScene.ts`: `?stress=1` runs stress mode; `?stress=1` or `?perf=1` shows FPS, sim ms, draw-command ms and entity counts (top right); dev builds expose `window.__perf`.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **56/56 passed** (4 new: clipped cast keeps total damage, full budget spends the cast, pool reuse by identity, stress mode holds 500 enemies / never pauses or faints / stays ≤ the cap over 240 steps); `npm run build` passed.
+- `npm run bench` (Node 24, sim only): **one step mean 0.82 ms, p99 1.27 ms, max 1.56 ms**, i.e. under 10% of a 16.7 ms frame.
+- Browser `?stress=1` (pane visible, 1466×402 viewport): **159–162 FPS**, sim 0.27–0.46 ms/frame, 500 enemies held, ~45 KOs/s, status running, no offers. Screenshot taken.
+
+**Caveats**
+- In this scenario projectiles and gems sit near 0: the horde hugs the player, so Ember's 10-projectile casts (cooldown ≈ 1.6 s) hit instantly and the magnet clears gems. The 500-projectile cap is covered by unit tests, not by this browser run.
+- "draw-cmd ms" only measures building Phaser Graphics commands; GPU rendering cost shows up in FPS. FPS was measured on this machine's display (refresh > 60 Hz). A slower laptop still needs checking.
+- The enemy cap for normal play stays 300 (§11.1); stress mode deliberately exceeds it.
 
 ### 2026-10-17 — P2c: augments
 **Files**

@@ -15,6 +15,7 @@ import {
   xpToNext,
 } from '../sim/progression';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
+import { setupStress, topUpStress } from '../sim/stress';
 import type { AugmentCard, Card, InputState, LevelUpOffer, MoveSlot, World } from '../sim/types';
 import { createWorld, step } from '../sim/world';
 
@@ -51,6 +52,10 @@ const CARD_H = 170;
 const CARD_GAP = 16;
 /** Ignore card keys briefly after a window opens so a held key can't pick blindly. */
 const CARD_INPUT_DELAY_MS = 250;
+/** How often the perf readout refreshes. */
+const PERF_REFRESH_MS = 250;
+/** Smoothing for the per-frame timing averages. */
+const PERF_EMA = 0.1;
 
 const NUMBER_KEYS = ['one', 'two', 'three', 'four', 'five'] as const;
 type KeyName =
@@ -87,6 +92,12 @@ export class RunScene extends Phaser.Scene {
   private overlayOpenedAt = 0;
   private accumulator = 0;
   private paused = false;
+  /** `?stress=1`: maxed build vs 500 enemies (P2d budget check). */
+  private stress = false;
+  private perfText: Phaser.GameObjects.Text | null = null;
+  private simMs = 0;
+  private drawMs = 0;
+  private perfShownAt = 0;
 
   constructor() {
     super('run');
@@ -102,6 +113,29 @@ export class RunScene extends Phaser.Scene {
     this.paused = false;
     this.overlay = [];
     this.overlayFor = null;
+
+    const params = new URLSearchParams(window.location.search);
+    this.stress = params.has('stress');
+    if (this.stress) {
+      const cam = this.cameras.main;
+      this.world.spawnRadius = Math.hypot(cam.width, cam.height) / 2 + TUNING.spawn.ringPadding;
+      setupStress(this.world);
+    }
+    this.perfText =
+      this.stress || params.has('perf')
+        ? this.add
+            .text(0, 14, '', {
+              fontFamily: 'monospace',
+              fontSize: '14px',
+              color: '#7CFC00',
+              backgroundColor: '#000000aa',
+              padding: { x: 6, y: 4 },
+              align: 'right',
+            })
+            .setOrigin(1, 0)
+            .setScrollFactor(0)
+            .setDepth(40)
+        : null;
 
     this.keys = this.input.keyboard!.addKeys({
       up: 'UP',
@@ -176,6 +210,9 @@ export class RunScene extends Phaser.Scene {
     const cam = this.cameras.main;
     world.spawnRadius = Math.hypot(cam.width, cam.height) / 2 + TUNING.spawn.ringPadding;
 
+    if (this.stress) topUpStress(world);
+
+    const simStart = performance.now();
     if (!this.paused && !world.offer) {
       this.accumulator += Math.min(deltaMs / 1000, MAX_FRAME_SECONDS);
       const input = this.readInput();
@@ -186,9 +223,41 @@ export class RunScene extends Phaser.Scene {
     }
     // Don't bank time while a window is open.
     if (world.offer) this.accumulator = 0;
+    const drawStart = performance.now();
 
     this.syncOverlay(time);
     this.draw();
+
+    this.updatePerf(time, drawStart - simStart, performance.now() - drawStart);
+  }
+
+  /** FPS, sim and draw cost per frame, and entity counts (with `?stress=1` or `?perf=1`). */
+  private updatePerf(time: number, simMs: number, drawMs: number): void {
+    if (!this.perfText) return;
+    this.simMs += (simMs - this.simMs) * PERF_EMA;
+    this.drawMs += (drawMs - this.drawMs) * PERF_EMA;
+    if (time - this.perfShownAt < PERF_REFRESH_MS) return;
+    this.perfShownAt = time;
+    const { world } = this;
+    const fps = this.game.loop.actualFps;
+    const stats = {
+      fps: Math.round(fps),
+      simMs: +this.simMs.toFixed(2),
+      drawMs: +this.drawMs.toFixed(2),
+      enemies: world.enemies.length,
+      projectiles: world.projectiles.length,
+      gems: world.gems.length,
+      pool: world.projectilePool.length,
+    };
+    if (import.meta.env.DEV) (window as unknown as { __perf?: typeof stats }).__perf = stats;
+    this.perfText
+      .setText(
+        `${this.stress ? 'STRESS  ' : ''}FPS ${stats.fps}\n` +
+          // draw-cmd = building Graphics commands only; GPU rendering shows up in FPS.
+          `sim ${stats.simMs.toFixed(2)} ms · draw-cmd ${stats.drawMs.toFixed(2)} ms\n` +
+          `enemies ${stats.enemies} · proj ${stats.projectiles} · gems ${stats.gems}`,
+      )
+      .setX(this.cameras.main.width - 12);
   }
 
   /** Routes a card pick to the right action for the open window. */

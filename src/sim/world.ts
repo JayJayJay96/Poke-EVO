@@ -49,6 +49,7 @@ export function createWorld({
     },
     enemies: [],
     projectiles: [],
+    projectilePool: [],
     gems: [],
     swings: [],
     moves: [createSlot(def.signatureMove)],
@@ -314,7 +315,10 @@ function compact<T>(items: T[], keep: (item: T) => boolean): void {
 
 function removeDead(world: World): void {
   compact(world.enemies, (e) => e.hp > 0);
-  compact(world.projectiles, (p) => !p.dead);
+  compact(world.projectiles, (p) => {
+    if (p.dead) world.projectilePool.push(p);
+    return !p.dead;
+  });
   compact(world.gems, (g) => !g.collected);
   compact(world.swings, (s) => s.lifeLeft > 0);
 }

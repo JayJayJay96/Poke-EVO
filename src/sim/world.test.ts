@@ -21,7 +21,8 @@ import {
 import { createSeededRng } from './rng';
 import { SpatialHash } from './spatialHash';
 import { computeModifiers, createSlot, refreshStats } from './stats';
-import type { InputState, World } from './types';
+import { STRESS_ENEMIES, setupStress, topUpStress } from './stress';
+import type { InputState, Projectile, World } from './types';
 import { createWorld, pickEnemyKind, spawnEnemy, step, waveAt } from './world';
 
 const DT = TUNING.stepSeconds;
@@ -606,6 +607,82 @@ describe('augments', () => {
       expect(ranks).toHaveLength(3);
       for (const rank of ranks) expect(rank.text.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('performance budgets', () => {
+  /** A harmless projectile parked far away, to fill the budget. */
+  function filler(id: number): Projectile {
+    return {
+      id,
+      moveId: 'ember',
+      x: 50_000,
+      y: 50_000,
+      vx: 0,
+      vy: 0,
+      radius: 1,
+      damage: 0,
+      critChance: 0,
+      lifeLeft: 99,
+      dead: false,
+    };
+  }
+
+  it('a cast clipped by the projectile cap fires fewer, heavier projectiles', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [{ augmentId: 'multishot', rank: MAX_RANK }]; // 5 per cast
+    refreshStats(world);
+    const max = TUNING.budget.maxProjectiles;
+    for (let i = 0; i < max - 1; i++) world.projectiles.push(filler(-i - 1));
+    spawnEnemy(world, 'rattata', 250, 0);
+    step(world, IDLE, DT);
+    expect(world.projectiles).toHaveLength(max);
+    const fresh = world.projectiles.find((p) => p.damage > 0)!;
+    expect(fresh.damage).toBeCloseTo(world.moves[0]!.stats.damage * 5);
+  });
+
+  it('a full budget spends the cast without spawning', () => {
+    const world = makeWorld();
+    const max = TUNING.budget.maxProjectiles;
+    for (let i = 0; i < max; i++) world.projectiles.push(filler(-i - 1));
+    spawnEnemy(world, 'rattata', 250, 0);
+    step(world, IDLE, DT);
+    expect(world.projectiles).toHaveLength(max);
+    expect(world.moves[0]!.cooldownLeft).toBeGreaterThan(0);
+  });
+
+  it('dead projectiles are reused instead of reallocated', () => {
+    const world = makeWorld();
+    world.player.invulnLeft = 99;
+    const target = spawnEnemy(world, 'raticate', 250, 0, 10);
+    target.speed = 0;
+    step(world, IDLE, DT);
+    const first = world.projectiles[0]!;
+    first.lifeLeft = 0; // expires on the next step
+    step(world, IDLE, DT);
+    expect(world.projectiles).not.toContain(first);
+    expect(world.projectilePool).toContain(first);
+    run(world, MOVES.ember.cooldown);
+    expect(world.projectiles).toContain(first);
+    expect(world.projectilePool).not.toContain(first);
+  });
+
+  it('stress mode holds 500 enemies with a fully socketed build and never pauses or faints', () => {
+    const world = makeWorld();
+    setupStress(world);
+    expect(world.enemies).toHaveLength(STRESS_ENEMIES);
+    expect(world.moves).toHaveLength(4);
+    expect(world.moves.every((s) => s.sockets.length === MAX_SOCKETS)).toBe(true);
+    for (let i = 0; i < 240; i++) {
+      topUpStress(world);
+      step(world, { moveX: 1, moveY: 0 }, DT);
+      expect(world.projectiles.length).toBeLessThanOrEqual(TUNING.budget.maxProjectiles);
+    }
+    topUpStress(world);
+    expect(world.enemies).toHaveLength(STRESS_ENEMIES);
+    expect(world.status).toBe('running');
+    expect(world.offer).toBeNull();
+    expect(world.kills).toBeGreaterThan(0);
   });
 });
 

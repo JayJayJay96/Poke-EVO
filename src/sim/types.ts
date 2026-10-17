@@ -40,9 +40,10 @@ export interface Enemy {
   hitFlashLeft: number;
 }
 
+/** Pooled: dead projectiles are reused, so every field is reassigned on spawn. */
 export interface Projectile {
-  readonly id: number;
-  readonly moveId: MoveId;
+  id: number;
+  moveId: MoveId;
   x: number;
   y: number;
   vx: number;
@@ -156,6 +157,8 @@ export interface World {
   player: Player;
   enemies: Enemy[];
   projectiles: Projectile[];
+  /** Dead projectiles waiting to be reused. */
+  projectilePool: Projectile[];
   gems: Gem[];
   swings: Swing[];
   /** Slot 0 is the signature move; the rest are learnset moves. */

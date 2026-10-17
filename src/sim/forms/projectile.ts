@@ -1,6 +1,7 @@
+import { TUNING } from '../../data/content';
 import type { ProjectileMoveDef } from '../../data/moves';
 import { damageEnemy, findNearestEnemy, queryEnemies } from '../combat';
-import type { MoveSlot, World } from '../types';
+import type { MoveSlot, Projectile, World } from '../types';
 
 /** Angle between neighbouring projectiles when a cast fires several. */
 const SPREAD_RADIANS = 0.21;
@@ -11,26 +12,51 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
   const target = findNearestEnemy(world, def.range);
   if (!target) return false; // stays ready and fires the moment something is in range
   const { player } = world;
-  const base = Math.atan2(target.y - player.y, target.x - player.x);
-  const count = def.count + slot.stats.extraCount;
+  const wanted = def.count + slot.stats.extraCount;
+  // Budget: never exceed the projectile cap. A clipped cast fires fewer, heavier
+  // projectiles so its total damage is unchanged; a full budget spends the cast.
+  const room = TUNING.budget.maxProjectiles - world.projectiles.length;
+  if (room <= 0) return true;
+  const count = Math.min(wanted, room);
+  const damage = slot.stats.damage * (wanted / count);
   const speed = def.projectileSpeed * slot.stats.speedMult;
+  const base = Math.atan2(target.y - player.y, target.x - player.x);
   for (let i = 0; i < count; i++) {
     const angle = base + (i - (count - 1) / 2) * SPREAD_RADIANS;
-    world.projectiles.push({
-      id: world.nextId++,
-      moveId: def.id,
-      x: player.x,
-      y: player.y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      radius: def.projectileRadius * slot.stats.area,
-      damage: slot.stats.damage,
-      critChance: slot.stats.critChance,
-      lifeLeft: def.projectileLifetime * slot.stats.duration,
-      dead: false,
-    });
+    const p = acquireProjectile(world);
+    p.id = world.nextId++;
+    p.moveId = def.id;
+    p.x = player.x;
+    p.y = player.y;
+    p.vx = Math.cos(angle) * speed;
+    p.vy = Math.sin(angle) * speed;
+    p.radius = def.projectileRadius * slot.stats.area;
+    p.damage = damage;
+    p.critChance = slot.stats.critChance;
+    p.lifeLeft = def.projectileLifetime * slot.stats.duration;
+    p.dead = false;
+    world.projectiles.push(p);
   }
   return true;
+}
+
+/** Reuses a dead projectile when one is available. */
+function acquireProjectile(world: World): Projectile {
+  return (
+    world.projectilePool.pop() ?? {
+      id: 0,
+      moveId: 'ember',
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      radius: 0,
+      damage: 0,
+      critChance: 0,
+      lifeLeft: 0,
+      dead: true,
+    }
+  );
 }
 
 export function updateProjectiles(world: World, dt: number): void {
