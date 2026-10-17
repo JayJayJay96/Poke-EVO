@@ -34,6 +34,15 @@ You start a 15-minute run as a Kanto starter, auto-fire moves at hordes of wild 
 | **Learnset** | 6–8 moves drawn from the shared move pool. This is the line's own subset, not "all moves of its type" |
 | **Evolution** | Stage levels, plus what changes (stats, sprite size, signature tier → new tags) |
 
+### 4.1 Kit rules (owner decision D14, 2026-10-18)
+Every line's kit follows these, checked in review and (where possible) by a unit test:
+1. **Mostly own-type moves**: at least half the learnset matches the line's types, so STAB rewards staying on theme.
+2. **One basic Normal move** at most.
+3. **Off-type only when iconic** for the line (Charizard → Dragon Rage, Blastoise → Flash Cannon).
+4. **The final stage unlocks 1–2 moves** tied to what it becomes.
+5. **Every learnset move uses a different form** where possible, so augment builds differ.
+6. **Every move supports the line's role.**
+
 ## 5. Evolution tiers — the early-vs-late gamble (owner decision D3, 2026-10-17)
 Choosing a Pokémon is a bet on **when** you want to be strong:
 
@@ -65,7 +74,8 @@ Each signature tier keeps its previous tags and adds new ones (§8.6).
   - Bubble `[Water, Projectile]`: slowing bubbles
   - → Water Pulse `[+Pulse]`: bubbles burst into a knockback ring
   - → Hydro Cannon `[+Area]`: heavy shot with a big knockback burst
-- **Learnset:** Tackle, Bite, Rapid Spin, Ice Beam (slows), Surf (360° wave).
+- **Learnset (redesigned D14):** Withdraw (Water, short 360° shell bash: stagger + brief stun), Rapid Spin (Normal orbit), Water Gun (Water beam that pushes along it), Whirlpool (Water zone at target: strong slow + damage), Surf (Water 360° wave). **Blastoise only:** Hydro Pump (Water heavy beam), Flash Cannon (Steel piercing shot).
+- **Knockback is a stagger** (D14): small pushes (10–30 px) that stop enemies advancing rather than shove them away.
 - **Final trait pick:** Torrent+ (low-HP Water boost) or Rain Dish (regen).
 
 ### Bulbasaur → Ivysaur → Venusaur — *sustain / zones / damage over time* (Grass/Poison; D13)
@@ -80,7 +90,7 @@ Each signature tier keeps its previous tags and adds new ones (§8.6).
 ### Pikachu → Raichu (Lv 16) — *speed / chain* (Electric; 2-stage gamble line, D13)
 - **Ability, Static:** enemies touching you get paralysed.
 - **Signature:** Thunder Shock `[Electric, Projectile]` (chains to 2 enemies) → Thunderbolt `[+Area]` (chains to 3). Chain is innate to this signature only, capped at 3 jumps; no Chain augment until P5.
-- **Learnset:** Quick Attack, Spark, Electro Ball, Thunder Wave, Iron Tail.
+- **Learnset:** Quick Attack, Spark, Electro Ball, Thunder Wave, Iron Tail. **Raichu only (D14):** Thunder.
 - **Final trait pick:** Static+ or Lightning Rod.
 
 ### Lapras — *early bulldozer* (Water/Ice; non-evolver gamble line, D13)
@@ -197,7 +207,8 @@ Most augments are data only. Behaviour augments are small, individually tested f
 
 ## 9. Other systems
 - **Held items** (passives, may boost tags): Leftovers (regen), Choice Band (+damage), Quick Claw (−cooldown), Wide Lens (+Area), Scope Lens (+crit for Slicing), Exp. Share magnet (+pickup radius), Shell Bell (lifesteal). 3 item slots.
-- **Type chart:** a simplified ×2 / ×0.5, **no immunities**, so a move is never useless.
+- **Type chart (pulled into P4, D14):** the real chart, ×2 / ×0.5 per type, multiplied for dual-type enemies; **immunities become ×0.5**, so a move is never useless. A move's attack type is its first Pokémon-type tag; burn/poison ticks are typeless. Hits flash **yellow** when super effective, **grey** when not very effective.
+- **Weight → knockback resistance (D14):** every enemy has its real weight; resistance = weight ÷ (weight + 25 kg) (Pidgey 7%, Rattata 12%, Raticate 43%, Snorlax 95%).
 - **Enemy archetypes:** fodder (Rattata), fast (Pidgey), tank (Geodude), ranged (Spearow), exploder (Voltorb), healer (Chansey), teleporter (Abra). Danger zones are always telegraphed.
 - **Rift (owner requirement):** a portal leads to a legendary arena (Articuno / Zapdos / Moltres). **Winning grants a combine step.** Losing sends you back to the map.
 - **Skill combine** *(owner, D2)*: a 15-min run has **4 rifts**; clearing all 4 builds **1 combined skill from 4 moves** (§8.6). 30-min mode (later): 8 rifts → 2 combos.
@@ -261,6 +272,7 @@ Online play, accounts, co-op, gacha, mobile/touch, all 151 Pokémon, shinies, we
 | D6 | Engine | **Approved:** browser-playable; Phaser recommended |
 | D7 | Skill building | **Approved 2026-10-17:** tags + 3 sockets per move; augment level every 3rd level; 2 windows + limited reroll; signature = 3 sockets + exclusives; trade-offs yes; evolution only adds tags; combined skill = 4 behaviours on one shared cooldown with 12 inherited augments |
 | D8 | Augment stacking | **Approved 2026-10-17:** no duplicate sockets; an owned augment ranks up I → III in its socket when picked again (§8.2a). Rank values, rank III bonus and card weighting provisional |
+| D14 | Kit rules + Squirtle rework | **Approved 2026-10-18:** kit rules §4.1; Squirtle redesigned (Withdraw, Rapid Spin, Water Gun, Whirlpool, Surf; Blastoise-only Hydro Pump + Flash Cannon; Ice Beam/Bite/Tackle removed); knockback becomes a small stagger (innate 10–30 px, Knockback augment 20/35/55); Raichu unlocks Thunder; **type chart + weight-based knockback resistance pulled into P4** |
 | D13 | P4 scope | **Approved 2026-10-17:** simple starter select screen in P4 (polish stays P7); every evolving line's final stage offers a trait pick (Lapras none); Pikachu's signature chains innately, capped at 3 jumps (Chain augment stays P5); kits per §6 as the starting point (numbers provisional) |
 | D12 | P3 re-playtest revisions | **Approved 2026-10-17:** healing = **rare Oran Berry drops** (no flat regen; Raticate often, others rarely; walk over to heal); "damage taken" trade-offs (Glass) stay **+10/15/20%** but are **shown clearly** (HUD + red damage numbers on the player); **Back** from the augment cards to move selection (cards kept per move, so Back is not a free reroll); Return gets a trade-off (−30% damage, provisional) |
 | D11 | P3 playtest revisions | **Approved 2026-10-17:** evolution cinematic **5 s, skippable after 2 s**; Blast Burn crater spawns **once per projectile** (Pierce can't chain craters); **augment replacement**: with full sockets the window still shows 3 cards and a new augment replaces a chosen socket at rank I (Back to cancel); each augment window **guarantees ≥ 1 behaviour/exclusive card** when available; **Pokémon types per stage** (Charizard = Fire/Flying) unlocking stage-gated Flying moves + **STAB +20%** for moves matching the Pokémon's types; **Charizard chooses 1 of 2 traits** at evolution (Blaze+ or Solar Power). Numbers provisional |

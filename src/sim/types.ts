@@ -1,5 +1,5 @@
 import type { AugmentId } from '../data/augments';
-import type { AbilityId, EnemyId, PokemonId } from '../data/content';
+import type { AbilityId, EnemyId, PokemonId, PokemonType } from '../data/content';
 import type { MoveId } from '../data/moves';
 import type { BoostId, ItemId } from '../data/upgrades';
 import type { Rng } from './rng';
@@ -60,6 +60,8 @@ export interface Enemy {
   slowLeft: number;
   /** Stunned (sleep / paralysis): no movement, no contact damage. */
   stunLeft: number;
+  /** Type multiplier of the last hit, for the hit-flash colour (D14). */
+  lastEffectiveness: number;
 }
 
 /** Pooled: dead projectiles are reused, so every field is reassigned on spawn. */
@@ -125,6 +127,8 @@ export interface HitInfo {
   stun: number;
   /** Poison damage per second to apply (0 = none). */
   poisonDps: number;
+  /** The move's type for the type chart (null = typeless, e.g. burn/poison ticks). */
+  attackType: PokemonType | null;
 }
 
 /** An Oran Berry on the ground: walk over it to heal (D12). Not magnetized. */
@@ -152,6 +156,8 @@ export interface Zone {
   slow: number;
   stun: number;
   poisonDps: number;
+  /** Type of the move that made it, for the type chart. */
+  attackType: PokemonType | null;
 }
 
 /** A chain-lightning jump, kept briefly so it can be drawn. Presentation only. */
@@ -223,6 +229,8 @@ export interface MoveStats {
   stun: number;
   /** Poison damage per second as a fraction of the hit. */
   poisonPct: number;
+  /** For the type chart (D14). */
+  attackType: PokemonType | null;
 }
 
 export interface AugmentSocket {

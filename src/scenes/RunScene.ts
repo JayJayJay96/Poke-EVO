@@ -50,6 +50,8 @@ const COLORS = {
   poison: 0xb05cff,
   slow: 0x8fd8ff,
   stun: 0xffe84d,
+  superEffective: 0xfff200,
+  notVery: 0x7a7a7a,
   berry: 0x2f7ff5,
   exclusive: 0xff8c42,
 } as const;
@@ -780,7 +782,10 @@ export class RunScene extends Phaser.Scene {
     }
 
     for (const e of enemies) {
-      g.fillStyle(e.hitFlashLeft > 0 ? COLORS.flash : ENEMY_COLORS[e.kind], 1);
+      // Hit flash colour shows type effectiveness (D14): yellow super, grey not very, white neutral.
+      const flash =
+        e.lastEffectiveness > 1 ? COLORS.superEffective : e.lastEffectiveness < 1 ? COLORS.notVery : COLORS.flash;
+      g.fillStyle(e.hitFlashLeft > 0 ? flash : ENEMY_COLORS[e.kind], 1);
       g.fillCircle(e.x, e.y, e.radius);
     }
     // Status rings: burn orange, poison purple, slow light blue, stun yellow.

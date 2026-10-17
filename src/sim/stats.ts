@@ -1,6 +1,7 @@
 import { AUGMENTS } from '../data/augments';
 import { ABILITIES, POKEMON, TUNING, type AbilityId, type EvolutionStage, type PokemonType } from '../data/content';
 import { MOVES, type MoveDef, type MoveId } from '../data/moves';
+import { moveType } from '../data/typeChart';
 import {
   BIG_BOOST,
   BOOST_IDS,
@@ -142,6 +143,7 @@ export function computeMoveStats(
     slow: def.onHit?.slow ?? 0,
     stun: def.onHit?.stun ?? 0,
     poisonPct: def.onHit?.poisonPct ?? 0,
+    attackType: moveType(def.tags),
   };
 }
 

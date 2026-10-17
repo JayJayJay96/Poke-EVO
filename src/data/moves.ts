@@ -11,15 +11,20 @@ export type MoveId =
   | 'dragonRage'
   | 'airSlash'
   | 'hurricane'
-  // Squirtle line (P4b)
+  // Squirtle line (P4b, redesigned D14)
   | 'bubble'
   | 'waterPulse'
   | 'hydroCannon'
-  | 'tackle'
-  | 'bite'
+  | 'withdraw'
   | 'rapidSpin'
-  | 'iceBeam'
-  | 'surf';
+  | 'waterGun'
+  | 'whirlpool'
+  | 'surf'
+  | 'hydroPump'
+  | 'flashCannon'
+  // Shared / other lines
+  | 'tackle'
+  | 'iceBeam';
 
 /** Splash around the impact point. */
 export interface ExplosionDef {
@@ -82,6 +87,8 @@ export interface ProjectileMoveDef extends MoveDefBase {
   readonly explosion?: ExplosionDef;
   readonly crater?: CraterDef;
   readonly chain?: ChainDef;
+  /** Innate pierce (adds to the Pierce augment), e.g. Flash Cannon. */
+  readonly pierce?: number;
 }
 
 /** Drops a lingering zone on the nearest enemy (Poison Powder, Sleep Powder…). */
@@ -254,7 +261,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
   waterPulse: {
     id: 'waterPulse',
     name: 'Water Pulse',
-    description: 'Bubbles burst into a knockback ring',
+    description: 'Bubbles burst into a staggering splash',
     tags: ['Water', 'Projectile', 'Pulse'],
     form: 'projectile',
     cooldown: 1.0,
@@ -265,12 +272,12 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileLifetime: 1.3,
     count: 1,
     explosion: { radius: 45, damageFraction: 0.5 },
-    onHit: { slow: 0.35, knockback: 40 },
+    onHit: { slow: 0.35, knockback: 15 },
   },
   hydroCannon: {
     id: 'hydroCannon',
     name: 'Hydro Cannon',
-    description: 'Heavy shot with a big knockback burst',
+    description: 'Heavy shot with a big staggering burst',
     tags: ['Water', 'Projectile', 'Pulse', 'Area'],
     form: 'projectile',
     cooldown: 1.2,
@@ -281,7 +288,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileLifetime: 1.3,
     count: 1,
     explosion: { radius: 65, damageFraction: 0.6 },
-    onHit: { slow: 0.4, knockback: 70 },
+    onHit: { slow: 0.4, knockback: 30 },
   },
   tackle: {
     id: 'tackle',
@@ -294,22 +301,10 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     reach: 55,
     arcDegrees: 90,
   },
-  bite: {
-    id: 'bite',
-    name: 'Bite',
-    description: 'Heavy bite that makes enemies flinch',
-    tags: ['Dark', 'Melee', 'Bite', 'Contact'],
-    form: 'melee',
-    cooldown: 1.1,
-    damage: 18,
-    reach: 50,
-    arcDegrees: 70,
-    onHit: { stun: 0.4 },
-  },
   rapidSpin: {
     id: 'rapidSpin',
     name: 'Rapid Spin',
-    description: 'A spinning shell that knocks enemies away',
+    description: 'A spinning shell that staggers enemies',
     tags: ['Normal', 'Orbit', 'Contact'],
     form: 'orbit',
     cooldown: 4,
@@ -320,7 +315,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     angularSpeed: 6,
     duration: 2.5,
     hitInterval: 0.4,
-    onHit: { knockback: 50 },
+    onHit: { knockback: 15 },
   },
   iceBeam: {
     id: 'iceBeam',
@@ -347,7 +342,79 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     damage: 22,
     reach: 110,
     arcDegrees: 360,
-    onHit: { knockback: 60 },
+    onHit: { knockback: 25 },
+  },
+  withdraw: {
+    id: 'withdraw',
+    name: 'Withdraw',
+    description: 'Shell bash: staggers and briefly stuns everything close',
+    tags: ['Water', 'Melee', 'Contact'],
+    form: 'melee',
+    cooldown: 2.5,
+    damage: 10,
+    reach: 45,
+    arcDegrees: 360,
+    onHit: { knockback: 20, stun: 0.3 },
+  },
+  waterGun: {
+    id: 'waterGun',
+    name: 'Water Gun',
+    description: 'Pressure stream that pushes enemies along it',
+    tags: ['Water', 'Beam'],
+    form: 'beam',
+    cooldown: 2.4,
+    damage: 6,
+    range: 300,
+    length: 240,
+    width: 12,
+    duration: 0.6,
+    tickInterval: 0.2,
+    onHit: { knockback: 10 },
+  },
+  whirlpool: {
+    id: 'whirlpool',
+    name: 'Whirlpool',
+    description: 'Traps enemies in a slowing vortex',
+    tags: ['Water', 'Zone'],
+    form: 'zone',
+    cooldown: 5,
+    damage: 5,
+    range: 300,
+    radius: 55,
+    duration: 3,
+    tickInterval: 0.5,
+    onHit: { slow: 0.6 },
+  },
+  // Blastoise only (D14).
+  hydroPump: {
+    id: 'hydroPump',
+    name: 'Hydro Pump',
+    description: 'Blastoise cannons: a heavy water beam',
+    tags: ['Water', 'Beam'],
+    form: 'beam',
+    cooldown: 4,
+    damage: 18,
+    range: 340,
+    length: 340,
+    width: 22,
+    duration: 0.8,
+    tickInterval: 0.2,
+    onHit: { knockback: 15 },
+  },
+  flashCannon: {
+    id: 'flashCannon',
+    name: 'Flash Cannon',
+    description: 'Blastoise cannons: a steel shot that pierces',
+    tags: ['Steel', 'Projectile'],
+    form: 'projectile',
+    cooldown: 1.6,
+    damage: 26,
+    range: 380,
+    projectileSpeed: 520,
+    projectileRadius: 9,
+    projectileLifetime: 1.0,
+    count: 1,
+    pierce: 2,
   },
   dragonRage: {
     id: 'dragonRage',

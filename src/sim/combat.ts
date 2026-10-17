@@ -1,4 +1,5 @@
 import { ABILITIES, ENEMIES, TUNING } from '../data/content';
+import { effectiveness } from '../data/typeChart';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
 import type { Enemy, Gem, HitInfo, MoveStats, World } from './types';
 
@@ -18,6 +19,7 @@ export const NO_HIT: Readonly<HitInfo> = {
   slow: 0,
   stun: 0,
   poisonDps: 0,
+  attackType: null,
 };
 
 /** On-hit effects for a move with these stats. Callers set dirX/dirY per hit for knockback. */
@@ -33,7 +35,13 @@ export function makeHitInfo(stats: MoveStats): HitInfo {
     slow: stats.slow,
     stun: stats.stun,
     poisonDps: stats.damage * stats.poisonPct,
+    attackType: stats.attackType,
   };
+}
+
+/** Knockback resistance from real weight (D14): weight ÷ (weight + K). */
+export function knockbackResistance(weightKg: number): number {
+  return weightKg / (weightKg + TUNING.knockbackWeightK);
 }
 
 /** Candidate enemy indices whose bodies may touch a circle at (x, y) of `radius`. */
@@ -87,7 +95,11 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const crit = hit.critChance > 0 && world.rng.next() < hit.critChance;
   const player = world.player;
   const missing = hit.missingHpBonus > 0 ? hit.missingHpBonus * Math.max(0, 1 - player.hp / player.maxHp) : 0;
-  const amount = (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world) * (1 + missing);
+  const def = ENEMIES[enemy.kind];
+  // Type chart (D14): multiplied for dual-type enemies; typeless hits stay ×1.
+  const typeMult = effectiveness(hit.attackType, def.types);
+  enemy.lastEffectiveness = typeMult;
+  const amount = (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world) * (1 + missing) * typeMult;
   const dealt = Math.min(enemy.hp, amount);
   enemy.hp -= amount;
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
@@ -96,7 +108,6 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
 
   if (enemy.hp <= 0) {
     world.kills++;
-    const def = ENEMIES[enemy.kind];
     dropGem(world, enemy.x, enemy.y, def.xp);
     maybeDropBerry(world, enemy.x, enemy.y, def.berryChance);
     return dealt;
@@ -104,8 +115,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   if (hit.burnDps > 0) applyBurn(enemy, hit.burnDps);
   applyStatuses(enemy, hit);
   if (hit.knockback > 0) {
-    // Exponential decay makes the total push ≈ the knockback distance.
-    const v = hit.knockback * TUNING.status.knockbackDecay;
+    // Exponential decay makes the total push ≈ the knockback distance; heavy enemies resist.
+    const v = hit.knockback * TUNING.status.knockbackDecay * (1 - knockbackResistance(def.weightKg));
     enemy.kbX += hit.dirX * v;
     enemy.kbY += hit.dirY * v;
   }

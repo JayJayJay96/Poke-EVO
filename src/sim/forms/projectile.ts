@@ -90,12 +90,13 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
     p.hit.slow = s.slow;
     p.hit.stun = s.stun;
     p.hit.poisonDps = damage * s.poisonPct;
+    p.hit.attackType = s.attackType;
     p.hit.critChance = s.critChance;
     p.hit.missingHpBonus = s.missingHpBonus;
     p.hit.lifesteal = s.lifesteal;
     p.hit.burnDps = damage * s.burnPct;
     p.hit.knockback = s.knockback;
-    p.pierceLeft = s.pierce;
+    p.pierceLeft = s.pierce + (def.pierce ?? 0);
     p.homing = s.homing;
     p.homingTarget = null;
     p.returns = s.returns;
@@ -252,6 +253,7 @@ function detonate(world: World, proj: Projectile, primary: Enemy): void {
       proj.craterTick,
       proj.craterDamage,
       proj.hit.critChance,
+      { ...NO_HIT, attackType: proj.hit.attackType },
     );
   }
 }

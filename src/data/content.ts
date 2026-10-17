@@ -110,6 +110,8 @@ export interface EnemyDef {
   readonly xp: number;
   /** Chance to drop an Oran Berry on death (D12). */
   readonly berryChance: number;
+  /** Real Pokédex weight; heavier enemies resist knockback (D14). */
+  readonly weightKg: number;
 }
 
 export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
@@ -198,12 +200,15 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
       },
     ],
     ability: 'shell',
+    // Redesigned to the kit rules (D14): mostly Water; Blastoise unlocks its cannons.
     learnset: [
-      { move: 'tackle', fromStage: 0 },
-      { move: 'bite', fromStage: 0 },
+      { move: 'withdraw', fromStage: 0 },
       { move: 'rapidSpin', fromStage: 0 },
-      { move: 'iceBeam', fromStage: 0 },
+      { move: 'waterGun', fromStage: 0 },
+      { move: 'whirlpool', fromStage: 0 },
       { move: 'surf', fromStage: 0 },
+      { move: 'hydroPump', fromStage: 2 },
+      { move: 'flashCannon', fromStage: 2 },
     ],
   },
 };
@@ -293,6 +298,7 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     contactDamage: 10,
     xp: 1,
     berryChance: 0.004,
+    weightKg: 3.5,
   },
   // Stat-only variants until real archetype behaviours arrive in P5 (D9).
   pidgey: {
@@ -305,6 +311,7 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     contactDamage: 8,
     xp: 1,
     berryChance: 0.004,
+    weightKg: 1.8,
   },
   raticate: {
     id: 'raticate',
@@ -316,6 +323,7 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     contactDamage: 16,
     xp: 6,
     berryChance: 0.3,
+    weightKg: 18.5,
   },
 };
 
@@ -353,6 +361,8 @@ export const TUNING = {
   spatialCellSize: 64,
   /** Same-type attack bonus: moves matching one of the Pokémon's types (D11). */
   stabBonus: 0.2,
+  /** Knockback resistance = weight ÷ (weight + this many kg) (D14). */
+  knockbackWeightK: 25,
   /** Oran Berry heal drops (D12): no flat regen; walk over a berry to heal. */
   heal: {
     berryHeal: 25,

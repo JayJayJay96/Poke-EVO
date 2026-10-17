@@ -176,6 +176,7 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     slow: 0,
     slowLeft: 0,
     stunLeft: 0,
+    lastEffectiveness: 1,
   };
   world.enemies.push(enemy);
   return enemy;

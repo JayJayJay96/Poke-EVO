@@ -18,7 +18,7 @@ export function spawnZone(
   tickInterval: number,
   damage: number,
   critChance: number,
-  effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps'> = NO_HIT,
+  effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps' | 'attackType'> = NO_HIT,
 ): boolean {
   if (world.zones.length >= TUNING.budget.maxZones || duration <= 0) return false;
   world.zones.push({
@@ -36,6 +36,7 @@ export function spawnZone(
     slow: effects.slow,
     stun: effects.stun,
     poisonDps: effects.poisonDps,
+    attackType: effects.attackType,
   });
   return true;
 }
@@ -49,7 +50,14 @@ export function updateZones(world: World, dt: number): void {
     if (zone.tickLeft > 0) continue;
     zone.tickLeft += zone.tickInterval;
     // Zone ticks deal damage (may crit) plus the zone's own innate statuses; no other on-hit effects.
-    const hit = { ...NO_HIT, critChance: zone.critChance, slow: zone.slow, stun: zone.stun, poisonDps: zone.poisonDps };
+    const hit = {
+      ...NO_HIT,
+      critChance: zone.critChance,
+      slow: zone.slow,
+      stun: zone.stun,
+      poisonDps: zone.poisonDps,
+      attackType: zone.attackType,
+    };
     queryEnemies(world, zone.x, zone.y, zone.radius, neighbours);
     for (const j of neighbours) {
       const enemy = enemies[j]!;

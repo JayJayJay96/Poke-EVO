@@ -3,6 +3,7 @@ import { AUGMENT_IDS, AUGMENTS, MAX_RANK, MAX_SOCKETS, REROLLS_PER_RUN, isSpecia
 import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
 import { MOVES, type MeleeMoveDef, type MoveId, type ProjectileMoveDef, type ZoneMoveDef } from '../data/moves';
 import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
+import { effectiveness, moveType } from '../data/typeChart';
 import { WAVES } from '../data/waves';
 import {
   NO_HIT,
@@ -13,6 +14,7 @@ import {
   isAbilityActive,
   maybeDropBerry,
   applyStatuses,
+  knockbackResistance,
   updateStatuses,
 } from './combat';
 import { castMelee } from './forms/melee';
@@ -956,11 +958,14 @@ describe('behaviour augments', () => {
     expect(hits).toBe(2); // once on each leg
   });
 
-  it('Knockback pushes an enemy away from the hit', () => {
+  it('Knockback staggers an enemy away from the hit, reduced by its weight', () => {
     const { world, targets } = emberVsLine([{ augmentId: 'knockback', rank: 3 }], [120]);
     const startX = targets[0]!.x;
-    run(world, 1);
-    expect(targets[0]!.x - startX).toBeGreaterThan(60);
+    run(world, 0.8); // one Ember hit
+    const pushed = targets[0]!.x - startX;
+    const expected = 55 * (1 - ENEMIES.raticate.weightKg / (ENEMIES.raticate.weightKg + TUNING.knockbackWeightK));
+    expect(pushed).toBeGreaterThan(expected * 0.8);
+    expect(pushed).toBeLessThan(55);
   });
 
   it('Burn deals damage over 3 s in 0.25 s ticks after the hit', () => {
@@ -1380,12 +1385,12 @@ describe('every line (data rules)', () => {
   }
 });
 
-describe('Squirtle line (P4b)', () => {
+describe('Squirtle line (P4b, redesigned D14)', () => {
   function squirtle(): World {
     return createWorld({ rng: createSeededRng(3), spawnRadius: 600, spawnEnabled: false, pokemonId: 'squirtle' });
   }
-  function still(world: World, x: number, y: number) {
-    const e = spawnEnemy(world, 'raticate', x, y, 10);
+  function still(world: World, x: number, y: number, kind: EnemyId = 'raticate') {
+    const e = spawnEnemy(world, kind, x, y, 10);
     e.speed = 0;
     return e;
   }
@@ -1407,16 +1412,17 @@ describe('Squirtle line (P4b)', () => {
     expect(target.slow).toBeCloseTo(0.35);
   });
 
-  it('Water Pulse knocks back, slows and splashes', () => {
+  it('Water Pulse staggers (small push), slows and splashes', () => {
     const world = squirtle();
     world.player.invulnLeft = 99;
     world.moves = [createSlot('waterPulse')];
     refreshStats(world);
-    expect(world.moves[0]!.stats.knockback).toBe(40);
+    expect(world.moves[0]!.stats.knockback).toBe(15);
     const target = still(world, 150, 0);
     const nearby = still(world, 150, 30);
     run(world, 0.9);
     expect(target.x).toBeGreaterThan(150);
+    expect(target.x).toBeLessThan(150 + 15);
     expect(nearby.hp).toBeLessThan(nearby.maxHp);
   });
 
@@ -1425,26 +1431,114 @@ describe('Squirtle line (P4b)', () => {
     for (const id of last.abilityChoices!) expect(ABILITIES[id].blockEvery).toBe(8);
   });
 
-  it('Surf hits all around, Ice Beam slows, Bite makes enemies flinch', () => {
+  it('Withdraw bashes all around (stagger + brief stun); Water Gun hits along its line', () => {
     const world = squirtle();
     world.player.invulnLeft = 99;
-    world.moves = [createSlot('surf'), createSlot('iceBeam'), createSlot('bite')];
+    world.moves = [createSlot('withdraw'), createSlot('waterGun')];
     refreshStats(world);
-    const front = still(world, 60, 0);
-    const behind = still(world, -70, 0);
+    const front = still(world, 30, 0);
+    const behind = still(world, -35, 0);
+    const far = still(world, 200, 0);
     step(world, IDLE, DT);
     step(world, IDLE, DT);
     expect(front.hp).toBeLessThan(front.maxHp);
     expect(behind.hp).toBeLessThan(behind.maxHp);
-    expect(front.slowLeft).toBeGreaterThan(0); // Ice Beam
-    expect(front.stunLeft).toBeGreaterThan(0); // Bite
+    expect(behind.stunLeft).toBeGreaterThan(0);
+    expect(far.hp).toBeLessThan(far.maxHp); // Water Gun beam reaches it
   });
 
-  it('Squirtle cards offer only its own learnset', () => {
+  it('Whirlpool drops a strongly slowing zone on the nearest enemy', () => {
     const world = squirtle();
-    const moves = buildCardPool(world).filter((c) => c.kind === 'move').map((c) => (c.kind === 'move' ? c.moveId : null));
-    expect(moves.sort()).toEqual(['bite', 'iceBeam', 'rapidSpin', 'surf', 'tackle']);
+    world.player.invulnLeft = 99;
+    world.moves = [createSlot('whirlpool')];
+    refreshStats(world);
+    const target = still(world, 160, 0);
+    step(world, IDLE, DT);
+    expect(world.zones).toHaveLength(1);
+    run(world, 0.6);
+    expect(target.slow).toBeCloseTo(0.6);
+    expect(target.hp).toBeLessThan(target.maxHp);
   });
+
+  it('Flash Cannon pierces two enemies on its own', () => {
+    const world = squirtle();
+    world.player.invulnLeft = 99;
+    world.moves = [createSlot('flashCannon')];
+    refreshStats(world);
+    const line = [100, 160, 220, 280].map((x) => still(world, x, 0));
+    step(world, IDLE, DT);
+    world.moves[0]!.cooldownLeft = 999;
+    run(world, 0.8);
+    expect(line.filter((e) => e.hp < e.maxHp)).toHaveLength(3); // the first + 2 pierced
+  });
+
+  it('cards: five Water-themed moves; Hydro Pump and Flash Cannon only as Blastoise', () => {
+    const world = squirtle();
+    const moveCards = () =>
+      buildCardPool(world)
+        .filter((c) => c.kind === 'move')
+        .map((c) => (c.kind === 'move' ? c.moveId : ''))
+        .sort();
+    expect(moveCards()).toEqual(['rapidSpin', 'surf', 'waterGun', 'whirlpool', 'withdraw']);
+    world.player.stage = 2;
+    expect(moveCards()).toEqual(['flashCannon', 'hydroPump', 'rapidSpin', 'surf', 'waterGun', 'whirlpool', 'withdraw']);
+  });
+});
+
+describe('type chart and weight (D14)', () => {
+  it('core matchups, dual types multiply, immunities soften to ×0.5', () => {
+    expect(effectiveness('Water', ['Fire'])).toBe(2);
+    expect(effectiveness('Fire', ['Water'])).toBe(0.5);
+    expect(effectiveness('Fire', ['Normal'])).toBe(1);
+    expect(effectiveness('Electric', ['Normal', 'Flying'])).toBe(2); // Pidgey
+    expect(effectiveness('Grass', ['Normal', 'Flying'])).toBe(0.5);
+    expect(effectiveness('Ice', ['Grass', 'Flying'])).toBe(4);
+    expect(effectiveness('Poison', ['Steel'])).toBe(0.5); // immune in the games
+    expect(effectiveness(null, ['Fire'])).toBe(1);
+  });
+
+  it("a move's attack type is its first Pokémon-type tag", () => {
+    expect(moveType(MOVES.hydroCannon.tags)).toBe('Water');
+    expect(moveType(MOVES.flashCannon.tags)).toBe('Steel');
+  });
+
+  it('damage uses the chart, and the hit records its effectiveness for the flash', () => {
+    const world = makeWorld();
+    const pidgey = spawnEnemy(world, 'pidgey', 500, 0, 10);
+    damageEnemy(world, pidgey, 10, { ...NO_HIT, attackType: 'Electric' });
+    expect(pidgey.hp).toBeCloseTo(pidgey.maxHp - 20);
+    expect(pidgey.lastEffectiveness).toBe(2);
+    const before = pidgey.hp;
+    damageEnemy(world, pidgey, 10, { ...NO_HIT, attackType: 'Grass' });
+    expect(before - pidgey.hp).toBeCloseTo(5);
+    expect(pidgey.lastEffectiveness).toBe(0.5);
+  });
+
+  it('heavier enemies are pushed less', () => {
+    const world = makeWorld();
+    const rattata = spawnEnemy(world, 'rattata', 500, 0, 10);
+    const raticate = spawnEnemy(world, 'raticate', 500, 300, 10);
+    for (const e of [rattata, raticate]) damageEnemy(world, e, 1, { ...NO_HIT, knockback: 20, dirX: 1, dirY: 0 });
+    expect(raticate.kbX).toBeLessThan(rattata.kbX);
+    expect(knockbackResistance(ENEMIES.pidgey.weightKg)).toBeLessThan(0.1);
+    expect(knockbackResistance(460)).toBeGreaterThan(0.9); // Snorlax
+  });
+});
+
+describe('kit rules (§4.1, D14)', () => {
+  for (const def of Object.values(POKEMON)) {
+    it(`${def.stages[0]!.name}: mostly own-type moves, and the final stage unlocks moves`, () => {
+      const lineTypes = new Set(def.stages.flatMap((s) => s.types));
+      const types = def.learnset.map((e) => moveType(MOVES[e.move].tags));
+      const ownType = types.filter((t) => t !== null && lineTypes.has(t)).length;
+      expect(ownType * 2).toBeGreaterThanOrEqual(types.length);
+      expect(types.filter((t) => t === 'Normal').length).toBeLessThanOrEqual(1);
+      if (def.stages.length > 1) {
+        const last = def.stages.length - 1;
+        expect(def.learnset.some((e) => e.fromStage === last)).toBe(true);
+      }
+    });
+  }
 });
 
 describe('Blaze', () => {

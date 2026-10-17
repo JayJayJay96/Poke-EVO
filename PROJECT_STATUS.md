@@ -57,6 +57,25 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-18 — P4b rework: kit rules, Squirtle redesign, type chart, weight (D14)
+**Owner feedback:** Squirtle's kit felt incoherent (Ice Beam, Bite) compared with Charmander's; knockback too strong for Lv 1 (wants a stagger); wants type effectiveness and heavier enemies resisting knockback.
+
+**Files**
+- `PROJECT.md`: §4.1 kit rules (6 rules); §6 Squirtle learnset redesigned, knockback = stagger, Raichu unlocks Thunder; §9 type chart (pulled into P4) + weight resistance; D14.
+- `src/data/typeChart.ts` (new): real chart for the 11 current types, multiplied for dual types, immunities → ×0.5; `moveType`, `effectiveness`.
+- `src/data/moves.ts`: Squirtle learnset now Withdraw (360° shell bash, stagger 20 + stun 0.3 s), Rapid Spin, Water Gun (beam, push 10/tick), Whirlpool (zone, slow 60%), Surf; Blastoise-only Hydro Pump (heavy beam) and Flash Cannon (Steel, innate pierce 2). Bite removed (Tackle/Ice Beam kept for Bulbasaur/Lapras). Innate knockback nerfed: Water Pulse 15, Hydro Cannon 30, Rapid Spin 15, Surf 25; projectile `pierce`.
+- `src/data/augments.ts`: Knockback augment 20/35/55 ("staggers").
+- `src/data/content.ts`: enemy `weightKg` (Rattata 3.5, Pidgey 1.8, Raticate 18.5); `TUNING.knockbackWeightK = 25`; Squirtle learnset.
+- `src/sim/*`: `HitInfo`/`MoveStats`/`Zone` carry `attackType`; `damageEnemy` applies the chart and records `lastEffectiveness`; knockback × (1 − weight resistance); projectiles add innate pierce; craters and zones keep their move's type.
+- `src/scenes/RunScene.ts`: hit flash yellow (super effective) / grey (not very) / white.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **123/123 passed**. Squirtle block rewritten for the new kit (Withdraw 360° + stun, Water Gun line, Whirlpool slow zone, Flash Cannon pierce 2, Blastoise-gated cards, small Water Pulse stagger). New: chart matchups/dual/immunity, attack type, chart in damage + effectiveness, heavier = less push, a kit-rules test per line (≥ half own-type, ≤ 1 Normal, final-stage unlock). Knockback augment test now checks the weight-reduced push. `npm run build` passed; bench 0.79 ms/step.
+- Browser: Squirtle run with Whirlpool + Water Gun picked via cards; zone and beam drawn in Water colours. Current enemies are Normal (± Flying), so live hits stay white (neutral). **Not visually verified:** yellow/grey flashes (unit-tested only); the page went hidden mid-check, so one card pick (Withdraw) didn't register.
+
+**Notes**
+- The chart matters little until P5 brings typed enemies (Geodude, Voltorb…); the engine is ready.
+
 ### 2026-10-17 — P4b: Squirtle line
 **Files**
 - `src/data/content.ts`: `squirtle` line. Squirtle (Lv 1, Water, 120 HP, 140 speed, ×0.95) → Wartortle (Lv 10, 170 HP, ×1.1) → Blastoise (Lv 25, 250 HP, ×1.3, traits Torrent+ / Rain Dish, both keep Shell). Ability Shell. Learnset Tackle, Bite, Rapid Spin, Ice Beam, Surf. Numbers provisional.

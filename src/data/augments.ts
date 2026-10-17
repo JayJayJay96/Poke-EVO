@@ -288,9 +288,10 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
     kind: 'behaviour',
     requiresAny: ['Melee', 'Projectile'],
     ranks: [
-      { effect: { knockback: 40 }, text: 'Knocks enemies back 40 px' },
-      { effect: { knockback: 70 }, text: 'Knocks enemies back 70 px' },
-      { effect: { knockback: 110 }, text: 'Knocks enemies back 110 px' },
+      // A stagger, not a shove (D14); heavy enemies resist it.
+      { effect: { knockback: 20 }, text: 'Staggers enemies back 20 px' },
+      { effect: { knockback: 35 }, text: 'Staggers enemies back 35 px' },
+      { effect: { knockback: 55 }, text: 'Staggers enemies back 55 px' },
     ],
   },
   burn: {
