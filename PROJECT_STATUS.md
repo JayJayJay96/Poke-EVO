@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **Next: plan P3 (in-run evolution, Charmander line).**
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **Next: build P3a (see the P3 plan below).**
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
 - **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a), `778aff0` (P2b), `9d0c3b1` (P2c); P2d commit follows this update.
 - **P2d done** (2026-10-17): projectile pool + 500 cap, `?stress=1` mode, `?perf=1` readout, `npm run bench`. Stress: ~160 FPS with 500 enemies + maxed build; sim 0.82 ms/step (bench mean).
@@ -32,6 +32,16 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - Readability: good.
 
 ---
+
+## P3 plan (owner-approved 2026-10-17, D10)
+**Gate:** is evolving the best moment of the run? Scope: Charmander line only.
+
+| Step | Build |
+|---|---|
+| **P3a** | Stage data (provisional): Charmander Lv 1 / 100 HP / 150 speed / ×1.0 dmg → Charmeleon Lv 10 / 140 / 160 / ×1.15 → Charizard Lv 25 / 200 / 175 / ×1.35, sprite grows per stage. **Auto evolution** at Lv 10/25 with a ~2 s cinematic (pause, "What? Charmander is evolving!", flash, grow) + "what changed" card. Blaze ability (<30% HP → +50% damage, red aura). Charizard's hazard immunity waits for hazards (P5/P6) |
+| **P3b** | Signature tiers: Flame Burst (impact explosion, splash) `[+Area]`, Blast Burn (explosion + burning crater) `[+Zone]`. Generic zone system (reused by Bulbasaur in P4). New pools: Wide Blast (Area), Linger (Zone). Exclusives: Blaze Core (any tier), Mega Flare (Blast Burn) |
+| **P3c** | On-hit hooks (§8.8) + status effects (0.25 s ticks). Behaviour augments: Pierce I–III, Homing, Return, Knockback, Burn (Fire), Lifesteal |
+| **Gate** | Owner playtest |
 
 ## Session log
 
