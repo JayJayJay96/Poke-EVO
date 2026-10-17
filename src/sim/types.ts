@@ -20,6 +20,8 @@ export interface Player {
   maxHp: number;
   invulnLeft: number;
   hurtFlashLeft: number;
+  /** XP gems inside this radius fly to the player. */
+  pickupRadius: number;
 }
 
 export interface Enemy {
@@ -48,12 +50,22 @@ export interface Projectile {
   dead: boolean;
 }
 
+export interface Gem {
+  readonly id: number;
+  x: number;
+  y: number;
+  value: number;
+  /** Once inside the pickup radius a gem keeps flying to the player. */
+  magnetized: boolean;
+  collected: boolean;
+}
+
 export interface MoveSlot {
   readonly moveId: MoveId;
   cooldownLeft: number;
 }
 
-export type RunStatus = 'running' | 'fainted';
+export type RunStatus = 'running' | 'fainted' | 'survived';
 
 export interface World {
   time: number;
@@ -61,8 +73,14 @@ export interface World {
   player: Player;
   enemies: Enemy[];
   projectiles: Projectile[];
+  gems: Gem[];
   moves: MoveSlot[];
   kills: number;
+  level: number;
+  /** XP collected towards the next level. */
+  xp: number;
+  /** Level-ups not yet shown to the player (the card window consumes these from P2b). */
+  pendingLevelUps: number;
   nextId: number;
   spawnEnabled: boolean;
   spawnTimer: number;

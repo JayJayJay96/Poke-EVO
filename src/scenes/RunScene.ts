@@ -1,19 +1,30 @@
 import Phaser from 'phaser';
-import { POKEMON, TUNING } from '../data/content';
+import { POKEMON, TUNING, type EnemyId } from '../data/content';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
 import type { InputState, World } from '../sim/types';
-import { createWorld, step } from '../sim/world';
+import { createWorld, step, xpToNext } from '../sim/world';
 
 // Grey-box colours until real sprites arrive in P6.
 const COLORS = {
   grid: 0x26331f,
   player: 0xff7a2f,
   flash: 0xffffff,
-  enemy: 0x9b6bc8,
   projectile: 0xffb347,
   hpBack: 0x3a1e1e,
   hpFill: 0x4cd964,
+  gem: 0x5ad1ff,
+  bigGem: 0x5dff8a,
+  xpBack: 0x10202a,
+  xpFill: 0x5ad1ff,
 } as const;
+const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
+  rattata: 0x9b6bc8,
+  pidgey: 0xc8a165,
+  raticate: 0x8a5a2b,
+};
+/** Gems worth at least this much draw bigger and green. */
+const BIG_GEM_VALUE = 5;
+const TOAST_SECONDS = 1.2;
 const GRID_SIZE = 64;
 /** Cap on simulated time per frame so a hitch never fast-forwards the run. */
 const MAX_FRAME_SECONDS = 0.25;
@@ -25,8 +36,11 @@ export class RunScene extends Phaser.Scene {
   private world!: World;
   private keys!: Keys;
   private gfx!: Phaser.GameObjects.Graphics;
+  private hudGfx!: Phaser.GameObjects.Graphics;
   private hud!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
+  private toast!: Phaser.GameObjects.Text;
+  private toastLeft = 0;
   private accumulator = 0;
   private paused = false;
 
@@ -56,11 +70,19 @@ export class RunScene extends Phaser.Scene {
       pause: 'ESC',
     }) as Keys;
 
+    this.toastLeft = 0;
     this.gfx = this.add.graphics();
+    this.hudGfx = this.add.graphics().setScrollFactor(0).setDepth(9);
     this.hud = this.add
-      .text(16, 12, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff' })
+      .text(16, 14, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff' })
       .setScrollFactor(0)
       .setDepth(10);
+    this.toast = this.add
+      .text(0, 64, '', { fontFamily: 'monospace', fontSize: '24px', color: '#5ad1ff', fontStyle: 'bold' })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(15)
+      .setAlpha(0);
     this.banner = this.add
       .text(0, 0, '', {
         fontFamily: 'monospace',
@@ -79,7 +101,7 @@ export class RunScene extends Phaser.Scene {
   update(_time: number, deltaMs: number): void {
     const { JustDown } = Phaser.Input.Keyboard;
     if (JustDown(this.keys.pause) && this.world.status === 'running') this.paused = !this.paused;
-    if (JustDown(this.keys.restart) && this.world.status === 'fainted') {
+    if (JustDown(this.keys.restart) && this.world.status !== 'running') {
       this.scene.restart();
       return;
     }
@@ -96,6 +118,14 @@ export class RunScene extends Phaser.Scene {
       }
     }
 
+    // Until the card window exists (P2b), a level-up is just announced.
+    if (this.world.pendingLevelUps > 0) {
+      this.world.pendingLevelUps = 0;
+      this.toast.setText(`LEVEL UP!  Lv ${this.world.level}`);
+      this.toastLeft = TOAST_SECONDS;
+    }
+    this.toastLeft = Math.max(0, this.toastLeft - deltaMs / 1000);
+
     this.draw();
   }
 
@@ -109,7 +139,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private draw(): void {
-    const { player, enemies, projectiles } = this.world;
+    const { player, enemies, projectiles, gems } = this.world;
     const cam = this.cameras.main;
     cam.centerOn(player.x, player.y);
 
@@ -127,11 +157,21 @@ export class RunScene extends Phaser.Scene {
       g.lineBetween(left, y, left + cam.width, y);
     }
 
+    // XP gems as small diamonds.
+    for (const gem of gems) {
+      const big = gem.value >= BIG_GEM_VALUE;
+      const h = big ? 7 : 5;
+      const w = big ? 5 : 4;
+      g.fillStyle(big ? COLORS.bigGem : COLORS.gem, 1);
+      g.fillTriangle(gem.x, gem.y - h, gem.x + w, gem.y, gem.x - w, gem.y);
+      g.fillTriangle(gem.x - w, gem.y, gem.x + w, gem.y, gem.x, gem.y + h);
+    }
+
     g.fillStyle(COLORS.projectile, 1);
     for (const p of projectiles) g.fillCircle(p.x, p.y, p.radius);
 
     for (const e of enemies) {
-      g.fillStyle(e.hitFlashLeft > 0 ? COLORS.flash : COLORS.enemy, 1);
+      g.fillStyle(e.hitFlashLeft > 0 ? COLORS.flash : ENEMY_COLORS[e.kind], 1);
       g.fillCircle(e.x, e.y, e.radius);
     }
 
@@ -154,17 +194,33 @@ export class RunScene extends Phaser.Scene {
   }
 
   private drawHud(): void {
-    const { player, time, kills, status, enemies } = this.world;
+    const { player, time, kills, status, enemies, level, xp } = this.world;
     const name = POKEMON[player.pokemonId].name;
     this.hud.setText(
-      `${name}  HP ${Math.ceil(player.hp)}/${player.maxHp}   ${formatTime(time)}   KOs ${kills}   on field ${enemies.length}`,
+      `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${player.maxHp}   ` +
+        `${formatTime(time)} / ${formatTime(TUNING.runSeconds)}   KOs ${kills}   on field ${enemies.length}`,
     );
 
     const cam = this.cameras.main;
+
+    // XP bar across the top edge.
+    const h = this.hudGfx;
+    h.clear();
+    h.fillStyle(COLORS.xpBack, 1);
+    h.fillRect(0, 0, cam.width, 6);
+    h.fillStyle(COLORS.xpFill, 1);
+    h.fillRect(0, 0, (cam.width * xp) / xpToNext(level), 6);
+
+    this.toast.setPosition(cam.width / 2, 64).setAlpha(Math.min(1, this.toastLeft / 0.4));
+
     this.banner.setPosition(cam.width / 2, cam.height / 2);
-    if (status === 'fainted') {
+    if (status === 'survived') {
       this.banner
-        .setText(`${name} fainted!\n\nSurvived ${formatTime(time)} · KOs ${kills}\n\nPress R to restart`)
+        .setText(`Survived ${formatTime(TUNING.runSeconds)}!\n\nLv ${level} · KOs ${kills}\n\nPress R to play again`)
+        .setVisible(true);
+    } else if (status === 'fainted') {
+      this.banner
+        .setText(`${name} fainted!\n\nSurvived ${formatTime(time)} · Lv ${level} · KOs ${kills}\n\nPress R to restart`)
         .setVisible(true);
     } else if (this.paused) {
       this.banner.setText('Paused\n\nEsc to resume').setVisible(true);

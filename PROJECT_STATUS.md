@@ -3,7 +3,23 @@
 ## Current state
 - **Phase:** P0 done. **P1 done: the owner playtest passed the gate on 2026-10-17.**
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
-- **Next task:** commit P0+P1, then plan P2 (run loop: XP, normal/augment level rhythm, 2-window augment flow + reroll, tags + 3 sockets, ~10 🟢 augments, learnset moves, held items, 15-min timer, stress-test scene + budgets).
+- **Committed:** `844afd4` (P0 docs + P1 toy); P2a commit follows this update.
+- **P2a done** (2026-10-17): XP gems + magnet, level curve, XP bar + level-up toast, wave table with Pidgey/Raticate variants and HP scaling, 15:00 "Survived!" screen.
+- **Next task:** build **P2b** (move framework + Scratch / Fire Spin / Dragon Rage + normal level-up card window).
+
+## P2 plan (owner-approved 2026-10-17)
+**Gate:** do testers press "play again" unasked? Do two testers build the same move differently?
+Scope: grey boxes, Charmander line only, no evolution (P3). Each sub-step ends with a runnable build and a commit.
+
+| Step | Build |
+|---|---|
+| **P2a** | XP gems + magnet pickup; level curve tuned toward ~Lv 40 at 15:00; level/XP HUD; **15:00 → "Survived!" victory screen** (until Mewtwo in P5); wave table as data (enemy HP and spawn scaling over time); **Pidgey (fast) and Raticate (tanky) as stat-only chase variants** |
+| **P2b** | Move framework (tags + forms). Learnset moves: **Scratch** (Normal·Melee·Contact, arc), **Fire Spin** (Fire·Orbit), **Dragon Rage** (Dragon·Beam), plus Ember. Normal level window (3 cards, keys 1/2/3): new move (4 slots + signature), generic boost (HP, damage, cooldown, speed, pickup, crit; **max 5 picks each**), held item (3 slots: Leftovers, Quick Claw, Wide Lens, Exp. Share). The sim pauses while cards are shown |
+| **P2c** | 3 sockets per move; augment level every 3rd level (gold frame); window 1 = skill, window 2 = augment + Reroll (2 per run); ranks I–III; fallback = big generic boost; ~10 🟢 augments (+Damage, −Cooldown, +Area, +Duration, +Crit, Concentrated, Glass, Multishot, Scatter, Velocity); build panel on pause |
+| **P2d** | Projectile pool + 500 cap; `?stress=1` mode (500 enemies + maxed build) with an FPS readout; record FPS, fix if under 60 |
+| **Gate** | Owner playtest |
+
+Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progression,augments}.ts` + `src/sim/forms/`; `src/scenes/` level-up overlay, build panel, FPS readout. Unit tests for the XP curve, rhythm, pools, ranks, stat stacking, each form's hits, and the projectile cap.
 
 **P1 gate playtest (owner, 2026-10-17):** all OK, no tuning changes.
 - Speed (150 vs Rattata 75): OK, kiting low-level Pokémon should be easy.
@@ -15,6 +31,23 @@
 ---
 
 ## Session log
+
+### 2026-10-17 — P2a: XP, levels, waves, 15-min run
+**Files**
+- `src/data/waves.ts` (new): 6 spawn keyframes (0, 1, 3, 6, 10, 13 min). Interval and HP scale interpolate; weights switch per keyframe.
+- `src/data/content.ts`: Pidgey (fast) and Raticate (tanky) stat-only variants; enemy `xp`; `TUNING.runSeconds` (900), magnet radius 64, XP curve `5 + 3n + 0.08n²` (~3.9k XP to Lv 40), gem pull speed, 400-gem budget. The old spawn ramp was removed.
+- `src/sim/types.ts`: `Gem`, world `gems/level/xp/pendingLevelUps`, player `pickupRadius`, status `survived`.
+- `src/sim/world.ts`: `waveAt`, `pickEnemyKind`, HP-scaled `spawnEnemy`, `xpToNext`, `gainXp` (multi-level), `dropGem` (merges into the oldest gem past the budget), gem magnet/collect, victory at 15:00.
+- `src/scenes/RunScene.ts`: gem diamonds (blue = 1, green ≥ 5), per-kind enemy colours, top XP bar, level-up toast (temporary until the P2b card window), "Survived 15:00!" banner, R restarts after a win too.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **27/27 passed** (11 new: wave order/interpolation/weight odds/HP scale, XP curve, level threshold, multi-level, kill drops gem, magnet collect, out-of-range gem, gem budget merge, victory freeze); `npm run build` passed.
+- Browser (:5180): walking over gems raised XP; an injected 20 XP gem went Lv 1 → 3; the "LEVEL UP! Lv 4" toast showed; at t = 400 s the spawns mixed Rattata 18 / Pidgey 5 / Raticate 2; at t = 899.8 → status `survived` and the banner showed.
+- The console showed one stale `updateGems is not defined` error stamped from an HMR update mid-edit. After a fresh reload the sim ran without new errors.
+
+**Notes / tuning to watch**
+- In P2a the player still has Ember only, so later waves (HP ×2.5–6) will overwhelm it. Expected until P2b/P2c add power.
+- On wide screens the spawn ring is ~800 px out, so the first Rattata takes ~10 s to arrive. Consider a closer ring or an early burst if the opening feels slow.
 
 ### 2026-10-17 — P0 + P1 start
 **Objective:** finish P0 (design doc, process docs, repo) and build the P1 toy.

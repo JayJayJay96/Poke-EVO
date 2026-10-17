@@ -251,3 +251,4 @@ Online play, accounts, co-op, gacha, mobile/touch, all 151 Pokémon, shinies, we
 | D6 | Engine | **Approved:** browser-playable; Phaser recommended |
 | D7 | Skill building | **Approved 2026-10-17:** tags + 3 sockets per move; augment level every 3rd level; 2 windows + limited reroll; signature = 3 sockets + exclusives; trade-offs yes; evolution only adds tags; combined skill = 4 behaviours on one shared cooldown with 12 inherited augments |
 | D8 | Augment stacking | **Approved 2026-10-17:** no duplicate sockets; an owned augment ranks up I → III in its socket when picked again (§8.2a). Rank values, rank III bonus and card weighting provisional |
+| D9 | P2 scope | **Approved 2026-10-17:** Pidgey/Raticate as stat-only variants until P5; P2 learnset = Scratch, Fire Spin, Dragon Rage (+Ember); 15:00 shows "Survived!" until the final boss exists; generic boosts max 5 picks each *(provisional)* |

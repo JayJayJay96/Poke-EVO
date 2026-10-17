@@ -1,13 +1,13 @@
 // Game content as typed data. Every number here is provisional tuning (PROJECT.md).
 
-export type PokemonType = 'Normal' | 'Fire' | 'Water' | 'Grass';
+export type PokemonType = 'Normal' | 'Fire' | 'Water' | 'Grass' | 'Flying' | 'Dragon';
 export type FormTag = 'Projectile' | 'Area' | 'Beam' | 'Melee' | 'Aura' | 'Zone' | 'Orbit';
 export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' | 'Ball' | 'Contact';
 export type MoveTag = PokemonType | FormTag | FlagTag;
 
 export type MoveId = 'ember';
 export type PokemonId = 'charmander';
-export type EnemyId = 'rattata';
+export type EnemyId = 'rattata' | 'pidgey' | 'raticate';
 
 export interface ProjectileMoveDef {
   readonly id: MoveId;
@@ -45,6 +45,8 @@ export interface EnemyDef {
   readonly speed: number;
   readonly radius: number;
   readonly contactDamage: number;
+  /** XP value of the gem it drops. */
+  readonly xp: number;
 }
 
 export const MOVES: Readonly<Record<MoveId, ProjectileMoveDef>> = {
@@ -82,14 +84,50 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     speed: 75,
     radius: 10,
     contactDamage: 10,
+    xp: 1,
+  },
+  // Stat-only variants until real archetype behaviours arrive in P5 (D9).
+  pidgey: {
+    id: 'pidgey',
+    name: 'Pidgey',
+    types: ['Normal', 'Flying'],
+    maxHp: 12,
+    speed: 115,
+    radius: 9,
+    contactDamage: 8,
+    xp: 1,
+  },
+  raticate: {
+    id: 'raticate',
+    name: 'Raticate',
+    types: ['Normal'],
+    maxHp: 70,
+    speed: 62,
+    radius: 14,
+    contactDamage: 16,
+    xp: 6,
   },
 };
 
 export const TUNING = {
   stepSeconds: 1 / 60,
+  /** Run length; reaching it is a victory until the final boss exists (D9). */
+  runSeconds: 15 * 60,
   player: {
     invulnSeconds: 0.6,
     hurtFlashSeconds: 0.15,
+    /** XP gems inside this radius get pulled in. */
+    baseMagnetRadius: 64,
+  },
+  xp: {
+    /** XP needed for level L → L+1 = base + linear·(L−1) + quadratic·(L−1)²; ~3.9k XP to reach Lv 40. */
+    curve: { base: 5, linear: 3, quadratic: 0.08 },
+    /** px per second for gems flying to the player; must beat player speed. */
+    gemPullSpeed: 420,
+    /** Extra reach beyond the player radius for collecting a gem. */
+    collectPadding: 4,
+    /** Budget: past this, new gem value merges into the oldest gem. */
+    maxGems: 400,
   },
   enemy: {
     hitFlashSeconds: 0.08,
@@ -97,9 +135,7 @@ export const TUNING = {
     separationStrength: 120,
   },
   spawn: {
-    startInterval: 1.2,
-    endInterval: 0.2,
-    rampSeconds: 180,
+    // Spawn rate and enemy mix live in waves.ts.
     maxEnemies: 300,
     /** Extra distance beyond the screen corner so spawns are never visible. */
     ringPadding: 48,

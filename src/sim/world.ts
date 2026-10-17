@@ -1,8 +1,10 @@
 import { ENEMIES, MOVES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
+import { WAVES, type WaveKeyframe } from '../data/waves';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
-import type { Enemy, InputState, World } from './types';
+import type { Enemy, Gem, InputState, World } from './types';
 
+const ENEMY_IDS = Object.keys(ENEMIES) as EnemyId[];
 const MAX_ENEMY_RADIUS = Math.max(...Object.values(ENEMIES).map((e) => e.radius));
 /** Enemies move after the hash is built, so queries look a little wider than needed. */
 const HASH_MARGIN = 8;
@@ -36,14 +38,19 @@ export function createWorld({
       maxHp: def.maxHp,
       invulnLeft: 0,
       hurtFlashLeft: 0,
+      pickupRadius: TUNING.player.baseMagnetRadius,
     },
     enemies: [],
     projectiles: [],
+    gems: [],
     moves: [{ moveId: def.signatureMove, cooldownLeft: 0 }],
     kills: 0,
+    level: 1,
+    xp: 0,
+    pendingLevelUps: 0,
     nextId: 1,
     spawnEnabled,
-    spawnTimer: TUNING.spawn.startInterval,
+    spawnTimer: WAVES[0]!.spawnInterval,
     spawnRadius,
     rng,
     hash: new SpatialHash(TUNING.spatialCellSize),
@@ -61,18 +68,53 @@ export function step(world: World, input: InputState, dt: number): void {
   moveEnemies(world, dt);
   fireMoves(world, dt);
   updateProjectiles(world, dt);
+  updateGems(world, dt);
   applyContactDamage(world);
   removeDead(world);
+  if (world.status === 'running' && world.time >= TUNING.runSeconds) world.status = 'survived';
 }
 
-export function spawnInterval(time: number): number {
-  const { startInterval, endInterval, rampSeconds } = TUNING.spawn;
-  const t = Math.min(time / rampSeconds, 1);
-  return startInterval + (endInterval - startInterval) * t;
+export interface WaveState {
+  spawnInterval: number;
+  hpScale: number;
+  weights: WaveKeyframe['weights'];
 }
 
-export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number): Enemy {
+/** Spawn settings at a given run time, interpolated between keyframes. */
+export function waveAt(time: number): WaveState {
+  let i = 0;
+  while (i + 1 < WAVES.length && WAVES[i + 1]!.at <= time) i++;
+  const a = WAVES[i]!;
+  const b = WAVES[i + 1];
+  if (!b) return { spawnInterval: a.spawnInterval, hpScale: a.hpScale, weights: a.weights };
+  const t = (time - a.at) / (b.at - a.at);
+  return {
+    spawnInterval: lerp(a.spawnInterval, b.spawnInterval, t),
+    hpScale: lerp(a.hpScale, b.hpScale, t),
+    weights: a.weights,
+  };
+}
+
+/** Weighted random enemy kind. */
+export function pickEnemyKind(weights: WaveKeyframe['weights'], rng: Rng): EnemyId {
+  let total = 0;
+  for (const kind of ENEMY_IDS) total += weights[kind] ?? 0;
+  if (total <= 0) throw new Error('Wave keyframe has no enemy weights');
+  let roll = rng.next() * total;
+  let last: EnemyId | undefined;
+  for (const kind of ENEMY_IDS) {
+    const weight = weights[kind] ?? 0;
+    if (weight <= 0) continue;
+    if (roll < weight) return kind;
+    roll -= weight;
+    last = kind;
+  }
+  return last!; // only reachable through floating-point rounding
+}
+
+export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hpScale = 1): Enemy {
   const def = ENEMIES[kind];
+  const maxHp = def.maxHp * hpScale;
   const enemy: Enemy = {
     id: world.nextId++,
     kind,
@@ -80,8 +122,8 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number): E
     y,
     radius: def.radius,
     speed: def.speed,
-    hp: def.maxHp,
-    maxHp: def.maxHp,
+    hp: maxHp,
+    maxHp,
     contactDamage: def.contactDamage,
     hitFlashLeft: 0,
   };
@@ -132,16 +174,71 @@ function movePlayer(world: World, input: InputState, dt: number): void {
 function updateSpawner(world: World, dt: number): void {
   world.spawnTimer -= dt;
   while (world.spawnTimer <= 0) {
-    world.spawnTimer += spawnInterval(world.time);
+    const wave = waveAt(world.time);
+    world.spawnTimer += wave.spawnInterval;
     if (world.enemies.length >= TUNING.spawn.maxEnemies) continue;
     const angle = world.rng.next() * Math.PI * 2;
     spawnEnemy(
       world,
-      'rattata',
+      pickEnemyKind(wave.weights, world.rng),
       world.player.x + Math.cos(angle) * world.spawnRadius,
       world.player.y + Math.sin(angle) * world.spawnRadius,
+      wave.hpScale,
     );
   }
+}
+
+/** XP needed to go from `level` to `level + 1`. */
+export function xpToNext(level: number): number {
+  const n = level - 1;
+  const { base, linear, quadratic } = TUNING.xp.curve;
+  return Math.round(base + linear * n + quadratic * n * n);
+}
+
+export function gainXp(world: World, amount: number): void {
+  world.xp += amount;
+  while (world.xp >= xpToNext(world.level)) {
+    world.xp -= xpToNext(world.level);
+    world.level++;
+    world.pendingLevelUps++;
+  }
+}
+
+export function dropGem(world: World, x: number, y: number, value: number): void {
+  if (world.gems.length >= TUNING.xp.maxGems) {
+    // Budget reached: fold the XP into the oldest gem instead of adding an entity.
+    world.gems[0]!.value += value;
+    return;
+  }
+  const gem: Gem = { id: world.nextId++, x, y, value, magnetized: false, collected: false };
+  world.gems.push(gem);
+}
+
+function updateGems(world: World, dt: number): void {
+  const { player } = world;
+  const pickup2 = player.pickupRadius * player.pickupRadius;
+  const collectReach = player.radius + TUNING.xp.collectPadding;
+  const pull = TUNING.xp.gemPullSpeed * dt;
+  for (const gem of world.gems) {
+    if (gem.collected) continue;
+    const dx = player.x - gem.x;
+    const dy = player.y - gem.y;
+    const dist2 = dx * dx + dy * dy;
+    if (!gem.magnetized && dist2 <= pickup2) gem.magnetized = true;
+    if (!gem.magnetized) continue;
+    const dist = Math.sqrt(dist2);
+    if (dist <= collectReach + pull) {
+      gem.collected = true;
+      gainXp(world, gem.value);
+      continue;
+    }
+    gem.x += (dx / dist) * pull;
+    gem.y += (dy / dist) * pull;
+  }
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
 }
 
 function rebuildHash(world: World): void {
@@ -245,7 +342,10 @@ function damageEnemy(world: World, enemy: Enemy, damage: number): void {
   if (enemy.hp <= 0) return;
   enemy.hp -= damage;
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
-  if (enemy.hp <= 0) world.kills++;
+  if (enemy.hp <= 0) {
+    world.kills++;
+    dropGem(world, enemy.x, enemy.y, ENEMIES[enemy.kind].xp);
+  }
 }
 
 function applyContactDamage(world: World): void {
@@ -280,4 +380,5 @@ function compact<T>(items: T[], keep: (item: T) => boolean): void {
 function removeDead(world: World): void {
   compact(world.enemies, (e) => e.hp > 0);
   compact(world.projectiles, (p) => !p.dead);
+  compact(world.gems, (g) => !g.collected);
 }
