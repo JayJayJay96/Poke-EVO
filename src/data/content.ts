@@ -9,13 +9,15 @@ export type MoveTag = PokemonType | FormTag | FlagTag;
 /** An evolution line, named after its first stage. */
 export type PokemonId = 'charmander';
 export type EnemyId = 'rattata' | 'pidgey' | 'raticate';
-export type AbilityId = 'blaze';
+export type AbilityId = 'blaze' | 'blazePlus' | 'solarPower';
 
 /** One form of an evolution line. Later stages: bigger and stronger (D3 early-vs-late gamble). */
 export interface EvolutionStage {
   readonly name: string;
   /** Level at which the run evolves into this stage (1 for the first stage). */
   readonly level: number;
+  /** Pokémon types at this stage; moves matching one get STAB (D11). */
+  readonly types: readonly PokemonType[];
   readonly maxHp: number;
   /** px per second. */
   readonly speed: number;
@@ -24,25 +26,37 @@ export interface EvolutionStage {
   readonly damageMult: number;
   /** Signature tier at this stage; replaces the previous tier in slot 0, keeping its augments. */
   readonly signatureMove: MoveId;
+  /** If set, evolving into this stage asks the player to pick one of these traits (D11). */
+  readonly abilityChoices?: readonly AbilityId[];
+}
+
+/** A learnset move and the stage from which it can appear on cards. */
+export interface LearnsetEntry {
+  readonly move: MoveId;
+  readonly fromStage: number;
 }
 
 export interface PokemonDef {
   readonly id: PokemonId;
-  readonly types: readonly PokemonType[];
   readonly stages: readonly EvolutionStage[];
+  /** Starting trait. */
   readonly ability: AbilityId;
   /** Moves that can be offered on level-up cards. */
-  readonly learnset: readonly MoveId[];
+  readonly learnset: readonly LearnsetEntry[];
 }
 
 export interface AbilityDef {
   readonly id: AbilityId;
   readonly name: string;
   readonly description: string;
-  /** Active below this fraction of max HP. */
-  readonly lowHpThreshold: number;
-  /** Extra damage while active, as a fraction. */
-  readonly damageBonus: number;
+  /** Low-HP boost: active below this fraction of max HP. */
+  readonly lowHpThreshold?: number;
+  /** Extra damage while the low-HP boost is active, as a fraction. */
+  readonly lowHpDamageBonus?: number;
+  /** Always-on bonus for moves of one type. */
+  readonly typeBoost?: { readonly type: PokemonType; readonly damagePct: number };
+  /** HP lost per second; never drops the player below 1 HP. */
+  readonly hpDrainPerSec?: number;
 }
 
 export interface EnemyDef {
@@ -61,16 +75,49 @@ export interface EnemyDef {
 export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
   charmander: {
     id: 'charmander',
-    types: ['Fire'],
-    // Stage numbers are provisional (D10).
+    // Stage numbers are provisional (D10, D11).
     stages: [
-      { name: 'Charmander', level: 1, maxHp: 100, speed: 150, radius: 12, damageMult: 1, signatureMove: 'ember' },
-      { name: 'Charmeleon', level: 10, maxHp: 140, speed: 160, radius: 15, damageMult: 1.15, signatureMove: 'flameBurst' },
-      { name: 'Charizard', level: 25, maxHp: 200, speed: 175, radius: 19, damageMult: 1.35, signatureMove: 'blastBurn' },
+      {
+        name: 'Charmander',
+        level: 1,
+        types: ['Fire'],
+        maxHp: 100,
+        speed: 150,
+        radius: 12,
+        damageMult: 1,
+        signatureMove: 'ember',
+      },
+      {
+        name: 'Charmeleon',
+        level: 10,
+        types: ['Fire'],
+        maxHp: 140,
+        speed: 160,
+        radius: 15,
+        damageMult: 1.15,
+        signatureMove: 'flameBurst',
+      },
+      {
+        name: 'Charizard',
+        level: 25,
+        types: ['Fire', 'Flying'],
+        maxHp: 200,
+        speed: 175,
+        radius: 19,
+        damageMult: 1.35,
+        signatureMove: 'blastBurn',
+        abilityChoices: ['blazePlus', 'solarPower'],
+      },
     ],
     ability: 'blaze',
-    // P2 subset (D9); Smokescreen, Wing Attack and Slash come later.
-    learnset: ['scratch', 'fireSpin', 'dragonRage'],
+    // P2 subset (D9) + Charizard-only Flying moves (D11). Smokescreen, Wing Attack and Slash come later.
+    learnset: [
+      { move: 'scratch', fromStage: 0 },
+      { move: 'fireSpin', fromStage: 0 },
+      { move: 'dragonRage', fromStage: 0 },
+      { move: 'airSlash', fromStage: 2 },
+      { move: 'hurricane', fromStage: 2 },
+    ],
   },
 };
 
@@ -80,7 +127,22 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     name: 'Blaze',
     description: 'Below 30% HP: +50% damage',
     lowHpThreshold: 0.3,
-    damageBonus: 0.5,
+    lowHpDamageBonus: 0.5,
+  },
+  // Charizard trait choice (D11).
+  blazePlus: {
+    id: 'blazePlus',
+    name: 'Blaze+',
+    description: 'Below 40% HP: +70% damage',
+    lowHpThreshold: 0.4,
+    lowHpDamageBonus: 0.7,
+  },
+  solarPower: {
+    id: 'solarPower',
+    name: 'Solar Power',
+    description: 'Fire moves +30% damage, but lose 1 HP/s (never below 1)',
+    typeBoost: { type: 'Fire', damagePct: 0.3 },
+    hpDrainPerSec: 1,
   },
 };
 
@@ -150,6 +212,8 @@ export const TUNING = {
     ringPadding: 48,
   },
   spatialCellSize: 64,
+  /** Same-type attack bonus: moves matching one of the Pokémon's types (D11). */
+  stabBonus: 0.2,
   status: {
     burnSeconds: 3,
     /** DoT tick (budget §11.1: not every frame). */

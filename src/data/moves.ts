@@ -2,7 +2,15 @@ import type { MoveTag } from './content';
 
 // Move definitions. All numbers provisional (PROJECT.md).
 
-export type MoveId = 'ember' | 'flameBurst' | 'blastBurn' | 'scratch' | 'fireSpin' | 'dragonRage';
+export type MoveId =
+  | 'ember'
+  | 'flameBurst'
+  | 'blastBurn'
+  | 'scratch'
+  | 'fireSpin'
+  | 'dragonRage'
+  | 'airSlash'
+  | 'hurricane';
 
 /** Splash around the impact point. */
 export interface ExplosionDef {
@@ -155,6 +163,36 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     angularSpeed: 3.5,
     duration: 3.5,
     hitInterval: 0.5,
+  },
+  // Charizard-only Flying moves (D11): stronger than the base learnset, and STAB once Flying.
+  airSlash: {
+    id: 'airSlash',
+    name: 'Air Slash',
+    description: 'Twin fast blades of air',
+    tags: ['Flying', 'Projectile', 'Slicing'],
+    form: 'projectile',
+    cooldown: 1.1,
+    damage: 16,
+    range: 360,
+    projectileSpeed: 540,
+    projectileRadius: 6,
+    projectileLifetime: 0.9,
+    count: 2,
+  },
+  hurricane: {
+    id: 'hurricane',
+    name: 'Hurricane',
+    description: 'A wide storm of wind circles you',
+    tags: ['Flying', 'Orbit', 'Wind'],
+    form: 'orbit',
+    cooldown: 5,
+    damage: 14,
+    count: 4,
+    orbitRadius: 110,
+    ballRadius: 14,
+    angularSpeed: 4.5,
+    duration: 3,
+    hitInterval: 0.4,
   },
   dragonRage: {
     id: 'dragonRage',

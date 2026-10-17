@@ -66,7 +66,8 @@ export interface AugmentRank {
 export interface AugmentDef {
   readonly id: AugmentId;
   readonly name: string;
-  readonly kind: 'stat' | 'tradeoff';
+  /** 'behaviour' (and exclusives) count for the guaranteed card in each augment window (D11). */
+  readonly kind: 'stat' | 'tradeoff' | 'behaviour';
   /** The move needs at least one of these tags; empty means any move. */
   readonly requiresAny: readonly MoveTag[];
   /** Signature-exclusive: only these moves can roll it (§8.2). */
@@ -253,7 +254,7 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
   pierce: {
     id: 'pierce',
     name: 'Pierce',
-    kind: 'stat',
+    kind: 'behaviour',
     requiresAny: ['Projectile'],
     ranks: [
       { effect: { pierce: 1 }, text: 'Passes through 1 enemy' },
@@ -264,21 +265,21 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
   homing: {
     id: 'homing',
     name: 'Homing',
-    kind: 'stat',
+    kind: 'behaviour',
     requiresAny: ['Projectile'],
     ranks: [{ effect: { homing: true }, text: 'Projectiles curve toward enemies' }],
   },
   boomerang: {
     id: 'boomerang',
     name: 'Return',
-    kind: 'stat',
+    kind: 'behaviour',
     requiresAny: ['Projectile'],
     ranks: [{ effect: { returns: true }, text: 'Flies out and back, passing through enemies both ways' }],
   },
   knockback: {
     id: 'knockback',
     name: 'Knockback',
-    kind: 'stat',
+    kind: 'behaviour',
     requiresAny: ['Melee', 'Projectile'],
     ranks: [
       { effect: { knockback: 40 }, text: 'Knocks enemies back 40 px' },
@@ -289,7 +290,7 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
   burn: {
     id: 'burn',
     name: 'Burn',
-    kind: 'stat',
+    kind: 'behaviour',
     requiresAny: ['Fire'],
     ranks: [
       { effect: { burnPct: 0.2 }, text: 'Burns: 20% of the hit per second for 3 s' },
@@ -300,7 +301,7 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
   lifesteal: {
     id: 'lifesteal',
     name: 'Lifesteal',
-    kind: 'stat',
+    kind: 'behaviour',
     requiresAny: [],
     ranks: [
       { effect: { lifestealPct: 0.02 }, text: 'Heal 2% of damage dealt' },
@@ -314,5 +315,11 @@ export const AUGMENT_IDS = Object.keys(AUGMENTS) as AugmentId[];
 
 export function maxRankOf(id: AugmentId): number {
   return AUGMENTS[id].ranks.length;
+}
+
+/** Behaviour augments and signature exclusives: the cards each augment window guarantees. */
+export function isSpecialAugment(id: AugmentId): boolean {
+  const def = AUGMENTS[id];
+  return def.kind === 'behaviour' || def.exclusiveTo !== undefined;
 }
 export const RANK_NUMERALS = ['I', 'II', 'III'] as const;

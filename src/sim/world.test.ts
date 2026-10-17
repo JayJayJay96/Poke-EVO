@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUGMENT_IDS, AUGMENTS, MAX_RANK, MAX_SOCKETS, REROLLS_PER_RUN } from '../data/augments';
+import { AUGMENT_IDS, AUGMENTS, MAX_RANK, MAX_SOCKETS, REROLLS_PER_RUN, isSpecialAugment } from '../data/augments';
 import { ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
 import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
@@ -14,16 +14,19 @@ import {
   updateStatuses,
 } from './combat';
 import { createProjectile } from './forms/projectile';
-import { dismissEvolution, dueEvolutionStage, finishEvolutionCinematic } from './evolution';
+import { chooseEvolutionTrait, dismissEvolution, dueEvolutionStage, finishEvolutionCinematic } from './evolution';
 import {
   augmentPool,
+  backFromReplace,
   buildCardPool,
   canReroll,
   chooseAugment,
   chooseCard,
+  chooseReplace,
   chooseSkill,
   gainXp,
   isAugmentLevel,
+  makeAugmentOffer,
   makeOffer,
   rerollAugments,
   xpToNext,
@@ -37,6 +40,8 @@ import { createWorld, pickEnemyKind, spawnEnemy, step, waveAt } from './world';
 import { spawnZone } from './zones';
 
 const DT = TUNING.stepSeconds;
+/** Charmander is Fire, so Fire moves carry the same-type bonus (D11). */
+const STAB = 1 + TUNING.stabBonus;
 const IDLE: InputState = { moveX: 0, moveY: 0 };
 const NO_BOOSTS = Object.fromEntries(BOOST_IDS.map((id) => [id, 0])) as World['boosts'];
 
@@ -182,10 +187,10 @@ describe('Fire Spin (orbit form)', () => {
     target.speed = 0;
 
     step(world, IDLE, DT);
-    expect(target.hp).toBeCloseTo(target.maxHp - def.damage);
+    expect(target.hp).toBeCloseTo(target.maxHp - def.damage * STAB);
 
     run(world, def.duration);
-    const hits = Math.round((target.maxHp - target.hp) / def.damage);
+    const hits = Math.round((target.maxHp - target.hp) / (def.damage * STAB));
     expect(hits).toBeGreaterThanOrEqual(2);
     expect(hits).toBeLessThanOrEqual(Math.ceil(def.duration / def.hitInterval) + 1);
     expect(world.moves[0]!.activeLeft).toBeLessThanOrEqual(0);
@@ -395,7 +400,7 @@ describe('stats', () => {
     const world = makeWorld();
     world.boosts.damage = 1;
     refreshStats(world);
-    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * 1.1);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * 1.1 * STAB);
   });
 
   it('a guaranteed crit deals ×1.5', () => {
@@ -419,7 +424,7 @@ describe('level-up cards', () => {
   it('the pool offers learnset moves, every boost and every item at the start', () => {
     const world = makeWorld();
     const pool = buildCardPool(world);
-    const learnset = POKEMON.charmander.learnset.length;
+    const learnset = POKEMON.charmander.learnset.filter((e) => e.fromStage === 0).length;
     expect(pool).toHaveLength(learnset + BOOST_IDS.length + ITEM_IDS.length);
   });
 
@@ -443,7 +448,7 @@ describe('level-up cards', () => {
 
     for (const id of BOOST_IDS) world.boosts[id] = BOOST_MAX_PICKS;
     world.items = ITEM_IDS.slice(0, MAX_ITEMS);
-    for (const id of POKEMON.charmander.learnset) world.moves.push(createSlot(id));
+    for (const e of POKEMON.charmander.learnset) if (e.fromStage === 0) world.moves.push(createSlot(e.move));
     expect(makeOffer(world)).toEqual({ kind: 'cards', cards: [{ kind: 'potion' }] });
   });
 
@@ -539,7 +544,7 @@ describe('augments', () => {
     expect(world.moves[0]!.sockets).toEqual([{ augmentId: 'multishot', rank: 2 }]);
   });
 
-  it('full sockets offer only rank-ups, and maxed augments drop out', () => {
+  it('full sockets still offer rank-ups plus new augments (as replacements); maxed ones drop out', () => {
     const world = onAugmentLevel();
     world.moves[0]!.sockets = [
       { augmentId: 'powerUp', rank: MAX_RANK },
@@ -547,27 +552,24 @@ describe('augments', () => {
       { augmentId: 'velocity', rank: 2 },
     ];
     expect(world.moves[0]!.sockets).toHaveLength(MAX_SOCKETS);
-    expect(augmentPool(world, 0)).toEqual([
-      { augmentId: 'multishot', rank: 2 },
-      { augmentId: 'velocity', rank: 3 },
-    ]);
+    const pool = augmentPool(world, 0);
+    expect(pool).toContainEqual({ augmentId: 'multishot', rank: 2 });
+    expect(pool).toContainEqual({ augmentId: 'velocity', rank: 3 });
+    expect(pool.some((c) => c.augmentId === 'powerUp')).toBe(false);
+    expect(pool).toContainEqual({ augmentId: 'pierce', rank: 1 });
   });
 
-  it('falls back to Power Surge when nothing can be augmented', () => {
+  it('falls back to Power Surge when no move can take an augment', () => {
     const world = makeWorld();
-    world.moves[0]!.sockets = [
-      { augmentId: 'powerUp', rank: MAX_RANK },
-      { augmentId: 'multishot', rank: MAX_RANK },
-      { augmentId: 'velocity', rank: MAX_RANK },
-    ];
+    world.moves = []; // the only way to have nothing to augment now that full moves can replace
     world.level = 3;
     world.pendingLevelUps = 1;
     world.offer = makeOffer(world);
     expect(world.offer).toEqual({ kind: 'cards', cards: [{ kind: 'bigBoost' }] });
-    const before = world.moves[0]!.stats.damage;
+    const before = world.mods.damageMult;
     chooseCard(world, 0);
     expect(world.bigBoosts).toBe(1);
-    expect(world.moves[0]!.stats.damage).toBeGreaterThan(before);
+    expect(world.mods.damageMult).toBeGreaterThan(before);
   });
 
   it('rerolls are limited per run and only offered when the pool is bigger than the hand', () => {
@@ -588,7 +590,7 @@ describe('augments', () => {
       { augmentId: 'multishot', rank: 2 },
     ];
     refreshStats(world);
-    expect(ember.stats.damage).toBeCloseTo(MOVES.ember.damage * 1.15);
+    expect(ember.stats.damage).toBeCloseTo(MOVES.ember.damage * 1.15 * STAB);
     expect(ember.stats.cooldown).toBeCloseTo(MOVES.ember.cooldown * 1.4);
     expect(ember.stats.extraCount).toBe(2);
   });
@@ -711,7 +713,7 @@ describe('evolution', () => {
     const world = makeWorld();
     gainXp(world, xpForLevel(stages[1]!.level));
     step(world, IDLE, DT);
-    expect(world.evolution).toEqual({ fromStage: 0, toStage: 1, phase: 'cinematic' });
+    expect(world.evolution).toEqual({ fromStage: 0, toStage: 1, phase: 'cinematic', traitChoices: null });
     expect(world.offer).toBeNull();
     const at = world.time;
     run(world, 1);
@@ -731,7 +733,7 @@ describe('evolution', () => {
     expect(world.player.speed).toBeCloseTo(s1.speed);
     expect(world.player.radius).toBe(s1.radius);
     expect(world.moves[0]!.moveId).toBe(s1.signatureMove);
-    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES[s1.signatureMove].damage * s1.damageMult);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES[s1.signatureMove].damage * s1.damageMult * STAB);
     expect(world.evolution?.phase).toBe('summary');
   });
 
@@ -754,7 +756,7 @@ describe('evolution', () => {
     expect(world.evolution?.toStage).toBe(1);
     finishEvolutionCinematic(world);
     dismissEvolution(world);
-    expect(world.evolution).toEqual({ fromStage: 1, toStage: 2, phase: 'cinematic' });
+    expect(world.evolution).toEqual({ fromStage: 1, toStage: 2, phase: 'cinematic', traitChoices: null });
     finishEvolutionCinematic(world);
     dismissEvolution(world);
     expect(world.player.stage).toBe(2);
@@ -775,7 +777,7 @@ describe('signature tiers', () => {
 
   /** Pushes the world straight into the summary of evolving to `toStage`. */
   function evolveTo(world: World, toStage: number): void {
-    world.evolution = { fromStage: world.player.stage, toStage, phase: 'cinematic' };
+    world.evolution = { fromStage: world.player.stage, toStage, phase: 'cinematic', traitChoices: null };
     finishEvolutionCinematic(world);
     world.evolution = null;
   }
@@ -797,7 +799,7 @@ describe('signature tiers', () => {
     const slot = world.moves[0]!;
     expect(slot.moveId).toBe('flameBurst');
     expect(slot.sockets).toEqual([{ augmentId: 'powerUp', rank: 1 }]);
-    expect(slot.stats.damage).toBeCloseTo(MOVES.flameBurst.damage * stages[1]!.damageMult * 1.15);
+    expect(slot.stats.damage).toBeCloseTo(MOVES.flameBurst.damage * stages[1]!.damageMult * 1.15 * STAB);
   });
 
   it('carried augments stay valid and never duplicate after two evolutions', () => {
@@ -826,8 +828,8 @@ describe('signature tiers', () => {
     run(world, 0.5);
     const def = MOVES.flameBurst;
     if (def.form !== 'projectile' || !def.explosion) throw new Error('flameBurst should explode');
-    expect(primary.hp).toBeCloseTo(primary.maxHp - def.damage);
-    expect(nearby.hp).toBeCloseTo(nearby.maxHp - def.damage * def.explosion.damageFraction);
+    expect(primary.hp).toBeCloseTo(primary.maxHp - def.damage * STAB);
+    expect(nearby.hp).toBeCloseTo(nearby.maxHp - def.damage * STAB * def.explosion.damageFraction);
     expect(far.hp).toBe(far.maxHp);
   });
 
@@ -1004,6 +1006,137 @@ describe('behaviour augments', () => {
     expect(has(1, 'knockback')).toBe(true);
     expect(has(2, 'knockback')).toBe(false);
     expect(has(3, 'knockback')).toBe(false);
+  });
+});
+
+describe('P3 playtest revisions (D11)', () => {
+  const stages = POKEMON.charmander.stages;
+
+  function evolveTo(world: World, toStage: number): void {
+    world.evolution = { fromStage: world.player.stage, toStage, phase: 'cinematic', traitChoices: null };
+    finishEvolutionCinematic(world);
+  }
+
+  it('Blast Burn with Pierce leaves only one crater per projectile', () => {
+    const world = worldWithMove('blastBurn');
+    world.player.invulnLeft = 99;
+    world.moves[0]!.sockets = [{ augmentId: 'pierce', rank: MAX_RANK }];
+    refreshStats(world);
+    for (const x of [120, 180, 240, 300]) spawnEnemy(world, 'raticate', x, 0, 20).speed = 0;
+    step(world, IDLE, DT);
+    world.moves[0]!.cooldownLeft = 999;
+    run(world, 1);
+    expect(world.enemies.filter((e) => e.hp < e.maxHp).length).toBeGreaterThanOrEqual(3); // it pierced
+    expect(world.zones).toHaveLength(1);
+  });
+
+  it('a new augment on a full move opens the replace window; Back returns to the same cards', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [
+      { augmentId: 'powerUp', rank: 2 },
+      { augmentId: 'multishot', rank: 1 },
+      { augmentId: 'velocity', rank: 1 },
+    ];
+    const cards = [{ augmentId: 'pierce' as const, rank: 1 }];
+    world.level = 3;
+    world.pendingLevelUps = 1;
+    world.offer = { kind: 'augment', slot: 0, cards };
+    chooseAugment(world, 0);
+    expect(world.offer).toEqual({ kind: 'replace', slot: 0, card: cards[0], cards });
+    backFromReplace(world);
+    expect(world.offer).toEqual({ kind: 'augment', slot: 0, cards });
+    expect(world.pendingLevelUps).toBe(1);
+  });
+
+  it('replacing puts the new augment at rank I in the chosen socket', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [
+      { augmentId: 'powerUp', rank: 3 },
+      { augmentId: 'multishot', rank: 1 },
+      { augmentId: 'velocity', rank: 1 },
+    ];
+    world.level = 3;
+    world.pendingLevelUps = 1;
+    world.offer = { kind: 'replace', slot: 0, card: { augmentId: 'pierce', rank: 1 }, cards: [] };
+    chooseReplace(world, 0);
+    expect(world.moves[0]!.sockets).toEqual([
+      { augmentId: 'pierce', rank: 1 },
+      { augmentId: 'multishot', rank: 1 },
+      { augmentId: 'velocity', rank: 1 },
+    ]);
+    expect(world.moves[0]!.stats.pierce).toBe(1);
+    expect(world.offer).toBeNull();
+  });
+
+  it('every augment window holds at least one behaviour/exclusive card when available', () => {
+    const world = makeWorld({ seed: 123 });
+    for (let i = 0; i < 300; i++) {
+      const offer = makeAugmentOffer(world, 0);
+      if (offer.kind !== 'augment') throw new Error('expected augment offer');
+      expect(offer.cards).toHaveLength(3);
+      expect(new Set(offer.cards.map((c) => c.augmentId)).size).toBe(3);
+      expect(offer.cards.some((c) => isSpecialAugment(c.augmentId))).toBe(true);
+    }
+  });
+
+  it('STAB: moves sharing a type with the Pokémon get +20%', () => {
+    const world = makeWorld();
+    world.moves.push(createSlot('scratch'));
+    refreshStats(world);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * STAB); // Fire on Fire
+    expect(world.moves[1]!.stats.damage).toBeCloseTo(MOVES.scratch.damage); // Normal on Fire
+  });
+
+  it('Flying moves only appear on cards from Charizard, and get STAB there', () => {
+    const world = makeWorld();
+    const flyingCards = () =>
+      buildCardPool(world).filter((c) => c.kind === 'move' && (c.moveId === 'airSlash' || c.moveId === 'hurricane'));
+    expect(flyingCards()).toHaveLength(0);
+    evolveTo(world, 1);
+    world.evolution = null;
+    expect(flyingCards()).toHaveLength(0);
+    evolveTo(world, 2);
+    expect(stages[2]!.types).toContain('Flying');
+    expect(flyingCards()).toHaveLength(2);
+    world.moves.push(createSlot('airSlash'));
+    refreshStats(world);
+    expect(world.moves.at(-1)!.stats.damage).toBeCloseTo(MOVES.airSlash.damage * stages[2]!.damageMult * STAB);
+  });
+
+  it('Charizard asks for a trait; the card cannot be dismissed until one is chosen', () => {
+    const world = makeWorld();
+    // Read through a getter: evolveTo reassigns world.evolution behind TypeScript's narrowing.
+    const evolution = () => world.evolution;
+    evolveTo(world, 1);
+    expect(evolution()?.traitChoices).toBeNull();
+    world.evolution = null;
+    evolveTo(world, 2);
+    expect(evolution()?.traitChoices).toEqual(['blazePlus', 'solarPower']);
+    dismissEvolution(world);
+    expect(evolution()).not.toBeNull();
+    chooseEvolutionTrait(world, 0);
+    expect(world.player.ability).toBe('blazePlus');
+    expect(world.evolution).toBeNull();
+  });
+
+  it('Blaze+ kicks in below 40% HP with +70%', () => {
+    const world = makeWorld();
+    world.player.ability = 'blazePlus';
+    world.player.hp = world.player.maxHp * 0.35;
+    expect(isAbilityActive(world)).toBe(true);
+    expect(abilityDamageMult(world)).toBeCloseTo(1.7);
+  });
+
+  it('Solar Power: Fire moves +30% on top of STAB, and drains HP but never below 1', () => {
+    const world = makeWorld();
+    world.player.ability = 'solarPower';
+    refreshStats(world);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * (1 + TUNING.stabBonus + 0.3));
+    expect(isAbilityActive(world)).toBe(false);
+    world.moves = [];
+    world.player.hp = 3;
+    run(world, 5);
+    expect(world.player.hp).toBe(1);
   });
 });
 

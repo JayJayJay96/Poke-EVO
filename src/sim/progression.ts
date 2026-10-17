@@ -1,4 +1,11 @@
-import { AUGMENT_EVERY_N_LEVELS, AUGMENT_IDS, AUGMENTS, MAX_SOCKETS, maxRankOf } from '../data/augments';
+import {
+  AUGMENT_EVERY_N_LEVELS,
+  AUGMENT_IDS,
+  AUGMENTS,
+  MAX_SOCKETS,
+  isSpecialAugment,
+  maxRankOf,
+} from '../data/augments';
 import { POKEMON, TUNING } from '../data/content';
 import { MOVES } from '../data/moves';
 import {
@@ -44,8 +51,10 @@ export function buildCardPool(world: World): Card[] {
   const pool: Card[] = [];
   const learnsetOwned = world.moves.length - 1; // slot 0 is the signature move
   if (learnsetOwned < MAX_LEARNSET_SLOTS) {
-    for (const moveId of POKEMON[world.player.pokemonId].learnset) {
-      if (!world.moves.some((slot) => slot.moveId === moveId)) pool.push({ kind: 'move', moveId });
+    for (const { move, fromStage } of POKEMON[world.player.pokemonId].learnset) {
+      // Stage-gated moves (Charizard's Flying moves, D11) appear only from their stage.
+      if (fromStage > world.player.stage) continue;
+      if (!world.moves.some((slot) => slot.moveId === move)) pool.push({ kind: 'move', moveId: move });
     }
   }
   for (const boostId of BOOST_IDS) {
@@ -61,7 +70,8 @@ export function buildCardPool(world: World): Card[] {
 
 /**
  * Augments a move could take now: the next rank of each socketed augment below its
- * max rank, plus (while a socket is free) every unowned augment its tags allow.
+ * max rank, plus every unowned augment its tags allow. When all sockets are full, picking
+ * a new one replaces a socket (D11).
  */
 export function augmentPool(world: World, slotIndex: number): AugmentCard[] {
   const slot = world.moves[slotIndex];
@@ -71,16 +81,22 @@ export function augmentPool(world: World, slotIndex: number): AugmentCard[] {
   for (const socket of slot.sockets) {
     if (socket.rank < maxRankOf(socket.augmentId)) pool.push({ augmentId: socket.augmentId, rank: socket.rank + 1 });
   }
-  if (slot.sockets.length < MAX_SOCKETS) {
-    for (const id of AUGMENT_IDS) {
-      if (slot.sockets.some((s) => s.augmentId === id)) continue;
-      const { requiresAny, exclusiveTo } = AUGMENTS[id];
-      if (requiresAny.length > 0 && !requiresAny.some((tag) => tags.includes(tag))) continue;
-      if (exclusiveTo && !exclusiveTo.includes(slot.moveId)) continue;
-      pool.push({ augmentId: id, rank: 1 });
-    }
+  for (const id of AUGMENT_IDS) {
+    if (slot.sockets.some((s) => s.augmentId === id)) continue;
+    const { requiresAny, exclusiveTo } = AUGMENTS[id];
+    if (requiresAny.length > 0 && !requiresAny.some((tag) => tags.includes(tag))) continue;
+    if (exclusiveTo && !exclusiveTo.includes(slot.moveId)) continue;
+    pool.push({ augmentId: id, rank: 1 });
   }
   return pool;
+}
+
+/** True when choosing this card needs a socket to be replaced. */
+export function needsReplace(world: World, slotIndex: number, card: AugmentCard): boolean {
+  const slot = world.moves[slotIndex];
+  if (!slot) return false;
+  const owned = slot.sockets.some((s) => s.augmentId === card.augmentId);
+  return !owned && slot.sockets.length >= MAX_SOCKETS;
 }
 
 /** Up to `count` distinct random entries. */
@@ -109,8 +125,19 @@ export function makeOffer(world: World): LevelUpOffer {
   return { kind: 'cards', cards: draw(world.rng, pool, CARDS_PER_OFFER) };
 }
 
+/**
+ * 3 distinct augment cards for a move. At least one is a behaviour/exclusive augment
+ * (new or rank-up) whenever the pool has one (D11), so those builds actually show up.
+ */
 export function makeAugmentOffer(world: World, slotIndex: number): LevelUpOffer {
-  return { kind: 'augment', slot: slotIndex, cards: draw(world.rng, augmentPool(world, slotIndex), CARDS_PER_OFFER) };
+  const pool = augmentPool(world, slotIndex);
+  const special = pool.filter((card) => isSpecialAugment(card.augmentId));
+  const cards: AugmentCard[] = [];
+  if (special.length > 0) cards.push(...draw(world.rng, special, 1));
+  const rest = pool.filter((card) => !cards.includes(card));
+  cards.push(...draw(world.rng, rest, CARDS_PER_OFFER - cards.length));
+  // Shuffle so the guaranteed card isn't always in the first position.
+  return { kind: 'augment', slot: slotIndex, cards: draw(world.rng, cards, cards.length) };
 }
 
 /** Normal level: applies the chosen card. */
@@ -163,7 +190,10 @@ export function rerollAugments(world: World): boolean {
   return true;
 }
 
-/** Augment level, window 2: sockets a new augment or ranks up an owned one in place. */
+/**
+ * Augment level, window 2: ranks up an owned augment in place or sockets a new one.
+ * A new augment on a full move opens the replace window instead (D11).
+ */
 export function chooseAugment(world: World, index: number): void {
   const offer = world.offer;
   if (offer?.kind !== 'augment') return;
@@ -171,9 +201,32 @@ export function chooseAugment(world: World, index: number): void {
   const slot = world.moves[offer.slot];
   if (!card || !slot) return;
   const owned = slot.sockets.find((s) => s.augmentId === card.augmentId);
-  if (owned) owned.rank = card.rank;
-  else slot.sockets.push({ augmentId: card.augmentId, rank: 1 });
+  if (owned) {
+    owned.rank = card.rank;
+  } else if (needsReplace(world, offer.slot, card)) {
+    world.offer = { kind: 'replace', slot: offer.slot, card, cards: offer.cards };
+    return;
+  } else {
+    slot.sockets.push({ augmentId: card.augmentId, rank: 1 });
+  }
   completeLevelUp(world);
+}
+
+/** Replace window: the new augment takes this socket at rank I; the old one is gone. */
+export function chooseReplace(world: World, socketIndex: number): void {
+  const offer = world.offer;
+  if (offer?.kind !== 'replace') return;
+  const slot = world.moves[offer.slot];
+  if (!slot || !slot.sockets[socketIndex]) return;
+  slot.sockets[socketIndex] = { augmentId: offer.card.augmentId, rank: 1 };
+  completeLevelUp(world);
+}
+
+/** Replace window: back to the same augment cards (no reroll spent). */
+export function backFromReplace(world: World): void {
+  const offer = world.offer;
+  if (offer?.kind !== 'replace') return;
+  world.offer = { kind: 'augment', slot: offer.slot, cards: offer.cards };
 }
 
 function completeLevelUp(world: World): void {

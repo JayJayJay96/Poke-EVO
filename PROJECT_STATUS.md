@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 is code-complete. Next: the owner playtests the P3 gate** ("Is evolving the best moment of the run?"), also checking Enter/Space on the evolution card and how the behaviour augments feel live (not observable in the hidden pane).
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **Next: the owner re-playtests P3** (trait pick, replacement, Flying moves, guaranteed behaviour cards, 5 s cinematic).
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
 - **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a), `778aff0` (P2b), `9d0c3b1` (P2c); P2d commit follows this update.
 - **P2d done** (2026-10-17): projectile pool + 500 cap, `?stress=1` mode, `?perf=1` readout, `npm run bench`. Stress: ~160 FPS with 500 enemies + maxed build; sim 0.82 ms/step (bench mean).
@@ -44,6 +44,27 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-17 — P3d: playtest revisions (D11)
+**Files**
+- `src/data/content.ts`: stages carry `types` (Charizard Fire/Flying) and `abilityChoices` (Charizard: Blaze+ / Solar Power); learnset entries are `{ move, fromStage }` with Air Slash + Hurricane from stage 2; abilities generalised (low-HP boost, type boost, HP drain); `TUNING.stabBonus = 0.2`.
+- `src/data/moves.ts`: `airSlash` (Flying·Projectile·Slicing, 2 × 16 dmg, fast) and `hurricane` (Flying·Orbit·Wind, 4 × 14 dmg, wide). Provisional.
+- `src/data/augments.ts`: kind `'behaviour'` for Pierce/Homing/Return/Knockback/Burn/Lifesteal; `isSpecialAugment` (behaviour or exclusive).
+- `src/sim/stats.ts`: `typeDamageFactor` (STAB + Solar Power's Fire boost) folded into move damage via the user's stage types and trait.
+- `src/sim/combat.ts`: low-HP boost reads the player's current trait. `world.ts`: player starts with the line's trait; Solar Power drains 1 HP/s, never below 1.
+- `src/sim/evolution.ts`: the summary carries `traitChoices`; `chooseEvolutionTrait`; dismiss is blocked until a trait is chosen.
+- `src/sim/progression.ts`: stage-gated learnset; augment pool always includes new augments; a new augment on a full move opens `replace` (`chooseReplace` → rank I in the chosen socket, `backFromReplace` → same cards, no reroll spent); `makeAugmentOffer` guarantees ≥ 1 behaviour/exclusive card and shuffles.
+- `src/sim/forms/projectile.ts`: one crater per projectile (`craterSpawned`).
+- `src/scenes/RunScene.ts`: 5 s cinematic, skippable after 2 s (Enter/Space/1/click) with a hint; summary shows the type change; Charizard's trait pick (keys 1/2 or click; Enter blocked); replace window (sockets 1–3, Back = 4/Esc) and a "Sockets full" hint; behaviour cards green "NEW · BEHAVIOUR"; HUD trait follows the player.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **90/90 passed** (9 new: crater once with Pierce, replace → Back keeps cards, replace sets rank I, 300 seeded augment windows each with a special card, STAB on/off, Flying moves gated to Charizard with STAB, trait choice blocks dismiss, Blaze+ 40%/+70%, Solar Power +30% and drain floor 1). 8 older assertions updated for STAB / replacement (expected design shifts). `npm run build` passed; `npm run bench` mean **0.71 ms**/step.
+- Browser (pane visible): Charizard summary showed "Type Fire → Fire/Flying" and two trait cards; Enter did not dismiss; clicking Solar Power set the trait (Blast Burn damage 36.45 = 18 × 1.35 × 1.5) and handed over to queued cards. Replace: the full-sockets hint showed; Mega Flare → replace window (3 sockets + Back); Back restored the same cards with rerolls unchanged; replacing Knockback gave `[pierce II, megaFlare I, burn I]`, knockback 0, zone duration ×1.3. Skip timing on a manually started cinematic: Enter at ~1.0 s ignored, Enter at ~2.3 s skipped to summary (~2.4 s).
+- Console: only HMR-stamped mid-edit errors from before the reload.
+
+**Notes**
+- With replacement, the Power Surge fallback now only triggers if no move can take any augment (practically never); kept as a safety net.
+- Air Slash / Hurricane numbers are first guesses; watch Charizard's late-game power with Solar Power + STAB.
 
 ### 2026-10-17 — P3c: behaviour augments
 **Files**

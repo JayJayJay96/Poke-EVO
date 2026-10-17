@@ -1,4 +1,4 @@
-import { ABILITIES, ENEMIES, POKEMON, TUNING } from '../data/content';
+import { ABILITIES, ENEMIES, TUNING } from '../data/content';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
 import type { Enemy, Gem, HitInfo, MoveStats, World } from './types';
 
@@ -57,16 +57,17 @@ export function findNearestEnemy(
   return best;
 }
 
-/** True while the player's ability is in its low-HP state (Blaze). */
+/** True while the player's trait is in its low-HP state (Blaze, Blaze+). */
 export function isAbilityActive(world: World): boolean {
-  const ability = ABILITIES[POKEMON[world.player.pokemonId].ability];
-  return world.player.hp > 0 && world.player.hp < world.player.maxHp * ability.lowHpThreshold;
+  const { lowHpThreshold } = ABILITIES[world.player.ability];
+  if (lowHpThreshold === undefined) return false;
+  return world.player.hp > 0 && world.player.hp < world.player.maxHp * lowHpThreshold;
 }
 
-/** Live damage multiplier from the ability; applied when a hit lands, so it tracks current HP. */
+/** Live damage multiplier from the low-HP trait; applied when a hit lands, so it tracks current HP. */
 export function abilityDamageMult(world: World): number {
   if (!isAbilityActive(world)) return 1;
-  return 1 + ABILITIES[POKEMON[world.player.pokemonId].ability].damageBonus;
+  return 1 + (ABILITIES[world.player.ability].lowHpDamageBonus ?? 0);
 }
 
 /**

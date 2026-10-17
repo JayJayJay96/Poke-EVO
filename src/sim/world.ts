@@ -1,5 +1,5 @@
 import { REROLLS_PER_RUN } from '../data/augments';
-import { ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
+import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
 import { MOVES, type MoveDef } from '../data/moves';
 import { BOOST_IDS, type BoostId } from '../data/upgrades';
 import { WAVES, type WaveKeyframe } from '../data/waves';
@@ -41,6 +41,7 @@ export function createWorld({
     player: {
       pokemonId,
       stage: 0,
+      ability: def.ability,
       x: 0,
       y: 0,
       radius: firstStage.radius,
@@ -174,6 +175,9 @@ function tickTimers(world: World, dt: number): void {
   p.invulnLeft = Math.max(0, p.invulnLeft - dt);
   p.hurtFlashLeft = Math.max(0, p.hurtFlashLeft - dt);
   if (world.mods.regenPerSec > 0) p.hp = Math.min(p.maxHp, p.hp + world.mods.regenPerSec * dt);
+  // Solar Power's drain never takes the last HP point.
+  const drain = ABILITIES[p.ability].hpDrainPerSec ?? 0;
+  if (drain > 0 && p.hp > 1) p.hp = Math.max(1, p.hp - drain * dt);
   for (const enemy of world.enemies) {
     enemy.hitFlashLeft = Math.max(0, enemy.hitFlashLeft - dt);
   }

@@ -4,13 +4,15 @@ import { ABILITIES, POKEMON, TUNING, type EnemyId } from '../data/content';
 import { MOVES } from '../data/moves';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { isAbilityActive } from '../sim/combat';
-import { dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
+import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
 import { beamLength } from '../sim/forms/beam';
 import { BLAST_SECONDS } from '../sim/forms/projectile';
 import { orbitBalls } from '../sim/forms/orbit';
 import {
   canReroll,
+  backFromReplace,
   chooseAugment,
+  chooseReplace,
   chooseCard,
   chooseSkill,
   rerollAugments,
@@ -65,7 +67,9 @@ const PERF_REFRESH_MS = 250;
 /** Smoothing for the per-frame timing averages. */
 const PERF_EMA = 0.1;
 /** Evolution cinematic length (D10: ~2 s). */
-const EVOLUTION_CINEMATIC_MS = 2000;
+const EVOLUTION_CINEMATIC_MS = 5000;
+/** The cinematic can be skipped (Enter / Space / 1 / click) after this long (D11). */
+const EVOLUTION_SKIP_AFTER_MS = 2000;
 /** Share of the cinematic spent on "is evolving!" before the reveal line. */
 const EVOLUTION_REVEAL_AT = 0.8;
 
@@ -109,6 +113,8 @@ export class RunScene extends Phaser.Scene {
   private overlayOpenedAt = 0;
   private evoText: Phaser.GameObjects.Text | null = null;
   private evoStartedAt = 0;
+  /** A click on the cinematic asks to skip (honoured after EVOLUTION_SKIP_AFTER_MS). */
+  private skipRequested = false;
   private accumulator = 0;
   private paused = false;
   /** `?stress=1`: maxed build vs 500 enemies (P2d budget check). */
@@ -220,19 +226,32 @@ export class RunScene extends Phaser.Scene {
 
     if (evolution?.phase === 'cinematic') {
       // The timer starts when the cinematic window opens (syncOverlay sets evoStartedAt).
-      if (this.overlayKey === evolutionKey(evolution) && time - this.evoStartedAt >= EVOLUTION_CINEMATIC_MS) {
-        finishEvolutionCinematic(world);
+      if (this.overlayKey === evolutionKey(evolution)) {
+        const elapsed = time - this.evoStartedAt;
+        const k = this.keys;
+        const skip = JustDown(k.confirm) || JustDown(k.space) || JustDown(k.one) || this.skipRequested;
+        this.skipRequested = false;
+        // D11: 5 s cinematic, skippable after 2 s.
+        if (elapsed >= EVOLUTION_CINEMATIC_MS || (skip && elapsed >= EVOLUTION_SKIP_AFTER_MS)) {
+          finishEvolutionCinematic(world);
+        }
       }
     } else if (evolution?.phase === 'summary') {
       if (time - this.overlayOpenedAt >= CARD_INPUT_DELAY_MS) {
         const k = this.keys;
-        if (JustDown(k.confirm) || JustDown(k.space) || JustDown(k.one)) dismissEvolution(world);
+        if (evolution.traitChoices) {
+          if (JustDown(k.one)) chooseEvolutionTrait(world, 0);
+          else if (JustDown(k.two)) chooseEvolutionTrait(world, 1);
+        } else if (JustDown(k.confirm) || JustDown(k.space) || JustDown(k.one)) {
+          dismissEvolution(world);
+        }
       }
     } else if (offer) {
       if (time - this.overlayOpenedAt >= CARD_INPUT_DELAY_MS) {
         const pressed = NUMBER_KEYS.findIndex((name) => JustDown(this.keys[name]));
         if (pressed >= 0) this.pick(pressed);
         else if (JustDown(this.keys.restart) && offer.kind === 'augment') rerollAugments(world);
+        else if (JustDown(this.keys.pause) && offer.kind === 'replace') backFromReplace(world);
       }
     } else if (JustDown(this.keys.restart) && world.status !== 'running') {
       this.scene.restart();
@@ -300,7 +319,10 @@ export class RunScene extends Phaser.Scene {
     if (!offer) return;
     if (offer.kind === 'cards') chooseCard(this.world, index);
     else if (offer.kind === 'pickSkill') chooseSkill(this.world, index);
-    else chooseAugment(this.world, index);
+    else if (offer.kind === 'augment') chooseAugment(this.world, index);
+    // Replace window: cards 1–3 are the sockets, card 4 is Back.
+    else if (index < MAX_SOCKETS) chooseReplace(this.world, index);
+    else backFromReplace(this.world);
   }
 
   private readInput(): InputState {
@@ -360,6 +382,20 @@ export class RunScene extends Phaser.Scene {
         footer = canReroll(world)
           ? `[R] Reroll (${world.rerollsLeft} left)`
           : `Reroll unavailable (${world.rerollsLeft} left)`;
+        if (world.moves[offer.slot]!.sockets.length >= MAX_SOCKETS) footer += '   ·   Sockets full: a new augment replaces one';
+        break;
+      }
+      case 'replace': {
+        const slot = world.moves[offer.slot]!;
+        title = `${MOVES[slot.moveId].name}: replace which augment with ${augmentLabel(offer.card.augmentId, 1)}?`;
+        frame = COLORS.augment;
+        views = slot.sockets.map((socket) => ({
+          heading: 'REPLACE',
+          title: augmentLabel(socket.augmentId, socket.rank),
+          body: `${AUGMENTS[socket.augmentId].ranks[socket.rank - 1]!.text}\n\n→ becomes ${augmentLabel(offer.card.augmentId, 1)}`,
+          color: 0xff6b6b,
+        }));
+        views.push({ heading: 'BACK', title: 'Keep all', body: 'Back to the augment cards (Esc)', color: 0x888888 });
         break;
       }
     }
@@ -444,7 +480,11 @@ export class RunScene extends Phaser.Scene {
       .rectangle(0, 0, cam.width, cam.height, 0x000000, 0.7)
       .setOrigin(0)
       .setScrollFactor(0)
-      .setDepth(30);
+      .setDepth(30)
+      .setInteractive();
+    dim.on('pointerdown', () => {
+      this.skipRequested = true;
+    });
     this.evoText = this.add
       .text(cam.width / 2, Math.max(56, cam.height * 0.22), `What? ${from} is evolving!`, {
         fontFamily: 'monospace',
@@ -455,7 +495,16 @@ export class RunScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(32);
-    this.overlay.push(dim, this.evoText);
+    const hint = this.add
+      .text(cam.width / 2, cam.height - 18, `Skip after ${EVOLUTION_SKIP_AFTER_MS / 1000} s: Enter / Space / click`, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#888888',
+      })
+      .setOrigin(0.5, 1)
+      .setScrollFactor(0)
+      .setDepth(32);
+    this.overlay.push(dim, this.evoText, hint);
   }
 
   private buildEvolutionSummary(evolution: EvolutionState): void {
@@ -483,27 +532,66 @@ export class RunScene extends Phaser.Scene {
       `           ${toMove.description}`,
     ];
     if (newTags.length > 0) lines.push(`New tags   ${newTags.join(', ')}  (new augments unlocked)`);
-    lines.push('', 'Augments carried over.', '', '[Enter / Space / 1 / click] Continue');
+    const newTypes = to.types.filter((type) => !from.types.includes(type));
+    if (newTypes.length > 0) {
+      lines.push(`Type       ${from.types.join('/')} → ${to.types.join('/')}  (new ${newTypes.join('/')} moves, STAB)`);
+    }
+    lines.push('', 'Augments carried over.');
+    const choices = evolution.traitChoices;
+    lines.push('', choices ? 'Choose a trait →  [1] or [2]' : '[Enter / Space / 1 / click] Continue');
+
+    const cardX = choices ? cam.width * 0.36 : cam.width / 2;
     const card = this.add
-      .text(cam.width / 2, cam.height / 2, lines.join('\n'), {
+      .text(cardX, cam.height / 2, lines.join('\n'), {
         fontFamily: 'monospace',
-        fontSize: '16px',
+        fontSize: choices ? '14px' : '16px',
         color: '#ffffff',
         backgroundColor: '#1c2233',
-        padding: { x: 24, y: 16 },
-        lineSpacing: 4,
+        padding: { x: 20, y: 14 },
+        lineSpacing: 3,
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
-      .setDepth(32)
-      .setInteractive({ useHandCursor: true });
-    card.on('pointerdown', () => dismissEvolution(this.world));
+      .setDepth(32);
+    if (!choices) {
+      card.setInteractive({ useHandCursor: true }).on('pointerdown', () => dismissEvolution(this.world));
+    }
     const border = this.add
-      .rectangle(cam.width / 2, cam.height / 2, card.width + 6, card.height + 6)
+      .rectangle(cardX, cam.height / 2, card.width + 6, card.height + 6)
       .setStrokeStyle(3, COLORS.augment)
       .setScrollFactor(0)
       .setDepth(31);
     this.overlay.push(dim, border, card);
+
+    // Trait choice (D11): two clickable cards to the right of the summary.
+    if (choices) {
+      const traitW = Math.min(300, cam.width * 0.3);
+      const traitH = 74;
+      const x = cam.width * 0.72 - traitW / 2;
+      choices.forEach((abilityId, i) => {
+        const ability = ABILITIES[abilityId];
+        const y = cam.height / 2 - traitH - 6 + i * (traitH + 12);
+        const bg = this.add
+          .rectangle(x, y, traitW, traitH, COLORS.cardBg, 0.97)
+          .setOrigin(0)
+          .setStrokeStyle(2, COLORS.exclusive)
+          .setScrollFactor(0)
+          .setDepth(31)
+          .setInteractive({ useHandCursor: true });
+        bg.on('pointerdown', () => chooseEvolutionTrait(this.world, i));
+        const text = this.add
+          .text(x + 10, y + 8, `[${i + 1}] TRAIT: ${ability.name}\n${ability.description}`, {
+            fontFamily: 'monospace',
+            fontSize: '13px',
+            color: '#ffffff',
+            lineSpacing: 3,
+            wordWrap: { width: traitW - 20 },
+          })
+          .setScrollFactor(0)
+          .setDepth(32);
+        this.overlay.push(bg, text);
+      });
+    }
   }
 
   /** The evolving player, drawn above the dim: flashes faster and grows toward the new size. */
@@ -646,7 +734,7 @@ export class RunScene extends Phaser.Scene {
     const name = currentStage(this.world).name;
     const moveNames = moves.map((s) => MOVES[s.moveId].name).join(', ');
     const itemNames = items.length ? items.map((id) => ITEMS[id].name).join(', ') : '—';
-    const ability = ABILITIES[POKEMON[player.pokemonId].ability];
+    const ability = ABILITIES[player.ability];
     const abilityTag = isAbilityActive(this.world) ? `   ${ability.name.toUpperCase()}!` : '';
     this.hud.setText(
       `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${Math.round(player.maxHp)}${abilityTag}   ` +
@@ -686,7 +774,8 @@ export class RunScene extends Phaser.Scene {
 
 /** Identifies an evolution window, so the overlay rebuilds when the phase changes. */
 function evolutionKey(evolution: EvolutionState): string {
-  return `evo:${evolution.fromStage}>${evolution.toStage}:${evolution.phase}`;
+  const pick = evolution.traitChoices ? ':pick' : '';
+  return `evo:${evolution.fromStage}>${evolution.toStage}:${evolution.phase}${pick}`;
 }
 
 function stageName(world: World, stage: number): string {
@@ -735,14 +824,18 @@ function describeAugment(card: AugmentCard): CardView {
       ? 'NEW · EXCLUSIVE'
       : def.kind === 'tradeoff'
         ? 'NEW · TRADE-OFF'
-        : 'NEW AUGMENT';
+        : def.kind === 'behaviour'
+          ? 'NEW · BEHAVIOUR'
+          : 'NEW AUGMENT';
   const color = rankUp
     ? COLORS.augment
     : exclusive
       ? COLORS.exclusive
       : def.kind === 'tradeoff'
         ? 0xff6b6b
-        : 0x5ad1ff;
+        : def.kind === 'behaviour'
+          ? 0x5dff8a
+          : 0x5ad1ff;
   return {
     heading,
     title: augmentLabel(card.augmentId, card.rank),

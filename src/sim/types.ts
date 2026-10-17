@@ -1,5 +1,5 @@
 import type { AugmentId } from '../data/augments';
-import type { EnemyId, PokemonId } from '../data/content';
+import type { AbilityId, EnemyId, PokemonId } from '../data/content';
 import type { MoveId } from '../data/moves';
 import type { BoostId, ItemId } from '../data/upgrades';
 import type { Rng } from './rng';
@@ -17,6 +17,8 @@ export interface Player {
   readonly pokemonId: PokemonId;
   /** Index into the line's evolution stages. */
   stage: number;
+  /** Current trait; can change when an evolution offers a choice (D11). */
+  ability: AbilityId;
   x: number;
   y: number;
   radius: number;
@@ -68,6 +70,8 @@ export interface Projectile {
   craterTick: number;
   /** Damage per crater tick. */
   craterDamage: number;
+  /** A projectile leaves at most one crater, on its first hit (D11). */
+  craterSpawned: boolean;
   /** On-hit effects carried to every enemy this projectile hits. */
   hit: HitInfo;
   /** Enemies it may still pass through. */
@@ -231,7 +235,15 @@ export type LevelUpOffer =
   /** Augment level, window 1: pick which move (indices into `World.moves`). */
   | { readonly kind: 'pickSkill'; readonly slots: readonly number[] }
   /** Augment level, window 2: pick an augment for that move. */
-  | { readonly kind: 'augment'; readonly slot: number; readonly cards: readonly AugmentCard[] };
+  | { readonly kind: 'augment'; readonly slot: number; readonly cards: readonly AugmentCard[] }
+  /** Augment level, window 3 (sockets full): pick which socket the new augment replaces, or go back. */
+  | {
+      readonly kind: 'replace';
+      readonly slot: number;
+      readonly card: AugmentCard;
+      /** The augment cards to return to on Back. */
+      readonly cards: readonly AugmentCard[];
+    };
 
 /**
  * An evolution in progress. The sim is paused throughout.
@@ -242,6 +254,8 @@ export interface EvolutionState {
   readonly fromStage: number;
   readonly toStage: number;
   phase: 'cinematic' | 'summary';
+  /** Traits to choose from on the summary card; null when the stage offers no choice. */
+  traitChoices: readonly AbilityId[] | null;
 }
 
 export type RunStatus = 'running' | 'fainted' | 'survived';

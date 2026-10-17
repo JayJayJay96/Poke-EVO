@@ -31,6 +31,7 @@ export function createProjectile(): Projectile {
     craterDuration: 0,
     craterTick: 0,
     craterDamage: 0,
+    craterSpawned: false,
     hit: { ...NO_HIT },
     pierceLeft: 0,
     homing: false,
@@ -79,6 +80,7 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
     p.craterDuration = crater ? crater.duration * s.duration * s.zoneDurationMult : 0;
     p.craterTick = crater?.tickInterval ?? 0;
     p.craterDamage = crater ? damage * crater.damageFraction * s.zoneDamageMult : 0;
+    p.craterSpawned = false;
     p.hit.critChance = s.critChance;
     p.hit.missingHpBonus = s.missingHpBonus;
     p.hit.lifesteal = s.lifesteal;
@@ -200,7 +202,9 @@ function detonate(world: World, proj: Projectile, primary: Enemy): void {
     }
     world.blasts.push({ x: proj.x, y: proj.y, radius: proj.explodeRadius, lifeLeft: BLAST_SECONDS });
   }
-  if (proj.craterRadius > 0) {
+  // One crater per projectile, on its first hit, so Pierce can't chain craters (D11).
+  if (proj.craterRadius > 0 && !proj.craterSpawned) {
+    proj.craterSpawned = true;
     spawnZone(
       world,
       proj.x,

@@ -1,5 +1,5 @@
 import { AUGMENTS } from '../data/augments';
-import { POKEMON, TUNING, type EvolutionStage } from '../data/content';
+import { ABILITIES, POKEMON, TUNING, type AbilityId, type EvolutionStage, type PokemonType } from '../data/content';
 import { MOVES, type MoveDef, type MoveId } from '../data/moves';
 import {
   BIG_BOOST,
@@ -60,8 +60,29 @@ export function computeModifiers(
   return m;
 }
 
-/** Effective numbers for one move: base × build-wide modifiers × its own augments. */
-export function computeMoveStats(def: MoveDef, m: Modifiers, sockets: readonly AugmentSocket[] = []): MoveStats {
+/** Who is using the move: Pokémon types for STAB and the current trait (D11). */
+export interface UserContext {
+  readonly types: readonly PokemonType[];
+  readonly ability: AbilityId;
+}
+
+/** Damage factor from STAB and type-based traits (Solar Power) for this move. */
+export function typeDamageFactor(def: MoveDef, user: UserContext | undefined): number {
+  if (!user) return 1;
+  let factor = 1;
+  if (user.types.some((type) => def.tags.includes(type))) factor += TUNING.stabBonus;
+  const boost = ABILITIES[user.ability].typeBoost;
+  if (boost && def.tags.includes(boost.type)) factor += boost.damagePct;
+  return factor;
+}
+
+/** Effective numbers for one move: base × build-wide modifiers × its own augments × type factors. */
+export function computeMoveStats(
+  def: MoveDef,
+  m: Modifiers,
+  sockets: readonly AugmentSocket[] = [],
+  user?: UserContext,
+): MoveStats {
   let damagePct = 0;
   let cooldownMult = 1;
   let areaPct = 0;
@@ -100,7 +121,7 @@ export function computeMoveStats(def: MoveDef, m: Modifiers, sockets: readonly A
     lifesteal += e.lifestealPct ?? 0;
   }
   return {
-    damage: def.damage * m.damageMult * Math.max(MIN_DAMAGE_FACTOR, 1 + damagePct),
+    damage: def.damage * m.damageMult * Math.max(MIN_DAMAGE_FACTOR, 1 + damagePct) * typeDamageFactor(def, user),
     cooldown: def.cooldown * m.cooldownMult * cooldownMult,
     area: m.areaMult * Math.max(MIN_AREA_FACTOR, 1 + areaPct),
     duration: m.durationMult * (1 + durationPct),
@@ -155,5 +176,6 @@ export function refreshStats(world: World): void {
   p.speed = stage.speed * m.moveSpeedMult;
   p.radius = stage.radius;
   p.pickupRadius = TUNING.player.baseMagnetRadius * m.pickupMult;
-  for (const slot of world.moves) slot.stats = computeMoveStats(MOVES[slot.moveId], m, slot.sockets);
+  const user: UserContext = { types: stage.types, ability: p.ability };
+  for (const slot of world.moves) slot.stats = computeMoveStats(MOVES[slot.moveId], m, slot.sockets, user);
 }
