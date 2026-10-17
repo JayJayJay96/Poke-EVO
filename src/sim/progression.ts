@@ -19,7 +19,7 @@ import {
 } from '../data/upgrades';
 import type { Rng } from './rng';
 import { createSlot, refreshStats } from './stats';
-import type { AugmentCard, Card, LevelUpOffer, World } from './types';
+import type { AugmentCard, Card, DrawnAugments, LevelUpOffer, World } from './types';
 
 /** XP needed to go from `level` to `level + 1`. */
 export function xpToNext(level: number): number {
@@ -117,7 +117,7 @@ function draw<T>(rng: Rng, items: readonly T[], count: number): T[] {
 export function makeOffer(world: World): LevelUpOffer {
   if (isAugmentLevel(resolvingLevel(world))) {
     const slots = world.moves.map((_, i) => i).filter((i) => augmentPool(world, i).length > 0);
-    if (slots.length > 0) return { kind: 'pickSkill', slots };
+    if (slots.length > 0) return { kind: 'pickSkill', slots, drawn: {} };
     return { kind: 'cards', cards: [{ kind: 'bigBoost' }] };
   }
   const pool = buildCardPool(world);
@@ -129,7 +129,7 @@ export function makeOffer(world: World): LevelUpOffer {
  * 3 distinct augment cards for a move. At least one is a behaviour/exclusive augment
  * (new or rank-up) whenever the pool has one (D11), so those builds actually show up.
  */
-export function makeAugmentOffer(world: World, slotIndex: number): LevelUpOffer {
+export function drawAugmentCards(world: World, slotIndex: number): AugmentCard[] {
   const pool = augmentPool(world, slotIndex);
   const special = pool.filter((card) => isSpecialAugment(card.augmentId));
   const cards: AugmentCard[] = [];
@@ -137,7 +137,19 @@ export function makeAugmentOffer(world: World, slotIndex: number): LevelUpOffer 
   const rest = pool.filter((card) => !cards.includes(card));
   cards.push(...draw(world.rng, rest, CARDS_PER_OFFER - cards.length));
   // Shuffle so the guaranteed card isn't always in the first position.
-  return { kind: 'augment', slot: slotIndex, cards: draw(world.rng, cards, cards.length) };
+  return draw(world.rng, cards, cards.length);
+}
+
+/** Window 2 for a move, reusing the cards already dealt to it this level (D12). */
+export function makeAugmentOffer(
+  world: World,
+  slotIndex: number,
+  skills: readonly number[] = [slotIndex],
+  drawn: DrawnAugments = {},
+): LevelUpOffer {
+  const cards = drawn[slotIndex] ?? drawAugmentCards(world, slotIndex);
+  drawn[slotIndex] = cards;
+  return { kind: 'augment', slot: slotIndex, cards, skills, drawn };
 }
 
 /** Normal level: applies the chosen card. */
@@ -172,7 +184,14 @@ export function chooseSkill(world: World, index: number): void {
   if (offer?.kind !== 'pickSkill') return;
   const slotIndex = offer.slots[index];
   if (slotIndex === undefined) return;
-  world.offer = makeAugmentOffer(world, slotIndex);
+  world.offer = makeAugmentOffer(world, slotIndex, offer.slots, offer.drawn);
+}
+
+/** Augment level, window 2: Back to choosing a move (D12). */
+export function backToSkills(world: World): void {
+  const offer = world.offer;
+  if (offer?.kind !== 'augment') return;
+  world.offer = { kind: 'pickSkill', slots: offer.skills, drawn: offer.drawn };
 }
 
 export function canReroll(world: World): boolean {
@@ -186,7 +205,9 @@ export function rerollAugments(world: World): boolean {
   const offer = world.offer;
   if (offer?.kind !== 'augment' || !canReroll(world)) return false;
   world.rerollsLeft--;
-  world.offer = makeAugmentOffer(world, offer.slot);
+  const cards = drawAugmentCards(world, offer.slot);
+  offer.drawn[offer.slot] = cards; // Back + re-pick shows the rerolled cards, not the old ones
+  world.offer = { ...offer, cards };
   return true;
 }
 
@@ -204,7 +225,14 @@ export function chooseAugment(world: World, index: number): void {
   if (owned) {
     owned.rank = card.rank;
   } else if (needsReplace(world, offer.slot, card)) {
-    world.offer = { kind: 'replace', slot: offer.slot, card, cards: offer.cards };
+    world.offer = {
+      kind: 'replace',
+      slot: offer.slot,
+      card,
+      cards: offer.cards,
+      skills: offer.skills,
+      drawn: offer.drawn,
+    };
     return;
   } else {
     slot.sockets.push({ augmentId: card.augmentId, rank: 1 });
@@ -226,7 +254,7 @@ export function chooseReplace(world: World, socketIndex: number): void {
 export function backFromReplace(world: World): void {
   const offer = world.offer;
   if (offer?.kind !== 'replace') return;
-  world.offer = { kind: 'augment', slot: offer.slot, cards: offer.cards };
+  world.offer = { kind: 'augment', slot: offer.slot, cards: offer.cards, skills: offer.skills, drawn: offer.drawn };
 }
 
 function completeLevelUp(world: World): void {

@@ -274,7 +274,13 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
     name: 'Return',
     kind: 'behaviour',
     requiresAny: ['Projectile'],
-    ranks: [{ effect: { returns: true }, text: 'Flies out and back, passing through enemies both ways' }],
+    // Hitting every enemy twice is strong, so it costs damage (D12, provisional).
+    ranks: [
+      {
+        effect: { returns: true, damagePct: -0.3 },
+        text: 'Flies out and back, passing through enemies both ways; −30% damage',
+      },
+    ],
   },
   knockback: {
     id: 'knockback',

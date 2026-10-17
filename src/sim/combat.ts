@@ -90,7 +90,9 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
 
   if (enemy.hp <= 0) {
     world.kills++;
-    dropGem(world, enemy.x, enemy.y, ENEMIES[enemy.kind].xp);
+    const def = ENEMIES[enemy.kind];
+    dropGem(world, enemy.x, enemy.y, def.xp);
+    maybeDropBerry(world, enemy.x, enemy.y, def.berryChance);
     return dealt;
   }
   if (hit.burnDps > 0) applyBurn(enemy, hit.burnDps);
@@ -140,6 +142,13 @@ export function updateStatuses(world: World, dt: number): void {
       if (enemy.burnLeft <= 0) enemy.burnDps = 0;
     }
   }
+}
+
+/** Rolls for an Oran Berry drop (D12); skipped when the berry budget is full. */
+export function maybeDropBerry(world: World, x: number, y: number, chance: number): void {
+  if (chance <= 0 || world.berries.length >= TUNING.heal.maxBerries) return;
+  if (world.rng.next() >= chance) return;
+  world.berries.push({ id: world.nextId++, x, y, collected: false });
 }
 
 export function dropGem(world: World, x: number, y: number, value: number): void {

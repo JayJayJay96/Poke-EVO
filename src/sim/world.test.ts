@@ -11,6 +11,7 @@ import {
   dropGem,
   findNearestEnemy,
   isAbilityActive,
+  maybeDropBerry,
   updateStatuses,
 } from './combat';
 import { createProjectile } from './forms/projectile';
@@ -18,6 +19,7 @@ import { chooseEvolutionTrait, dismissEvolution, dueEvolutionStage, finishEvolut
 import {
   augmentPool,
   backFromReplace,
+  backToSkills,
   buildCardPool,
   canReroll,
   chooseAugment,
@@ -502,7 +504,7 @@ describe('augments', () => {
   it('every 3rd level is an augment level', () => {
     expect([1, 2, 3, 4, 5, 6, 9, 10].map(isAugmentLevel)).toEqual([false, false, true, false, false, true, true, false]);
     const world = onAugmentLevel(['scratch']);
-    expect(world.offer).toEqual({ kind: 'pickSkill', slots: [0, 1] });
+    expect(world.offer).toEqual({ kind: 'pickSkill', slots: [0, 1], drawn: {} });
   });
 
   it('pools only augments the move tags allow', () => {
@@ -539,7 +541,7 @@ describe('augments', () => {
   it('picking an owned augment ranks it up in the same socket, never a duplicate', () => {
     const world = onAugmentLevel();
     world.moves[0]!.sockets.push({ augmentId: 'multishot', rank: 1 });
-    world.offer = { kind: 'augment', slot: 0, cards: [{ augmentId: 'multishot', rank: 2 }] };
+    world.offer = { kind: 'augment', slot: 0, cards: [{ augmentId: 'multishot', rank: 2 }], skills: [0], drawn: {} };
     chooseAugment(world, 0);
     expect(world.moves[0]!.sockets).toEqual([{ augmentId: 'multishot', rank: 2 }]);
   });
@@ -1040,11 +1042,11 @@ describe('P3 playtest revisions (D11)', () => {
     const cards = [{ augmentId: 'pierce' as const, rank: 1 }];
     world.level = 3;
     world.pendingLevelUps = 1;
-    world.offer = { kind: 'augment', slot: 0, cards };
+    world.offer = { kind: 'augment', slot: 0, cards, skills: [0], drawn: {} };
     chooseAugment(world, 0);
-    expect(world.offer).toEqual({ kind: 'replace', slot: 0, card: cards[0], cards });
+    expect(world.offer).toEqual({ kind: 'replace', slot: 0, card: cards[0], cards, skills: [0], drawn: {} });
     backFromReplace(world);
-    expect(world.offer).toEqual({ kind: 'augment', slot: 0, cards });
+    expect(world.offer).toEqual({ kind: 'augment', slot: 0, cards, skills: [0], drawn: {} });
     expect(world.pendingLevelUps).toBe(1);
   });
 
@@ -1057,7 +1059,7 @@ describe('P3 playtest revisions (D11)', () => {
     ];
     world.level = 3;
     world.pendingLevelUps = 1;
-    world.offer = { kind: 'replace', slot: 0, card: { augmentId: 'pierce', rank: 1 }, cards: [] };
+    world.offer = { kind: 'replace', slot: 0, card: { augmentId: 'pierce', rank: 1 }, cards: [], skills: [0], drawn: {} };
     chooseReplace(world, 0);
     expect(world.moves[0]!.sockets).toEqual([
       { augmentId: 'pierce', rank: 1 },
@@ -1137,6 +1139,87 @@ describe('P3 playtest revisions (D11)', () => {
     world.player.hp = 3;
     run(world, 5);
     expect(world.player.hp).toBe(1);
+  });
+});
+
+describe('P3 re-playtest revisions (D12)', () => {
+  it('Return costs 30% damage', () => {
+    const world = makeWorld();
+    world.moves[0]!.sockets = [{ augmentId: 'boomerang', rank: 1 }];
+    refreshStats(world);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * 0.7 * STAB);
+  });
+
+  it('Back from the augment cards returns to move selection, and the same move shows the same cards', () => {
+    const world = makeWorld();
+    world.moves.push(createSlot('scratch'));
+    world.level = 3;
+    world.pendingLevelUps = 1;
+    world.offer = makeOffer(world);
+    chooseSkill(world, 0);
+    const first = world.offer;
+    if (first?.kind !== 'augment') throw new Error('expected augment offer');
+    backToSkills(world);
+    expect(world.offer?.kind).toBe('pickSkill');
+    chooseSkill(world, 1); // look at another move…
+    backToSkills(world);
+    chooseSkill(world, 0); // …and come back: no free reroll
+    const again = world.offer;
+    if (again?.kind !== 'augment') throw new Error('expected augment offer');
+    expect(again.cards).toEqual(first.cards);
+    expect(world.pendingLevelUps).toBe(1);
+  });
+
+  it('a reroll replaces the remembered cards for that move', () => {
+    const world = makeWorld();
+    world.level = 3;
+    world.pendingLevelUps = 1;
+    world.offer = makeOffer(world);
+    chooseSkill(world, 0);
+    expect(rerollAugments(world)).toBe(true);
+    const rerolled = world.offer;
+    if (rerolled?.kind !== 'augment') throw new Error('expected augment offer');
+    backToSkills(world);
+    chooseSkill(world, 0);
+    expect(world.offer?.kind === 'augment' && world.offer.cards).toEqual(rerolled.cards);
+  });
+
+  it('Oran Berries drop by chance, are not magnetized, and heal when walked over', () => {
+    const world = makeWorld();
+    world.moves = [];
+    maybeDropBerry(world, 60, 0, 1);
+    maybeDropBerry(world, 60, 0, 0);
+    expect(world.berries).toHaveLength(1);
+    world.player.hp = 50;
+    run(world, 0.5); // berry is outside reach: nothing happens
+    expect(world.berries).toHaveLength(1);
+    expect(world.player.hp).toBe(50);
+    run(world, 0.5, { moveX: 1, moveY: 0 });
+    expect(world.berries).toHaveLength(0);
+    expect(world.player.hp).toBe(50 + TUNING.heal.berryHeal);
+  });
+
+  it('berries respect their budget', () => {
+    const world = makeWorld();
+    for (let i = 0; i < TUNING.heal.maxBerries + 5; i++) maybeDropBerry(world, 1000 + i * 20, 0, 1);
+    expect(world.berries).toHaveLength(TUNING.heal.maxBerries);
+  });
+
+  it('Raticate drops berries far more often than Rattata', () => {
+    expect(ENEMIES.raticate.berryChance).toBeGreaterThan(ENEMIES.rattata.berryChance * 10);
+  });
+
+  it('Glass on a non-signature move still raises damage taken', () => {
+    const world = makeWorld();
+    const spin = createSlot('fireSpin');
+    spin.sockets = [{ augmentId: 'glass', rank: 1 }];
+    world.moves = [spin];
+    refreshStats(world);
+    expect(world.mods.damageTakenMult).toBeCloseTo(1.1);
+    world.moves = [];
+    const enemy = spawnEnemy(world, 'rattata', 0, 0);
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBeCloseTo(world.player.maxHp - enemy.contactDamage * 1.1);
   });
 });
 

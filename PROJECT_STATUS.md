@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **Next: the owner re-playtests P3** (trait pick, replacement, Flying moves, guaranteed behaviour cards, 5 s cinematic).
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **Next: the owner playtests P3e**, then plan P4.
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
 - **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a), `778aff0` (P2b), `9d0c3b1` (P2c); P2d commit follows this update.
 - **P2d done** (2026-10-17): projectile pool + 500 cap, `?stress=1` mode, `?perf=1` readout, `npm run bench`. Stress: ~160 FPS with 500 enemies + maxed build; sim 0.82 ms/step (bench mean).
@@ -44,6 +44,23 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-17 — P3e: re-playtest revisions (D12)
+**Owner feedback:** Return too strong (pierce + double hit); couldn't back out of an augment choice and got stuck replacing; late damage strong but OK for now; Glass on Fire Spin "didn't work" (no visible HP change); wanted some regen but saw the risk/reward.
+
+**Files**
+- `src/data/augments.ts`: Return gains −30% damage (provisional).
+- `src/data/content.ts`: `EnemyDef.berryChance` (Rattata/Pidgey 0.4%, Raticate 30%); `TUNING.heal` (berry +25 HP, 6 px pickup padding, 12-berry budget).
+- `src/sim/types.ts`: `DrawnAugments` cache on pickSkill/augment/replace offers; `Berry`; `World.berries`.
+- `src/sim/progression.ts`: `drawAugmentCards`; `makeAugmentOffer` reuses cached cards per move; `backToSkills`; reroll updates the cache; replace/back carry the cache.
+- `src/sim/combat.ts`: `maybeDropBerry` on kills (budgeted). `world.ts`: walk-over berry pickup (not magnetized).
+- `src/scenes/RunScene.ts`: Back card (key 4 / Esc) in the augment window; Esc in replace = Back; blue berries; red HUD line "⚠ Glass: you take +X% damage"; floating red damage numbers on the player, tagged "(Glass +X%)" when it applies.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **97/97 passed** (7 new: Return −30%, Back keeps cards across moves, reroll updates the cache, berries chance/no magnet/heal, berry budget, Raticate ≫ Rattata drop rate, Glass from a non-signature move = 1.1× contact damage); `npm run build` passed; bench 0.76 ms/step.
+- Browser (visible pane): Glass II showed the HUD warning and a "-12 (Glass +15%)" floater on a 10-damage hit; berry drawn; augment window had 2 green behaviour cards + "[4] BACK"; key 4 → move selection, key 1 → the same 3 cards. Console: only HMR-stamped mid-edit errors from before the reload.
+
+**Diagnosis:** Glass was working before (unit test proves it from any move); it was just invisible: +10% of a 10-damage hit = 1 HP.
 
 ### 2026-10-17 — P3d: playtest revisions (D11)
 **Files**

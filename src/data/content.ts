@@ -70,6 +70,8 @@ export interface EnemyDef {
   readonly contactDamage: number;
   /** XP value of the gem it drops. */
   readonly xp: number;
+  /** Chance to drop an Oran Berry on death (D12). */
+  readonly berryChance: number;
 }
 
 export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
@@ -156,6 +158,7 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     radius: 10,
     contactDamage: 10,
     xp: 1,
+    berryChance: 0.004,
   },
   // Stat-only variants until real archetype behaviours arrive in P5 (D9).
   pidgey: {
@@ -167,6 +170,7 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     radius: 9,
     contactDamage: 8,
     xp: 1,
+    berryChance: 0.004,
   },
   raticate: {
     id: 'raticate',
@@ -177,6 +181,7 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     radius: 14,
     contactDamage: 16,
     xp: 6,
+    berryChance: 0.3,
   },
 };
 
@@ -214,6 +219,14 @@ export const TUNING = {
   spatialCellSize: 64,
   /** Same-type attack bonus: moves matching one of the Pokémon's types (D11). */
   stabBonus: 0.2,
+  /** Oran Berry heal drops (D12): no flat regen; walk over a berry to heal. */
+  heal: {
+    berryHeal: 25,
+    /** Extra reach beyond the player radius for picking a berry up. */
+    pickupPadding: 6,
+    /** Budget: new drops are skipped past this. */
+    maxBerries: 12,
+  },
   status: {
     burnSeconds: 3,
     /** DoT tick (budget §11.1: not every frame). */

@@ -107,6 +107,14 @@ export interface HitInfo {
   dirY: number;
 }
 
+/** An Oran Berry on the ground: walk over it to heal (D12). Not magnetized. */
+export interface Berry {
+  readonly id: number;
+  readonly x: number;
+  readonly y: number;
+  collected: boolean;
+}
+
 /** A lingering damage area (Blast Burn's crater). Never spawns further effects. */
 export interface Zone {
   readonly id: number;
@@ -229,13 +237,26 @@ export interface AugmentCard {
   readonly rank: number;
 }
 
+/**
+ * Augment cards already dealt per move during one augment level, so going Back and
+ * picking the same move again shows the same cards (Back is not a free reroll, D12).
+ */
+export type DrawnAugments = Partial<Record<number, readonly AugmentCard[]>>;
+
 export type LevelUpOffer =
   /** Normal level: pick one card. */
   | { readonly kind: 'cards'; readonly cards: readonly Card[] }
   /** Augment level, window 1: pick which move (indices into `World.moves`). */
-  | { readonly kind: 'pickSkill'; readonly slots: readonly number[] }
-  /** Augment level, window 2: pick an augment for that move. */
-  | { readonly kind: 'augment'; readonly slot: number; readonly cards: readonly AugmentCard[] }
+  | { readonly kind: 'pickSkill'; readonly slots: readonly number[]; readonly drawn: DrawnAugments }
+  /** Augment level, window 2: pick an augment for that move, or go Back to window 1. */
+  | {
+      readonly kind: 'augment';
+      readonly slot: number;
+      readonly cards: readonly AugmentCard[];
+      /** Window 1's moves, for Back. */
+      readonly skills: readonly number[];
+      readonly drawn: DrawnAugments;
+    }
   /** Augment level, window 3 (sockets full): pick which socket the new augment replaces, or go back. */
   | {
       readonly kind: 'replace';
@@ -243,6 +264,8 @@ export type LevelUpOffer =
       readonly card: AugmentCard;
       /** The augment cards to return to on Back. */
       readonly cards: readonly AugmentCard[];
+      readonly skills: readonly number[];
+      readonly drawn: DrawnAugments;
     };
 
 /**
@@ -269,6 +292,7 @@ export interface World {
   /** Dead projectiles waiting to be reused. */
   projectilePool: Projectile[];
   gems: Gem[];
+  berries: Berry[];
   zones: Zone[];
   swings: Swing[];
   blasts: Blast[];

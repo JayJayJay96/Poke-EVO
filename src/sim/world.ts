@@ -56,6 +56,7 @@ export function createWorld({
     projectiles: [],
     projectilePool: [],
     gems: [],
+    berries: [],
     zones: [],
     swings: [],
     blasts: [],
@@ -100,6 +101,7 @@ export function step(world: World, input: InputState, dt: number): void {
   updateProjectiles(world, dt);
   updateZones(world, dt);
   updateGems(world, dt);
+  pickUpBerries(world);
   applyContactDamage(world);
   removeDead(world);
   if (world.status !== 'running') return;
@@ -305,6 +307,20 @@ function updateGems(world: World, dt: number): void {
   }
 }
 
+/** Oran Berries heal when the player walks over them (D12). */
+function pickUpBerries(world: World): void {
+  const p = world.player;
+  const reach = p.radius + TUNING.heal.pickupPadding;
+  for (const berry of world.berries) {
+    if (berry.collected) continue;
+    const dx = berry.x - p.x;
+    const dy = berry.y - p.y;
+    if (dx * dx + dy * dy > reach * reach) continue;
+    berry.collected = true;
+    p.hp = Math.min(p.maxHp, p.hp + TUNING.heal.berryHeal);
+  }
+}
+
 function applyContactDamage(world: World): void {
   const { player, enemies } = world;
   if (player.invulnLeft > 0) return;
@@ -341,6 +357,7 @@ function removeDead(world: World): void {
     return !p.dead;
   });
   compact(world.gems, (g) => !g.collected);
+  compact(world.berries, (b) => !b.collected);
   compact(world.zones, (z) => z.lifeLeft > 0);
   compact(world.swings, (s) => s.lifeLeft > 0);
   compact(world.blasts, (b) => b.lifeLeft > 0);

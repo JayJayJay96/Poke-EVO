@@ -11,6 +11,7 @@ import { orbitBalls } from '../sim/forms/orbit';
 import {
   canReroll,
   backFromReplace,
+  backToSkills,
   chooseAugment,
   chooseReplace,
   chooseCard,
@@ -45,6 +46,7 @@ const COLORS = {
   blaze: 0xff3b30,
   crater: 0xff6a00,
   blast: 0xffd27f,
+  berry: 0x2f7ff5,
   exclusive: 0xff8c42,
 } as const;
 const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
@@ -70,6 +72,8 @@ const PERF_EMA = 0.1;
 const EVOLUTION_CINEMATIC_MS = 5000;
 /** The cinematic can be skipped (Enter / Space / 1 / click) after this long (D11). */
 const EVOLUTION_SKIP_AFTER_MS = 2000;
+/** How long a damage number floats above the player. */
+const FLOATER_SECONDS = 0.8;
 /** Share of the cinematic spent on "is evolving!" before the reveal line. */
 const EVOLUTION_REVEAL_AT = 0.8;
 
@@ -115,6 +119,11 @@ export class RunScene extends Phaser.Scene {
   private evoStartedAt = 0;
   /** A click on the cinematic asks to skip (honoured after EVOLUTION_SKIP_AFTER_MS). */
   private skipRequested = false;
+  /** Red HUD line while a "damage taken" trade-off is active (D12). */
+  private warnText!: Phaser.GameObjects.Text;
+  /** Floating red damage numbers on the player (D12). */
+  private floaters: { text: Phaser.GameObjects.Text; lifeLeft: number; y: number }[] = [];
+  private lastHp = 0;
   private accumulator = 0;
   private paused = false;
   /** `?stress=1`: maxed build vs 500 enemies (P2d budget check). */
@@ -190,6 +199,12 @@ export class RunScene extends Phaser.Scene {
       .text(16, 14, '', { fontFamily: 'monospace', fontSize: '16px', color: '#ffffff', lineSpacing: 4 })
       .setScrollFactor(0)
       .setDepth(10);
+    this.warnText = this.add
+      .text(16, 58, '', { fontFamily: 'monospace', fontSize: '14px', color: '#ff6b6b' })
+      .setScrollFactor(0)
+      .setDepth(10);
+    this.floaters = [];
+    this.lastHp = this.world.player.hp;
     this.banner = this.add
       .text(0, 0, '', {
         fontFamily: 'monospace',
@@ -251,7 +266,10 @@ export class RunScene extends Phaser.Scene {
         const pressed = NUMBER_KEYS.findIndex((name) => JustDown(this.keys[name]));
         if (pressed >= 0) this.pick(pressed);
         else if (JustDown(this.keys.restart) && offer.kind === 'augment') rerollAugments(world);
-        else if (JustDown(this.keys.pause) && offer.kind === 'replace') backFromReplace(world);
+        else if (JustDown(this.keys.pause)) {
+          if (offer.kind === 'replace') backFromReplace(world);
+          else if (offer.kind === 'augment') backToSkills(world);
+        }
       }
     } else if (JustDown(this.keys.restart) && world.status !== 'running') {
       this.scene.restart();
@@ -278,6 +296,7 @@ export class RunScene extends Phaser.Scene {
     if (world.offer || world.evolution) this.accumulator = 0;
     const drawStart = performance.now();
 
+    this.trackPlayerDamage(deltaMs);
     this.syncOverlay(time);
     this.draw();
 
@@ -313,13 +332,45 @@ export class RunScene extends Phaser.Scene {
       .setX(this.cameras.main.width - 12);
   }
 
+  /**
+   * Floating red numbers when the player takes a hit (D12), tagged with Glass when a
+   * damage-taken trade-off made it bigger. Ignores Solar Power's slow drain.
+   */
+  private trackPlayerDamage(deltaMs: number): void {
+    const { player, mods } = this.world;
+    const lost = this.lastHp - player.hp;
+    this.lastHp = player.hp;
+    if (lost >= 0.5) {
+      const glass = mods.damageTakenMult > 1.001;
+      const label = `-${Math.round(lost)}${glass ? ` (Glass +${Math.round((mods.damageTakenMult - 1) * 100)}%)` : ''}`;
+      const y = player.y - player.radius - 16;
+      const text = this.add
+        .text(player.x, y, label, { fontFamily: 'monospace', fontSize: '14px', color: '#ff4d4d', fontStyle: 'bold' })
+        .setOrigin(0.5, 1)
+        .setDepth(12);
+      this.floaters.push({ text, lifeLeft: FLOATER_SECONDS, y });
+    }
+    const dt = deltaMs / 1000;
+    for (const f of this.floaters) {
+      f.lifeLeft -= dt;
+      const t = 1 - f.lifeLeft / FLOATER_SECONDS;
+      f.text.setY(f.y - 22 * t).setAlpha(Math.max(0, f.lifeLeft / FLOATER_SECONDS));
+      if (f.lifeLeft <= 0) f.text.destroy();
+    }
+    this.floaters = this.floaters.filter((f) => f.lifeLeft > 0);
+  }
+
   /** Routes a card pick to the right action for the open window. */
   private pick(index: number): void {
     const offer = this.world.offer;
     if (!offer) return;
     if (offer.kind === 'cards') chooseCard(this.world, index);
     else if (offer.kind === 'pickSkill') chooseSkill(this.world, index);
-    else if (offer.kind === 'augment') chooseAugment(this.world, index);
+    // Augment window: the card after the augments is Back to move selection (D12).
+    else if (offer.kind === 'augment') {
+      if (index === offer.cards.length) backToSkills(this.world);
+      else chooseAugment(this.world, index);
+    }
     // Replace window: cards 1–3 are the sockets, card 4 is Back.
     else if (index < MAX_SOCKETS) chooseReplace(this.world, index);
     else backFromReplace(this.world);
@@ -379,6 +430,7 @@ export class RunScene extends Phaser.Scene {
         title = `Augment ${MOVES[slot.moveId].name}`;
         frame = COLORS.augment;
         views = offer.cards.map((card) => describeAugment(card));
+        views.push({ heading: 'BACK', title: 'Other move', body: 'Back to choosing a move (Esc).\nSame cards if you return.', color: 0x888888 });
         footer = canReroll(world)
           ? `[R] Reroll (${world.rerollsLeft} left)`
           : `Reroll unavailable (${world.rerollsLeft} left)`;
@@ -623,7 +675,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private draw(): void {
-    const { player, enemies, projectiles, gems, swings, moves, zones, blasts } = this.world;
+    const { player, enemies, projectiles, gems, swings, moves, zones, blasts, berries } = this.world;
     const cam = this.cameras.main;
     cam.centerOn(player.x, player.y);
 
@@ -648,6 +700,14 @@ export class RunScene extends Phaser.Scene {
       g.fillCircle(zone.x, zone.y, zone.radius);
       g.lineStyle(2, COLORS.crater, 0.6 * fade);
       g.strokeCircle(zone.x, zone.y, zone.radius);
+    }
+
+    // Oran Berries: blue with a white rim, so they read as "heal" (D12).
+    for (const berry of berries) {
+      g.fillStyle(COLORS.berry, 1);
+      g.fillCircle(berry.x, berry.y, 7);
+      g.lineStyle(2, COLORS.flash, 0.9);
+      g.strokeCircle(berry.x, berry.y, 7);
     }
 
     // XP gems as small diamonds.
@@ -743,6 +803,10 @@ export class RunScene extends Phaser.Scene {
     );
 
     const cam = this.cameras.main;
+
+    // Visible cost of "damage taken" trade-offs (D12).
+    const taken = this.world.mods.damageTakenMult;
+    this.warnText.setText(taken > 1.001 ? `⚠ Glass: you take +${Math.round((taken - 1) * 100)}% damage` : '');
 
     // XP bar across the top edge.
     const h = this.hudGfx;
