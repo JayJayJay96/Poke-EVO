@@ -15,6 +15,8 @@ export interface InputState {
 
 export interface Player {
   readonly pokemonId: PokemonId;
+  /** Index into the line's evolution stages. */
+  stage: number;
   x: number;
   y: number;
   radius: number;
@@ -149,6 +151,17 @@ export type LevelUpOffer =
   /** Augment level, window 2: pick an augment for that move. */
   | { readonly kind: 'augment'; readonly slot: number; readonly cards: readonly AugmentCard[] };
 
+/**
+ * An evolution in progress. The sim is paused throughout.
+ * `cinematic`: the scene plays the animation, then calls finishEvolutionCinematic.
+ * `summary`: the new stage is applied; the "what changed" card waits for dismissEvolution.
+ */
+export interface EvolutionState {
+  readonly fromStage: number;
+  readonly toStage: number;
+  phase: 'cinematic' | 'summary';
+}
+
 export type RunStatus = 'running' | 'fainted' | 'survived';
 
 export interface World {
@@ -178,6 +191,8 @@ export interface World {
   pendingLevelUps: number;
   /** Cards waiting for a choice; the sim is paused while this is set. */
   offer: LevelUpOffer | null;
+  /** Evolution in progress; takes priority over level-up cards and pauses the sim. */
+  evolution: EvolutionState | null;
   nextId: number;
   spawnEnabled: boolean;
   spawnTimer: number;

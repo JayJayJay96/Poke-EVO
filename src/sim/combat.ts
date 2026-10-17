@@ -1,4 +1,4 @@
-import { ENEMIES, TUNING } from '../data/content';
+import { ABILITIES, ENEMIES, POKEMON, TUNING } from '../data/content';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
 import type { Enemy, Gem, World } from './types';
 
@@ -29,12 +29,24 @@ export function findNearestEnemy(world: World, range: number): Enemy | undefined
   return best;
 }
 
+/** True while the player's ability is in its low-HP state (Blaze). */
+export function isAbilityActive(world: World): boolean {
+  const ability = ABILITIES[POKEMON[world.player.pokemonId].ability];
+  return world.player.hp > 0 && world.player.hp < world.player.maxHp * ability.lowHpThreshold;
+}
+
+/** Live damage multiplier from the ability; applied when a hit lands, so it tracks current HP. */
+export function abilityDamageMult(world: World): number {
+  if (!isAbilityActive(world)) return 1;
+  return 1 + ABILITIES[POKEMON[world.player.pokemonId].ability].damageBonus;
+}
+
 /** Applies a hit, rolling for a crit. A killing hit counts the KO and drops the gem. */
 export function damageEnemy(world: World, enemy: Enemy, damage: number, critChance = 0): void {
   if (enemy.hp <= 0) return;
   // Only consume RNG when a crit is possible, so crit-free runs stay reproducible.
   const crit = critChance > 0 && world.rng.next() < critChance;
-  enemy.hp -= crit ? damage * CRIT_MULTIPLIER : damage;
+  enemy.hp -= (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world);
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
   if (enemy.hp <= 0) {
     world.kills++;

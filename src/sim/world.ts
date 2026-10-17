@@ -4,6 +4,7 @@ import { MOVES, type MoveDef } from '../data/moves';
 import { BOOST_IDS, type BoostId } from '../data/upgrades';
 import { WAVES, type WaveKeyframe } from '../data/waves';
 import { queryEnemies } from './combat';
+import { startEvolutionIfDue } from './evolution';
 import { castBeam, updateBeam } from './forms/beam';
 import { castMelee } from './forms/melee';
 import { castOrbit, updateOrbit } from './forms/orbit';
@@ -32,17 +33,19 @@ export function createWorld({
   spawnEnabled = true,
 }: CreateWorldOptions): World {
   const def = POKEMON[pokemonId];
+  const firstStage = def.stages[0]!;
   const world: World = {
     time: 0,
     status: 'running',
     player: {
       pokemonId,
+      stage: 0,
       x: 0,
       y: 0,
-      radius: def.radius,
-      speed: def.speed,
-      hp: def.maxHp,
-      maxHp: def.maxHp,
+      radius: firstStage.radius,
+      speed: firstStage.speed,
+      hp: firstStage.maxHp,
+      maxHp: firstStage.maxHp,
       invulnLeft: 0,
       hurtFlashLeft: 0,
       pickupRadius: TUNING.player.baseMagnetRadius,
@@ -63,6 +66,7 @@ export function createWorld({
     xp: 0,
     pendingLevelUps: 0,
     offer: null,
+    evolution: null,
     nextId: 1,
     spawnEnabled,
     spawnTimer: WAVES[0]!.spawnInterval,
@@ -76,10 +80,11 @@ export function createWorld({
 
 /**
  * Advances the run by one fixed step.
- * Does nothing once the run has ended or while level-up cards wait for a choice.
+ * Does nothing once the run has ended, while level-up cards wait for a choice,
+ * or while an evolution plays.
  */
 export function step(world: World, input: InputState, dt: number): void {
-  if (world.status !== 'running' || world.offer) return;
+  if (world.status !== 'running' || world.offer || world.evolution) return;
   world.time += dt;
   tickTimers(world, dt);
   movePlayer(world, input, dt);
@@ -93,7 +98,8 @@ export function step(world: World, input: InputState, dt: number): void {
   removeDead(world);
   if (world.status !== 'running') return;
   if (world.time >= TUNING.runSeconds) world.status = 'survived';
-  else if (world.pendingLevelUps > 0) world.offer = makeOffer(world);
+  // Evolution first; its summary card hands over to any queued level-up cards.
+  else if (!startEvolutionIfDue(world) && world.pendingLevelUps > 0) world.offer = makeOffer(world);
 }
 
 export interface WaveState {

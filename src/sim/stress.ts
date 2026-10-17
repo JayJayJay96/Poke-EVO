@@ -36,9 +36,10 @@ export function setupStress(world: World): void {
   topUpStress(world);
 }
 
-/** Keeps the field at STRESS_ENEMIES and skips level-up windows. Call before each frame's steps. */
+/** Keeps the field at STRESS_ENEMIES and skips level-up windows and evolutions. Call before each frame's steps. */
 export function topUpStress(world: World): void {
   world.offer = null;
+  world.evolution = null;
   world.pendingLevelUps = 0;
   const { player, rng } = world;
   while (world.enemies.length < STRESS_ENEMIES) {

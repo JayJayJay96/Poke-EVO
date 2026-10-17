@@ -1,5 +1,5 @@
 import { AUGMENTS } from '../data/augments';
-import { POKEMON, TUNING } from '../data/content';
+import { POKEMON, TUNING, type EvolutionStage } from '../data/content';
 import { MOVES, type MoveDef, type MoveId } from '../data/moves';
 import {
   BIG_BOOST,
@@ -15,6 +15,10 @@ import type { AugmentSocket, Modifiers, MoveSlot, MoveStats, World } from './typ
 /** Floors so stacked trade-offs can never zero out a move. */
 const MIN_DAMAGE_FACTOR = 0.1;
 const MIN_AREA_FACTOR = 0.2;
+
+export function currentStage(world: World): EvolutionStage {
+  return POKEMON[world.player.pokemonId].stages[world.player.stage]!;
+}
 
 export function emptyModifiers(): Modifiers {
   return {
@@ -110,14 +114,16 @@ export function refreshStats(world: World): void {
       m.damageTakenMult += AUGMENTS[socket.augmentId].ranks[socket.rank - 1].effect.damageTakenPct ?? 0;
     }
   }
-  world.mods = m;
-  const def = POKEMON[world.player.pokemonId];
   const p = world.player;
-  const newMax = def.maxHp + m.maxHpBonus;
-  // Gaining max HP also heals by the same amount.
+  const stage = currentStage(world);
+  m.damageMult *= stage.damageMult;
+  world.mods = m;
+  const newMax = stage.maxHp + m.maxHpBonus;
+  // Gaining max HP (boosts or evolving) also heals by the same amount.
   p.hp = Math.min(newMax, p.hp + Math.max(0, newMax - p.maxHp));
   p.maxHp = newMax;
-  p.speed = def.speed * m.moveSpeedMult;
+  p.speed = stage.speed * m.moveSpeedMult;
+  p.radius = stage.radius;
   p.pickupRadius = TUNING.player.baseMagnetRadius * m.pickupMult;
   for (const slot of world.moves) slot.stats = computeMoveStats(MOVES[slot.moveId], m, slot.sockets);
 }

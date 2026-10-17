@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS } from '../data/augments';
-import { POKEMON, TUNING, type EnemyId } from '../data/content';
+import { ABILITIES, POKEMON, TUNING, type EnemyId } from '../data/content';
 import { MOVES } from '../data/moves';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
+import { isAbilityActive } from '../sim/combat';
+import { dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
 import { beamLength } from '../sim/forms/beam';
 import { orbitBalls } from '../sim/forms/orbit';
 import {
@@ -15,8 +17,9 @@ import {
   xpToNext,
 } from '../sim/progression';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
+import { currentStage } from '../sim/stats';
 import { setupStress, topUpStress } from '../sim/stress';
-import type { AugmentCard, Card, InputState, LevelUpOffer, MoveSlot, World } from '../sim/types';
+import type { AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, World } from '../sim/types';
 import { createWorld, step } from '../sim/world';
 
 // Grey-box colours until real sprites arrive in P6.
@@ -36,6 +39,7 @@ const COLORS = {
   xpFill: 0x5ad1ff,
   cardBg: 0x1c2233,
   augment: 0xffd34d,
+  blaze: 0xff3b30,
 } as const;
 const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   rattata: 0x9b6bc8,
@@ -56,6 +60,10 @@ const CARD_INPUT_DELAY_MS = 250;
 const PERF_REFRESH_MS = 250;
 /** Smoothing for the per-frame timing averages. */
 const PERF_EMA = 0.1;
+/** Evolution cinematic length (D10: ~2 s). */
+const EVOLUTION_CINEMATIC_MS = 2000;
+/** Share of the cinematic spent on "is evolving!" before the reveal line. */
+const EVOLUTION_REVEAL_AT = 0.8;
 
 const NUMBER_KEYS = ['one', 'two', 'three', 'four', 'five'] as const;
 type KeyName =
@@ -69,6 +77,8 @@ type KeyName =
   | 'd'
   | 'restart'
   | 'pause'
+  | 'confirm'
+  | 'space'
   | (typeof NUMBER_KEYS)[number];
 type Keys = Record<KeyName, Phaser.Input.Keyboard.Key>;
 
@@ -87,9 +97,14 @@ export class RunScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
   private panel!: Phaser.GameObjects.Text;
+  /** Draws above the overlay dim: the evolving player during the cinematic. */
+  private fxGfx!: Phaser.GameObjects.Graphics;
   private overlay: Phaser.GameObjects.GameObject[] = [];
-  private overlayFor: LevelUpOffer | null = null;
+  /** What the open window shows; it is rebuilt whenever this key changes. */
+  private overlayKey: LevelUpOffer | string | null = null;
   private overlayOpenedAt = 0;
+  private evoText: Phaser.GameObjects.Text | null = null;
+  private evoStartedAt = 0;
   private accumulator = 0;
   private paused = false;
   /** `?stress=1`: maxed build vs 500 enemies (P2d budget check). */
@@ -112,7 +127,8 @@ export class RunScene extends Phaser.Scene {
     this.accumulator = 0;
     this.paused = false;
     this.overlay = [];
-    this.overlayFor = null;
+    this.overlayKey = null;
+    this.evoText = null;
 
     const params = new URLSearchParams(window.location.search);
     this.stress = params.has('stress');
@@ -148,6 +164,8 @@ export class RunScene extends Phaser.Scene {
       d: 'D',
       restart: 'R',
       pause: 'ESC',
+      confirm: 'ENTER',
+      space: 'SPACE',
       one: 'ONE',
       two: 'TWO',
       three: 'THREE',
@@ -156,6 +174,7 @@ export class RunScene extends Phaser.Scene {
     }) as Keys;
 
     this.gfx = this.add.graphics();
+    this.fxGfx = this.add.graphics().setDepth(31);
     this.hudGfx = this.add.graphics().setScrollFactor(0).setDepth(9);
     this.hud = this.add
       .text(16, 14, '', { fontFamily: 'monospace', fontSize: '16px', color: '#ffffff', lineSpacing: 4 })
@@ -193,8 +212,19 @@ export class RunScene extends Phaser.Scene {
     const { JustDown } = Phaser.Input.Keyboard;
     const { world } = this;
     const offer = world.status === 'running' ? world.offer : null;
+    const evolution = world.status === 'running' ? world.evolution : null;
 
-    if (offer) {
+    if (evolution?.phase === 'cinematic') {
+      // The timer starts when the cinematic window opens (syncOverlay sets evoStartedAt).
+      if (this.overlayKey === evolutionKey(evolution) && time - this.evoStartedAt >= EVOLUTION_CINEMATIC_MS) {
+        finishEvolutionCinematic(world);
+      }
+    } else if (evolution?.phase === 'summary') {
+      if (time - this.overlayOpenedAt >= CARD_INPUT_DELAY_MS) {
+        const k = this.keys;
+        if (JustDown(k.confirm) || JustDown(k.space) || JustDown(k.one)) dismissEvolution(world);
+      }
+    } else if (offer) {
       if (time - this.overlayOpenedAt >= CARD_INPUT_DELAY_MS) {
         const pressed = NUMBER_KEYS.findIndex((name) => JustDown(this.keys[name]));
         if (pressed >= 0) this.pick(pressed);
@@ -213,16 +243,16 @@ export class RunScene extends Phaser.Scene {
     if (this.stress) topUpStress(world);
 
     const simStart = performance.now();
-    if (!this.paused && !world.offer) {
+    if (!this.paused && !world.offer && !world.evolution) {
       this.accumulator += Math.min(deltaMs / 1000, MAX_FRAME_SECONDS);
       const input = this.readInput();
-      while (this.accumulator >= TUNING.stepSeconds && !world.offer) {
+      while (this.accumulator >= TUNING.stepSeconds && !world.offer && !world.evolution) {
         step(world, input, TUNING.stepSeconds);
         this.accumulator -= TUNING.stepSeconds;
       }
     }
     // Don't bank time while a window is open.
-    if (world.offer) this.accumulator = 0;
+    if (world.offer || world.evolution) this.accumulator = 0;
     const drawStart = performance.now();
 
     this.syncOverlay(time);
@@ -278,15 +308,28 @@ export class RunScene extends Phaser.Scene {
     return { moveX: right - left, moveY: down - up };
   }
 
-  /** Builds or tears down the level-up window to match the current offer. */
+  /** Builds or tears down the open window (evolution or level-up) to match the sim. */
   private syncOverlay(time: number): void {
-    const offer = this.world.status === 'running' ? this.world.offer : null;
-    if (offer === this.overlayFor) return;
+    const running = this.world.status === 'running';
+    const evolution = running ? this.world.evolution : null;
+    const offer = running ? this.world.offer : null;
+    const key = evolution ? evolutionKey(evolution) : offer;
+    if (key === this.overlayKey) return;
     for (const obj of this.overlay) obj.destroy();
     this.overlay = [];
-    this.overlayFor = offer;
-    if (!offer) return;
+    this.evoText = null;
+    this.overlayKey = key;
     this.overlayOpenedAt = time;
+    if (evolution) {
+      if (evolution.phase === 'cinematic') {
+        this.evoStartedAt = time;
+        this.buildEvolutionCinematic(evolution);
+      } else {
+        this.buildEvolutionSummary(evolution);
+      }
+      return;
+    }
+    if (!offer) return;
 
     const { world } = this;
     // Several level-ups can queue; label the one being resolved, not the current level.
@@ -390,6 +433,98 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
+  private buildEvolutionCinematic(evolution: EvolutionState): void {
+    const cam = this.cameras.main;
+    const from = stageName(this.world, evolution.fromStage);
+    const dim = this.add
+      .rectangle(0, 0, cam.width, cam.height, 0x000000, 0.7)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(30);
+    this.evoText = this.add
+      .text(cam.width / 2, Math.max(56, cam.height * 0.22), `What? ${from} is evolving!`, {
+        fontFamily: 'monospace',
+        fontSize: '24px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(32);
+    this.overlay.push(dim, this.evoText);
+  }
+
+  private buildEvolutionSummary(evolution: EvolutionState): void {
+    const cam = this.cameras.main;
+    const { pokemonId } = this.world.player;
+    const stages = POKEMON[pokemonId].stages;
+    const from = stages[evolution.fromStage]!;
+    const to = stages[evolution.toStage]!;
+    const dim = this.add
+      .rectangle(0, 0, cam.width, cam.height, 0x000000, 0.6)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(30);
+    const lines = [
+      `${from.name} evolved into ${to.name}!`,
+      '',
+      `Max HP   ${from.maxHp} → ${to.maxHp}`,
+      `Speed    ${from.speed} → ${to.speed}`,
+      `Damage   ×${from.damageMult.toFixed(2)} → ×${to.damageMult.toFixed(2)}`,
+      `Size     ${from.radius} → ${to.radius}`,
+      '',
+      '[Enter / Space / 1 / click] Continue',
+    ];
+    const card = this.add
+      .text(cam.width / 2, cam.height / 2, lines.join('\n'), {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ffffff',
+        backgroundColor: '#1c2233',
+        padding: { x: 24, y: 16 },
+        lineSpacing: 4,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(32)
+      .setInteractive({ useHandCursor: true });
+    card.on('pointerdown', () => dismissEvolution(this.world));
+    const border = this.add
+      .rectangle(cam.width / 2, cam.height / 2, card.width + 6, card.height + 6)
+      .setStrokeStyle(3, COLORS.augment)
+      .setScrollFactor(0)
+      .setDepth(31);
+    this.overlay.push(dim, border, card);
+  }
+
+  /** The evolving player, drawn above the dim: flashes faster and grows toward the new size. */
+  private drawEvolutionFx(): void {
+    const g = this.fxGfx;
+    g.clear();
+    const evolution = this.world.status === 'running' ? this.world.evolution : null;
+    if (evolution?.phase !== 'cinematic') return;
+    const t = Math.min(1, (this.time.now - this.evoStartedAt) / EVOLUTION_CINEMATIC_MS);
+    const stages = POKEMON[this.world.player.pokemonId].stages;
+    const fromR = stages[evolution.fromStage]!.radius;
+    const toR = stages[evolution.toStage]!.radius;
+    const eased = t * t * (3 - 2 * t);
+    const r = fromR + (toR - fromR) * eased;
+    // Blink rate ramps up from ~4 Hz to ~20 Hz.
+    const blinkHz = 4 + 16 * t;
+    const white = Math.floor((this.time.now / 1000) * blinkHz * 2) % 2 === 0;
+    const { x, y } = this.world.player;
+    g.fillStyle(white ? COLORS.flash : COLORS.player, 1);
+    g.fillRect(x - r, y - r, r * 2, r * 2);
+    g.lineStyle(2, COLORS.flash, 0.6 * t);
+    g.strokeCircle(x, y, r + 10 + 30 * t);
+
+    if (this.evoText && t >= EVOLUTION_REVEAL_AT) {
+      const from = stageName(this.world, evolution.fromStage);
+      const to = stageName(this.world, evolution.toStage);
+      this.evoText.setText(`${from} evolved into ${to}!`);
+    }
+  }
+
   private draw(): void {
     const { player, enemies, projectiles, gems, swings, moves } = this.world;
     const cam = this.cameras.main;
@@ -450,6 +585,13 @@ export class RunScene extends Phaser.Scene {
       for (const ball of orbitBalls(slot, def, player)) g.fillCircle(ball.x, ball.y, ball.r);
     }
 
+    // Blaze (low-HP ability): pulsing red aura.
+    if (isAbilityActive(this.world)) {
+      const pulse = 0.5 + 0.5 * Math.sin(this.time.now / 90);
+      g.lineStyle(3, COLORS.blaze, 0.5 + 0.4 * pulse);
+      g.strokeCircle(player.x, player.y, player.radius + 6 + 3 * pulse);
+    }
+
     // Blink while invulnerable.
     const blinkOff = player.invulnLeft > 0 && Math.floor(this.world.time * 20) % 2 === 0;
     if (!blinkOff) {
@@ -465,16 +607,19 @@ export class RunScene extends Phaser.Scene {
     g.fillStyle(COLORS.hpFill, 1);
     g.fillRect(player.x - barW / 2, barY, (barW * player.hp) / player.maxHp, 5);
 
+    this.drawEvolutionFx();
     this.drawHud();
   }
 
   private drawHud(): void {
     const { player, time, kills, status, enemies, level, xp, moves, items } = this.world;
-    const name = POKEMON[player.pokemonId].name;
+    const name = currentStage(this.world).name;
     const moveNames = moves.map((s) => MOVES[s.moveId].name).join(', ');
     const itemNames = items.length ? items.map((id) => ITEMS[id].name).join(', ') : '—';
+    const ability = ABILITIES[POKEMON[player.pokemonId].ability];
+    const abilityTag = isAbilityActive(this.world) ? `   ${ability.name.toUpperCase()}!` : '';
     this.hud.setText(
-      `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${player.maxHp}   ` +
+      `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${Math.round(player.maxHp)}${abilityTag}   ` +
         `${formatTime(time)} / ${formatTime(TUNING.runSeconds)}   KOs ${kills}   on field ${enemies.length}\n` +
         `Moves: ${moveNames}   Items: ${itemNames}   (Esc: build)`,
     );
@@ -507,6 +652,15 @@ export class RunScene extends Phaser.Scene {
       this.banner.setVisible(false);
     }
   }
+}
+
+/** Identifies an evolution window, so the overlay rebuilds when the phase changes. */
+function evolutionKey(evolution: EvolutionState): string {
+  return `evo:${evolution.fromStage}>${evolution.toStage}:${evolution.phase}`;
+}
+
+function stageName(world: World, stage: number): string {
+  return POKEMON[world.player.pokemonId].stages[stage]!.name;
 }
 
 function describeCard(world: World, card: Card): CardView {

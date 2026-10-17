@@ -6,20 +6,42 @@ export type FormTag = 'Projectile' | 'Area' | 'Beam' | 'Melee' | 'Aura' | 'Zone'
 export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' | 'Ball' | 'Contact';
 export type MoveTag = PokemonType | FormTag | FlagTag;
 
+/** An evolution line, named after its first stage. */
 export type PokemonId = 'charmander';
 export type EnemyId = 'rattata' | 'pidgey' | 'raticate';
+export type AbilityId = 'blaze';
 
-export interface PokemonDef {
-  readonly id: PokemonId;
+/** One form of an evolution line. Later stages: bigger and stronger (D3 early-vs-late gamble). */
+export interface EvolutionStage {
   readonly name: string;
-  readonly types: readonly PokemonType[];
+  /** Level at which the run evolves into this stage (1 for the first stage). */
+  readonly level: number;
   readonly maxHp: number;
   /** px per second. */
   readonly speed: number;
   readonly radius: number;
+  /** Multiplies all of the player's damage. */
+  readonly damageMult: number;
+}
+
+export interface PokemonDef {
+  readonly id: PokemonId;
+  readonly types: readonly PokemonType[];
+  readonly stages: readonly EvolutionStage[];
+  readonly ability: AbilityId;
   readonly signatureMove: MoveId;
   /** Moves that can be offered on level-up cards. */
   readonly learnset: readonly MoveId[];
+}
+
+export interface AbilityDef {
+  readonly id: AbilityId;
+  readonly name: string;
+  readonly description: string;
+  /** Active below this fraction of max HP. */
+  readonly lowHpThreshold: number;
+  /** Extra damage while active, as a fraction. */
+  readonly damageBonus: number;
 }
 
 export interface EnemyDef {
@@ -38,14 +60,27 @@ export interface EnemyDef {
 export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
   charmander: {
     id: 'charmander',
-    name: 'Charmander',
     types: ['Fire'],
-    maxHp: 100,
-    speed: 150,
-    radius: 12,
+    // Stage numbers are provisional (D10).
+    stages: [
+      { name: 'Charmander', level: 1, maxHp: 100, speed: 150, radius: 12, damageMult: 1 },
+      { name: 'Charmeleon', level: 10, maxHp: 140, speed: 160, radius: 15, damageMult: 1.15 },
+      { name: 'Charizard', level: 25, maxHp: 200, speed: 175, radius: 19, damageMult: 1.35 },
+    ],
+    ability: 'blaze',
     signatureMove: 'ember',
     // P2 subset (D9); Smokescreen, Wing Attack and Slash come later.
     learnset: ['scratch', 'fireSpin', 'dragonRage'],
+  },
+};
+
+export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
+  blaze: {
+    id: 'blaze',
+    name: 'Blaze',
+    description: 'Below 30% HP: +50% damage',
+    lowHpThreshold: 0.3,
+    damageBonus: 0.5,
   },
 };
 

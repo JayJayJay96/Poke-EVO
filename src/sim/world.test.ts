@@ -4,7 +4,8 @@ import { ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
 import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
 import { WAVES } from '../data/waves';
-import { damageEnemy, dropGem, findNearestEnemy } from './combat';
+import { abilityDamageMult, damageEnemy, dropGem, findNearestEnemy, isAbilityActive } from './combat';
+import { dismissEvolution, dueEvolutionStage, finishEvolutionCinematic } from './evolution';
 import {
   augmentPool,
   buildCardPool,
@@ -94,14 +95,14 @@ describe('player movement', () => {
   it('moves at its speed', () => {
     const world = makeWorld();
     run(world, 1, { moveX: 1, moveY: 0 });
-    expect(world.player.x).toBeCloseTo(POKEMON.charmander.speed, 0);
+    expect(world.player.x).toBeCloseTo(POKEMON.charmander.stages[0]!.speed, 0);
     expect(world.player.y).toBe(0);
   });
 
   it('normalises diagonals', () => {
     const world = makeWorld();
     run(world, 1, { moveX: 1, moveY: 1 });
-    expect(Math.hypot(world.player.x, world.player.y)).toBeCloseTo(POKEMON.charmander.speed, 0);
+    expect(Math.hypot(world.player.x, world.player.y)).toBeCloseTo(POKEMON.charmander.stages[0]!.speed, 0);
   });
 });
 
@@ -376,7 +377,7 @@ describe('stats', () => {
     refreshStats(world);
     expect(world.player.maxHp).toBe(120);
     expect(world.player.hp).toBe(70);
-    expect(world.player.speed).toBeCloseTo(POKEMON.charmander.speed * 1.08);
+    expect(world.player.speed).toBeCloseTo(POKEMON.charmander.stages[0]!.speed * 1.08);
     expect(world.player.pickupRadius).toBeCloseTo(TUNING.player.baseMagnetRadius * 1.5);
   });
 
@@ -683,6 +684,104 @@ describe('performance budgets', () => {
     expect(world.status).toBe('running');
     expect(world.offer).toBeNull();
     expect(world.kills).toBeGreaterThan(0);
+  });
+});
+
+describe('evolution', () => {
+  const stages = POKEMON.charmander.stages;
+
+  /** Total XP to reach `level` from Lv 1. */
+  function xpForLevel(level: number): number {
+    let total = 0;
+    for (let l = 1; l < level; l++) total += xpToNext(l);
+    return total;
+  }
+
+  it('stage data rises with each evolution', () => {
+    for (let i = 1; i < stages.length; i++) {
+      const [a, b] = [stages[i - 1]!, stages[i]!];
+      expect(b.level).toBeGreaterThan(a.level);
+      expect(b.maxHp).toBeGreaterThan(a.maxHp);
+      expect(b.speed).toBeGreaterThan(a.speed);
+      expect(b.radius).toBeGreaterThan(a.radius);
+      expect(b.damageMult).toBeGreaterThan(a.damageMult);
+    }
+  });
+
+  it('reaching the stage level starts the cinematic before any level-up cards and pauses the run', () => {
+    const world = makeWorld();
+    gainXp(world, xpForLevel(stages[1]!.level));
+    step(world, IDLE, DT);
+    expect(world.evolution).toEqual({ fromStage: 0, toStage: 1, phase: 'cinematic' });
+    expect(world.offer).toBeNull();
+    const at = world.time;
+    run(world, 1);
+    expect(world.time).toBe(at);
+  });
+
+  it('finishing the cinematic applies the new stage, with the max-HP gain healed', () => {
+    const world = makeWorld();
+    world.player.hp = 50;
+    gainXp(world, xpForLevel(stages[1]!.level));
+    step(world, IDLE, DT);
+    finishEvolutionCinematic(world);
+    const s1 = stages[1]!;
+    expect(world.player.stage).toBe(1);
+    expect(world.player.maxHp).toBe(s1.maxHp);
+    expect(world.player.hp).toBe(50 + (s1.maxHp - stages[0]!.maxHp));
+    expect(world.player.speed).toBeCloseTo(s1.speed);
+    expect(world.player.radius).toBe(s1.radius);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * s1.damageMult);
+    expect(world.evolution?.phase).toBe('summary');
+  });
+
+  it('dismissing the summary hands over to the queued level-up cards', () => {
+    const world = makeWorld();
+    gainXp(world, xpForLevel(stages[1]!.level));
+    const pending = world.pendingLevelUps;
+    step(world, IDLE, DT);
+    finishEvolutionCinematic(world);
+    dismissEvolution(world);
+    expect(world.evolution).toBeNull();
+    expect(world.offer).not.toBeNull();
+    expect(world.pendingLevelUps).toBe(pending);
+  });
+
+  it('a jump past both stage levels evolves twice, one at a time', () => {
+    const world = makeWorld();
+    gainXp(world, xpForLevel(stages[2]!.level));
+    step(world, IDLE, DT);
+    expect(world.evolution?.toStage).toBe(1);
+    finishEvolutionCinematic(world);
+    dismissEvolution(world);
+    expect(world.evolution).toEqual({ fromStage: 1, toStage: 2, phase: 'cinematic' });
+    finishEvolutionCinematic(world);
+    dismissEvolution(world);
+    expect(world.player.stage).toBe(2);
+    expect(dueEvolutionStage(world)).toBeNull();
+  });
+
+  it('cinematic and summary steps ignore calls in the wrong phase', () => {
+    const world = makeWorld();
+    dismissEvolution(world);
+    finishEvolutionCinematic(world);
+    expect(world.evolution).toBeNull();
+    expect(world.player.stage).toBe(0);
+  });
+});
+
+describe('Blaze', () => {
+  it('turns on below 30% HP and adds +50% damage to hits', () => {
+    const world = makeWorld();
+    world.player.hp = world.player.maxHp * 0.5;
+    expect(isAbilityActive(world)).toBe(false);
+    expect(abilityDamageMult(world)).toBe(1);
+
+    world.player.hp = world.player.maxHp * 0.29;
+    expect(isAbilityActive(world)).toBe(true);
+    const enemy = spawnEnemy(world, 'raticate', 500, 0);
+    damageEnemy(world, enemy, 10);
+    expect(enemy.hp).toBeCloseTo(enemy.maxHp - 15);
   });
 });
 

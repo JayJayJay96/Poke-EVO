@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **Next: build P3a (see the P3 plan below).**
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **Next: build P3b** (Flame Burst / Blast Burn tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare).
 - **Builds:** yes (`npm run build` passes, 2026-10-17).
 - **Committed:** `844afd4` (P0 + P1), `4fb5b98` (P2a), `778aff0` (P2b), `9d0c3b1` (P2c); P2d commit follows this update.
 - **P2d done** (2026-10-17): projectile pool + 500 cap, `?stress=1` mode, `?perf=1` readout, `npm run bench`. Stress: ~160 FPS with 500 enemies + maxed build; sim 0.82 ms/step (bench mean).
@@ -44,6 +44,26 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-17 — P3a: evolution core
+**Files**
+- `src/data/content.ts`: `PokemonDef` is now an evolution line with `stages` (Charmander Lv 1 / 100 HP / 150 / r12 / ×1.0 → Charmeleon Lv 10 / 140 / 160 / r15 / ×1.15 → Charizard Lv 25 / 200 / 175 / r19 / ×1.35, provisional), `ability`; `ABILITIES.blaze` (<30% HP → +50% damage).
+- `src/sim/evolution.ts` (new): `dueEvolutionStage`, `startEvolutionIfDue`, `finishEvolutionCinematic`, `dismissEvolution`. Evolution runs before queued level-up cards; multi-stage jumps resolve one at a time.
+- `src/sim/types.ts`: `Player.stage`, `EvolutionState` (`cinematic` → `summary`), `World.evolution` (pauses the sim).
+- `src/sim/stats.ts`: `currentStage`; `refreshStats` applies stage max HP (the gain heals), speed, radius and damage multiplier.
+- `src/sim/combat.ts`: `isAbilityActive` / `abilityDamageMult`, applied live when hits land.
+- `src/sim/world.ts`: first-stage player stats; the step pauses during evolution; evolution is checked before making an offer. `stress.ts` skips evolutions.
+- `src/scenes/RunScene.ts`: the overlay is keyed by evolution phase or offer; a 2 s cinematic (70% dim, "What? X is evolving!", player flashing 4 → 20 Hz while growing to the new size, expanding ring, reveal line at 80%); a summary card with stat deltas (Enter / Space / 1 / click to continue); Blaze red pulsing aura + "BLAZE!" in the HUD; the HUD name follows the stage.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **63/63 passed** (7 new: stage data rises, cinematic pre-empts cards and pauses, stage applied with heal, summary → queued cards, double jump evolves twice, wrong-phase calls ignored, Blaze ×1.5 below 30%); `npm run build` passed.
+- Browser (pane visible): a 175 XP gem took Lv 1 → 10 → cinematic shown (reveal line, white/orange flashing, ring), then the summary card (100 → 140 HP, 150 → 160 speed, ×1.00 → ×1.15, size 12 → 15) with the HUD switched to "Charmeleon … 140/140"; Enter (dispatched on the page) dismissed it and the queued level-up cards opened; at 20% HP the red aura + "BLAZE!" showed.
+- The browser tool's own "Return" key press didn't reach the page; a page-dispatched Enter did. Treated as a tool quirk: worth confirming Enter/Space in the owner playtest.
+- Console: only stale errors stamped with HMR `?t=` timestamps from mid-edit states before the reload.
+
+**Notes**
+- The signature move stays Ember at every stage until P3b adds Flame Burst / Blast Burn.
+- Charizard's flight perk waits for hazards (P5/P6); for now it's speed only.
 
 ### 2026-10-17 — P2d: performance budgets and stress test
 **Files**
