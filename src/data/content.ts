@@ -18,7 +18,7 @@ export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' 
 export type MoveTag = PokemonType | FormTag | FlagTag;
 
 /** An evolution line, named after its first stage. */
-export type PokemonId = 'charmander';
+export type PokemonId = 'charmander' | 'squirtle';
 export type EnemyId = 'rattata' | 'pidgey' | 'raticate';
 export type AbilityId =
   | 'blaze'
@@ -158,6 +158,52 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
       { move: 'dragonRage', fromStage: 0 },
       { move: 'airSlash', fromStage: 2 },
       { move: 'hurricane', fromStage: 2 },
+    ],
+  },
+  // P4b (D13): tankier start than Charmander, lower damage, control tools. Numbers provisional.
+  squirtle: {
+    id: 'squirtle',
+    role: 'Tank / control: slows, knockback, blocks hits',
+    stages: [
+      {
+        name: 'Squirtle',
+        level: 1,
+        types: ['Water'],
+        maxHp: 120,
+        speed: 140,
+        radius: 12,
+        damageMult: 0.95,
+        signatureMove: 'bubble',
+      },
+      {
+        name: 'Wartortle',
+        level: 10,
+        types: ['Water'],
+        maxHp: 170,
+        speed: 148,
+        radius: 15,
+        damageMult: 1.1,
+        signatureMove: 'waterPulse',
+      },
+      {
+        name: 'Blastoise',
+        level: 25,
+        types: ['Water'],
+        maxHp: 250,
+        speed: 155,
+        radius: 20,
+        damageMult: 1.3,
+        signatureMove: 'hydroCannon',
+        abilityChoices: ['torrentPlus', 'rainDish'],
+      },
+    ],
+    ability: 'shell',
+    learnset: [
+      { move: 'tackle', fromStage: 0 },
+      { move: 'bite', fromStage: 0 },
+      { move: 'rapidSpin', fromStage: 0 },
+      { move: 'iceBeam', fromStage: 0 },
+      { move: 'surf', fromStage: 0 },
     ],
   },
 };

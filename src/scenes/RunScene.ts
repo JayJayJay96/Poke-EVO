@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
-import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
-import { MOVES } from '../data/moves';
+import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
+import { MOVES, type MoveId } from '../data/moves';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { isAbilityActive } from '../sim/combat';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
@@ -53,6 +53,20 @@ const COLORS = {
   berry: 0x2f7ff5,
   exclusive: 0xff8c42,
 } as const;
+/** Player and move colours by Pokémon type, so each line reads differently in grey-box. */
+const TYPE_COLORS: Readonly<Record<PokemonType, number>> = {
+  Normal: 0xd8d8c0,
+  Fire: 0xff7a2f,
+  Water: 0x3d8bff,
+  Grass: 0x4cd964,
+  Flying: 0xb9c7ff,
+  Dragon: 0x7b5cff,
+  Poison: 0xb05cff,
+  Electric: 0xffe84d,
+  Ice: 0x9ff3ff,
+  Dark: 0x6b5a4e,
+  Steel: 0xb8b8d0,
+};
 const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   rattata: 0x9b6bc8,
   pidgey: 0xc8a165,
@@ -742,7 +756,7 @@ export class RunScene extends Phaser.Scene {
       const def = MOVES[slot.moveId];
       if (def.form !== 'beam' || slot.activeLeft <= 0) continue;
       const len = beamLength(slot, def);
-      g.lineStyle(def.width * slot.stats.area, COLORS.beam, 0.85);
+      g.lineStyle(def.width * slot.stats.area, moveColor(slot.moveId, COLORS.beam), 0.85);
       g.lineBetween(player.x, player.y, player.x + slot.dirX * len, player.y + slot.dirY * len);
     }
 
@@ -753,8 +767,10 @@ export class RunScene extends Phaser.Scene {
       g.fillPath();
     }
 
-    g.fillStyle(COLORS.projectile, 1);
-    for (const p of projectiles) g.fillCircle(p.x, p.y, p.radius);
+    for (const p of projectiles) {
+      g.fillStyle(moveColor(p.moveId, COLORS.projectile), 1);
+      g.fillCircle(p.x, p.y, p.radius);
+    }
 
     // Explosion flashes: bright, quick, slightly expanding.
     for (const blast of blasts) {
@@ -791,7 +807,7 @@ export class RunScene extends Phaser.Scene {
     for (const slot of moves) {
       const def = MOVES[slot.moveId];
       if (def.form !== 'orbit' || slot.activeLeft <= 0) continue;
-      g.fillStyle(COLORS.orbit, 1);
+      g.fillStyle(moveColor(slot.moveId, COLORS.orbit), 1);
       for (const ball of orbitBalls(slot, def, player)) g.fillCircle(ball.x, ball.y, ball.r);
     }
 
@@ -811,7 +827,8 @@ export class RunScene extends Phaser.Scene {
     // Blink while invulnerable.
     const blinkOff = player.invulnLeft > 0 && Math.floor(this.world.time * 20) % 2 === 0;
     if (!blinkOff) {
-      g.fillStyle(player.hurtFlashLeft > 0 ? COLORS.flash : COLORS.player, 1);
+      const bodyColor = TYPE_COLORS[currentStage(this.world).types[0] ?? 'Normal'];
+      g.fillStyle(player.hurtFlashLeft > 0 ? COLORS.flash : bodyColor, 1);
       g.fillRect(player.x - player.radius, player.y - player.radius, player.radius * 2, player.radius * 2);
     }
 
@@ -882,6 +899,14 @@ export class RunScene extends Phaser.Scene {
 function evolutionKey(evolution: EvolutionState): string {
   const pick = evolution.traitChoices ? ':pick' : '';
   return `evo:${evolution.fromStage}>${evolution.toStage}:${evolution.phase}${pick}`;
+}
+
+const POKEMON_TYPES = new Set<string>(Object.keys(TYPE_COLORS));
+
+/** Colour of a move's (first) Pokémon type, so Water bubbles look different from Fire balls. */
+function moveColor(moveId: MoveId, fallback: number): number {
+  const type = MOVES[moveId].tags.find((tag) => POKEMON_TYPES.has(tag)) as PokemonType | undefined;
+  return type ? TYPE_COLORS[type] : fallback;
 }
 
 function stageName(world: World, stage: number): string {

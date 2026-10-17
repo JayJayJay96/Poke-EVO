@@ -10,7 +10,16 @@ export type MoveId =
   | 'fireSpin'
   | 'dragonRage'
   | 'airSlash'
-  | 'hurricane';
+  | 'hurricane'
+  // Squirtle line (P4b)
+  | 'bubble'
+  | 'waterPulse'
+  | 'hydroCannon'
+  | 'tackle'
+  | 'bite'
+  | 'rapidSpin'
+  | 'iceBeam'
+  | 'surf';
 
 /** Splash around the impact point. */
 export interface ExplosionDef {
@@ -37,6 +46,8 @@ export interface InnateEffects {
   readonly stun?: number;
   /** Poison damage per second as a fraction of the hit, for TUNING.status.poisonSeconds. */
   readonly poisonPct?: number;
+  /** Innate push distance in px (adds to the Knockback augment). */
+  readonly knockback?: number;
 }
 
 interface MoveDefBase {
@@ -223,6 +234,120 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     angularSpeed: 4.5,
     duration: 3,
     hitInterval: 0.4,
+  },
+  // Squirtle-line signature tiers (D13): control first, then knockback, then a heavy burst.
+  bubble: {
+    id: 'bubble',
+    name: 'Bubble',
+    description: 'Slowing bubbles at the nearest enemy',
+    tags: ['Water', 'Projectile'],
+    form: 'projectile',
+    cooldown: 0.9,
+    damage: 8,
+    range: 300,
+    projectileSpeed: 300,
+    projectileRadius: 7,
+    projectileLifetime: 1.3,
+    count: 1,
+    onHit: { slow: 0.35 },
+  },
+  waterPulse: {
+    id: 'waterPulse',
+    name: 'Water Pulse',
+    description: 'Bubbles burst into a knockback ring',
+    tags: ['Water', 'Projectile', 'Pulse'],
+    form: 'projectile',
+    cooldown: 1.0,
+    damage: 11,
+    range: 320,
+    projectileSpeed: 320,
+    projectileRadius: 8,
+    projectileLifetime: 1.3,
+    count: 1,
+    explosion: { radius: 45, damageFraction: 0.5 },
+    onHit: { slow: 0.35, knockback: 40 },
+  },
+  hydroCannon: {
+    id: 'hydroCannon',
+    name: 'Hydro Cannon',
+    description: 'Heavy shot with a big knockback burst',
+    tags: ['Water', 'Projectile', 'Pulse', 'Area'],
+    form: 'projectile',
+    cooldown: 1.2,
+    damage: 20,
+    range: 340,
+    projectileSpeed: 340,
+    projectileRadius: 10,
+    projectileLifetime: 1.3,
+    count: 1,
+    explosion: { radius: 65, damageFraction: 0.6 },
+    onHit: { slow: 0.4, knockback: 70 },
+  },
+  tackle: {
+    id: 'tackle',
+    name: 'Tackle',
+    description: 'A short body slam in front of you',
+    tags: ['Normal', 'Melee', 'Contact'],
+    form: 'melee',
+    cooldown: 0.8,
+    damage: 12,
+    reach: 55,
+    arcDegrees: 90,
+  },
+  bite: {
+    id: 'bite',
+    name: 'Bite',
+    description: 'Heavy bite that makes enemies flinch',
+    tags: ['Dark', 'Melee', 'Bite', 'Contact'],
+    form: 'melee',
+    cooldown: 1.1,
+    damage: 18,
+    reach: 50,
+    arcDegrees: 70,
+    onHit: { stun: 0.4 },
+  },
+  rapidSpin: {
+    id: 'rapidSpin',
+    name: 'Rapid Spin',
+    description: 'A spinning shell that knocks enemies away',
+    tags: ['Normal', 'Orbit', 'Contact'],
+    form: 'orbit',
+    cooldown: 4,
+    damage: 9,
+    count: 3,
+    orbitRadius: 50,
+    ballRadius: 10,
+    angularSpeed: 6,
+    duration: 2.5,
+    hitInterval: 0.4,
+    onHit: { knockback: 50 },
+  },
+  iceBeam: {
+    id: 'iceBeam',
+    name: 'Ice Beam',
+    description: 'A freezing beam that slows',
+    tags: ['Ice', 'Beam'],
+    form: 'beam',
+    cooldown: 2.8,
+    damage: 7,
+    range: 320,
+    length: 280,
+    width: 12,
+    duration: 0.6,
+    tickInterval: 0.2,
+    onHit: { slow: 0.5 },
+  },
+  surf: {
+    id: 'surf',
+    name: 'Surf',
+    description: 'A 360° wave around you',
+    tags: ['Water', 'Melee', 'Area'],
+    form: 'melee',
+    cooldown: 3.5,
+    damage: 22,
+    reach: 110,
+    arcDegrees: 360,
+    onHit: { knockback: 60 },
   },
   dragonRage: {
     id: 'dragonRage',

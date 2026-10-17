@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AUGMENT_IDS, AUGMENTS, MAX_RANK, MAX_SOCKETS, REROLLS_PER_RUN, isSpecialAugment } from '../data/augments';
-import { ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
+import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
 import { MOVES, type MeleeMoveDef, type MoveId, type ProjectileMoveDef, type ZoneMoveDef } from '../data/moves';
 import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
 import { WAVES } from '../data/waves';
@@ -38,13 +38,13 @@ import {
 } from './progression';
 import { createSeededRng } from './rng';
 import { SpatialHash } from './spatialHash';
-import { computeModifiers, createSlot, refreshStats } from './stats';
+import { computeModifiers, createSlot, currentStage, refreshStats } from './stats';
 import { STRESS_ENEMIES, setupStress, topUpStress } from './stress';
 import type { AugmentSocket, InputState, Projectile, World } from './types';
 import { createWorld, pickEnemyKind, spawnEnemy, step, waveAt } from './world';
 import { spawnZone } from './zones';
 
-// P4a adds statuses, abilities, zone-cast and chain tests at the end.
+// P4a adds statuses, abilities, zone-cast and chain tests at the end; P4b the Squirtle line.
 const DT = TUNING.stepSeconds;
 /** Charmander is Fire, so Fire moves carry the same-type bonus (D11). */
 const STAB = 1 + TUNING.stabBonus;
@@ -1359,6 +1359,91 @@ describe('P4a engine: statuses, abilities, zone-cast, chain', () => {
     expect(castMelee(world, slot, def)).toBe(true);
     expect(front.hp).toBeLessThan(front.maxHp);
     expect(behind.hp).toBeLessThan(behind.maxHp);
+  });
+});
+
+describe('every line (data rules)', () => {
+  for (const def of Object.values(POKEMON)) {
+    it(`${def.stages[0]!.name}: stages rise and each signature tier only adds tags`, () => {
+      for (let i = 1; i < def.stages.length; i++) {
+        const [a, b] = [def.stages[i - 1]!, def.stages[i]!];
+        expect(b.level).toBeGreaterThan(a.level);
+        expect(b.maxHp).toBeGreaterThan(a.maxHp);
+        expect(b.damageMult).toBeGreaterThan(a.damageMult);
+        const before = MOVES[a.signatureMove].tags;
+        const after = MOVES[b.signatureMove].tags;
+        for (const tag of before) expect(after).toContain(tag);
+      }
+      const last = def.stages[def.stages.length - 1]!;
+      if (def.stages.length > 1) expect(last.abilityChoices?.length).toBe(2); // D13: every evolving line picks a trait
+    });
+  }
+});
+
+describe('Squirtle line (P4b)', () => {
+  function squirtle(): World {
+    return createWorld({ rng: createSeededRng(3), spawnRadius: 600, spawnEnabled: false, pokemonId: 'squirtle' });
+  }
+  function still(world: World, x: number, y: number) {
+    const e = spawnEnemy(world, 'raticate', x, y, 10);
+    e.speed = 0;
+    return e;
+  }
+
+  it('starts as Squirtle with Shell and Bubble, tankier than Charmander', () => {
+    const world = squirtle();
+    expect(currentStage(world).name).toBe('Squirtle');
+    expect(world.player.ability).toBe('shell');
+    expect(world.moves[0]!.moveId).toBe('bubble');
+    expect(world.player.maxHp).toBeGreaterThan(POKEMON.charmander.stages[0]!.maxHp);
+  });
+
+  it('Bubble slows what it hits', () => {
+    const world = squirtle();
+    world.player.invulnLeft = 99;
+    const target = still(world, 150, 0);
+    run(world, 0.8);
+    expect(target.slowLeft).toBeGreaterThan(0);
+    expect(target.slow).toBeCloseTo(0.35);
+  });
+
+  it('Water Pulse knocks back, slows and splashes', () => {
+    const world = squirtle();
+    world.player.invulnLeft = 99;
+    world.moves = [createSlot('waterPulse')];
+    refreshStats(world);
+    expect(world.moves[0]!.stats.knockback).toBe(40);
+    const target = still(world, 150, 0);
+    const nearby = still(world, 150, 30);
+    run(world, 0.9);
+    expect(target.x).toBeGreaterThan(150);
+    expect(nearby.hp).toBeLessThan(nearby.maxHp);
+  });
+
+  it("Blastoise's trait options both keep Shell", () => {
+    const last = POKEMON.squirtle.stages[2]!;
+    for (const id of last.abilityChoices!) expect(ABILITIES[id].blockEvery).toBe(8);
+  });
+
+  it('Surf hits all around, Ice Beam slows, Bite makes enemies flinch', () => {
+    const world = squirtle();
+    world.player.invulnLeft = 99;
+    world.moves = [createSlot('surf'), createSlot('iceBeam'), createSlot('bite')];
+    refreshStats(world);
+    const front = still(world, 60, 0);
+    const behind = still(world, -70, 0);
+    step(world, IDLE, DT);
+    step(world, IDLE, DT);
+    expect(front.hp).toBeLessThan(front.maxHp);
+    expect(behind.hp).toBeLessThan(behind.maxHp);
+    expect(front.slowLeft).toBeGreaterThan(0); // Ice Beam
+    expect(front.stunLeft).toBeGreaterThan(0); // Bite
+  });
+
+  it('Squirtle cards offer only its own learnset', () => {
+    const world = squirtle();
+    const moves = buildCardPool(world).filter((c) => c.kind === 'move').map((c) => (c.kind === 'move' ? c.moveId : null));
+    expect(moves.sort()).toEqual(['bite', 'iceBeam', 'rapidSpin', 'surf', 'tackle']);
   });
 });
 

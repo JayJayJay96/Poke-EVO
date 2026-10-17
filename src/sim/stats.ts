@@ -135,9 +135,10 @@ export function computeMoveStats(
     pierce,
     homing,
     returns,
-    knockback,
     burnPct,
     lifesteal,
+    // Innate knockback (Squirtle line) stacks with the Knockback augment.
+    knockback: knockback + (def.onHit?.knockback ?? 0),
     slow: def.onHit?.slow ?? 0,
     stun: def.onHit?.stun ?? 0,
     poisonPct: def.onHit?.poisonPct ?? 0,

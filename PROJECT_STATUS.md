@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **Next: build P4b** (Squirtle line). Lapras's level-based signature tiers moved to P4d (built with Lapras so they can be tested on real data).
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **Next: build P4c** (Bulbasaur line). Lapras's level-based signature tiers moved to P4d (built with Lapras so they can be tested on real data).
 
 ## P4 plan (owner-approved 2026-10-17, D13)
 **Gate:** do the starters feel truly different? Is picking a tier (3-stage / 2-stage / no evolution) a real gamble?
@@ -56,6 +56,17 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-17 — P4b: Squirtle line
+**Files**
+- `src/data/content.ts`: `squirtle` line. Squirtle (Lv 1, Water, 120 HP, 140 speed, ×0.95) → Wartortle (Lv 10, 170 HP, ×1.1) → Blastoise (Lv 25, 250 HP, ×1.3, traits Torrent+ / Rain Dish, both keep Shell). Ability Shell. Learnset Tackle, Bite, Rapid Spin, Ice Beam, Surf. Numbers provisional.
+- `src/data/moves.ts`: Bubble `[Water, Projectile]` (slow 35%) → Water Pulse `+Pulse` (45 px splash, slow, knockback 40) → Hydro Cannon `+Area` (65 px splash, slow 40%, knockback 70); Tackle (melee), Bite (Dark melee, 0.4 s flinch), Rapid Spin (3-ball orbit, knockback 50), Ice Beam (beam, slow 50%), Surf (360° melee, reach 110, knockback 60); innate `knockback` on `InnateEffects`.
+- `src/sim/stats.ts`: innate knockback stacks with the Knockback augment.
+- `src/scenes/RunScene.ts`: `TYPE_COLORS`; player body coloured by the stage's first type; projectiles, orbit balls and beams coloured by their move's type.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **115/115 passed** (8 new: a data-rules test per line (stages rise, tiers only add tags, evolving lines end in a 2-trait pick), Squirtle start (Shell, Bubble, more HP than Charmander), Bubble slows, Water Pulse knockback + splash, Blastoise traits keep Shell, Surf 360° + Ice Beam slow + Bite flinch, Squirtle card pool = its learnset); `npm run build` passed.
+- Browser: the select screen shows Charmander and Squirtle; picking Squirtle → blue player with the Shell bubble, Bubble slowed enemies (light-blue rings), HUD "Squirtle Lv 1 · HP 120/120".
 
 ### 2026-10-17 — P4a: multi-line engine + starter select
 **Files**
