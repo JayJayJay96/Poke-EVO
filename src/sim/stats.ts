@@ -159,6 +159,7 @@ export function createSlot(moveId: MoveId): MoveSlot {
     tickLeft: 0,
     hitCooldowns: new Map(),
     sockets: [],
+    mutation: null,
     stats: computeMoveStats(MOVES[moveId], emptyModifiers()),
   };
 }

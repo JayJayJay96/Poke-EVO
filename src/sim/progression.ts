@@ -17,6 +17,7 @@ import {
   MAX_LEARNSET_SLOTS,
   POTION_HEAL,
 } from '../data/upgrades';
+import { socketsUsed } from './mutations';
 import type { Rng } from './rng';
 import { createSlot, refreshStats } from './stats';
 import type { AugmentCard, Card, DrawnAugments, LevelUpOffer, World } from './types';
@@ -96,7 +97,7 @@ export function needsReplace(world: World, slotIndex: number, card: AugmentCard)
   const slot = world.moves[slotIndex];
   if (!slot) return false;
   const owned = slot.sockets.some((s) => s.augmentId === card.augmentId);
-  return !owned && slot.sockets.length >= MAX_SOCKETS;
+  return !owned && socketsUsed(slot) >= MAX_SOCKETS;
 }
 
 /** Up to `count` distinct random entries. */
@@ -240,13 +241,23 @@ export function chooseAugment(world: World, index: number): void {
   completeLevelUp(world);
 }
 
-/** Replace window: the new augment takes this socket at rank I; the old one is gone. */
+/**
+ * Replace window: the new augment takes this socket at rank I; the old one is gone.
+ * Indices past the augments pick the move's Mutation socket.
+ */
 export function chooseReplace(world: World, socketIndex: number): void {
   const offer = world.offer;
   if (offer?.kind !== 'replace') return;
   const slot = world.moves[offer.slot];
-  if (!slot || !slot.sockets[socketIndex]) return;
-  slot.sockets[socketIndex] = { augmentId: offer.card.augmentId, rank: 1 };
+  if (!slot) return;
+  if (slot.sockets[socketIndex]) {
+    slot.sockets[socketIndex] = { augmentId: offer.card.augmentId, rank: 1 };
+  } else if (socketIndex === slot.sockets.length && slot.mutation) {
+    slot.mutation = null;
+    slot.sockets.push({ augmentId: offer.card.augmentId, rank: 1 });
+  } else {
+    return;
+  }
   completeLevelUp(world);
 }
 

@@ -1,6 +1,7 @@
 import { TUNING, type PokemonId } from '../data/content';
 import { MOVES } from '../data/moves';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from './evolution';
+import { cancelMutationReplace } from './mutations';
 import { chooseAugment, chooseCard, chooseReplace, chooseSkill } from './progression';
 import { createSeededRng, type Rng } from './rng';
 import { currentStage } from './stats';
@@ -55,6 +56,9 @@ function autoPick(world: World, rng: Rng): void {
       break;
     case 'replace':
       chooseReplace(world, pick(world.moves[offer.slot]!.sockets.length));
+      break;
+    case 'mutationReplace':
+      cancelMutationReplace(world);
       break;
   }
 }

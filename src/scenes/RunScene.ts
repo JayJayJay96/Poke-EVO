@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
 import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
+import { MUTATIONS, type MutationId } from '../data/mutations';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { isAbilityActive } from '../sim/combat';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
@@ -21,6 +22,13 @@ import {
   resolvingLevel,
   xpToNext,
 } from '../sim/progression';
+import {
+  cancelMutationReplace,
+  chooseMutationReplace,
+  grantMutation,
+  isMutationId,
+  socketsUsed,
+} from '../sim/mutations';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
 import { currentStage } from '../sim/stats';
 import { setupStress, topUpStress } from '../sim/stress';
@@ -55,6 +63,9 @@ const COLORS = {
   seed: 0x4cd964,
   berry: 0x2f7ff5,
   exclusive: 0xff8c42,
+  /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
+  mutation: 0xb46cff,
+  bond: 0xffc83d,
 } as const;
 /** Player and move colours by Pokémon type, so each line reads differently in grey-box. */
 const TYPE_COLORS: Readonly<Record<PokemonType, number>> = {
@@ -135,6 +146,8 @@ export class RunScene extends Phaser.Scene {
   /** Non-evolver signature tier-up notice (Lapras) and when it hides. */
   private tierText!: Phaser.GameObjects.Text;
   private tierTextUntil = 0;
+  /** A one-off notice for the next frame (debug Mutation grants). */
+  private pendingNotice: string | null = null;
   private panel!: Phaser.GameObjects.Text;
   /** Draws above the overlay dim: the evolving player during the cinematic. */
   private fxGfx!: Phaser.GameObjects.Graphics;
@@ -253,6 +266,11 @@ export class RunScene extends Phaser.Scene {
       .setVisible(false);
     this.floaters = [];
     this.lastHp = this.world.player.hp;
+    // Debug Mutation grant until map sites exist (D16): ?mutate=waterGun.slick,withdraw.counterShell
+    for (const id of params.get('mutate')?.split(',') ?? []) this.debugGrant(id.trim());
+    if (import.meta.env.DEV) {
+      (window as unknown as { __grantMutation?: (id: string) => string }).__grantMutation = (id) => this.debugGrant(id);
+    }
     this.banner = this.add
       .text(0, 0, '', {
         fontFamily: 'monospace',
@@ -317,6 +335,7 @@ export class RunScene extends Phaser.Scene {
         else if (JustDown(this.keys.pause)) {
           if (offer.kind === 'replace') backFromReplace(world);
           else if (offer.kind === 'augment') backToSkills(world);
+          else if (offer.kind === 'mutationReplace') cancelMutationReplace(world);
         }
       }
     } else if (JustDown(this.keys.restart) && world.status !== 'running') {
@@ -355,12 +374,14 @@ export class RunScene extends Phaser.Scene {
     this.updatePerf(time, drawStart - simStart, performance.now() - drawStart);
   }
 
-  /** Lapras's signature tiers up by level instead of evolving: a short notice says so. */
+  /** Lapras's signature tiers up by level instead of evolving: a short notice says so. Also debug grants. */
   private showSignatureTierUp(time: number): void {
     const up = this.world.signatureTierUp;
-    if (up) {
+    const message = up ? `${MOVES[up.from].name} → ${MOVES[up.to].name}!` : this.pendingNotice;
+    if (message) {
       this.world.signatureTierUp = null;
-      this.tierText.setText(`${MOVES[up.from].name} → ${MOVES[up.to].name}!`).setVisible(true);
+      this.pendingNotice = null;
+      this.tierText.setText(message).setVisible(true);
       this.tierTextUntil = time + TIER_NOTICE_MS;
     } else if (this.tierText.visible && time > this.tierTextUntil) {
       this.tierText.setVisible(false);
@@ -435,9 +456,22 @@ export class RunScene extends Phaser.Scene {
       if (index === offer.cards.length) backToSkills(this.world);
       else chooseAugment(this.world, index);
     }
-    // Replace window: cards 1–3 are the sockets, card 4 is Back.
-    else if (index < MAX_SOCKETS) chooseReplace(this.world, index);
-    else backFromReplace(this.world);
+    // Replace windows: cards 1–3 are the sockets, card 4 is Back / Cancel.
+    else if (offer.kind === 'replace') {
+      if (index < MAX_SOCKETS) chooseReplace(this.world, index);
+      else backFromReplace(this.world);
+    } else if (index < this.world.moves[offer.slot]!.sockets.length) chooseMutationReplace(this.world, index);
+    else cancelMutationReplace(this.world);
+  }
+
+  /** Debug grant (`?mutate=` or dev `__grantMutation`): grants a Mutation by ID and says what happened. */
+  private debugGrant(id: string): string {
+    const result = isMutationId(id) ? grantMutation(this.world, id) : 'unknownId';
+    const label = isMutationId(id) ? mutationLabel(id) : id;
+    const message = result === 'granted' ? `Mutation: ${label}` : result === 'replace' ? `${label}: pick a socket` : `Can't grant ${label}: ${result}`;
+    if (result !== 'granted' && result !== 'replace') console.warn(`[mutate] ${message}`);
+    this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
+    return result;
   }
 
   private readInput(): InputState {
@@ -498,7 +532,7 @@ export class RunScene extends Phaser.Scene {
         footer = canReroll(world)
           ? `[R] Reroll (${world.rerollsLeft} left)`
           : `Reroll unavailable (${world.rerollsLeft} left)`;
-        if (world.moves[offer.slot]!.sockets.length >= MAX_SOCKETS) footer += '   ·   Sockets full: a new augment replaces one';
+        if (socketsUsed(world.moves[offer.slot]!) >= MAX_SOCKETS) footer += '   ·   Sockets full: a new augment replaces one';
         break;
       }
       case 'replace': {
@@ -511,7 +545,33 @@ export class RunScene extends Phaser.Scene {
           body: `${AUGMENTS[socket.augmentId].ranks[socket.rank - 1]!.text}\n\n→ becomes ${augmentLabel(offer.card.augmentId, 1)}`,
           color: 0xff6b6b,
         }));
+        if (slot.mutation) {
+          views.push({
+            heading: 'REPLACE MUTATION',
+            title: mutationLabel(slot.mutation),
+            body: `${MUTATIONS[slot.mutation].text}
+
+→ becomes ${augmentLabel(offer.card.augmentId, 1)}`,
+            color: 0xff6b6b,
+          });
+        }
         views.push({ heading: 'BACK', title: 'Keep all', body: 'Back to the augment cards (Esc)', color: 0x888888 });
+        break;
+      }
+      case 'mutationReplace': {
+        const slot = world.moves[offer.slot]!;
+        const def = MUTATIONS[offer.mutationId];
+        title = `${MOVES[slot.moveId].name}: ${def.name} replaces which augment?`;
+        frame = def.kind === 'generic' ? COLORS.mutation : COLORS.bond;
+        views = slot.sockets.map((socket) => ({
+          heading: 'REPLACE',
+          title: augmentLabel(socket.augmentId, socket.rank),
+          body: `${AUGMENTS[socket.augmentId].ranks[socket.rank - 1]!.text}
+
+→ becomes ${def.name}`,
+          color: 0xff6b6b,
+        }));
+        views.push({ heading: 'CANCEL', title: 'Keep all', body: `Don't take ${def.name} (Esc)`, color: 0x888888 });
         break;
       }
     }
@@ -1014,12 +1074,18 @@ function describeAugment(card: AugmentCard): CardView {
 }
 
 function socketLines(slot: MoveSlot): string[] {
-  const lines: string[] = [];
-  for (let i = 0; i < MAX_SOCKETS; i++) {
-    const socket = slot.sockets[i];
-    lines.push(socket ? `◆ ${augmentLabel(socket.augmentId, socket.rank)}` : '◇ empty');
-  }
+  const lines: string[] = slot.sockets.map((socket) => `◆ ${augmentLabel(socket.augmentId, socket.rank)}`);
+  if (slot.mutation) lines.push(`✦ ${mutationLabel(slot.mutation)}`);
+  while (lines.length < MAX_SOCKETS) lines.push('◇ empty');
   return lines;
+}
+
+/** "Slick (Mutation)" or "Steady Aim (Bond · Squirtle)". */
+function mutationLabel(id: MutationId): string {
+  const def = MUTATIONS[id];
+  if (def.kind === 'generic') return `${def.name} (Mutation)`;
+  const line = POKEMON[def.line].stages[0]!.name;
+  return `${def.name} (${def.kind === 'bond' ? 'Bond' : 'Signature'} · ${line})`;
 }
 
 /** "Pierce II"; single-rank augments show just the name. */

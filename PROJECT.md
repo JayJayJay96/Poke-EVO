@@ -95,7 +95,7 @@ Each signature tier keeps its previous tags and adds new ones (§8.6).
 
 ### Lapras — *early bulldozer* (Water/Ice; non-evolver gamble line, D13)
 - **Ability, Shell Armor:** take −15% damage.
-- **Signature, one tier by level (Lv 25, D17/D18):** Ice Shard `[Ice, Projectile]` → Sheer Cold `[+Area, +Zone]` (freezing field that slows) (D18). The code still has the old Lv 10 Frost Breath tier until this is built. Mutation trees: `docs/moveset/lapras/`.
+- **Signature, one tier by level (Lv 25, D17/D18):** Ice Shard `[Ice, Projectile]` → Sheer Cold `[+Area, +Zone]` (freezing field that slows) (D18). Built in P4f-1 (Frost Breath removed from the code). Mutation trees: `docs/moveset/lapras/`.
 - **Learnset:** Body Slam, Surf, Ice Beam, Hydro Pump.
 - **No trait pick** (no evolution); strongest start, lowest ceiling (§5).
 

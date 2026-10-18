@@ -44,7 +44,6 @@ export type MoveId =
   | 'thunder'
   // Lapras (P4d)
   | 'iceShard'
-  | 'frostBreath'
   | 'sheerCold'
   | 'bodySlam'
   // Shared / other lines
@@ -708,7 +707,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     tickInterval: 0.5,
     onHit: { stun: 0.5 },
   },
-  // Lapras signature tiers by level (Lv 10 / 25): smaller steps than an evolution.
+  // Lapras signature: one step by level (Lv 25, D18), smaller than an evolution.
   iceShard: {
     id: 'iceShard',
     name: 'Ice Shard',
@@ -722,22 +721,6 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileRadius: 6,
     projectileLifetime: 0.9,
     count: 1,
-  },
-  frostBreath: {
-    id: 'frostBreath',
-    name: 'Frost Breath',
-    description: 'An icy burst that slows',
-    tags: ['Ice', 'Projectile', 'Area'],
-    form: 'projectile',
-    cooldown: 0.8,
-    damage: 13,
-    range: 330,
-    projectileSpeed: 480,
-    projectileRadius: 8,
-    projectileLifetime: 0.9,
-    count: 1,
-    explosion: { radius: 45, damageFraction: 0.5 },
-    onHit: { slow: 0.3 },
   },
   sheerCold: {
     id: 'sheerCold',

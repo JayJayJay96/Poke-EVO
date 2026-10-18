@@ -1,6 +1,7 @@
 import type { AugmentId } from '../data/augments';
 import type { AbilityId, EnemyId, PokemonId, PokemonType } from '../data/content';
 import type { MoveId } from '../data/moves';
+import type { MutationId } from '../data/mutations';
 import type { BoostId, ItemId } from '../data/upgrades';
 import type { Rng } from './rng';
 import type { SpatialHash } from './spatialHash';
@@ -264,8 +265,10 @@ export interface MoveSlot {
   tickLeft: number;
   /** Enemy id → seconds before this move may hit it again (orbits). */
   hitCooldowns: Map<number, number>;
-  /** Up to 3; each augment appears at most once and ranks up in place. */
+  /** Up to 3 minus a Mutation; each augment appears at most once and ranks up in place. */
   sockets: AugmentSocket[];
+  /** At most one Mutation per move; it takes one of the 3 sockets and never ranks up. */
+  mutation: MutationId | null;
   stats: MoveStats;
 }
 
@@ -322,7 +325,9 @@ export type LevelUpOffer =
       readonly cards: readonly AugmentCard[];
       readonly skills: readonly number[];
       readonly drawn: DrawnAugments;
-    };
+    }
+  /** A Mutation granted to a move whose sockets are all augments: pick the augment it replaces, or cancel. */
+  | { readonly kind: 'mutationReplace'; readonly slot: number; readonly mutationId: MutationId };
 
 /**
  * An evolution in progress. The sim is paused throughout.

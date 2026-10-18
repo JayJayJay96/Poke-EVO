@@ -1668,28 +1668,28 @@ describe('Lapras (P4d, non-evolver)', () => {
     expect(dueEvolutionStage(world)).toBeNull();
   });
 
-  it('the signature tiers up at Lv 10 and Lv 25, keeping its augments, and tells the scene', () => {
+  it('the signature tiers up once, at Lv 25 (D18), keeping its augments, and tells the scene', () => {
     const world = lapras();
     world.moves[0]!.sockets.push({ augmentId: 'powerUp', rank: 2 });
     expect(world.moves[0]!.moveId).toBe('iceShard');
-    world.level = 9;
+    world.level = 24;
     expect(upgradeSignatureByLevel(world)).toBe(false);
-    world.level = 10;
+    expect(world.moves[0]!.moveId).toBe('iceShard');
+    world.level = 25;
     expect(upgradeSignatureByLevel(world)).toBe(true);
-    expect(world.moves[0]!.moveId).toBe('frostBreath');
-    expect(world.moves[0]!.sockets).toEqual([{ augmentId: 'powerUp', rank: 2 }]);
-    expect(world.signatureTierUp).toEqual({ from: 'iceShard', to: 'frostBreath' });
-    world.level = 30; // a big XP jump still lands on the right tier
-    upgradeSignatureByLevel(world);
     expect(world.moves[0]!.moveId).toBe('sheerCold');
-    for (const tag of MOVES.frostBreath.tags) expect(MOVES.sheerCold.tags).toContain(tag);
+    expect(world.moves[0]!.sockets).toEqual([{ augmentId: 'powerUp', rank: 2 }]);
+    expect(world.signatureTierUp).toEqual({ from: 'iceShard', to: 'sheerCold' });
+    for (const tag of MOVES.iceShard.tags) expect(MOVES.sheerCold.tags).toContain(tag);
+    expect(POKEMON.lapras.signatureTiers).toEqual([{ level: 25, move: 'sheerCold' }]);
   });
 
   it('tiers up during play as soon as the level is reached', () => {
     const world = lapras();
-    gainXp(world, 1000);
+    gainXp(world, 2000);
+    expect(world.level).toBeGreaterThanOrEqual(25);
     step(world, IDLE, DT);
-    expect(world.moves[0]!.moveId).not.toBe('iceShard');
+    expect(world.moves[0]!.moveId).toBe('sheerCold');
   });
 
   it("Sheer Cold's freezing field slows; Ice is super effective on Pidgey", () => {
@@ -1809,5 +1809,29 @@ describe('enemy separation', () => {
     const b = spawnEnemy(world, 'rattata', 1000, 0);
     run(world, 0.5);
     expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(1);
+  });
+});
+
+describe('move speeds follow official base Speed (D20)', () => {
+  // round(120 + 0.5 × base Speed); the formula is provisional, the ordering is the rule.
+  const BASE_SPEED: Record<string, number> = {
+    Charmander: 65,
+    Charmeleon: 80,
+    Charizard: 100,
+    Squirtle: 43,
+    Wartortle: 58,
+    Blastoise: 78,
+    Bulbasaur: 45,
+    Ivysaur: 60,
+    Venusaur: 80,
+    Pikachu: 90,
+    Raichu: 110,
+    Lapras: 60,
+  };
+
+  it('every stage of every line', () => {
+    const stages = Object.values(POKEMON).flatMap((line) => line.stages);
+    expect(stages.map((s) => s.name).sort()).toEqual(Object.keys(BASE_SPEED).sort());
+    for (const stage of stages) expect(stage.speed, stage.name).toBe(Math.round(120 + 0.5 * BASE_SPEED[stage.name]!));
   });
 });

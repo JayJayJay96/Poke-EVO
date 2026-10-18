@@ -71,6 +71,39 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-18 — P4f-1: Mutation data + registry plumbing
+**Objective:** first P4f step (owner-approved plan, D21): all Mutation data, sockets, offer filter, debug grant; Lapras Sheer Cold-only tier (D18); D20 speeds.
+
+**Decisions this session (owner, recorded in `PROJECT.md` §13 as D21):** P4f replaces P4e; D20 speeds for every stage; stun fatigue only for new effects; every per-line open point approved as written; Lapras XP ×0.85 knob only as a last resort; D19 judged on the bot without Mutations.
+
+**Files**
+- `src/data/mutations.ts` (new): all **110** Mutations from `docs/moveset/INDEX.md` (62 generic, 33 Bond, 15 signature) with every doc number in `values` (signature per-tier additions under `tier1`/`tier2`; Lapras Bonds `tide.flood`/`tide.ebb`); `HOOK_IDS` (32), `REQUIREMENT_IDS`, `REQUIREMENTS` (scorchSource), `PENDING_MOVE_IDS` (Smokescreen, Slash, Wing Attack until P4f-7), `MUTATION_TUNING` (Puddle, Soaked, Scorch, stun fatigue, slow cap, 40 kg trap limit, boss stagger, `tideLevel` 30).
+- `src/sim/mutations.ts` (new): `socketsUsed`, `mutationOffers` (INDEX offer filter for future map sites), `grantMutation` (debug: ignores stage/requirements, learns the move if a slot is free, replaces an existing Mutation, opens a replace window on 3 augments), `chooseMutationReplace` / `cancelMutationReplace`, `registerBuilt` / `isBuilt` (only built Mutations can be granted; **none are built yet**).
+- `src/sim/types.ts`: `MoveSlot.mutation` (takes one of the 3 sockets, single rank); offer kind `mutationReplace`. `progression.ts`: full-socket check counts the Mutation; the augment replace window can replace the Mutation socket. `balance.ts`: handles the new offer kind.
+- `src/scenes/RunScene.ts`: `?mutate=id,id` (all builds) and dev `window.__grantMutation(id)`; on-screen notice per grant (console warning on failure); replace windows show the Mutation socket; Mutation replace window (purple frame generic, gold Bond/signature); build panel lists `✦ Name (Mutation | Bond · Line | Signature · Line)`.
+- `src/data/content.ts`: **D20 speeds** (Charmander 153, Charmeleon 160, Charizard 170, Squirtle 142, Wartortle 149, Blastoise 159, Bulbasaur 143, Ivysaur 150, Venusaur 160, Pikachu 165, Raichu 175, Lapras 150); Lapras `signatureTiers` = Sheer Cold at Lv 25 only. `moves.ts`: Frost Breath removed.
+- `src/sim/balance.bench.ts`: 8 seeds (was 4), D19 target and an invulnerable-bot caveat in the report.
+- Docs: `PROJECT.md` (§6 Lapras, §8.7, §12 P4 row, D21), `docs/moveset/*` status headers + open points resolved, README engine notes use INDEX hook names.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **157/157 passed** (14 new: INDEX ↔ mutations.ts ID sync (110), per-row name/kind/move/line/stage/hook/requires/Tide/pool, hook + requirement vocabularies, Mutations on real line moves, ability-tier IDs (4 evolved tiers pending P4f-4), values finite, augment windows never contain a Mutation (5 lines × 300 seeded windows), Mutation socket + augment replacing it, grant notBuilt/wrongLine/learn move/replace Mutation/replace window cancel+choose, offer filter, scorchSource; Lapras tier tests rewritten for Lv 25 only; D20 speed table). `npm run build` passed.
+- `npm run balance` (8 seeds, 8m47s), **baseline without Mutations**:
+
+| Line | 5 min | 9 min | 15 min |
+|---|---|---|---|
+| Charmander | 92 / Lv 13 | 390 / Lv 24 | **1148** / Lv 41 |
+| Squirtle | 102 / Lv 12 | 368 / Lv 26 | **473** / Lv 42 |
+| Bulbasaur | 194 / Lv 15 | 559 / Lv 25 | **804** / Lv 41 |
+| Pikachu | 156 / Lv 15 | 373 / Lv 26 | **509** / Lv 38 |
+| Lapras | 145 / Lv 16 | 367 / Lv 28 | **585** / Lv 44 |
+
+  D19 not met yet: Blastoise (473) is below Raichu (509) and Lapras (585); Lapras is 15% above Raichu (target ≤ 10%). §5: Lapras no longer leads at 5 min (Bulbasaur 194, Pikachu 156). Tuning is planned per line in P4f-4 onward. (The P4d 4-seed numbers aren't directly comparable: more seeds, new speeds, no Frost Breath.)
+- Browser (dev server :5182, 1280×720): select card reads "Signature: Ice Shard (stronger at Lv 25)"; `?mutate=waterGun.slick,notAThing` on a Squirtle run showed both notices ("Can't grant Slick (Mutation): notBuilt", "Can't grant notAThing: unknownId") and console warnings. **Not verified:** the Esc build panel with a Mutation (synthetic keys don't reach Phaser in this pane; same limit as earlier phases) and the Mutation replace window (no built Mutation to grant yet; unit-tested).
+- Found: at ~400 px pane width the select screen's cards overlap and are unreadable (pre-existing, not in P4f scope).
+
+**Next:** P4f-2 hook layer (`src/sim/hooks.ts`, heal/kill routing, per-form Mutation hooks, `fromProc`, Puddle/Soaked, Scorch, guard rails).
+**Build:** runs.
+
 ### 2026-10-18 — Skill design: Squirtle line proposal (no code)
 - **Objective:** the owner appointed the agent head skill designer: make moves *change behaviour*, not just stats, and keep lines balanced. Squirtle line first, the others after review.
 - **Added (PROPOSAL only), `docs/moveset/`:**
