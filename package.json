@@ -10,6 +10,7 @@
     "test": "vitest run",
     "bench": "vitest bench --run --reporter=verbose src/sim/stress.bench.ts",
     "balance": "vitest bench --run src/sim/balance.bench.ts",
+    "mutations": "vitest bench --run src/sim/mutations.bench.ts",
     "preview": "vite preview"
   },
   "dependencies": {

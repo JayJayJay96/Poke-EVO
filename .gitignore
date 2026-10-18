@@ -8,3 +8,4 @@ coverage/
 .env.*
 !.env.example
 balance-report.md
+mutations-report.md

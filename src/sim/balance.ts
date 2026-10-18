@@ -63,8 +63,11 @@ function autoPick(world: World, rng: Rng): void {
   }
 }
 
-/** Swaps the horde for a dummy ring, measures DPS, then puts everything back. */
-function measureDps(world: World): number {
+/**
+ * Swaps the horde for a dummy ring, measures DPS, then puts everything back.
+ * `innerDist` is the closest ring (60 px by default; short-reach moves need a closer one).
+ */
+export function measureDps(world: World, innerDist = 60): number {
   const saved = { enemies: world.enemies, time: world.time, spawnEnabled: world.spawnEnabled };
   world.enemies = [];
   world.zones = [];
@@ -73,7 +76,7 @@ function measureDps(world: World): number {
   const { x, y } = world.player;
   const dummies = Array.from({ length: DUMMY_COUNT }, (_, i) => {
     const angle = (i / DUMMY_COUNT) * Math.PI * 2;
-    const dist = 60 + (i % 4) * 50;
+    const dist = innerDist + (i % 4) * 50;
     const e = spawnEnemy(world, 'raticate', x + Math.cos(angle) * dist, y + Math.sin(angle) * dist);
     e.maxHp = e.hp = DUMMY_HP;
     return { e, x: e.x, y: e.y };

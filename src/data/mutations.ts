@@ -124,6 +124,8 @@ export const MUTATIONS = {
   'withdraw.spikedShell': generic('withdraw', 'Spiked Shell', 'A 3 s contact-damage aura', {
     auraSeconds: 3,
     tickInterval: 0.5,
+    /** P4f-3 rule-4 tuning: 7 ticks per cast, so each tick is a fraction of a bash. */
+    tickDamageFraction: 0.28,
     moveSpeedMult: 0.8,
     cooldownMult: 1.6,
   }),

@@ -161,8 +161,8 @@ describe('Mutation sockets and offers', () => {
 
   it('grant: only built Mutations, only for the right line', () => {
     const w = world();
-    expect(isBuilt('waterGun.slick')).toBe(false);
-    expect(grantMutation(w, 'waterGun.slick')).toBe('notBuilt');
+    expect(isBuilt('surf.backwash')).toBe(false); // built in P4f-6
+    expect(grantMutation(w, 'surf.backwash')).toBe('notBuilt');
     registerBuilt('waterGun.slick');
     registerBuilt('ember.kindle');
     expect(grantMutation(w, 'ember.kindle')).toBe('wrongLine');

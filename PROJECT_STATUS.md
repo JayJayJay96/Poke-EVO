@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **Next: build P4f Mutations** (plan below), then the owner's P4 gate playtest.
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **P4f-1, P4f-2, P4f-3 done** (2026-10-18). **Next: owner feel check of the proof slice**, then P4f-4 (line mechanics), then the rest of P4f and the P4 gate playtest.
 
 ## P4 plan (owner-approved 2026-10-17, D13)
 **Gate:** do the starters feel truly different? Is picking a tier (3-stage / 2-stage / no evolution) a real gamble?
@@ -70,6 +70,30 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-18 — P4f-3: proof slice (Water Gun + Withdraw)
+**Files**
+- `src/sim/mutationDefs/waterGun.ts`: **Slick** (generic: −30% damage; each cast lays puddles edge to edge along the beam, 3 s, light enemies 15%/s slip for a 0.6 s stun with fatigue) and **Steady Aim** (Bond, `shellReady`: Shell up → beam +40% long, push ×2; Shell down → −25% damage).
+- `src/sim/mutationDefs/withdraw.ts`: **Spiked Shell** (generic: Withdraw becomes a 3 s aura hitting everything in reach every 0.5 s with stagger and no stun; −20% walk speed while up; cooldown ×1.6) and **Counter Shell** (Bond, `shellBlock`: a block resets Withdraw and that bash staggers ×2; −20% damage).
+- `src/sim/mutations.bench.ts` (new) + `npm run mutations`: rule-4 report → `mutations-report.md` (gitignored): each built Mutation alone on the dummy ring vs the same move with Power Up I (3 seeds). `balance.ts`: `measureDps` exported with an inner-ring option (the report uses 30 px so melee reaches count).
+- **Tuning (provisional):** Spiked Shell's aura ticks deal **28%** of a bash each (`tickDamageFraction`, new data value). As written (full damage every 0.5 s) it measured **3.9×** Power Up I.
+
+**Rule-4 report** (`npm run mutations`, observed):
+| Mutation | vs Power Up I | Note |
+|---|---|---|
+| Spiked Shell | 1.10 ✓ | after the 28% tuning |
+| Steady Aim | 0.87 ✓ | bot never hit, so Shell is always up (best case) |
+| Counter Shell | 0.70 ✗ | the invulnerable bot never blocks, so only the −20% shows. By hand, swarmed (a block every ~8 s adds one bash): ≈ 0.91 |
+| Slick | 0.61 ✗ | as designed: −30% damage paid for puddles, Soak and slips, which aren't damage |
+
+**Checks (observed)**
+- `npm test` **178/178 passed** (8 new in `mutationDefs/proofSlice.test.ts`: Slick puddle line + Soak + −30%, seeded slips, Steady Aim with Shell up/down, Spiked Shell aura ticks / no stun / walk speed / cooldown, no cast without a target, Counter Shell reset + ×2 stagger then back, offers and wrong line). `npm run build` passed. `npm run bench` mean **0.74 ms**/step (unchanged).
+- `npm run balance` **not re-run**: the bot never gets Mutations (site-only), so P4f-3 can't change its numbers.
+- Browser (:5181, 1280×720): `?mutate=waterGun.slick,withdraw.spikedShell` on Squirtle showed both notices and learned Water Gun + Withdraw with the Mutations. The pane's game loop stalled again (sim time stuck at 0.1 s), so the sim was stepped from the page via the dev module import: the beam laid 3 pale-blue puddles along its line, 5 enemies Soaked, the Spiked Shell aura drew as a ring and hit the touching Rattatas. **Not verified live:** slips at real speed, the feel of the aura (it redraws a 0.15 s ring every 0.5 s).
+
+**Owner question (raised at the feel check):** rule 4 is DPS-only, so pure-utility Mutations (Slick, later Wash Down, Moat…) will always read low. Count utility by playtest instead, or raise their damage?
+
+**Next:** owner feel check; then P4f-4.
 
 ### 2026-10-18 — P4f-2: Mutation hook layer, shared terrain, guard rails
 **Files**
