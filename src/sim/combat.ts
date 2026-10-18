@@ -116,8 +116,10 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const slot = hit.fromProc ? null : hit.slot;
   const hooks = slot ? hooksOf(slot) : undefined;
   const mutationMult = hooks?.damageMult ? hooks.damageMult(world, slot!, enemy) : 1;
+  // Vulnerability debuffs (Wash Down, Acid, Nightmare...): extra damage taken, for one type or all.
+  const vuln = enemy.vulnLeft > 0 && (enemy.vulnType === null || enemy.vulnType === hit.attackType) ? 1 + enemy.vulnPct : 1;
   const amount =
-    (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world) * (1 + missing) * typeMult * mutationMult;
+    (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world) * (1 + missing) * typeMult * mutationMult * vuln;
   const dealt = Math.min(enemy.hp, amount);
   enemy.hp -= amount;
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
@@ -191,6 +193,14 @@ export function canTrap(enemy: Enemy): boolean {
 export function applySlow(enemy: Enemy, slow: number, seconds: number): void {
   enemy.slow = enemy.slowLeft > 0 ? Math.max(enemy.slow, slow) : slow;
   enemy.slowLeft = Math.max(enemy.slowLeft, seconds);
+}
+
+/** A vulnerability debuff; a stronger one replaces a weaker one, the time refreshes. */
+export function applyVuln(enemy: Enemy, pct: number, seconds: number, type: Enemy['vulnType']): void {
+  if (enemy.vulnLeft > 0 && enemy.vulnPct > pct) return;
+  enemy.vulnPct = pct;
+  enemy.vulnType = type;
+  enemy.vulnLeft = Math.max(enemy.vulnLeft, seconds);
 }
 
 /** Leech Seed from a Mutation (Sap Lash): a stronger seed replaces a weaker one; the time refreshes. */
@@ -281,6 +291,7 @@ export function updateStatuses(world: World, dt: number): void {
       if (enemy.slowLeft <= 0) enemy.slow = 0;
     }
     if (enemy.soakLeft > 0) enemy.soakLeft = Math.max(0, enemy.soakLeft - dt);
+    if (enemy.vulnLeft > 0) enemy.vulnLeft = Math.max(0, enemy.vulnLeft - dt);
     if (enemy.stunFatigueLeft > 0) enemy.stunFatigueLeft = Math.max(0, enemy.stunFatigueLeft - dt);
     if (enemy.stunLeft > 0) {
       enemy.stunLeft = Math.max(0, enemy.stunLeft - dt);

@@ -19,7 +19,7 @@ export function castOrbit(_world: World, slot: MoveSlot, def: OrbitMoveDef): boo
 }
 
 export function orbitBalls(slot: MoveSlot, def: OrbitMoveDef, player: Player): OrbitBall[] {
-  const radius = def.orbitRadius * slot.stats.area;
+  const radius = def.orbitRadius * slot.stats.area * slot.stats.orbitRadiusMult;
   const r = def.ballRadius * slot.stats.area;
   const balls: OrbitBall[] = [];
   for (let i = 0; i < def.count; i++) {

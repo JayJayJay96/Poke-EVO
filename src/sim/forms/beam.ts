@@ -31,14 +31,24 @@ export function updateBeam(world: World, slot: MoveSlot, def: BeamMoveDef, dt: n
   if (slot.tickLeft > 0) return;
   slot.tickLeft += def.tickInterval;
 
+  const dirs = hooksOf(slot)?.beamDirs?.(world, slot);
+  if (!dirs) {
+    beamTick(world, slot, def, slot.dirX, slot.dirY);
+    return;
+  }
+  for (const [dx, dy] of dirs) beamTick(world, slot, def, dx, dy);
+}
+
+/** One damage tick along one beam direction. */
+function beamTick(world: World, slot: MoveSlot, def: BeamMoveDef, dirX: number, dirY: number): void {
   const { player, enemies } = world;
   const length = beamLength(slot, def);
   const halfWidth = (def.width * slot.stats.area) / 2;
-  const midX = player.x + (slot.dirX * length) / 2;
-  const midY = player.y + (slot.dirY * length) / 2;
+  const midX = player.x + (dirX * length) / 2;
+  const midY = player.y + (dirY * length) / 2;
   const hit = makeHitInfo(slot.stats, slot);
-  hit.dirX = slot.dirX;
-  hit.dirY = slot.dirY;
+  hit.dirX = dirX;
+  hit.dirY = dirY;
   queryEnemies(world, midX, midY, length / 2 + halfWidth, neighbours);
   for (const j of neighbours) {
     const enemy = enemies[j]!;
@@ -46,9 +56,9 @@ export function updateBeam(world: World, slot: MoveSlot, def: BeamMoveDef, dt: n
     // Distance from the enemy centre to the beam segment.
     const ex = enemy.x - player.x;
     const ey = enemy.y - player.y;
-    const along = Math.min(length, Math.max(0, ex * slot.dirX + ey * slot.dirY));
-    const cx = ex - slot.dirX * along;
-    const cy = ey - slot.dirY * along;
+    const along = Math.min(length, Math.max(0, ex * dirX + ey * dirY));
+    const cx = ex - dirX * along;
+    const cy = ey - dirY * along;
     const reach = halfWidth + enemy.radius;
     if (cx * cx + cy * cy > reach * reach) continue;
     damageEnemy(world, enemy, slot.stats.damage, hit);

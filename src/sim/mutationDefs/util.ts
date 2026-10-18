@@ -1,8 +1,10 @@
 import { POKEMON } from '../../data/content';
 import type { MoveId } from '../../data/moves';
 import type { MutationId } from '../../data/mutations';
+import type { ProjectileMoveDef } from '../../data/moves';
 import { queryEnemies } from '../combat';
-import type { Enemy, MoveSlot, MutationEntity, World } from '../types';
+import { castProjectile } from '../forms/projectile';
+import type { Enemy, MoveSlot, MutationEntity, Projectile, World } from '../types';
 
 // Small helpers shared by Mutation behaviours. No tuning numbers here.
 
@@ -19,6 +21,24 @@ function signatureChain(world: World): MoveId[] {
 /** Which tier the signature is at (0 = first form), so signature Mutations add their tier1 / tier2 parts. */
 export function signatureTier(world: World, slot: MoveSlot): number {
   return Math.max(0, signatureChain(world).indexOf(slot.moveId));
+}
+
+/** Fires the move with temporarily scaled damage / size; returns the projectiles it launched. */
+export function fireScaled(
+  world: World,
+  slot: MoveSlot,
+  def: ProjectileMoveDef,
+  damageMult: number,
+  areaMult: number,
+): Projectile[] | null {
+  const s = slot.stats;
+  const before = world.projectiles.length;
+  s.damage *= damageMult;
+  s.area *= areaMult;
+  const cast = castProjectile(world, slot, def);
+  s.damage /= damageMult;
+  s.area /= areaMult;
+  return cast ? world.projectiles.slice(before) : null;
 }
 
 export function spawnEntity(world: World, owner: MutationId, x: number, y: number, lifeLeft: number): MutationEntity {

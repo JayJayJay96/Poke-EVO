@@ -216,6 +216,9 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     fatigueOnEnd: false,
     trapLeft: 0,
     trapDamage: 0,
+    vulnPct: 0,
+    vulnLeft: 0,
+    vulnType: null,
   };
   world.enemies.push(enemy);
   return enemy;

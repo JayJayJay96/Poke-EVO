@@ -92,6 +92,10 @@ export interface Enemy {
   /** Bubble Trap: seconds until the bubble around it pops (0 = not trapped), and the pop damage. */
   trapLeft: number;
   trapDamage: number;
+  /** Takes extra damage for a while: +vulnPct from moves of vulnType (null = every source). */
+  vulnPct: number;
+  vulnLeft: number;
+  vulnType: PokemonType | null;
 }
 
 /**
@@ -317,6 +321,8 @@ export interface MoveStats {
   seedPct: number;
   /** Beam length / melee reach multiplier (Mutations); area still scales both. */
   reachMult: number;
+  /** Orbit radius multiplier (Spiral Spin); area still scales it. */
+  orbitRadiusMult: number;
 }
 
 export interface AugmentSocket {

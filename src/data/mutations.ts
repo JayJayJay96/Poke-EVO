@@ -145,7 +145,7 @@ export const MUTATIONS = {
   'rapidSpin.spiralSpin': generic('rapidSpin', 'Spiral Spin', 'Shells spiral out from 30 to 120 px', {
     innerRadius: 30,
     outerRadius: 120,
-    damageMult: 0.85,
+    damageMult: 0.9, // P4f-6 rule-4 tuning (doc: 0.85, 0.84x)
   }),
   'rapidSpin.deflector': generic('rapidSpin', 'Deflector', 'Shells eat enemy projectiles', {
     secondsPerDeflect: 0.3,
@@ -175,7 +175,7 @@ export const MUTATIONS = {
   }),
   'whirlpool.maelstrom': generic('whirlpool', 'Maelstrom', 'Pulls in, then collapses into a burst', {
     pullSpeed: 30,
-    collapseTickMult: 3,
+    collapseTickMult: 1.6, // P4f-6 rule-4 tuning (doc: 3, 1.33x)
     perEnemyPct: 0.15,
     maxEnemies: 10,
     cooldownMult: 1.4,
@@ -184,7 +184,7 @@ export const MUTATIONS = {
     innerRadius: 40,
     outerRadius: 90,
     slow: 0.7,
-    damageMult: 0.6,
+    damageMult: 0.5, // P4f-6 rule-4 tuning (doc: 0.6, 1.17x)
   }),
   'whirlpool.eyeOfTheStorm': bond('whirlpool', 'squirtle', 1, 'shellBurst', 'Eye of the Storm', 'Shell Burst drops a whirlpool at your feet', {
     sizeMult: 0.5,
@@ -195,11 +195,18 @@ export const MUTATIONS = {
     wallLength: 250,
     moveSpeedPct: 0.3,
     speedSeconds: 1,
+    // P4f-6 build values: how fast and far the wall rolls, and how far it carries light enemies.
+    waveSpeed: 300,
+    travel: 220,
+    carryPx: 40,
+    wallThickness: 24,
   }),
   'surf.backwash': generic('surf', 'Backwash', 'The wave rolls back in and pulls', {
-    returnDamageFraction: 0.5,
+    returnDamageFraction: 0.3, // P4f-6 rule-4 tuning (doc: 0.5, 1.30x)
     pullPx: 20,
     cooldownMult: 1.3,
+    /** P4f-6 build value: seconds until the wave rolls back in. */
+    returnDelay: 0.3,
   }),
   'surf.lastWave': bond('surf', 'squirtle', 0, 'hpBelow', 'Last Wave', 'Below 40% HP: faster, bigger Surf', {
     hpThreshold: 0.4,
@@ -209,10 +216,10 @@ export const MUTATIONS = {
   }),
   'hydroPump.splitStream': generic('hydroPump', 'Split Stream', 'Two beams at ±30°', {
     angleDeg: 30,
-    beamDamageFraction: 0.6,
+    beamDamageFraction: 0.33, // P4f-6 rule-4 tuning (doc: 0.6; two beams cover twice the crowd, 2.09x)
   }),
   'hydroPump.pressureBuild': generic('hydroPump', 'Pressure Build', 'Damage ramps each tick', {
-    rampPerTick: 0.25,
+    rampPerTick: 0.12, // P4f-6 rule-4 tuning (doc: 0.25, 1.34x)
     durationMult: 1.5,
     cooldownMult: 1.5,
   }),
@@ -220,13 +227,17 @@ export const MUTATIONS = {
     radius: 130,
     healPerEnemy: 1,
     maxHealPerSec: 4,
-    damageMult: 0.7,
+    damageMult: 0.1, // P4f-6 rule-4 tuning (doc: 0.7; a 130 px rain every tick instead of one beam line, 7.3x)
     pushMult: 0,
   }),
   'flashCannon.shrapnel': generic('flashCannon', 'Shrapnel', 'Shatters into 6 shards', {
     shards: 6,
     shardDamageFraction: 0.35,
     cooldownMult: 1.3,
+    // P4f-6 build values: shard flight.
+    shardSpeed: 400,
+    shardRange: 120,
+    shardRadius: 5,
   }),
   'flashCannon.railgun': generic('flashCannon', 'Railgun', 'Fires where you move; infinite pierce', {
     speedMult: 1.8,

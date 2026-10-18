@@ -1,5 +1,6 @@
 import { MOVES, type BeamMoveDef } from '../../data/moves';
 import { MUTATIONS, MUTATION_TUNING } from '../../data/mutations';
+import { applyVuln, soak } from '../combat';
 import { beamLength } from '../forms/beam';
 import { defineMutation, shellReady } from '../hooks';
 import { spawnPuddle } from '../terrain';
@@ -35,5 +36,18 @@ defineMutation('waterGun.steadyAim', {
     } else {
       s.damage *= steadyAim.damageMultShellDown;
     }
+  },
+});
+
+/** Wash Down (generic): a support beam. Soaks, and hit enemies take more from Water moves for a while. */
+const washDown = MUTATIONS['waterGun.washDown'].values;
+defineMutation('waterGun.washDown', {
+  stats: (s) => {
+    s.damage *= washDown.damageMult;
+    s.knockback *= washDown.pushMult;
+  },
+  onHit: (_world, _slot, enemy) => {
+    soak(enemy);
+    applyVuln(enemy, washDown.waterDamageTakenPct, washDown.debuffSeconds, 'Water');
   },
 });

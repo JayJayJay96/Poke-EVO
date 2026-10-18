@@ -160,8 +160,9 @@ describe('Mutation sockets and offers', () => {
 
   it('grant: only built Mutations, only for the right line', () => {
     const w = world();
-    expect(isBuilt('surf.backwash')).toBe(false); // built in P4f-6
-    expect(grantMutation(w, 'surf.backwash')).toBe('notBuilt');
+    // Any Mutation whose behaviour isn't built yet can't be granted (none left once P4f is done).
+    const unbuilt = MUTATION_IDS.find((id) => !isBuilt(id));
+    if (unbuilt) expect(grantMutation(w, unbuilt)).toBe('notBuilt');
     registerBuilt('waterGun.slick');
     registerBuilt('ember.kindle');
     expect(grantMutation(w, 'ember.kindle')).toBe('wrongLine');

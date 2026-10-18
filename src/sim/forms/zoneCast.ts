@@ -21,6 +21,7 @@ export function castZone(world: World, slot: MoveSlot, def: ZoneMoveDef): boolea
     s.damage * s.zoneDamageMult,
     s.critChance,
     { slow: s.slow, stun: s.stun, poisonDps: s.damage * s.poisonPct, attackType: s.attackType },
+    def.id,
   );
   return zone !== null;
 }

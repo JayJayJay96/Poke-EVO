@@ -1,35 +1,16 @@
 import { MOVES, type ProjectileMoveDef } from '../../data/moves';
 import { MUTATIONS, MUTATION_TUNING } from '../../data/mutations';
 import { findNearestEnemy } from '../combat';
-import { castProjectile } from '../forms/projectile';
 import { blazeActive, defineMutation } from '../hooks';
 import { spawnScorch } from '../terrain';
-import type { MoveSlot, Projectile, World } from '../types';
+import type { MoveSlot, World } from '../types';
 import { spawnZone, strikeZone } from '../zones';
-import { dirTo, entitiesOf, signatureTier, spawnEntity } from './util';
+import { dirTo, entitiesOf, fireScaled, signatureTier, spawnEntity } from './util';
 
 // Charmander signature Mutations: Ember → Flame Burst → Blast Burn (docs/moveset/charmander §3).
 // Each has a Blaze link (a bonus while Blaze is active) and keeps its earlier tiers (rule 10).
 
 const KINDLED = 1;
-
-/** Fires the move with temporarily scaled damage / size; returns the projectiles it launched. */
-function fireScaled(
-  world: World,
-  slot: MoveSlot,
-  def: ProjectileMoveDef,
-  damageMult: number,
-  areaMult: number,
-): Projectile[] | null {
-  const s = slot.stats;
-  const before = world.projectiles.length;
-  s.damage *= damageMult;
-  s.area *= areaMult;
-  const cast = castProjectile(world, slot, def);
-  s.damage /= damageMult;
-  s.area /= areaMult;
-  return cast ? world.projectiles.slice(before) : null;
-}
 
 // ── A. Kindle ───────────────────────────────────────────────────────────
 const kindle = MUTATIONS['ember.kindle'].values;

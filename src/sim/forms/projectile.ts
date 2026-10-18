@@ -151,6 +151,8 @@ export function updateProjectiles(world: World, dt: number): void {
     }
     if (proj.lifeLeft <= 0) {
       proj.dead = true;
+      const owner = proj.hit.slot;
+      if (owner && !proj.returning) hooksOf(owner)?.onProjectileExpire?.(world, owner, proj);
       continue;
     }
 

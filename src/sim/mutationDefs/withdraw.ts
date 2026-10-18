@@ -79,3 +79,19 @@ defineMutation('withdraw.counterShell', {
     slot.mutState.armed = 0;
   },
 });
+
+/** Hunker Down (generic): for a moment after each cast you take much less damage, but crawl. */
+const hunker = MUTATIONS['withdraw.hunkerDown'].values;
+defineMutation('withdraw.hunkerDown', {
+  stats: (s) => {
+    s.damage *= hunker.damageMult;
+  },
+  onCast: (_world, slot) => {
+    slot.mutState.buff = hunker.buffSeconds;
+  },
+  update: (_world, slot, dt) => {
+    if (slot.mutState.buff) slot.mutState.buff = Math.max(0, slot.mutState.buff - dt);
+  },
+  damageTakenMult: (_world, slot) => (slot.mutState.buff ? hunker.damageTakenMult : 1),
+  moveSpeedMult: (_world, slot) => (slot.mutState.buff ? hunker.moveSpeedMult : 1),
+});

@@ -147,6 +147,7 @@ export function computeMoveStats(
     seedPct: def.onHit?.seedPct ?? 0,
     attackType: moveType(def.tags),
     reachMult: 1,
+    orbitRadiusMult: 1,
   };
 }
 

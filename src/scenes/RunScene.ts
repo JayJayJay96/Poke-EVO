@@ -3,7 +3,7 @@ import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from 
 import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationId } from '../data/mutations';
-import { bulbCapacity, tideFlood } from '../sim/hooks';
+import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { isAbilityActive } from '../sim/combat';
@@ -866,7 +866,9 @@ export class RunScene extends Phaser.Scene {
       if (def.form !== 'beam' || slot.activeLeft <= 0) continue;
       const len = beamLength(slot, def);
       g.lineStyle(def.width * slot.stats.area, moveColor(slot.moveId, COLORS.beam), 0.85);
-      g.lineBetween(player.x, player.y, player.x + slot.dirX * len, player.y + slot.dirY * len);
+      // Mutations can split the beam or replace it (beamDirs).
+      const dirs = hooksOf(slot)?.beamDirs?.(this.world, slot) ?? [[slot.dirX, slot.dirY] as const];
+      for (const [dx, dy] of dirs) g.lineBetween(player.x, player.y, player.x + dx * len, player.y + dy * len);
     }
 
     for (const swing of swings) {
@@ -942,6 +944,26 @@ export class RunScene extends Phaser.Scene {
         case 'thunderShock.liveWire':
           g.lineStyle(2, COLORS.stun, 0.8);
           g.lineBetween(m.x, m.y, m.x2, m.y2);
+          break;
+        case 'whirlpool.moat':
+          g.lineStyle(m.radius - m.x2, COLORS.slow, 0.25);
+          g.strokeCircle(m.x, m.y, (m.radius + m.x2) / 2);
+          break;
+        case 'surf.rideTheWave': {
+          const len = Math.hypot(m.vx, m.vy) || 1;
+          const px = (-m.vy / len) * m.radius;
+          const py = (m.vx / len) * m.radius;
+          g.lineStyle(8, TYPE_COLORS.Water, 0.7);
+          g.lineBetween(m.x - px, m.y - py, m.x + px, m.y + py);
+          break;
+        }
+        case 'hydroPump.rainCannon':
+          g.fillStyle(TYPE_COLORS.Water, 0.15);
+          g.fillCircle(m.x, m.y, m.radius);
+          break;
+        case 'flashCannon.shrapnel':
+          g.fillStyle(TYPE_COLORS.Steel, 1);
+          g.fillCircle(m.x, m.y, m.radius);
           break;
       }
     }
