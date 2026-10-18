@@ -3,6 +3,16 @@ import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } fro
 import { MOVES, type MoveDef } from '../data/moves';
 import { BOOST_IDS, type BoostId } from '../data/upgrades';
 import { WAVES, type WaveKeyframe } from '../data/waves';
+import {
+  addCharge,
+  chargedShotMult,
+  chargePerParalysis,
+  chargePerPx,
+  onLowHpHit,
+  onShellBlock,
+  onShellHitTaken,
+  updateAbilities,
+} from './abilities';
 import { enemySpeedFactor, queryEnemies, updateStatuses } from './combat';
 import { startEvolutionIfDue, upgradeSignatureByLevel } from './evolution';
 import { castBeam, updateBeam } from './forms/beam';
@@ -60,6 +70,12 @@ export function createWorld({
       stillFor: 0,
       faceX: 1,
       faceY: 0,
+      shellBlocks: 0,
+      flareCooldownLeft: 0,
+      bulb: 0,
+      bloomCooldownLeft: 0,
+      emergencyCooldownLeft: 0,
+      charge: 0,
     },
     enemies: [],
     projectiles: [],
@@ -111,6 +127,7 @@ export function step(world: World, input: InputState, dt: number): void {
   rebuildHash(world);
   moveEnemies(world, dt);
   updateStatuses(world, dt);
+  updateAbilities(world, dt);
   updateMoves(world, dt);
   updateProjectiles(world, dt);
   updateZones(world, dt);
@@ -240,6 +257,8 @@ function movePlayer(world: World, input: InputState, dt: number): void {
   const speed = p.speed * mutationMoveSpeedMult(world);
   p.x += mx * speed * dt;
   p.y += my * speed * dt;
+  // Pikachu's Charge fills with distance run.
+  if (len2 > 0) addCharge(world, Math.min(1, len2) * speed * dt * chargePerPx(world));
 }
 
 function updateSpawner(world: World, dt: number): void {
@@ -315,7 +334,12 @@ function updateMoves(world: World, dt: number): void {
     slot.cooldownLeft = Math.max(0, slot.cooldownLeft - dt);
     // A move with no valid target stays ready and fires the moment one appears.
     if (slot.cooldownLeft <= 0) {
+      // Pikachu at full Charge: the next signature cast is a Charged shot.
+      const charged = slot === world.moves[0] ? chargedShotMult(world) : 1;
+      slot.stats.damage *= charged;
       const cast = hooks?.cast ? hooks.cast(world, slot) : castMove(world, slot, def);
+      slot.stats.damage /= charged;
+      if (cast && charged > 1) world.player.charge = 0;
       if (cast) {
         slot.cooldownLeft = slot.stats.cooldown;
         hooks?.onCast?.(world, slot);
@@ -399,7 +423,10 @@ function applyContactDamage(world: World): void {
     const wasStunned = enemy.stunLeft > 0;
     if (ability.contactStun) {
       enemy.stunLeft = Math.max(enemy.stunLeft, ability.contactStun);
-      if (!wasStunned) emit(world, 'staticProc', 1);
+      if (!wasStunned) {
+        addCharge(world, chargePerParalysis(world));
+        emit(world, 'staticProc', 1);
+      }
     }
     if (hurt || wasStunned || player.invulnLeft > 0) continue;
     hurt = true; // one hit per step
@@ -407,11 +434,15 @@ function applyContactDamage(world: World): void {
     if (ability.blockEvery && player.blockReadyLeft <= 0) {
       // Shell: this hit is blocked; the shell recharges.
       player.blockReadyLeft = ability.blockEvery;
+      onShellBlock(world);
       emit(world, 'shellBlock', enemy.contactDamage);
       continue;
     }
     const taken = enemy.contactDamage * world.mods.damageTakenMult * mutationDamageTakenMult(world);
+    const hpBefore = player.hp;
     player.hp = Math.max(0, player.hp - taken);
+    onShellHitTaken(world);
+    onLowHpHit(world, hpBefore);
     player.hurtFlashLeft = TUNING.player.hurtFlashSeconds;
     // Shell Armor's share of the reduction, for armorAbsorb (Lapras).
     const armor = -(ability.damageTakenPct ?? 0);

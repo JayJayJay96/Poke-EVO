@@ -182,6 +182,12 @@ export function canTrap(enemy: Enemy): boolean {
   return !def.boss && def.weightKg < MUTATION_TUNING.trapMaxWeightKg;
 }
 
+/** A slow with its own duration (ability bursts); a stronger slow wins. */
+export function applySlow(enemy: Enemy, slow: number, seconds: number): void {
+  enemy.slow = enemy.slowLeft > 0 ? Math.max(enemy.slow, slow) : slow;
+  enemy.slowLeft = Math.max(enemy.slowLeft, seconds);
+}
+
 /** Soaked (shared Water terrain): refreshes. */
 export function soak(enemy: Enemy, seconds: number = MUTATION_TUNING.soaked.seconds): void {
   enemy.soakLeft = Math.max(enemy.soakLeft, seconds);

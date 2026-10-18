@@ -33,7 +33,12 @@ export type AbilityId =
   | 'static'
   | 'staticPlus'
   | 'lightningRod'
-  | 'shellArmor';
+  | 'shellArmor'
+  // Evolved ability tiers (docs/moveset, D21): granted automatically at the line's middle stage.
+  | 'shell.tidalGuard'
+  | 'blaze.flareUp'
+  | 'leech.bloom'
+  | 'static.discharge';
 
 /** One form of an evolution line. Later stages: bigger and stronger (D3 early-vs-late gamble). */
 export interface EvolutionStage {
@@ -52,6 +57,8 @@ export interface EvolutionStage {
   readonly signatureMove: MoveId;
   /** If set, evolving into this stage asks the player to pick one of these traits (D11). */
   readonly abilityChoices?: readonly AbilityId[];
+  /** Evolved ability tier this stage grants automatically (before any trait choice). */
+  readonly ability?: AbilityId;
 }
 
 /** Non-evolver signature tier (§4): replaces the signature at this level, keeping its augments. */
@@ -103,6 +110,68 @@ export interface AbilityDef {
   readonly moveSpeedPct?: number;
   /** Multiplicative cooldown cut, like a boost. */
   readonly cooldownPct?: number;
+  /** Shell rework (Squirtle line): recharge cut by hits, pop ring, Shell Burst from Wartortle. */
+  readonly shell?: ShellDef;
+  /** Flare Up (Charmeleon+): a panic nova when a hit drops you low. */
+  readonly flareUp?: FlareUpDef;
+  /** The Bulb (Ivysaur+): overheal fills it; full, it Blooms. */
+  readonly bulb?: BulbDef;
+  /** Charge (Pikachu line): running fills it; full, a Charged shot or (Raichu) a Discharge. */
+  readonly charge?: ChargeDef;
+}
+
+export interface ShellDef {
+  /** Each hit taken while Shell is down cuts the recharge by this many seconds. */
+  readonly rechargeCutPerHit: number;
+  /** A block pops a ring that staggers (no damage). */
+  readonly popRadius: number;
+  readonly popStagger: number;
+  /** Shell Burst every Nth block (Wartortle+): Water damage = max HP × fraction, stagger, Soak. */
+  readonly burst?: {
+    readonly every: number;
+    readonly radius: number;
+    readonly maxHpFraction: number;
+    readonly stagger: number;
+  };
+  /** Rain Dish twist: each block heals this fraction of max HP. */
+  readonly blockHealMaxHpFraction?: number;
+}
+
+export interface FlareUpDef {
+  /** A hit that takes HP from at/above this fraction to below it erupts. */
+  readonly threshold: number;
+  readonly radius: number;
+  /** Nova damage = the signature's hit damage × this. */
+  readonly signatureHitMult: number;
+  /** Burn per second as a fraction of the nova hit. */
+  readonly burnFraction: number;
+  readonly invulnSeconds: number;
+  readonly cooldown: number;
+  /** Solar Power twist: Scorch patches left in a ring. */
+  readonly scorchRing?: number;
+}
+
+export interface BulbDef {
+  readonly capacityMaxHpFraction: number;
+  readonly bloomRadius: number;
+  /** Bloom damage = stored amount × this. */
+  readonly bloomMult: number;
+  readonly bloomSlow: number;
+  readonly bloomSlowSeconds: number;
+  /** At most one Bloom per this many seconds. */
+  readonly minInterval: number;
+  /** Overgrow+ twist: dropping below `hpBelow` with the Bulb at least `minFill` full heals you with it. */
+  readonly emergency?: { readonly hpBelow: number; readonly minFill: number; readonly cooldown: number };
+}
+
+export interface ChargeDef {
+  readonly pxPerCharge: number;
+  readonly perParalysis: number;
+  readonly max: number;
+  /** Pikachu: full Charge makes the next signature shot deal × this. */
+  readonly chargedShotMult?: number;
+  /** Raichu: full Charge releases a Discharge instead. */
+  readonly discharge?: { readonly radius: number; readonly signatureHitMult: number; readonly paralyseSeconds: number };
 }
 
 export interface EnemyDef {
@@ -142,6 +211,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
       },
       {
         name: 'Charmeleon',
+        ability: 'blaze.flareUp',
         level: 10,
         types: ['Fire'],
         maxHp: 140,
@@ -189,6 +259,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
       },
       {
         name: 'Wartortle',
+        ability: 'shell.tidalGuard',
         level: 10,
         types: ['Water'],
         maxHp: 170,
@@ -204,7 +275,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         maxHp: 250,
         speed: 159,
         radius: 20,
-        damageMult: 1.3,
+        damageMult: 1.7, // D19: 3-stage final forms out-damage Raichu and Lapras (was 1.3)
         signatureMove: 'hydroCannon',
         abilityChoices: ['torrentPlus', 'rainDish'],
       },
@@ -238,6 +309,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
       },
       {
         name: 'Ivysaur',
+        ability: 'leech.bloom',
         level: 10,
         types: ['Grass', 'Poison'],
         maxHp: 150,
@@ -287,6 +359,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
       },
       {
         name: 'Raichu',
+        ability: 'static.discharge',
         level: 16,
         types: ['Electric'],
         maxHp: 170,
@@ -335,6 +408,32 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
   },
 };
 
+// Line mechanics and evolved tiers (docs/moveset/<line>/README.md, D21). Final traits keep the
+// base ability and its evolved tier, and add their twist.
+const SHELL: ShellDef = { rechargeCutPerHit: 1, popRadius: 50, popStagger: 20 };
+const SHELL_BURST = { every: 3, radius: 120, maxHpFraction: 0.1, stagger: 25 } as const;
+const TIDAL_GUARD: ShellDef = { ...SHELL, burst: SHELL_BURST };
+const FLARE_UP: FlareUpDef = {
+  threshold: 0.3,
+  radius: 140,
+  signatureHitMult: 3,
+  burnFraction: 0.2,
+  invulnSeconds: 1,
+  cooldown: 25,
+};
+const BULB: BulbDef = {
+  capacityMaxHpFraction: 0.4,
+  bloomRadius: 140,
+  // P4f-4 tuning: 1.5× / 3 s was +46% Venusaur DPS on the balance bot (the burst hits a crowd).
+  bloomMult: 0.5,
+  bloomSlow: 0.3,
+  bloomSlowSeconds: 2,
+  minInterval: 4,
+};
+const CHARGE: ChargeDef = { pxPerCharge: 20, perParalysis: 15, max: 100, chargedShotMult: 2 };
+const DISCHARGE = { radius: 150, signatureHitMult: 3, paralyseSeconds: 0.4 } as const;
+const RAICHU_CHARGE: ChargeDef = { pxPerCharge: 20, perParalysis: 15, max: 100, discharge: DISCHARGE };
+
 export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
   blaze: {
     id: 'blaze',
@@ -343,68 +442,117 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     lowHpThreshold: 0.3,
     lowHpDamageBonus: 0.5,
   },
-  // Charizard trait choice (D11).
+  'blaze.flareUp': {
+    id: 'blaze.flareUp',
+    name: 'Blaze — Flare Up',
+    description: 'Blaze; a hit that drops you below 30% HP erupts a fire nova, 1 s invulnerable (every 25 s)',
+    lowHpThreshold: 0.3,
+    lowHpDamageBonus: 0.5,
+    flareUp: FLARE_UP,
+  },
+  // Charizard trait choice (D11), each with a Flare Up twist.
   blazePlus: {
     id: 'blazePlus',
     name: 'Blaze+',
-    description: 'Below 40% HP: +70% damage',
+    description: 'Below 40% HP: +70% damage; Flare Up every 15 s',
     lowHpThreshold: 0.4,
     lowHpDamageBonus: 0.7,
+    flareUp: { ...FLARE_UP, threshold: 0.4, cooldown: 15 },
   },
   solarPower: {
     id: 'solarPower',
     name: 'Solar Power',
-    description: 'Fire moves +30% damage, but lose 1 HP/s (never below 1)',
+    description: 'Fire moves +30% damage, lose 1 HP/s (never below 1); Flare Up +50% wider, leaves Scorch',
     typeBoost: { type: 'Fire', damagePct: 0.3 },
     hpDrainPerSec: 1,
+    flareUp: { ...FLARE_UP, radius: FLARE_UP.radius * 1.5, scorchRing: 6 },
   },
   // P4 lines (D13). Final-stage traits keep the base ability and add to it.
-  shell: { id: 'shell', name: 'Shell', description: 'Blocks one hit every 8 s', blockEvery: 8 },
+  shell: {
+    id: 'shell',
+    name: 'Shell',
+    description: 'Blocks one hit every 8 s (hits while down speed it up); a block pops a stagger ring',
+    blockEvery: 8,
+    shell: SHELL,
+  },
+  'shell.tidalGuard': {
+    id: 'shell.tidalGuard',
+    name: 'Shell — Tidal Guard',
+    description: 'Shell; every 3rd block releases a Shell Burst',
+    blockEvery: 8,
+    shell: TIDAL_GUARD,
+  },
   torrentPlus: {
     id: 'torrentPlus',
     name: 'Torrent+',
-    description: 'Shell, and below 40% HP: +70% damage',
+    description: 'Shell, below 40% HP: +70% damage; Shell Burst every 2nd block',
     blockEvery: 8,
     lowHpThreshold: 0.4,
     lowHpDamageBonus: 0.7,
+    shell: { ...SHELL, burst: { ...SHELL_BURST, every: 2 } },
   },
   rainDish: {
     id: 'rainDish',
     name: 'Rain Dish',
-    description: 'Shell, and regenerate 1.5 HP/s',
+    description: 'Shell, regenerate 1.5 HP/s; each block heals 3% of max HP',
     blockEvery: 8,
     regenPerSec: 1.5,
+    shell: { ...TIDAL_GUARD, blockHealMaxHpFraction: 0.03 },
   },
   leech: { id: 'leech', name: 'Leech', description: 'Heal 3% of all damage dealt', lifesteal: 0.03 },
+  'leech.bloom': {
+    id: 'leech.bloom',
+    name: 'Leech — Bulb Bloom',
+    description: 'Leech; overheal fills the Bulb, which Blooms when full',
+    lifesteal: 0.03,
+    bulb: BULB,
+  },
   overgrowPlus: {
     id: 'overgrowPlus',
     name: 'Overgrow+',
-    description: 'Leech, and below 40% HP: +70% damage',
+    description: 'Leech + Bulb, below 40% HP: +70% damage; a half-full Bulb heals you when you drop low (20 s)',
     lifesteal: 0.03,
     lowHpThreshold: 0.4,
     lowHpDamageBonus: 0.7,
+    bulb: { ...BULB, emergency: { hpBelow: 0.4, minFill: 0.5, cooldown: 20 } },
   },
   chlorophyll: {
     id: 'chlorophyll',
     name: 'Chlorophyll',
-    description: 'Leech, +15% move speed, −10% cooldown',
+    description: 'Leech + Bulb, +15% move speed, −10% cooldown; smaller Bulb (more Blooms)',
     lifesteal: 0.03,
     moveSpeedPct: 0.15,
     cooldownPct: 0.1,
+    bulb: { ...BULB, capacityMaxHpFraction: BULB.capacityMaxHpFraction * 0.7 },
   },
-  static: { id: 'static', name: 'Static', description: 'Enemies touching you are paralysed for 1 s', contactStun: 1 },
+  static: {
+    id: 'static',
+    name: 'Static',
+    description: 'Touchers are paralysed 1 s; running fills Charge for a ×2 shot',
+    contactStun: 1,
+    charge: CHARGE,
+  },
+  'static.discharge': {
+    id: 'static.discharge',
+    name: 'Static — Discharge',
+    description: 'Static; full Charge releases a Discharge around you',
+    contactStun: 1,
+    charge: RAICHU_CHARGE,
+  },
   staticPlus: {
     id: 'staticPlus',
     name: 'Static+',
-    description: 'Enemies touching you are paralysed for 2 s',
+    description: 'Touchers are paralysed 2 s; each paralysis +30 Charge; Discharge',
     contactStun: 2,
+    charge: { ...RAICHU_CHARGE, perParalysis: 30 },
   },
   lightningRod: {
     id: 'lightningRod',
     name: 'Lightning Rod',
-    description: 'Static, and Electric moves +30% damage',
+    description: 'Static, Electric moves +30% damage; Discharge +40% wider',
     contactStun: 1,
     typeBoost: { type: 'Electric', damagePct: 0.3 },
+    charge: { ...RAICHU_CHARGE, discharge: { ...DISCHARGE, radius: DISCHARGE.radius * 1.4 } },
   },
   shellArmor: { id: 'shellArmor', name: 'Shell Armor', description: 'Take 15% less damage', damageTakenPct: -0.15 },
 };

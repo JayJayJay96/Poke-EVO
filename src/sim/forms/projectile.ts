@@ -246,7 +246,7 @@ function detonate(world: World, proj: Projectile, primary: Enemy): void {
       if (dx * dx + dy * dy > reach * reach) continue;
       damageEnemy(world, enemy, proj.damage * proj.explodeFraction, proj.hit);
     }
-    world.blasts.push({ x: proj.x, y: proj.y, radius: proj.explodeRadius, lifeLeft: BLAST_SECONDS });
+    world.blasts.push({ x: proj.x, y: proj.y, radius: proj.explodeRadius, lifeLeft: BLAST_SECONDS, type: null });
   }
   // One crater per projectile, on its first hit, so Pierce can't chain craters (D11).
   if (proj.craterRadius > 0 && !proj.craterSpawned) {

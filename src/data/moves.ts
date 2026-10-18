@@ -729,7 +729,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     tags: ['Ice', 'Projectile', 'Area', 'Zone'],
     form: 'projectile',
     cooldown: 0.9,
-    damage: 12,
+    damage: 10.5, // D19: Lapras's late game below the 3-stage finals (was 12)
     range: 340,
     projectileSpeed: 460,
     projectileRadius: 9,

@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
 import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
-import { MUTATIONS, type MutationId } from '../data/mutations';
+import { MUTATION_TUNING, MUTATIONS, type MutationId } from '../data/mutations';
+import { bulbCapacity, tideFlood } from '../sim/hooks';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { isAbilityActive } from '../sim/combat';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
@@ -66,6 +67,8 @@ const COLORS = {
   /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
   mutation: 0xb46cff,
   puddle: 0x9fd8ff,
+  bulbFull: 0xff7ad9,
+  cheek: 0xff3030,
   bond: 0xffc83d,
 } as const;
 /** Player and move colours by Pokémon type, so each line reads differently in grey-box. */
@@ -878,9 +881,10 @@ export class RunScene extends Phaser.Scene {
     }
 
     // Explosion flashes: bright, quick, slightly expanding.
+    // Ability bursts (Shell Burst, Flare Up, Bloom, Discharge) last longer and use their type's colour.
     for (const blast of blasts) {
-      const t = 1 - blast.lifeLeft / BLAST_SECONDS;
-      g.fillStyle(COLORS.blast, 0.55 * (1 - t));
+      const t = 1 - blast.lifeLeft / (blast.type ? BLAST_SECONDS * 2 : BLAST_SECONDS);
+      g.fillStyle(blast.type ? TYPE_COLORS[blast.type] : COLORS.blast, 0.55 * (1 - t));
       g.fillCircle(blast.x, blast.y, blast.radius * (0.7 + 0.3 * t));
     }
 
@@ -933,12 +937,33 @@ export class RunScene extends Phaser.Scene {
       g.strokeCircle(player.x, player.y, player.radius + 8);
     }
 
+    // The Bulb (Ivysaur+): a ring that fills, green turning pink, with stored overheal.
+    const bulbCap = bulbCapacity(this.world);
+    if (bulbCap > 0) {
+      const fill = player.bulb / bulbCap;
+      g.lineStyle(3, fill >= 0.75 ? COLORS.bulbFull : COLORS.seed, 0.9);
+      g.beginPath();
+      g.arc(player.x, player.y, player.radius + 12, -Math.PI / 2, -Math.PI / 2 + fill * Math.PI * 2);
+      g.strokePath();
+    }
+
+
     // Blink while invulnerable.
     const blinkOff = player.invulnLeft > 0 && Math.floor(this.world.time * 20) % 2 === 0;
     if (!blinkOff) {
       const bodyColor = TYPE_COLORS[currentStage(this.world).types[0] ?? 'Normal'];
       g.fillStyle(player.hurtFlashLeft > 0 ? COLORS.flash : bodyColor, 1);
       g.fillRect(player.x - player.radius, player.y - player.radius, player.radius * 2, player.radius * 2);
+    }
+
+    // Charge (Pikachu line): two red cheek dots glowing brighter as it fills.
+    const charge = ABILITIES[player.ability].charge;
+    if (charge) {
+      const fill = player.charge / charge.max;
+      g.fillStyle(COLORS.cheek, 0.2 + 0.8 * fill);
+      const r = fill >= 1 ? 5 : 3;
+      g.fillCircle(player.x - player.radius * 0.6, player.y + player.radius * 0.3, r);
+      g.fillCircle(player.x + player.radius * 0.6, player.y + player.radius * 0.3, r);
     }
 
     // HP bar above the player.
@@ -960,9 +985,16 @@ export class RunScene extends Phaser.Scene {
     const itemNames = items.length ? items.map((id) => ITEMS[id].name).join(', ') : '—';
     const ability = ABILITIES[player.ability];
     const abilityTag = isAbilityActive(this.world) ? `   ${ability.name.toUpperCase()}!` : '';
+    // Lapras's Tide (D18): its Bonds are at full strength (Flood) until Lv 30, then Ebb.
+    const tide =
+      player.pokemonId === 'lapras'
+        ? tideFlood(this.world)
+          ? `   ≋ Tide: Flood (ebbs at Lv ${MUTATION_TUNING.tideLevel})`
+          : '   ~ Tide: Ebb'
+        : '';
     this.hud.setText(
       `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${Math.round(player.maxHp)}${abilityTag}   ` +
-        `${formatTime(time)} / ${formatTime(TUNING.runSeconds)}   KOs ${kills}   on field ${enemies.length}\n` +
+        `${formatTime(time)} / ${formatTime(TUNING.runSeconds)}   KOs ${kills}   on field ${enemies.length}${tide}\n` +
         `Moves: ${moveNames}   Items: ${itemNames}   (Esc: build)`,
     );
 

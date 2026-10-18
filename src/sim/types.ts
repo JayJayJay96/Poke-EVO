@@ -38,6 +38,16 @@ export interface Player {
   /** Last movement direction (unit vector), for moves aimed with your feet. */
   faceX: number;
   faceY: number;
+  /** Line mechanics (docs/moveset): Shell blocks so far (Shell Burst counts them). */
+  shellBlocks: number;
+  /** Seconds until Flare Up can erupt again. */
+  flareCooldownLeft: number;
+  /** The Bulb's stored overheal, and timers for Bloom and Overgrow+'s emergency heal. */
+  bulb: number;
+  bloomCooldownLeft: number;
+  emergencyCooldownLeft: number;
+  /** Pikachu's Charge, 0..max. */
+  charge: number;
 }
 
 export interface Enemy {
@@ -215,6 +225,8 @@ export interface Blast {
   y: number;
   radius: number;
   lifeLeft: number;
+  /** Ability bursts are drawn in their type's colour; null = the default explosion colour. */
+  type: PokemonType | null;
 }
 
 export interface Gem {

@@ -30,6 +30,8 @@ export function finishEvolutionCinematic(world: World): void {
   if (evo?.phase !== 'cinematic') return;
   const stage = POKEMON[world.player.pokemonId].stages[evo.toStage]!;
   world.player.stage = evo.toStage;
+  // Evolved ability tier (docs/moveset): replaced by the trait if this stage offers a choice.
+  if (stage.ability) world.player.ability = stage.ability;
   // The signature slot upgrades to the new tier. Its augments stay valid:
   // each tier keeps the previous tags and only adds new ones (§8.6).
   const signature = world.moves[0];

@@ -1,5 +1,5 @@
 import { ABILITIES } from '../data/content';
-import type { MutationId } from '../data/mutations';
+import { MUTATION_TUNING, type MutationId } from '../data/mutations';
 import type { Enemy, MoveSlot, MoveStats, World } from './types';
 
 // Mutation hook layer (P4f-2). Each Mutation is a small set of named functions (§8.8) registered
@@ -94,14 +94,26 @@ export function mutationDamageTakenMult(world: World): number {
   return mult;
 }
 
-/** The single healing path: caps at max HP, tells the hooks, returns the HP actually restored. */
+/**
+ * The single healing path: caps at max HP, tells the hooks, returns the HP actually restored.
+ * Healing past max HP fills the Bulb (Ivysaur+, docs/moveset/bulbasaur).
+ */
 export function healPlayer(world: World, amount: number): number {
   const p = world.player;
   if (amount <= 0 || p.hp <= 0) return 0;
   const healed = Math.min(amount, p.maxHp - p.hp);
   p.hp += healed;
   if (healed > 0) emit(world, 'healing', healed);
+  const overheal = amount - healed;
+  const cap = bulbCapacity(world);
+  if (overheal > 0 && cap > 0) p.bulb = Math.min(cap, p.bulb + overheal);
   return healed;
+}
+
+/** The Bulb's capacity for the current ability (0 = no Bulb). */
+export function bulbCapacity(world: World): number {
+  const bulb = ABILITIES[world.player.ability].bulb;
+  return bulb ? world.player.maxHp * bulb.capacityMaxHpFraction : 0;
 }
 
 // ── State hooks (INDEX.md: state / gradient) ───────────────────────────────
@@ -143,6 +155,11 @@ export function standingStill(world: World, seconds: number): boolean {
 /** `levelBelow` with the Bond's own threshold. */
 export function levelBelow(world: World, level: number): boolean {
   return world.level < level;
+}
+
+/** The Tide (Lapras, D18): Bonds use their Flood values before `tideLevel`, Ebb values from it. */
+export function tideFlood(world: World): boolean {
+  return world.level < MUTATION_TUNING.tideLevel;
 }
 
 /** `targetBurning` */

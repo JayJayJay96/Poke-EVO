@@ -95,11 +95,10 @@ describe('Mutation registry (docs/moveset/INDEX.md ↔ src/data/mutations.ts)', 
     }
   });
 
-  it('ability tiers in INDEX.md exist in content.ts (evolved tiers arrive in P4f-4)', () => {
-    const pending = ['shell.tidalGuard', 'blaze.flareUp', 'leech.bloom', 'static.discharge'];
+  it('ability tiers in INDEX.md and content.ts match exactly', () => {
     const ids = tableRows('## Ability tiers').map((r) => code(r[0]!));
     expect(ids.length).toBe(17);
-    for (const id of ids) expect(id in ABILITIES || pending.includes(id), id).toBe(true);
+    for (const id of ids) expect(id in ABILITIES, id).toBe(true);
     for (const id of Object.keys(ABILITIES) as AbilityId[]) expect(ids, id).toContain(id);
   });
 
