@@ -222,6 +222,8 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     vulnPct: 0,
     vulnLeft: 0,
     vulnType: null,
+    weakenMult: 1,
+    weakenLeft: 0,
   };
   world.enemies.push(enemy);
   return enemy;
@@ -448,7 +450,8 @@ function applyContactDamage(world: World): void {
       emit(world, 'shellBlock', enemy.contactDamage);
       continue;
     }
-    const taken = enemy.contactDamage * world.mods.damageTakenMult * mutationDamageTakenMult(world);
+    const contact = enemy.contactDamage * (enemy.weakenLeft > 0 ? enemy.weakenMult : 1);
+    const taken = contact * world.mods.damageTakenMult * mutationDamageTakenMult(world);
     const hpBefore = player.hp;
     player.hp = Math.max(0, player.hp - taken);
     onShellHitTaken(world);
@@ -456,7 +459,7 @@ function applyContactDamage(world: World): void {
     player.hurtFlashLeft = TUNING.player.hurtFlashSeconds;
     // Shell Armor's share of the reduction, for armorAbsorb (Lapras).
     const armor = -(ability.damageTakenPct ?? 0);
-    if (armor > 0) emit(world, 'armorAbsorb', enemy.contactDamage * armor);
+    if (armor > 0) emit(world, 'armorAbsorb', contact * armor);
     emit(world, 'hitTaken', taken);
     if (player.hp <= 0) world.status = 'fainted';
   }

@@ -734,12 +734,17 @@ export const MUTATIONS = {
   'bodySlam.bellyFlop': generic('bodySlam', 'Belly Flop', 'Hop, then a 360° slam', {
     radius: 90,
     delaySeconds: 0.3,
-    cooldownMult: 1.25,
+    /** P4f-6 rule-4 tuning: 1.25 read 1.74; 2 reads 1.16, ~1.04 at the steady cast rate (the 10 s window fits 4 slams). */
+    cooldownMult: 2,
   }),
   'bodySlam.shockwave': generic('bodySlam', 'Shockwave', 'A ground wave 150 px forward', {
     waveLength: 150,
     waveDamageFraction: 0.4,
-    damageMult: 0.85,
+    /** P4f-6 rule-4 tuning: 0.85 read 1.23. */
+    damageMult: 0.75,
+    // P4f-6 build values: the wave front.
+    waveSpeed: 450,
+    waveRadius: 30,
   }),
   'bodySlam.surge': {
     ...bond('bodySlam', 'lapras', 0, 'levelUp', 'Surging Slam', 'Level-ups empower the next slams', {
@@ -752,6 +757,9 @@ export const MUTATIONS = {
     wallWidth: 80,
     wallSeconds: 2,
     damageMult: 0.7,
+    /** P4f-6 build values: how thick the wall is, and how many can stand at once. */
+    wallThickness: 12,
+    maxWalls: 3,
   }),
   'iceBeam.aurora': generic('iceBeam', 'Aurora Beam', 'Hit enemies deal −20% contact damage', {
     contactDamageMult: 0.8,

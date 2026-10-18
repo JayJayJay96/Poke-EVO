@@ -26,6 +26,9 @@ import './electroBall';
 import './thunderWave';
 import './ironTail';
 import './thunder';
+// P4f-6e: Lapras-line learnset moves.
+import './bodySlam';
+import './iceBeam';
 // Signature Mutations (P4f-5): evolve with the line's signature tiers.
 import './bubble';
 import './ember';

@@ -912,6 +912,11 @@ export class RunScene extends Phaser.Scene {
       ring(e.slowLeft > 0, COLORS.slow);
       ring(e.stunLeft > 0, COLORS.stun);
       ring(e.seedLeft > 0, COLORS.seed);
+      // Aurora Beam: weakened enemies wear a pale ring.
+      if (e.weakenLeft > 0) {
+        g.lineStyle(1, TYPE_COLORS.Ice, 0.8);
+        g.strokeCircle(e.x, e.y, e.radius + 3);
+      }
       // Bubble Trap: a floating bubble around the trapped enemy.
       if (e.trapLeft > 0) {
         g.lineStyle(3, COLORS.puddle, 0.9);
@@ -976,6 +981,18 @@ export class RunScene extends Phaser.Scene {
         case 'ironTail.slam':
           g.lineStyle(2, TYPE_COLORS.Steel, 0.8);
           g.strokeCircle(m.x, m.y, m.radius);
+          break;
+        case 'bodySlam.bellyFlop':
+          g.lineStyle(2, TYPE_COLORS.Normal, 0.8);
+          g.strokeCircle(m.x, m.y, m.radius);
+          break;
+        case 'bodySlam.shockwave':
+          g.fillStyle(TYPE_COLORS.Normal, 0.5);
+          g.fillCircle(m.x, m.y, m.radius);
+          break;
+        case 'iceBeam.iceWall':
+          g.lineStyle(m.radius * 2, TYPE_COLORS.Ice, 0.9);
+          g.lineBetween(m.x, m.y, m.x2, m.y2);
           break;
         case 'thunder.afterglow':
           if (m.timer <= 0 || m.lifeLeft > 0) {

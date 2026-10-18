@@ -305,6 +305,7 @@ export function updateStatuses(world: World, dt: number): void {
     }
     if (enemy.soakLeft > 0) enemy.soakLeft = Math.max(0, enemy.soakLeft - dt);
     if (enemy.vulnLeft > 0) enemy.vulnLeft = Math.max(0, enemy.vulnLeft - dt);
+    if (enemy.weakenLeft > 0) enemy.weakenLeft = Math.max(0, enemy.weakenLeft - dt);
     if (enemy.stunFatigueLeft > 0) enemy.stunFatigueLeft = Math.max(0, enemy.stunFatigueLeft - dt);
     if (enemy.stunLeft > 0) {
       enemy.stunLeft = Math.max(0, enemy.stunLeft - dt);

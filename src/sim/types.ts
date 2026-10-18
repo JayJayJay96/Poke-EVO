@@ -98,6 +98,9 @@ export interface Enemy {
   vulnPct: number;
   vulnLeft: number;
   vulnType: PokemonType | null;
+  /** Aurora Beam: deals contactDamage × weakenMult while weakenLeft > 0. */
+  weakenMult: number;
+  weakenLeft: number;
   /** Spreading Seed: the seed on this enemy already jumped once. */
   seedJumped: boolean;
   /** Toxic: poison stacks while it stays in the cloud (reset when the poison ends). */

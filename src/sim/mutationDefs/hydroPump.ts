@@ -1,7 +1,7 @@
 import { MOVES, type BeamMoveDef } from '../../data/moves';
 import { MUTATIONS } from '../../data/mutations';
 import { damageEnemy, findNearestEnemy, makeHitInfo } from '../combat';
-import { defineMutation, healPlayer } from '../hooks';
+import { defineMutation, healPlayer, tideFlood } from '../hooks';
 import { entitiesOf, forEachEnemyIn, spawnEntity } from './util';
 
 // Hydro Pump Mutations (docs/moveset/shared/hydro-pump.md; Bonds in squirtle/ and lapras/).
@@ -77,5 +77,32 @@ defineMutation('hydroPump.rainCannon', {
       });
       healPlayer(world, Math.min(hits * rain.healPerEnemy, rain.maxHealPerSec * hydroPump.tickInterval));
     }
+  },
+});
+
+/** Pressure Shell (Bond, Shell Armor absorbs, Tide): blocked damage is stored and the next Hydro Pump adds it over its ticks. */
+const shell = MUTATIONS['hydroPump.pressureShell'];
+defineMutation('hydroPump.pressureShell', {
+  stats: (s) => {
+    s.cooldown *= shell.values.cooldownMult;
+  },
+  onEvent: (world, slot, event, amount) => {
+    if (event !== 'armorAbsorb') return;
+    const cap = tideFlood(world) ? shell.tide.flood.storeCap : shell.tide.ebb.storeCap;
+    slot.mutState.stored = Math.min(cap, (slot.mutState.stored ?? 0) + amount);
+  },
+  onCast: (_world, slot) => {
+    const stored = slot.mutState.stored ?? 0;
+    if (stored <= 0) return;
+    const ticks = Math.max(1, Math.round((hydroPump.duration * slot.stats.duration) / hydroPump.tickInterval));
+    slot.mutState.bonusPerTick = stored / ticks;
+    slot.mutState.stored = 0;
+    slot.stats.damage += slot.mutState.bonusPerTick; // live already ran this step; the first tick is now
+  },
+  live: (s, _world, slot) => {
+    if (slot.activeLeft > 0 && slot.mutState.bonusPerTick) s.damage += slot.mutState.bonusPerTick;
+  },
+  onExpire: (_world, slot) => {
+    slot.mutState.bonusPerTick = 0;
   },
 });
