@@ -1,6 +1,6 @@
 # Pikachu → Raichu — moveset tree
 
-**Status:** PROPOSAL for owner review (2026-10-18). Not approved, not built. Numbers *(provisional)*.
+**Status:** APPROVED (owner, D15–D21, 2026-10-18). Being built in P4f (see `PROJECT_STATUS.md` for what exists). Numbers *(provisional)*; once built, `src/data/mutations.ts` is the truth.
 Rules: [`../README.md`](../README.md). IDs and hook names: [`../INDEX.md`](../INDEX.md). Generic Mutations: [`../shared/`](../shared/).
 **Acquisition (D16):** every Mutation below comes only from map sites (`Pool = site`); augment levels never offer them.
 
@@ -121,6 +121,7 @@ Balance notes:
 | **Live Battery** (don't touch me) | Return Arc · Static Spark · Arc Pair · Iron Spin · *Static+* | Enemies that touch you fill the cheeks and grow the sparks. |
 
 ## 7. Open points for the owner
+**All resolved (D21, 2026-10-18):** approved as written.
 1. Approve **Charge** (running fills it) as Pikachu's line mechanic, the **Charged shot** at Pikachu stage and **Discharge** at Raichu?
 2. Approve the trait twists (Static+ more Charge per paralysis; Lightning Rod wider Discharge)?
 3. **Volt Tackle** recoil (5% max HP): OK, or no recoil?

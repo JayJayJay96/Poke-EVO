@@ -1,6 +1,6 @@
 # Squirtle → Wartortle → Blastoise — moveset tree
 
-**Status:** PROPOSAL for owner review (2026-10-18). Not approved, not built. Numbers *(provisional)*.
+**Status:** APPROVED (owner, D15–D21, 2026-10-18). Being built in P4f (see `PROJECT_STATUS.md` for what exists). Numbers *(provisional)*; once built, `src/data/mutations.ts` is the truth.
 Rules: [`../README.md`](../README.md). IDs: [`../INDEX.md`](../INDEX.md). Generic Mutations for each move: [`../shared/`](../shared/).
 
 **Role:** tank / control. Squirtle wants to stand *in* the crowd (Charmander flirts with danger, Lapras ignores it).
@@ -100,6 +100,7 @@ Balance notes:
 | **Hydro-engineer** (generic only) | Froth Mines · Slick · Maelstrom · Backwash | The floor is the weapon. Proves the generic tree stands alone for future Water lines. |
 
 ## 6. Open points for the owner
+**All resolved (D21, 2026-10-18):** approved as written.
 1. Approve **Bond Mutations** (rules 7–10 in `../README.md`) on top of generic Mutations?
 2. Approve the **Shell rework** and **Shell Burst** at Wartortle?
 3. Approve **Puddles + Soaked** as shared Water terrain (not Squirtle-only)?

@@ -1,6 +1,6 @@
 # Charmander → Charmeleon → Charizard — moveset tree
 
-**Status:** PROPOSAL for owner review (2026-10-18). Not approved, not built. Numbers *(provisional)*.
+**Status:** APPROVED (owner, D15–D21, 2026-10-18). Being built in P4f (see `PROJECT_STATUS.md` for what exists). Numbers *(provisional)*; once built, `src/data/mutations.ts` is the truth.
 Rules: [`../README.md`](../README.md). IDs: [`../INDEX.md`](../INDEX.md). Generic Mutations for each move: [`../shared/`](../shared/).
 
 **Role:** aggressive glass cannon. Charmander *flirts with danger*: low HP is where it's strongest, and its kit
@@ -130,6 +130,7 @@ Balance notes:
 | **Wildfire** (burn everything) | Flamethrower · Flame Trail · Searing Slash · Fan the Flames · *Solar Power* | Paint the floor with Scorch, fan it across the crowd, and Slash cashes in the burns. |
 
 ## 6. Open points for the owner
+**All resolved (D21, 2026-10-18):** approved as written.
 1. Approve **Flare Up** at Charmeleon and the trait twists (Blaze+ 15 s recharge; Solar Power wider nova + Scorch)?
 2. Approve **Scorch** as shared Fire terrain?
 3. **Fixed Rage** ignores all damage augments. OK as a deliberate trade, or too confusing?

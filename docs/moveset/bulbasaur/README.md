@@ -1,6 +1,6 @@
 # Bulbasaur → Ivysaur → Venusaur — moveset tree
 
-**Status:** PROPOSAL for owner review (2026-10-18). Not approved, not built. Numbers *(provisional)*.
+**Status:** APPROVED (owner, D15–D21, 2026-10-18). Being built in P4f (see `PROJECT_STATUS.md` for what exists). Numbers *(provisional)*; once built, `src/data/mutations.ts` is the truth.
 Rules: [`../README.md`](../README.md). IDs: [`../INDEX.md`](../INDEX.md). Generic Mutations for each move: [`../shared/`](../shared/).
 
 **Role:** sustain / zones / damage over time. Bulbasaur wants to **stay healthy and turn healing into power**.
@@ -135,6 +135,7 @@ Balance notes:
 | **Last Rose** (desperate) | Long Lash · Sludge Bomb · Spore Sac · Nightmare · *Overgrow+* | When hurt: bombs, spore clouds and an emergency Bulb heal. |
 
 ## 7. Open points for the owner
+**All resolved (D21, 2026-10-18):** approved as written.
 1. Approve the **Bulb** as the line mechanic and **Bulb Bloom** at Ivysaur?
 2. Approve the trait twists (Overgrow+ emergency heal; Chlorophyll smaller Bulb)?
 3. Bulbasaur **doesn't fill the Bulb before Ivysaur**. OK, or should the seed-stage bulb do something small?

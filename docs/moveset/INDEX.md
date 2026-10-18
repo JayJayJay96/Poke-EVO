@@ -1,6 +1,6 @@
 # Moveset registry — every Mutation and ability tier
 
-**Status:** PROPOSAL (2026-10-18). Not approved, not built.
+**Status:** APPROVED (owner, D15–D21, 2026-10-18). Being built in P4f (see `PROJECT_STATUS.md` for what exists). Numbers *(provisional)*; once built, `src/data/mutations.ts` is the truth.
 This is the lookup table other systems use (the map sites, D16). Rows are keyed by the stable **ID**
 (rules: [`README.md`](README.md) → "Labels"). Display names may change; IDs don't.
 

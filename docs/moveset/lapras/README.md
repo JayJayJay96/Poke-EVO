@@ -1,6 +1,6 @@
 # Lapras — moveset tree (non-evolver)
 
-**Status:** direction approved (D17), Sheer Cold tier + Tide approved (D18), 2026-10-18. Not built. Numbers *(provisional)*.
+**Status:** APPROVED (owner, D15–D21, 2026-10-18). Being built in P4f (see `PROJECT_STATUS.md` for what exists). Numbers *(provisional)*; once built, `src/data/mutations.ts` is the truth.
 Rules: [`../README.md`](../README.md). IDs and hook names: [`../INDEX.md`](../INDEX.md). Generic Mutations: [`../shared/`](../shared/).
 **Acquisition (D16):** every Mutation below comes only from map sites (`Pool = site`).
 
@@ -121,6 +121,7 @@ stays true early but stops snowballing late. Re-run `npm run balance` after the 
 | **Bulldozer** (early damage) | Hail · Pressure Shell · Shockwave · Pressure Build | Walk through the crowd; the armour charges the cannon. |
 
 ## 9. Open points for the owner
+**All resolved.** Point 4 (D21): the XP ×0.85 knob may be used only if damage/stat tuning alone can't meet D19.
 1. ~~Which tier stays at Lv 25~~ **Resolved (D18):** Sheer Cold; Frost Breath dropped.
 2. ~~Approve the Tide~~ **Resolved (D18):** approved.
 3. ~~Shell Armor upgrade~~ **Resolved (D20):** stays un-upgraded.

@@ -1,8 +1,6 @@
 # Moveset design — Mutations
 
-**Status:** PROPOSAL for owner review (2026-10-18). Nothing here is approved or built.
-New systems in here need owner approval (AGENTS.md) before they go into `PROJECT.md`.
-Every number is *(provisional)*.
+**Status:** APPROVED (owner, D15–D21, 2026-10-18). Being built in P4f (see `PROJECT_STATUS.md` for what exists). Numbers *(provisional)*; once built, `src/data/mutations.ts` is the truth.
 
 ## Folder layout
 ```
@@ -103,18 +101,19 @@ Any Fire Mutation may create or use these, so every Fire line shares them.
 - *Idea for later, not proposed now:* a puddle meeting a Scorch patch turns into steam (Fire + Water combine flavour, §8.6).
 
 ## Crowd-control guard rails (all lines)
-- **Stun fatigue:** after a stun, trap or slip ends, that enemy can't be stunned again for 1.5 s.
+- **Stun fatigue:** after a stun, trap or slip ends, that enemy can't be stunned again for 1.5 s. Applies to **new effects only**
+  (Mutations, Shell Burst, Flare Up, Discharge…); existing base moves and Static keep their behaviour (D21).
 - **Slow cap:** slows don't stack; the strongest wins, max 70%.
 - **Weight:** traps, slips and drags only work on enemies under 40 kg; heavier ones get a slow instead.
 - **Bosses** (Snorlax, legendaries, Mewtwo) are immune to trap, slip and drag, and take half stagger.
 
 ## Is it buildable? (engine notes)
 Yes, and it fits the current data shape:
-- `AugmentDef` gains `kind: 'mutation'` and an optional `bondTo: { line, fromStage }`. Pool filtering already
-  checks move tags and `exclusiveTo`; it would also check the current line and stage.
+- Mutations are their own `MutationDef` in `src/data/mutations.ts` (shape in `INDEX.md` → "For the implementer"), not an
+  `AugmentDef` kind. A socket holds either a ranked augment or one Mutation.
 - A one-Mutation-per-move check, like the existing "no duplicate augment" check.
-- A small **ability event list** in the sim (`shellReady`, `onBlock`, `onHitTaken`, `onShellBurst`, `hpFraction`)
-  that Bond hooks read. Abilities already live in the sim (`blockReadyLeft`), so this adds read access, not a rewrite.
+- A small **ability event list** in the sim, using the `HookId` names in `INDEX.md` (`shellReady`, `shellBlock`, `hitTaken`,
+  `shellBurst`, `hpBelow`…), that Bond hooks read. Abilities already live in the sim (`blockReadyLeft`), so this adds read access, not a rewrite.
 - Each Mutation is one small, individually tested hook function (§8.8). It's real work: Squirtle alone is
   14 generic + 7 Bond + 3 signature behaviours. Suggested proof slice: 1 generic + 1 Bond on 2 moves first.
 
