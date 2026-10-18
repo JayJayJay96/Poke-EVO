@@ -2,7 +2,7 @@ import { ABILITIES, ENEMIES, TUNING } from '../data/content';
 import { MUTATION_TUNING } from '../data/mutations';
 import { effectiveness } from '../data/typeChart';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
-import { emit, healPlayer, hooksOf, mutationLeechBonus } from './hooks';
+import { blazeFaked, emit, healPlayer, hooksOf, mutationLeechBonus } from './hooks';
 import type { Enemy, Gem, HitInfo, MoveSlot, MoveStats, World } from './types';
 
 export const MAX_ENEMY_RADIUS = Math.max(...Object.values(ENEMIES).map((e) => e.radius));
@@ -90,7 +90,8 @@ export function findNearestEnemy(
 export function isAbilityActive(world: World): boolean {
   const { lowHpThreshold } = ABILITIES[world.player.ability];
   if (lowHpThreshold === undefined) return false;
-  return world.player.hp > 0 && world.player.hp < world.player.maxHp * lowHpThreshold;
+  // Hidden Flame: standing in your own smoke counts as the low-HP state.
+  return world.player.hp > 0 && (world.player.hp < world.player.maxHp * lowHpThreshold || blazeFaked(world));
 }
 
 /** Live damage multiplier from the low-HP trait; applied when a hit lands, so it tracks current HP. */
@@ -106,17 +107,17 @@ export function abilityDamageMult(world: World): number {
  */
 export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Readonly<HitInfo> = NO_HIT): number {
   if (enemy.hp <= 0) return 0;
+  // Mutation hooks see only the move's own hits, never proc hits (no proc-from-proc).
+  const slot = hit.fromProc ? null : hit.slot;
+  const hooks = slot ? hooksOf(slot) : undefined;
   // Only consume RNG when a crit is possible, so crit-free runs stay reproducible.
-  const crit = hit.critChance > 0 && world.rng.next() < hit.critChance;
+  const crit = hooks?.forceCrit?.(world, slot!, enemy) === true || (hit.critChance > 0 && world.rng.next() < hit.critChance);
   const player = world.player;
   const missing = hit.missingHpBonus > 0 ? hit.missingHpBonus * Math.max(0, 1 - player.hp / player.maxHp) : 0;
   const def = ENEMIES[enemy.kind];
   // Type chart (D14): multiplied for dual-type enemies; typeless hits stay ×1.
   const typeMult = effectiveness(hit.attackType, def.types);
   enemy.lastEffectiveness = typeMult;
-  // Mutation hooks see only the move's own hits, never proc hits (no proc-from-proc).
-  const slot = hit.fromProc ? null : hit.slot;
-  const hooks = slot ? hooksOf(slot) : undefined;
   const mutationMult = hooks?.damageMult ? hooks.damageMult(world, slot!, enemy) : 1;
   // Vulnerability debuffs (Wash Down, Acid, Nightmare...): extra damage taken, for one type or all.
   const vuln = enemy.vulnLeft > 0 && (enemy.vulnType === null || enemy.vulnType === hit.attackType) ? 1 + enemy.vulnPct : 1;
@@ -185,6 +186,20 @@ export function applyNewStun(enemy: Enemy, seconds: number, kind: Enemy['stunKin
   enemy.stunLeft = Math.max(enemy.stunLeft, seconds);
   enemy.fatigueOnEnd = true;
   return true;
+}
+
+/** Blinded (D20): the enemy loses you for `seconds` and wanders off; bosses are immune. */
+export function applyBlind(world: World, enemy: Enemy, seconds: number): void {
+  if (seconds <= 0 || ENEMIES[enemy.kind].boss) return;
+  if (enemy.blindLeft <= 0) pickWanderPoint(world, enemy);
+  enemy.blindLeft = Math.max(enemy.blindLeft, seconds);
+}
+
+/** A random point `blindWanderPx` away for a blinded enemy to walk to. */
+export function pickWanderPoint(world: World, enemy: Enemy): void {
+  const a = world.rng.next() * Math.PI * 2;
+  enemy.wanderX = enemy.x + Math.cos(a) * TUNING.status.blindWanderPx;
+  enemy.wanderY = enemy.y + Math.sin(a) * TUNING.status.blindWanderPx;
 }
 
 /** Traps, slips and drags only work on light, non-boss enemies. */
@@ -306,6 +321,7 @@ export function updateStatuses(world: World, dt: number): void {
     if (enemy.soakLeft > 0) enemy.soakLeft = Math.max(0, enemy.soakLeft - dt);
     if (enemy.vulnLeft > 0) enemy.vulnLeft = Math.max(0, enemy.vulnLeft - dt);
     if (enemy.weakenLeft > 0) enemy.weakenLeft = Math.max(0, enemy.weakenLeft - dt);
+    if (enemy.blindLeft > 0) enemy.blindLeft = Math.max(0, enemy.blindLeft - dt);
     if (enemy.stunFatigueLeft > 0) enemy.stunFatigueLeft = Math.max(0, enemy.stunFatigueLeft - dt);
     if (enemy.stunLeft > 0) {
       enemy.stunLeft = Math.max(0, enemy.stunLeft - dt);

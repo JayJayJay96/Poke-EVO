@@ -29,6 +29,10 @@ import './thunder';
 // P4f-6e: Lapras-line learnset moves.
 import './bodySlam';
 import './iceBeam';
+// P4f-7: the new Charmander-line moves.
+import './smokescreen';
+import './slash';
+import './wingAttack';
 // Signature Mutations (P4f-5): evolve with the line's signature tiers.
 import './bubble';
 import './ember';

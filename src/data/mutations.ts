@@ -9,10 +9,6 @@ import type { MoveId } from './moves';
 
 export type MutationKind = 'generic' | 'bond' | 'signature';
 
-/** Moves designed in docs/moveset but not built yet (P4f-7). Their Mutations can't be granted until then. */
-export const PENDING_MOVE_IDS = ['smokescreen', 'slash', 'wingAttack'] as const;
-export type PendingMoveId = (typeof PENDING_MOVE_IDS)[number];
-
 /** Sim events and state that Bond hooks read (INDEX.md "Hook vocabulary"). */
 export const HOOK_IDS = [
   'shellReady',
@@ -62,7 +58,7 @@ export interface MutationDef {
   readonly text: string;
   readonly kind: MutationKind;
   /** Signature: the line's FIRST signature move; the Mutation keeps its ID as the move evolves. */
-  readonly move: MoveId | PendingMoveId;
+  readonly move: MoveId;
   /** Bond and signature only. */
   readonly line?: PokemonId;
   /** Earliest stage index it can be offered at (0 = first form). */
@@ -97,14 +93,14 @@ export const MUTATION_TUNING = {
 } as const;
 
 const generic = <const V extends MutationValues>(
-  move: MoveId | PendingMoveId,
+  move: MoveId,
   name: string,
   text: string,
   values: V,
 ) => ({ name, text, kind: 'generic', move, fromStage: 0, pool: 'site', values }) as const;
 
 const bond = <const V extends MutationValues>(
-  move: MoveId | PendingMoveId,
+  move: MoveId,
   line: PokemonId,
   fromStage: 0 | 1 | 2,
   hook: HookId,
@@ -389,7 +385,11 @@ export const MUTATIONS = {
   }),
   'slash.flurry': generic('slash', 'Flurry', '3 cuts on 3 enemies', {
     targets: 3,
-    cutDamageFraction: 0.5,
+    /**
+     * P4f-7 rule-4 tuning: 0.5 read 0.43. The base X already hits ~3 enemies in a crowd, so 3 half cuts
+     * are half its damage anywhere. Full cuts: the cost is losing the X area (flagged for the owner).
+     */
+    cutDamageFraction: 1,
   }),
   'slash.searingSlash': bond('slash', 'charmander', 1, 'targetBurning', 'Searing Slash', 'Crits Burning enemies and cashes in the Burn', {
     damageMultNotBurning: 0.8,

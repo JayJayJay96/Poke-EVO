@@ -13,6 +13,10 @@ export type MoveId =
   | 'dragonRage'
   | 'airSlash'
   | 'hurricane'
+  // Charmander line, new in P4f-7 (docs/moveset/shared)
+  | 'smokescreen'
+  | 'slash'
+  | 'wingAttack'
   // Squirtle line (P4b, redesigned D14)
   | 'bubble'
   | 'waterPulse'
@@ -85,6 +89,8 @@ export interface InnateEffects {
   readonly knockback?: number;
   /** Leech Seed: damage per second as a fraction of the hit, for TUNING.status.seedSeconds; heals the player. */
   readonly seedPct?: number;
+  /** Blinded seconds per zone tick (Smokescreen, D20): enemies wander and hit softer; bosses immune. */
+  readonly blind?: number;
 }
 
 interface MoveDefBase {
@@ -96,6 +102,8 @@ interface MoveDefBase {
   readonly cooldown: number;
   /** Damage per hit (per tick for beams and zones). */
   readonly damage: number;
+  /** Innate crit chance, added to the Crit augment (Slash). */
+  readonly critChance?: number;
   readonly onHit?: InnateEffects;
 }
 
@@ -132,6 +140,10 @@ export interface ZoneMoveDef extends MoveDefBase {
   /** Seconds the zone stays. */
   readonly duration: number;
   readonly tickInterval: number;
+  /** 'self': the zone drops on your position, cast while an enemy is within `range` (Smokescreen). */
+  readonly target?: 'self';
+  /** One instant hit on the target instead of a lingering zone (Slash's cut); duration is unused. */
+  readonly instant?: boolean;
 }
 
 /** A lingering field left by a melee swing on its target (Frenzy Plant's roots). */
@@ -151,6 +163,11 @@ export interface MeleeMoveDef extends MoveDefBase {
   readonly reach: number;
   readonly arcDegrees: number;
   readonly field?: FieldDef;
+  /**
+   * Arcs aimed relative to your facing (degrees; 90 = your left) instead of one arc at the
+   * nearest enemy (Wing Attack's two wing beats). Cast while an enemy is within reach.
+   */
+  readonly sides?: readonly number[];
 }
 
 /** Balls circling the player for a while after each cast. */
@@ -768,5 +785,50 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     width: 14,
     duration: 0.6,
     tickInterval: 0.2,
+  },
+  // P4f-7 (docs/moveset/shared/*.md, base stats proposed there and approved with D15/D20/D21).
+  smokescreen: {
+    id: 'smokescreen',
+    name: 'Smokescreen',
+    description: 'A smoke cloud on you: enemies inside are Blinded',
+    tags: ['Normal', 'Zone'],
+    form: 'zone',
+    cooldown: 8,
+    damage: 0,
+    // Provisional: cast once an enemy is this close.
+    range: 150,
+    radius: 90,
+    duration: 4,
+    tickInterval: 0.5,
+    target: 'self',
+    onHit: { blind: 1 },
+  },
+  slash: {
+    id: 'slash',
+    name: 'Slash',
+    description: 'An instant X-cut on the nearest enemy; often crits',
+    tags: ['Normal', 'Area', 'Slicing'],
+    form: 'zone',
+    cooldown: 1.6,
+    damage: 18,
+    range: 220,
+    radius: 30,
+    duration: 0,
+    tickInterval: 0,
+    instant: true,
+    critChance: 0.25,
+  },
+  wingAttack: {
+    id: 'wingAttack',
+    name: 'Wing Attack',
+    description: 'Both wings beat: gusts to your left and right',
+    tags: ['Flying', 'Melee', 'Contact'],
+    form: 'melee',
+    cooldown: 1.4,
+    damage: 13,
+    reach: 75,
+    arcDegrees: 100,
+    sides: [90, -90],
+    onHit: { knockback: 20 },
   },
 };

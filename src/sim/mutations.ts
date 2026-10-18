@@ -1,5 +1,4 @@
 import { MAX_SOCKETS } from '../data/augments';
-import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_IDS, MUTATIONS, REQUIREMENTS, type MutationDef, type MutationId, type RequirementId } from '../data/mutations';
 import { MAX_LEARNSET_SLOTS } from '../data/upgrades';
 import { isBuilt } from './hooks';
@@ -65,9 +64,8 @@ export function grantMutation(world: World, id: MutationId): GrantResult {
   if (def.line && def.line !== world.player.pokemonId) return 'wrongLine';
   let index = mutationSlotIndex(world, def);
   if (index < 0) {
-    const learnable = def.kind !== 'signature' && def.move in MOVES;
-    if (!learnable || world.moves.length - 1 >= MAX_LEARNSET_SLOTS) return 'noSlot';
-    world.moves.push(createSlot(def.move as MoveId));
+    if (def.kind === 'signature' || world.moves.length - 1 >= MAX_LEARNSET_SLOTS) return 'noSlot';
+    world.moves.push(createSlot(def.move));
     index = world.moves.length - 1;
   }
   const slot = world.moves[index]!;

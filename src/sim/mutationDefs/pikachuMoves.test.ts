@@ -196,6 +196,7 @@ describe('Thunder Wave', () => {
       slow: 0,
       stun: 0,
       stunKind: null,
+      blind: 0,
       poisonDps: 0,
       attackType: null,
       source: 'thunderWave',

@@ -13,7 +13,7 @@ import {
   onShellHitTaken,
   updateAbilities,
 } from './abilities';
-import { enemySpeedFactor, queryEnemies, updateStatuses } from './combat';
+import { enemySpeedFactor, pickWanderPoint, queryEnemies, updateStatuses } from './combat';
 import { startEvolutionIfDue, upgradeSignatureByLevel } from './evolution';
 import { castBeam, updateBeam } from './forms/beam';
 import { castMelee } from './forms/melee';
@@ -88,6 +88,7 @@ export function createWorld({
     entities: [],
     terrainTickLeft: 0,
     swings: [],
+    cuts: [],
     blasts: [],
     arcs: [],
     moves: [createSlot(firstStage.signatureMove)],
@@ -224,6 +225,9 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     vulnType: null,
     weakenMult: 1,
     weakenLeft: 0,
+    blindLeft: 0,
+    wanderX: 0,
+    wanderY: 0,
   };
   world.enemies.push(enemy);
   return enemy;
@@ -241,6 +245,7 @@ function tickTimers(world: World, dt: number): void {
     enemy.hitFlashLeft = Math.max(0, enemy.hitFlashLeft - dt);
   }
   for (const swing of world.swings) swing.lifeLeft -= dt;
+  for (const cut of world.cuts) cut.lifeLeft -= dt;
   for (const blast of world.blasts) blast.lifeLeft -= dt;
   for (const arc of world.arcs) arc.lifeLeft -= dt;
   p.blockReadyLeft = Math.max(0, p.blockReadyLeft - dt);
@@ -301,8 +306,11 @@ function moveEnemies(world: World, dt: number): void {
     const enemy = enemies[i]!;
     // Stunned enemies stay put (knockback still moves them, in updateStatuses).
     if (enemy.stunLeft > 0) continue;
-    const dx = player.x - enemy.x;
-    const dy = player.y - enemy.y;
+    // Blinded enemies lost you: they head for their own random point instead.
+    const blind = enemy.blindLeft > 0;
+    if (blind && Math.hypot(enemy.wanderX - enemy.x, enemy.wanderY - enemy.y) < enemy.radius) pickWanderPoint(world, enemy);
+    const dx = (blind ? enemy.wanderX : player.x) - enemy.x;
+    const dy = (blind ? enemy.wanderY : player.y) - enemy.y;
     const dist = Math.hypot(dx, dy) || 1;
     const speed = enemy.speed * enemySpeedFactor(enemy);
     let vx = (dx / dist) * speed;
@@ -450,7 +458,10 @@ function applyContactDamage(world: World): void {
       emit(world, 'shellBlock', enemy.contactDamage);
       continue;
     }
-    const contact = enemy.contactDamage * (enemy.weakenLeft > 0 ? enemy.weakenMult : 1);
+    const contact =
+      enemy.contactDamage *
+      (enemy.weakenLeft > 0 ? enemy.weakenMult : 1) *
+      (enemy.blindLeft > 0 ? TUNING.status.blindContactMult : 1);
     const taken = contact * world.mods.damageTakenMult * mutationDamageTakenMult(world);
     const hpBefore = player.hp;
     player.hp = Math.max(0, player.hp - taken);
@@ -488,6 +499,7 @@ function removeDead(world: World): void {
   compact(world.scorches, (t) => t.lifeLeft > 0);
   compact(world.entities, (e) => e.lifeLeft > 0);
   compact(world.swings, (s) => s.lifeLeft > 0);
+  compact(world.cuts, (c) => c.lifeLeft > 0);
   compact(world.blasts, (b) => b.lifeLeft > 0);
   compact(world.arcs, (a) => a.lifeLeft > 0);
 }

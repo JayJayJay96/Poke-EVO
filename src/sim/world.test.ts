@@ -1750,13 +1750,19 @@ describe('type chart and weight (D14)', () => {
 });
 
 describe('kit rules (§4.1, D14)', () => {
+  // Rule 2 (one basic Normal attack): status moves with no damage don't count (Smokescreen), and
+  // Slash is an owner-approved exception gated to Charmeleon (D15).
+  const RULE_2_EXCEPTIONS: readonly string[] = ['slash'];
   for (const def of Object.values(POKEMON)) {
     it(`${def.stages[0]!.name}: mostly own-type moves, and the final stage unlocks moves`, () => {
       const lineTypes = new Set(def.stages.flatMap((s) => s.types));
       const types = def.learnset.map((e) => moveType(MOVES[e.move].tags));
       const ownType = types.filter((t) => t !== null && lineTypes.has(t)).length;
       expect(ownType * 2).toBeGreaterThanOrEqual(types.length);
-      expect(types.filter((t) => t === 'Normal').length).toBeLessThanOrEqual(1);
+      const normalAttacks = def.learnset.filter(
+        (e) => moveType(MOVES[e.move].tags) === 'Normal' && MOVES[e.move].damage > 0 && !RULE_2_EXCEPTIONS.includes(e.move),
+      );
+      expect(normalAttacks.length).toBeLessThanOrEqual(1);
       if (def.stages.length > 1) {
         const last = def.stages.length - 1;
         expect(def.learnset.some((e) => e.fromStage === last)).toBe(true);

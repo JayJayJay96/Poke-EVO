@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { test } from 'vitest';
 import { POKEMON, type PokemonId } from '../data/content';
-import { MOVES, type MoveId } from '../data/moves';
+import type { MoveId } from '../data/moves';
 import { MUTATION_IDS, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { measureDps, type DummyRing } from './balance';
 import { isBuilt } from './mutations';
@@ -43,9 +43,8 @@ test('Mutation rule 4: DPS vs Power Up I', { timeout: 30 * 60_000 }, () => {
   const rows: string[] = [];
   for (const id of MUTATION_IDS.filter(isBuilt)) {
     const def: MutationDef = MUTATIONS[id];
-    if (!(def.move in MOVES)) continue;
     const line = lineFor(def);
-    const move = def.move as MoveId;
+    const move = def.move;
     const avg = (f: (seed: number) => number) => SEEDS.reduce((s, seed) => s + f(seed), 0) / SEEDS.length;
     const powerUp = avg((seed) => dpsWith(line, move, seed, null));
     const mutated = avg((seed) => dpsWith(line, move, seed, id));

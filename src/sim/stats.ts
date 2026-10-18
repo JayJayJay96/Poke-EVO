@@ -127,7 +127,7 @@ export function computeMoveStats(
     cooldown: def.cooldown * m.cooldownMult * cooldownMult,
     area: m.areaMult * Math.max(MIN_AREA_FACTOR, 1 + areaPct),
     duration: m.durationMult * (1 + durationPct),
-    critChance: Math.min(1, m.critChance + critChance),
+    critChance: Math.min(1, m.critChance + critChance + (def.critChance ?? 0)),
     extraCount,
     speedMult: 1 + speedPct,
     blastRadiusMult: 1 + blastRadiusPct,

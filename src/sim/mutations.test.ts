@@ -7,7 +7,6 @@ import {
   HOOK_IDS,
   MUTATION_IDS,
   MUTATIONS,
-  PENDING_MOVE_IDS,
   REQUIREMENT_IDS,
   type MutationDef,
   type MutationId,
@@ -81,17 +80,15 @@ describe('Mutation registry (docs/moveset/INDEX.md ↔ src/data/mutations.ts)', 
   });
 
   it('every Mutation sits on a real move of its line', () => {
-    const pending: readonly string[] = PENDING_MOVE_IDS;
     for (const id of MUTATION_IDS) {
       const def: MutationDef = MUTATIONS[id];
-      expect(def.move in MOVES || pending.includes(def.move), id).toBe(true);
+      expect(def.move in MOVES, id).toBe(true);
       expect(id.startsWith(`${def.move}.`), id).toBe(true);
       if (!def.line) continue;
       const line = POKEMON[def.line];
       expect(def.fromStage, id).toBeLessThan(line.stages.length);
       if (def.kind === 'signature') expect(def.move, id).toBe(line.stages[0]!.signatureMove);
-      // Bonds on moves that exist must be on the line's learnset (the 3 new Charmander moves arrive in P4f-7).
-      else if (def.move in MOVES) expect(line.learnset.some((e) => e.move === def.move), id).toBe(true);
+      else expect(line.learnset.some((e) => e.move === def.move), id).toBe(true);
     }
   });
 

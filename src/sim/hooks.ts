@@ -57,6 +57,10 @@ export interface MutationHooks {
   chainBias?(world: World, slot: MoveSlot, from: Enemy, to: Enemy): ChainBias;
   /** Extra Leech (lifesteal fraction) on the player hits against `enemy` (Seed Network, Sweet Dreams). */
   leechBonus?(world: World, slot: MoveSlot, enemy: Enemy): number;
+  /** Blaze counts as active while this returns true (Hidden Flame: standing in your own smoke). */
+  fakesBlaze?(world: World, slot: MoveSlot): boolean;
+  /** This move hit on `enemy` always crits (Searing Slash on Burning enemies). */
+  forceCrit?(world: World, slot: MoveSlot, enemy: Enemy): boolean;
   /** Player move-speed factor while this Mutation is owned. */
   moveSpeedMult?(world: World, slot: MoveSlot): number;
   /** Player damage-taken factor while this Mutation is owned. */
@@ -213,10 +217,16 @@ export function tideFlood(world: World): boolean {
   return world.level < MUTATION_TUNING.tideLevel;
 }
 
-/** `blazeActive`: the low-HP bonus of Blaze (or Blaze+) is on. Hidden Flame can fake it (P4f-7). */
+/** Some owned Mutation makes Blaze count as active right now (Hidden Flame). */
+export function blazeFaked(world: World): boolean {
+  return world.moves.some((slot) => hooksOf(slot)?.fakesBlaze?.(world, slot) === true);
+}
+
+/** `blazeActive`: the low-HP bonus of Blaze (or Blaze+) is on, or Hidden Flame fakes it. */
 export function blazeActive(world: World): boolean {
   const { lowHpThreshold } = ABILITIES[world.player.ability];
-  return lowHpThreshold !== undefined && world.player.hp > 0 && world.player.hp < world.player.maxHp * lowHpThreshold;
+  if (lowHpThreshold === undefined || world.player.hp <= 0) return false;
+  return world.player.hp < world.player.maxHp * lowHpThreshold || blazeFaked(world);
 }
 
 /** `chargeLevel`: Charge as a fraction 0..1 (0 without Charge). */

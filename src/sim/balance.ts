@@ -45,9 +45,12 @@ function autoPick(world: World, rng: Rng): void {
   const offer = world.offer;
   if (!offer) return;
   switch (offer.kind) {
-    case 'cards':
-      chooseCard(world, pick(offer.cards.length));
+    case 'cards': {
+      // D19 measures firepower: the bot skips status moves with no damage (Smokescreen) when it can.
+      const useful = offer.cards.flatMap((c, i) => (c.kind === 'move' && MOVES[c.moveId].damage <= 0 ? [] : [i]));
+      chooseCard(world, useful.length > 0 ? useful[pick(useful.length)]! : pick(offer.cards.length));
       break;
+    }
     case 'pickSkill':
       chooseSkill(world, pick(offer.slots.length));
       break;

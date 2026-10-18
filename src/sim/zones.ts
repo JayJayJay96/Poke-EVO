@@ -1,5 +1,5 @@
 import { TUNING } from '../data/content';
-import { NO_HIT, damageEnemy, queryEnemies } from './combat';
+import { NO_HIT, applyBlind, damageEnemy, queryEnemies } from './combat';
 import type { MoveId } from '../data/moves';
 import type { HitInfo, World, Zone } from './types';
 
@@ -12,6 +12,8 @@ const neighbours: number[] = [];
 /** Statuses a zone applies on each tick. */
 export type ZoneEffects = Pick<HitInfo, 'slow' | 'stun' | 'poisonDps' | 'attackType'> & {
   readonly stunKind?: HitInfo['stunKind'];
+  /** Blinded seconds per tick (smoke). */
+  readonly blind?: number;
 };
 
 /** Adds a zone unless the zone budget is full. Returns it, or null when the budget is full. */
@@ -45,6 +47,7 @@ export function spawnZone(
     stunKind: effects.stunKind ?? null,
     poisonDps: effects.poisonDps,
     attackType: effects.attackType,
+    blind: effects.blind ?? 0,
     source,
   };
   world.zones.push(zone);
@@ -97,7 +100,9 @@ export function updateZones(world: World, dt: number): void {
       const dy = enemy.y - zone.y;
       const reach = zone.radius + enemy.radius;
       if (dx * dx + dy * dy > reach * reach) continue;
-      damageEnemy(world, enemy, zone.damage, hit);
+      if (zone.blind > 0) applyBlind(world, enemy, zone.blind);
+      // A pure status zone (smoke) deals no hit at all.
+      if (zone.damage > 0 || zone.slow > 0 || zone.stun > 0 || zone.poisonDps > 0) damageEnemy(world, enemy, zone.damage, hit);
     }
   }
 }

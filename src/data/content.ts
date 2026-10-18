@@ -233,11 +233,15 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
       },
     ],
     ability: 'blaze',
-    // P2 subset (D9) + Charizard-only Flying moves (D11). Smokescreen, Wing Attack and Slash come later.
+    // P2 subset (D9) + Charizard-only Flying moves (D11) + Smokescreen, Wing Attack and Slash (P4f-7, D15).
     learnset: [
       { move: 'scratch', fromStage: 0 },
       { move: 'fireSpin', fromStage: 0 },
       { move: 'dragonRage', fromStage: 0 },
+      { move: 'smokescreen', fromStage: 0 },
+      { move: 'wingAttack', fromStage: 0 },
+      // Charmeleon grows real claws (D15: the kit rule 2 exception).
+      { move: 'slash', fromStage: 1 },
       { move: 'airSlash', fromStage: 2 },
       { move: 'hurricane', fromStage: 2 },
     ],
@@ -657,6 +661,9 @@ export const TUNING = {
     burnTick: 0.25,
     /** Knockback velocity decays by e^(−decay·t); total push ≈ the knockback distance. */
     knockbackDecay: 10,
+    /** Blinded (D20): contact damage factor, and how far away the random point a blinded enemy wanders to is. */
+    blindContactMult: 0.7,
+    blindWanderPx: 150,
   },
   homing: {
     /** px around a projectile searched for a homing target. */

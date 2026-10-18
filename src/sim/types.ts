@@ -98,6 +98,10 @@ export interface Enemy {
   vulnPct: number;
   vulnLeft: number;
   vulnType: PokemonType | null;
+  /** Blinded (Smokescreen, D20): wanders toward (wanderX, wanderY) instead of you and hits softer. */
+  blindLeft: number;
+  wanderX: number;
+  wanderY: number;
   /** Aurora Beam: deals contactDamage × weakenMult while weakenLeft > 0. */
   weakenMult: number;
   weakenLeft: number;
@@ -251,6 +255,8 @@ export interface Zone {
   poisonDps: number;
   /** Type of the move that made it, for the type chart. */
   attackType: PokemonType | null;
+  /** Blinded seconds per tick (smoke). */
+  blind: number;
   /** The move that made it (root fields, for Sap Lash), if any. */
   source: MoveId | null;
 }
@@ -380,6 +386,14 @@ export interface MoveSlot {
 }
 
 /** A melee swipe kept around briefly so it can be drawn. */
+/** Slash's X-cut on the ground, kept briefly so it can be drawn. Presentation only. */
+export interface Cut {
+  x: number;
+  y: number;
+  radius: number;
+  lifeLeft: number;
+}
+
 export interface Swing {
   x: number;
   y: number;
@@ -470,6 +484,7 @@ export interface World {
   /** Seconds until terrain next applies its effects (0.25 s cadence, like status ticks). */
   terrainTickLeft: number;
   swings: Swing[];
+  cuts: Cut[];
   blasts: Blast[];
   arcs: Arc[];
   /** Slot 0 is the signature move; the rest are learnset moves. */

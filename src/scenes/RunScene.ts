@@ -68,6 +68,7 @@ const COLORS = {
   /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
   mutation: 0xb46cff,
   puddle: 0x9fd8ff,
+  smoke: 0x9a9a9a,
   bulbFull: 0xff7ad9,
   cheek: 0xff3030,
   bond: 0xffc83d,
@@ -825,7 +826,16 @@ export class RunScene extends Phaser.Scene {
     // Zones on the ground, fading out at the end: craters orange; status zones by their effect.
     for (const zone of zones) {
       const fade = Math.min(1, zone.lifeLeft / 0.5);
-      const color = zone.poisonDps > 0 ? COLORS.poison : zone.stun > 0 ? COLORS.stun : zone.slow > 0 ? COLORS.slow : COLORS.crater;
+      const color =
+        zone.blind > 0
+          ? COLORS.smoke
+          : zone.poisonDps > 0
+            ? COLORS.poison
+            : zone.stun > 0
+              ? COLORS.stun
+              : zone.slow > 0
+                ? COLORS.slow
+                : COLORS.crater;
       g.fillStyle(color, 0.22 * fade);
       g.fillCircle(zone.x, zone.y, zone.radius);
       g.lineStyle(2, color, 0.6 * fade);
@@ -878,6 +888,14 @@ export class RunScene extends Phaser.Scene {
       g.fillPath();
     }
 
+    // Slash: a quick X on the ground.
+    for (const cut of this.world.cuts) {
+      const r = cut.radius;
+      g.lineStyle(3, COLORS.flash, Math.min(1, cut.lifeLeft / 0.1));
+      g.lineBetween(cut.x - r, cut.y - r, cut.x + r, cut.y + r);
+      g.lineBetween(cut.x - r, cut.y + r, cut.x + r, cut.y - r);
+    }
+
     for (const p of projectiles) {
       g.fillStyle(moveColor(p.moveId, COLORS.projectile), 1);
       g.fillCircle(p.x, p.y, p.radius);
@@ -912,6 +930,11 @@ export class RunScene extends Phaser.Scene {
       ring(e.slowLeft > 0, COLORS.slow);
       ring(e.stunLeft > 0, COLORS.stun);
       ring(e.seedLeft > 0, COLORS.seed);
+      // Blinded: a grey bar over the eyes.
+      if (e.blindLeft > 0) {
+        g.fillStyle(COLORS.smoke, 0.9);
+        g.fillRect(e.x - e.radius, e.y - e.radius * 0.4, e.radius * 2, 4);
+      }
       // Aurora Beam: weakened enemies wear a pale ring.
       if (e.weakenLeft > 0) {
         g.lineStyle(1, TYPE_COLORS.Ice, 0.8);
@@ -993,6 +1016,17 @@ export class RunScene extends Phaser.Scene {
         case 'iceBeam.iceWall':
           g.lineStyle(m.radius * 2, TYPE_COLORS.Ice, 0.9);
           g.lineBetween(m.x, m.y, m.x2, m.y2);
+          break;
+        case 'slash.afterimage': {
+          const r = m.radius;
+          g.lineStyle(2, COLORS.flash, 0.4);
+          g.lineBetween(m.x - r, m.y - r, m.x + r, m.y + r);
+          g.lineBetween(m.x - r, m.y + r, m.x + r, m.y - r);
+          break;
+        }
+        case 'wingAttack.updraft':
+          g.lineStyle(2, TYPE_COLORS.Flying, 0.8);
+          g.strokeCircle(m.x, m.y, 14);
           break;
         case 'thunder.afterglow':
           if (m.timer <= 0 || m.lifeLeft > 0) {
