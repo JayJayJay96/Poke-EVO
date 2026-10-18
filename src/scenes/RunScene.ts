@@ -65,6 +65,7 @@ const COLORS = {
   exclusive: 0xff8c42,
   /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
   mutation: 0xb46cff,
+  puddle: 0x9fd8ff,
   bond: 0xffc83d,
 } as const;
 /** Player and move colours by Pokémon type, so each line reads differently in grey-box. */
@@ -825,6 +826,16 @@ export class RunScene extends Phaser.Scene {
       g.fillCircle(zone.x, zone.y, zone.radius);
       g.lineStyle(2, color, 0.6 * fade);
       g.strokeCircle(zone.x, zone.y, zone.radius);
+    }
+
+    // Shared terrain under everything else: pale-blue puddles, orange Scorch.
+    for (const patch of this.world.puddles) {
+      g.fillStyle(COLORS.puddle, 0.35 * Math.min(1, patch.lifeLeft / 0.5));
+      g.fillCircle(patch.x, patch.y, patch.radius);
+    }
+    for (const patch of this.world.scorches) {
+      g.fillStyle(COLORS.crater, 0.3 * Math.min(1, patch.lifeLeft / 0.5));
+      g.fillCircle(patch.x, patch.y, patch.radius);
     }
 
     // Oran Berries: blue with a white rim, so they read as "heal" (D12).

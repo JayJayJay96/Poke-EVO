@@ -11,6 +11,7 @@ import {
   type ItemId,
   type ModifierDelta,
 } from '../data/upgrades';
+import { hooksOf } from './hooks';
 import type { AugmentSocket, Modifiers, MoveSlot, MoveStats, World } from './types';
 
 /** Floors so stacked trade-offs can never zero out a move. */
@@ -145,10 +146,12 @@ export function computeMoveStats(
     poisonPct: def.onHit?.poisonPct ?? 0,
     seedPct: def.onHit?.seedPct ?? 0,
     attackType: moveType(def.tags),
+    reachMult: 1,
   };
 }
 
 export function createSlot(moveId: MoveId): MoveSlot {
+  const stats = computeMoveStats(MOVES[moveId], emptyModifiers());
   return {
     moveId,
     cooldownLeft: 0,
@@ -160,7 +163,9 @@ export function createSlot(moveId: MoveId): MoveSlot {
     hitCooldowns: new Map(),
     sockets: [],
     mutation: null,
-    stats: computeMoveStats(MOVES[moveId], emptyModifiers()),
+    mutState: {},
+    stats,
+    baseStats: { ...stats },
   };
 }
 
@@ -195,5 +200,7 @@ export function refreshStats(world: World): void {
     slot.stats = computeMoveStats(MOVES[slot.moveId], m, slot.sockets, user);
     // Leech: the ability's lifesteal applies to every move.
     slot.stats.lifesteal += ability.lifesteal ?? 0;
+    hooksOf(slot)?.stats?.(slot.stats, world, slot);
+    slot.baseStats = { ...slot.stats };
   }
 }

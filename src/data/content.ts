@@ -120,6 +120,8 @@ export interface EnemyDef {
   readonly berryChance: number;
   /** Real Pokédex weight; heavier enemies resist knockback (D14). */
   readonly weightKg: number;
+  /** Bosses (P5): immune to trap / slip / drag and Blinded, half stagger (docs/moveset guard rails). */
+  readonly boss?: boolean;
 }
 
 export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {

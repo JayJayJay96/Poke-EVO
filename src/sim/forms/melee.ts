@@ -11,7 +11,7 @@ const neighbours: number[] = [];
 /** Swipes toward the nearest enemy, hitting everything inside the arc at once. */
 export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): boolean {
   const { player, enemies } = world;
-  const reach = def.reach * slot.stats.area;
+  const reach = def.reach * slot.stats.area * slot.stats.reachMult;
   const target = findNearestEnemy(world, reach + MAX_ENEMY_RADIUS);
   if (!target) return false;
 
@@ -22,7 +22,7 @@ export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): bool
   const dirY = tdist > 0 ? ty / tdist : 0;
   const halfArc = (def.arcDegrees * Math.PI) / 360;
   const cosHalf = Math.cos(halfArc);
-  const hit = makeHitInfo(slot.stats);
+  const hit = makeHitInfo(slot.stats, slot);
 
   queryEnemies(world, player.x, player.y, reach, neighbours);
   for (const j of neighbours) {

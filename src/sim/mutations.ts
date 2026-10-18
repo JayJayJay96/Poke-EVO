@@ -2,23 +2,14 @@ import { MAX_SOCKETS } from '../data/augments';
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_IDS, MUTATIONS, REQUIREMENTS, type MutationDef, type MutationId, type RequirementId } from '../data/mutations';
 import { MAX_LEARNSET_SLOTS } from '../data/upgrades';
+import { isBuilt } from './hooks';
 import { createSlot, refreshStats } from './stats';
 import type { MoveSlot, World } from './types';
 
 // Mutation acquisition and sockets (docs/moveset/README.md rules 1, 6–8; D16).
 // Map sites will call mutationOffers / grantMutation; until they exist the only way in is the debug grant.
 
-/** Mutations whose sim behaviour exists. Others are registered data only and can't be granted yet. */
-const BUILT = new Set<MutationId>();
-
-/** Called by each Mutation's sim module when it is built. */
-export function registerBuilt(id: MutationId): void {
-  BUILT.add(id);
-}
-
-export function isBuilt(id: MutationId): boolean {
-  return BUILT.has(id);
-}
+export { isBuilt, registerBuilt } from './hooks';
 
 export function isMutationId(id: string): id is MutationId {
   return id in MUTATIONS;
@@ -50,7 +41,7 @@ export function requirementMet(world: World, req: RequirementId): boolean {
  */
 export function mutationOffers(world: World): MutationId[] {
   return MUTATION_IDS.filter((id) => {
-    if (!BUILT.has(id)) return false;
+    if (!isBuilt(id)) return false;
     const def: MutationDef = MUTATIONS[id];
     if (def.line && def.line !== world.player.pokemonId) return false;
     if (world.player.stage < def.fromStage) return false;
@@ -69,7 +60,7 @@ export type GrantResult = 'granted' | 'replace' | 'notBuilt' | 'wrongLine' | 'no
  */
 export function grantMutation(world: World, id: MutationId): GrantResult {
   if (world.offer || world.evolution || world.status !== 'running') return 'busy';
-  if (!BUILT.has(id)) return 'notBuilt';
+  if (!isBuilt(id)) return 'notBuilt';
   const def: MutationDef = MUTATIONS[id];
   if (def.line && def.line !== world.player.pokemonId) return 'wrongLine';
   let index = mutationSlotIndex(world, def);
@@ -84,7 +75,7 @@ export function grantMutation(world: World, id: MutationId): GrantResult {
     world.offer = { kind: 'mutationReplace', slot: index, mutationId: id };
     return 'replace';
   }
-  slot.mutation = id;
+  setMutation(slot, id);
   refreshStats(world);
   return 'granted';
 }
@@ -96,9 +87,17 @@ export function chooseMutationReplace(world: World, socketIndex: number): void {
   const slot = world.moves[offer.slot];
   if (!slot || !slot.sockets[socketIndex]) return;
   slot.sockets.splice(socketIndex, 1);
-  slot.mutation = offer.mutationId;
+  setMutation(slot, offer.mutationId);
   world.offer = null;
   refreshStats(world);
+}
+
+/** Puts a Mutation on a move with fresh hook state. */
+export function setMutation(slot: MoveSlot, id: MutationId | null): void {
+  slot.mutation = id;
+  slot.mutState = {};
+  slot.cooldownLeft = 0;
+  slot.activeLeft = 0;
 }
 
 /** Replace window: keep every augment; the Mutation is not taken. */

@@ -1,7 +1,9 @@
 import { ABILITIES, ENEMIES, TUNING } from '../data/content';
+import { MUTATION_TUNING } from '../data/mutations';
 import { effectiveness } from '../data/typeChart';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
-import type { Enemy, Gem, HitInfo, MoveStats, World } from './types';
+import { emit, healPlayer, hooksOf } from './hooks';
+import type { Enemy, Gem, HitInfo, MoveSlot, MoveStats, World } from './types';
 
 export const MAX_ENEMY_RADIUS = Math.max(...Object.values(ENEMIES).map((e) => e.radius));
 /** Enemies move after the hash is built, so queries look a little wider than needed. */
@@ -21,10 +23,17 @@ export const NO_HIT: Readonly<HitInfo> = {
   poisonDps: 0,
   seedDps: 0,
   attackType: null,
+  slot: null,
+  fromProc: false,
 };
 
+/** A hit spawned by a Mutation or ability effect: plain damage plus the caller's own statuses, nothing else. */
+export function procHit(attackType: HitInfo['attackType']): HitInfo {
+  return { ...NO_HIT, attackType, fromProc: true };
+}
+
 /** On-hit effects for a move with these stats. Callers set dirX/dirY per hit for knockback. */
-export function makeHitInfo(stats: MoveStats): HitInfo {
+export function makeHitInfo(stats: MoveStats, slot: MoveSlot | null = null): HitInfo {
   return {
     critChance: stats.critChance,
     missingHpBonus: stats.missingHpBonus,
@@ -38,6 +47,8 @@ export function makeHitInfo(stats: MoveStats): HitInfo {
     poisonDps: stats.damage * stats.poisonPct,
     attackType: stats.attackType,
     seedDps: stats.damage * stats.seedPct,
+    slot,
+    fromProc: false,
   };
 }
 
@@ -101,17 +112,27 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   // Type chart (D14): multiplied for dual-type enemies; typeless hits stay ×1.
   const typeMult = effectiveness(hit.attackType, def.types);
   enemy.lastEffectiveness = typeMult;
-  const amount = (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world) * (1 + missing) * typeMult;
+  // Mutation hooks see only the move's own hits, never proc hits (no proc-from-proc).
+  const slot = hit.fromProc ? null : hit.slot;
+  const hooks = slot ? hooksOf(slot) : undefined;
+  const mutationMult = hooks?.damageMult ? hooks.damageMult(world, slot!, enemy) : 1;
+  const amount =
+    (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world) * (1 + missing) * typeMult * mutationMult;
   const dealt = Math.min(enemy.hp, amount);
   enemy.hp -= amount;
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
 
-  if (hit.lifesteal > 0) player.hp = Math.min(player.maxHp, player.hp + dealt * hit.lifesteal);
+  if (hit.lifesteal > 0) healPlayer(world, dealt * hit.lifesteal);
+  hooks?.onHit?.(world, slot!, enemy, dealt);
 
   if (enemy.hp <= 0) {
     world.kills++;
     dropGem(world, enemy.x, enemy.y, def.xp);
     maybeDropBerry(world, enemy.x, enemy.y, def.berryChance);
+    if (!hit.fromProc) {
+      hooks?.onKill?.(world, slot!, enemy);
+      emit(world, 'kill', 1);
+    }
     return dealt;
   }
   if (hit.burnDps > 0) applyBurn(enemy, hit.burnDps);
@@ -124,8 +145,11 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     enemy.seedLeft = TUNING.status.seedSeconds;
   }
   if (hit.knockback > 0) {
-    // Exponential decay makes the total push ≈ the knockback distance; heavy enemies resist.
-    const v = hit.knockback * TUNING.status.knockbackDecay * (1 - knockbackResistance(def.weightKg));
+    // Exponential decay makes the total push ≈ the knockback distance; heavy enemies resist,
+    // Soaked enemies stagger further, bosses half as far.
+    const soaked = enemy.soakLeft > 0 ? MUTATION_TUNING.soaked.staggerTakenMult : 1;
+    const boss = def.boss ? MUTATION_TUNING.bossStaggerMult : 1;
+    const v = hit.knockback * TUNING.status.knockbackDecay * (1 - knockbackResistance(def.weightKg)) * soaked * boss;
     enemy.kbX += hit.dirX * v;
     enemy.kbY += hit.dirY * v;
   }
@@ -138,6 +162,36 @@ export function applyBurn(enemy: Enemy, dps: number): void {
   enemy.burnDps = burning ? Math.max(enemy.burnDps, dps) : dps;
   if (!burning) enemy.burnTickLeft = TUNING.status.burnTick;
   enemy.burnLeft = TUNING.status.burnSeconds;
+}
+
+/**
+ * A stun from a new effect (Mutations, evolved abilities): bosses are immune, and stun fatigue
+ * (D21) blocks it for a while after the last one ended. Base moves keep using applyStatuses.
+ * Returns whether it stunned.
+ */
+export function applyNewStun(enemy: Enemy, seconds: number): boolean {
+  if (seconds <= 0 || enemy.stunFatigueLeft > 0 || ENEMIES[enemy.kind].boss) return false;
+  enemy.stunLeft = Math.max(enemy.stunLeft, seconds);
+  enemy.fatigueOnEnd = true;
+  return true;
+}
+
+/** Traps, slips and drags only work on light, non-boss enemies. */
+export function canTrap(enemy: Enemy): boolean {
+  const def = ENEMIES[enemy.kind];
+  return !def.boss && def.weightKg < MUTATION_TUNING.trapMaxWeightKg;
+}
+
+/** Soaked (shared Water terrain): refreshes. */
+export function soak(enemy: Enemy, seconds: number = MUTATION_TUNING.soaked.seconds): void {
+  enemy.soakLeft = Math.max(enemy.soakLeft, seconds);
+}
+
+/** Movement factor from slows and Soaked; the total slowdown is capped (guard rail). */
+export function enemySpeedFactor(enemy: Enemy): number {
+  const slow = enemy.slowLeft > 0 ? enemy.slow : 0;
+  const soaked = enemy.soakLeft > 0 ? MUTATION_TUNING.soaked.speedMult : 1;
+  return Math.max(1 - MUTATION_TUNING.slowCap, (1 - slow) * soaked);
 }
 
 /** Slow, stun and poison from a hit or a zone tick. Stronger effects win; durations refresh. */
@@ -198,8 +252,7 @@ export function updateStatuses(world: World, dt: number): void {
       while (enemy.seedTickLeft <= TICK_EPSILON && enemy.hp > 0) {
         // A plain hit (no proc-from-proc); part of the damage dealt heals the player.
         const dealt = damageEnemy(world, enemy, enemy.seedDps * tick);
-        const p = world.player;
-        p.hp = Math.min(p.maxHp, p.hp + dealt * TUNING.status.seedHealFraction);
+        healPlayer(world, dealt * TUNING.status.seedHealFraction);
         enemy.seedTickLeft += tick;
       }
       if (enemy.seedLeft <= 0) enemy.seedDps = 0;
@@ -208,7 +261,15 @@ export function updateStatuses(world: World, dt: number): void {
       enemy.slowLeft -= dt;
       if (enemy.slowLeft <= 0) enemy.slow = 0;
     }
-    if (enemy.stunLeft > 0) enemy.stunLeft = Math.max(0, enemy.stunLeft - dt);
+    if (enemy.soakLeft > 0) enemy.soakLeft = Math.max(0, enemy.soakLeft - dt);
+    if (enemy.stunFatigueLeft > 0) enemy.stunFatigueLeft = Math.max(0, enemy.stunFatigueLeft - dt);
+    if (enemy.stunLeft > 0) {
+      enemy.stunLeft = Math.max(0, enemy.stunLeft - dt);
+      if (enemy.stunLeft === 0 && enemy.fatigueOnEnd) {
+        enemy.fatigueOnEnd = false;
+        enemy.stunFatigueLeft = MUTATION_TUNING.stunFatigueSeconds;
+      }
+    }
   }
 }
 

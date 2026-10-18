@@ -1,5 +1,6 @@
 import type { BeamMoveDef } from '../../data/moves';
 import { damageEnemy, findNearestEnemy, makeHitInfo, queryEnemies } from '../combat';
+import { hooksOf } from '../hooks';
 import type { MoveSlot, World } from '../types';
 
 const neighbours: number[] = [];
@@ -19,12 +20,13 @@ export function castBeam(world: World, slot: MoveSlot, def: BeamMoveDef): boolea
 }
 
 export function beamLength(slot: MoveSlot, def: BeamMoveDef): number {
-  return def.length * slot.stats.area;
+  return def.length * slot.stats.area * slot.stats.reachMult;
 }
 
 export function updateBeam(world: World, slot: MoveSlot, def: BeamMoveDef, dt: number): void {
   if (slot.activeLeft <= 0) return;
   slot.activeLeft -= dt;
+  if (slot.activeLeft <= 0) hooksOf(slot)?.onExpire?.(world, slot);
   slot.tickLeft -= dt;
   if (slot.tickLeft > 0) return;
   slot.tickLeft += def.tickInterval;
@@ -34,7 +36,7 @@ export function updateBeam(world: World, slot: MoveSlot, def: BeamMoveDef, dt: n
   const halfWidth = (def.width * slot.stats.area) / 2;
   const midX = player.x + (slot.dirX * length) / 2;
   const midY = player.y + (slot.dirY * length) / 2;
-  const hit = makeHitInfo(slot.stats);
+  const hit = makeHitInfo(slot.stats, slot);
   hit.dirX = slot.dirX;
   hit.dirY = slot.dirY;
   queryEnemies(world, midX, midY, length / 2 + halfWidth, neighbours);

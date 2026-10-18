@@ -1,6 +1,7 @@
 import { TUNING } from '../../data/content';
 import type { ProjectileMoveDef } from '../../data/moves';
 import { NO_HIT, damageEnemy, findNearestEnemy, queryEnemies } from '../combat';
+import { emit } from '../hooks';
 import type { Enemy, MoveSlot, Projectile, World } from '../types';
 import { spawnZone } from '../zones';
 
@@ -99,6 +100,8 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
     p.hit.lifesteal = s.lifesteal;
     p.hit.burnDps = damage * s.burnPct;
     p.hit.knockback = s.knockback;
+    p.hit.slot = slot;
+    p.hit.fromProc = false;
     p.pierceLeft = s.pierce + (def.pierce ?? 0);
     p.homing = s.homing;
     p.homingTarget = null;
@@ -218,6 +221,7 @@ function chain(world: World, proj: Projectile, from: Enemy): void {
     if (!next) return;
     world.arcs.push({ x1: current.x, y1: current.y, x2: next.x, y2: next.y, lifeLeft: ARC_SECONDS });
     damageEnemy(world, next, proj.damage * proj.chainFraction, proj.hit);
+    emit(world, 'chainJump', 1);
     remember(proj, next.id);
     current = next;
   }

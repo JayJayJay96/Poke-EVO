@@ -71,6 +71,21 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-18 — P4f-2: Mutation hook layer, shared terrain, guard rails
+**Files**
+- `src/sim/hooks.ts` (new): `MutationHooks` (§8.8 names: `stats`, `live`, `cast`, `onCast`, `update`, `onExpire`, `damageMult`, `onHit`, `onKill`, `onEvent`, `moveSpeedMult`, `damageTakenMult`), `defineMutation` (also marks it built), `emit` for INDEX event hooks, `healPlayer` (the one healing path), state helpers (`shellReady`, `hpBelow`, `missingHp`, `atFullHp`, `movingFor`, `standingStill`, `levelBelow`, `targetBurning`). The built registry moved here from `mutations.ts`.
+- `src/sim/terrain.ts` (new): puddles (Soak; optional slip for light enemies) and Scorch (Burn), each capped at 6, oldest dries first, applied every 0.25 s.
+- `src/sim/combat.ts`: hits carry their source `slot` and `fromProc`; `procHit()`; Mutation `damageMult` / `onHit` / `onKill` only for the move's own hits; kill event (not from procs); Lifesteal and Leech Seed heals through `healPlayer`; Soaked ×1.5 stagger, bosses ×0.5; `applyNewStun` (stun fatigue 1.5 s, new effects only, bosses immune), `canTrap` (< 40 kg, not boss), `soak`, `enemySpeedFactor` (slow + Soaked, capped at 70%).
+- `src/sim/world.ts`: player `movingFor` / `stillFor` / facing; Mutation move-speed and damage-taken factors; per-step `live` stats from `baseStats`; `cast` override + `onCast` + `update`; events `shellBlock`, `hitTaken`, `staticProc` (new Static paralysis), `armorAbsorb` (Shell Armor's share); regen and berries heal through `healPlayer`; terrain update. `progression.ts`: `levelUp` event, Potion heal. Forms: hits carry the slot, `reachMult` for beam length / melee reach, beam and orbit `onExpire`, `chainJump` event.
+- `src/sim/mutationDefs/index.ts` (new, empty): where built Mutations register (imported by `world.ts`).
+- `src/data/content.ts`: `EnemyDef.boss` (none yet; P5). `RunScene.ts`: draws puddles (pale blue) and Scorch (orange).
+- Not yet emitted (their sources arrive in P4f-4): `shellBurst`, `flareUp`, `bloom`, `chargeFull`, `discharge`. Sleep vs paralysis aren't told apart yet (`targetAsleep` / `targetParalysed`), needed by P4f-6 Bonds.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **170/170 passed** (13 new in `hooks.test.ts`: event amounts for Shell block / hit taken / Static / Shell Armor, level-up / kill / healing routing with the heal cap, `stats` + non-compounding `live`, `cast` override order, `damageMult` / `onHit` / `onKill`, proc hits trigger nothing, beam `reachMult` + `onExpire`, move-speed / damage-taken products + movement tracking, puddle cap + Soak, Soaked stagger ×1.5, slip + Scorch burn, stun fatigue vs base stuns, 70% slow cap). All 157 earlier tests unchanged and passing.
+- `npm run build` passed. `npm run bench`: one sim step **mean 0.74 ms**, p99 1.04 ms (P4d: 0.74).
+- Not checked in the browser: nothing creates terrain yet (P4f-3).
+
 ### 2026-10-18 — P4f-1: Mutation data + registry plumbing
 **Objective:** first P4f step (owner-approved plan, D21): all Mutation data, sockets, offer filter, debug grant; Lapras Sheer Cold-only tier (D18); D20 speeds.
 

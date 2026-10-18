@@ -32,6 +32,12 @@ export interface Player {
   pickupRadius: number;
   /** Shell: seconds until the next block is ready (0 = ready). */
   blockReadyLeft: number;
+  /** Seconds of continuous movement / standing still (hooks `moving`, `standingStill`). */
+  movingFor: number;
+  stillFor: number;
+  /** Last movement direction (unit vector), for moves aimed with your feet. */
+  faceX: number;
+  faceY: number;
 }
 
 export interface Enemy {
@@ -67,6 +73,12 @@ export interface Enemy {
   seedDps: number;
   seedLeft: number;
   seedTickLeft: number;
+  /** Soaked (shared Water terrain): slower, staggers further. */
+  soakLeft: number;
+  /** Stun fatigue (new effects only, D21): can't be stunned by them again while > 0. */
+  stunFatigueLeft: number;
+  /** The current stun came from a new effect, so fatigue starts when it ends. */
+  fatigueOnEnd: boolean;
 }
 
 /** Pooled: dead projectiles are reused, so every field is reassigned on spawn. */
@@ -138,6 +150,25 @@ export interface HitInfo {
   attackType: PokemonType | null;
   /** Leech Seed damage per second to apply (0 = none). */
   seedDps: number;
+  /** The move that hit, for Mutation hooks (null for zone, status and proc hits). */
+  slot: MoveSlot | null;
+  /** Spawned by a Mutation or ability effect: plain damage only, never triggers anything (no proc-from-proc). */
+  fromProc: boolean;
+}
+
+/** Shared terrain patch (docs/moveset/README.md): a Water puddle or Fire Scorch. Never spawns effects. */
+export interface Terrain {
+  readonly id: number;
+  x: number;
+  y: number;
+  radius: number;
+  lifeLeft: number;
+  duration: number;
+  /** Puddles: chance per second for a light enemy to slip (0 = none), and the slip's stun. */
+  slipChancePerSec: number;
+  slipStun: number;
+  /** Scorch: burn damage per second applied to enemies standing in it. */
+  burnDps: number;
 }
 
 /** An Oran Berry on the ground: walk over it to heal (D12). Not magnetized. */
@@ -242,6 +273,8 @@ export interface MoveStats {
   attackType: PokemonType | null;
   /** Leech Seed damage per second as a fraction of the hit. */
   seedPct: number;
+  /** Beam length / melee reach multiplier (Mutations); area still scales both. */
+  reachMult: number;
 }
 
 export interface AugmentSocket {
@@ -269,7 +302,11 @@ export interface MoveSlot {
   sockets: AugmentSocket[];
   /** At most one Mutation per move; it takes one of the 3 sockets and never ranks up. */
   mutation: MutationId | null;
+  /** Per-move scratch state for its Mutation's hooks; reset when the Mutation changes. */
+  mutState: Record<string, number>;
   stats: MoveStats;
+  /** Stats before per-step `live` Mutation adjustments. */
+  baseStats: MoveStats;
 }
 
 /** A melee swipe kept around briefly so it can be drawn. */
@@ -355,6 +392,11 @@ export interface World {
   gems: Gem[];
   berries: Berry[];
   zones: Zone[];
+  /** Shared terrain, each capped (oldest dries first). */
+  puddles: Terrain[];
+  scorches: Terrain[];
+  /** Seconds until terrain next applies its effects (0.25 s cadence, like status ticks). */
+  terrainTickLeft: number;
   swings: Swing[];
   blasts: Blast[];
   arcs: Arc[];

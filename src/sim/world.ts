@@ -3,18 +3,21 @@ import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } fro
 import { MOVES, type MoveDef } from '../data/moves';
 import { BOOST_IDS, type BoostId } from '../data/upgrades';
 import { WAVES, type WaveKeyframe } from '../data/waves';
-import { queryEnemies, updateStatuses } from './combat';
+import { enemySpeedFactor, queryEnemies, updateStatuses } from './combat';
 import { startEvolutionIfDue, upgradeSignatureByLevel } from './evolution';
 import { castBeam, updateBeam } from './forms/beam';
 import { castMelee } from './forms/melee';
 import { castOrbit, updateOrbit } from './forms/orbit';
 import { castProjectile, updateProjectiles } from './forms/projectile';
 import { castZone } from './forms/zoneCast';
+import { emit, healPlayer, hooksOf, mutationDamageTakenMult, mutationMoveSpeedMult } from './hooks';
+import './mutationDefs';
 import { gainXp, makeOffer } from './progression';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
 import type { Enemy, InputState, MoveSlot, World } from './types';
+import { updateTerrain } from './terrain';
 import { updateZones } from './zones';
 
 const ENEMY_IDS = Object.keys(ENEMIES) as EnemyId[];
@@ -53,6 +56,10 @@ export function createWorld({
       hurtFlashLeft: 0,
       pickupRadius: TUNING.player.baseMagnetRadius,
       blockReadyLeft: 0,
+      movingFor: 0,
+      stillFor: 0,
+      faceX: 1,
+      faceY: 0,
     },
     enemies: [],
     projectiles: [],
@@ -60,6 +67,9 @@ export function createWorld({
     gems: [],
     berries: [],
     zones: [],
+    puddles: [],
+    scorches: [],
+    terrainTickLeft: 0,
     swings: [],
     blasts: [],
     arcs: [],
@@ -104,6 +114,7 @@ export function step(world: World, input: InputState, dt: number): void {
   updateMoves(world, dt);
   updateProjectiles(world, dt);
   updateZones(world, dt);
+  updateTerrain(world, dt);
   updateGems(world, dt);
   pickUpBerries(world);
   applyContactDamage(world);
@@ -182,6 +193,9 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     seedDps: 0,
     seedLeft: 0,
     seedTickLeft: 0,
+    soakLeft: 0,
+    stunFatigueLeft: 0,
+    fatigueOnEnd: false,
   };
   world.enemies.push(enemy);
   return enemy;
@@ -191,7 +205,7 @@ function tickTimers(world: World, dt: number): void {
   const p = world.player;
   p.invulnLeft = Math.max(0, p.invulnLeft - dt);
   p.hurtFlashLeft = Math.max(0, p.hurtFlashLeft - dt);
-  if (world.mods.regenPerSec > 0) p.hp = Math.min(p.maxHp, p.hp + world.mods.regenPerSec * dt);
+  if (world.mods.regenPerSec > 0) healPlayer(world, world.mods.regenPerSec * dt);
   // Solar Power's drain never takes the last HP point.
   const drain = ABILITIES[p.ability].hpDrainPerSec ?? 0;
   if (drain > 0 && p.hp > 1) p.hp = Math.max(1, p.hp - drain * dt);
@@ -213,8 +227,19 @@ function movePlayer(world: World, input: InputState, dt: number): void {
     my /= len;
   }
   const p = world.player;
-  p.x += mx * p.speed * dt;
-  p.y += my * p.speed * dt;
+  const len2 = Math.hypot(mx, my);
+  if (len2 > 0) {
+    p.movingFor += dt;
+    p.stillFor = 0;
+    p.faceX = mx / len2;
+    p.faceY = my / len2;
+  } else {
+    p.stillFor += dt;
+    p.movingFor = 0;
+  }
+  const speed = p.speed * mutationMoveSpeedMult(world);
+  p.x += mx * speed * dt;
+  p.y += my * speed * dt;
 }
 
 function updateSpawner(world: World, dt: number): void {
@@ -249,7 +274,7 @@ function moveEnemies(world: World, dt: number): void {
     const dx = player.x - enemy.x;
     const dy = player.y - enemy.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const speed = enemy.speed * (1 - (enemy.slowLeft > 0 ? enemy.slow : 0));
+    const speed = enemy.speed * enemySpeedFactor(enemy);
     let vx = (dx / dist) * speed;
     let vy = (dy / dist) * speed;
 
@@ -282,12 +307,24 @@ function moveEnemies(world: World, dt: number): void {
 function updateMoves(world: World, dt: number): void {
   for (const slot of world.moves) {
     const def = MOVES[slot.moveId];
+    const hooks = hooksOf(slot);
+    if (hooks?.live) {
+      Object.assign(slot.stats, slot.baseStats);
+      hooks.live(slot.stats, world, slot);
+    }
     slot.cooldownLeft = Math.max(0, slot.cooldownLeft - dt);
     // A move with no valid target stays ready and fires the moment one appears.
-    if (slot.cooldownLeft <= 0 && castMove(world, slot, def)) slot.cooldownLeft = slot.stats.cooldown;
+    if (slot.cooldownLeft <= 0) {
+      const cast = hooks?.cast ? hooks.cast(world, slot) : castMove(world, slot, def);
+      if (cast) {
+        slot.cooldownLeft = slot.stats.cooldown;
+        hooks?.onCast?.(world, slot);
+      }
+    }
     // Orbits and beams act from the step they are cast.
     if (def.form === 'orbit') updateOrbit(world, slot, def, dt);
     else if (def.form === 'beam') updateBeam(world, slot, def, dt);
+    hooks?.update?.(world, slot, dt);
   }
 }
 
@@ -339,7 +376,7 @@ function pickUpBerries(world: World): void {
     const dy = berry.y - p.y;
     if (dx * dx + dy * dy > reach * reach) continue;
     berry.collected = true;
-    p.hp = Math.min(p.maxHp, p.hp + TUNING.heal.berryHeal);
+    healPlayer(world, TUNING.heal.berryHeal);
   }
 }
 
@@ -360,17 +397,26 @@ function applyContactDamage(world: World): void {
     const reach = enemy.radius + player.radius;
     if (dx * dx + dy * dy > reach * reach) continue;
     const wasStunned = enemy.stunLeft > 0;
-    if (ability.contactStun) enemy.stunLeft = Math.max(enemy.stunLeft, ability.contactStun);
+    if (ability.contactStun) {
+      enemy.stunLeft = Math.max(enemy.stunLeft, ability.contactStun);
+      if (!wasStunned) emit(world, 'staticProc', 1);
+    }
     if (hurt || wasStunned || player.invulnLeft > 0) continue;
     hurt = true; // one hit per step
     player.invulnLeft = TUNING.player.invulnSeconds;
     if (ability.blockEvery && player.blockReadyLeft <= 0) {
       // Shell: this hit is blocked; the shell recharges.
       player.blockReadyLeft = ability.blockEvery;
+      emit(world, 'shellBlock', enemy.contactDamage);
       continue;
     }
-    player.hp = Math.max(0, player.hp - enemy.contactDamage * world.mods.damageTakenMult);
+    const taken = enemy.contactDamage * world.mods.damageTakenMult * mutationDamageTakenMult(world);
+    player.hp = Math.max(0, player.hp - taken);
     player.hurtFlashLeft = TUNING.player.hurtFlashSeconds;
+    // Shell Armor's share of the reduction, for armorAbsorb (Lapras).
+    const armor = -(ability.damageTakenPct ?? 0);
+    if (armor > 0) emit(world, 'armorAbsorb', enemy.contactDamage * armor);
+    emit(world, 'hitTaken', taken);
     if (player.hp <= 0) world.status = 'fainted';
   }
 }
@@ -394,6 +440,8 @@ function removeDead(world: World): void {
   compact(world.gems, (g) => !g.collected);
   compact(world.berries, (b) => !b.collected);
   compact(world.zones, (z) => z.lifeLeft > 0);
+  compact(world.puddles, (t) => t.lifeLeft > 0);
+  compact(world.scorches, (t) => t.lifeLeft > 0);
   compact(world.swings, (s) => s.lifeLeft > 0);
   compact(world.blasts, (b) => b.lifeLeft > 0);
   compact(world.arcs, (a) => a.lifeLeft > 0);

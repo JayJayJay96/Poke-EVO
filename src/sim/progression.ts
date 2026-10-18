@@ -17,6 +17,7 @@ import {
   MAX_LEARNSET_SLOTS,
   POTION_HEAL,
 } from '../data/upgrades';
+import { emit, healPlayer } from './hooks';
 import { socketsUsed } from './mutations';
 import type { Rng } from './rng';
 import { createSlot, refreshStats } from './stats';
@@ -35,6 +36,7 @@ export function gainXp(world: World, amount: number): void {
     world.xp -= xpToNext(world.level);
     world.level++;
     world.pendingLevelUps++;
+    emit(world, 'levelUp', 1);
   }
 }
 
@@ -170,7 +172,7 @@ export function chooseCard(world: World, index: number): void {
       world.items.push(card.itemId);
       break;
     case 'potion':
-      world.player.hp = Math.min(world.player.maxHp, world.player.hp + POTION_HEAL);
+      healPlayer(world, POTION_HEAL);
       break;
     case 'bigBoost':
       world.bigBoosts++;

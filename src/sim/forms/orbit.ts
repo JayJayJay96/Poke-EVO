@@ -1,5 +1,6 @@
 import type { OrbitMoveDef } from '../../data/moves';
 import { damageEnemy, makeHitInfo, queryEnemies } from '../combat';
+import { hooksOf } from '../hooks';
 import type { MoveSlot, Player, World } from '../types';
 
 const neighbours: number[] = [];
@@ -31,6 +32,7 @@ export function orbitBalls(slot: MoveSlot, def: OrbitMoveDef, player: Player): O
 export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt: number): void {
   if (slot.activeLeft <= 0) return;
   slot.activeLeft -= dt;
+  if (slot.activeLeft <= 0) hooksOf(slot)?.onExpire?.(world, slot);
   slot.angle += def.angularSpeed * dt;
 
   for (const [enemyId, left] of slot.hitCooldowns) {
@@ -39,7 +41,7 @@ export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt:
   }
 
   const { enemies } = world;
-  const hit = makeHitInfo(slot.stats);
+  const hit = makeHitInfo(slot.stats, slot);
   for (const ball of orbitBalls(slot, def, world.player)) {
     queryEnemies(world, ball.x, ball.y, ball.r, neighbours);
     for (const j of neighbours) {
