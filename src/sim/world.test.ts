@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AUGMENT_IDS, AUGMENTS, MAX_RANK, MAX_SOCKETS, REROLLS_PER_RUN, isSpecialAugment } from '../data/augments';
-import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId } from '../data/content';
+import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
 import { MOVES, type MeleeMoveDef, type MoveId, type ProjectileMoveDef, type ZoneMoveDef } from '../data/moves';
 import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
 import { effectiveness, moveType } from '../data/typeChart';
@@ -48,7 +48,7 @@ import {
 import { createSeededRng } from './rng';
 import { SpatialHash } from './spatialHash';
 import { computeModifiers, createSlot, currentStage, refreshStats } from './stats';
-import { STRESS_ENEMIES, setupStress, topUpStress } from './stress';
+import { STRESS_ENEMIES, STRESS_MUTATION_BUILDS, setupMutationStress, setupStress, topUpStress } from './stress';
 import type { AugmentSocket, InputState, Projectile, World } from './types';
 import { createWorld, pickEnemyKind, spawnEnemy, step, waveAt } from './world';
 import { spawnZone } from './zones';
@@ -701,6 +701,28 @@ describe('performance budgets', () => {
     expect(world.offer).toBeNull();
     expect(world.kills).toBeGreaterThan(0);
   });
+
+  for (const pokemonId of Object.keys(STRESS_MUTATION_BUILDS) as PokemonId[]) {
+    it(`maxed-Mutation stress (${pokemonId}): final stage, a Mutation on every move, budgets hold`, () => {
+      const world = createWorld({ rng: createSeededRng(99), pokemonId, spawnRadius: 800 });
+      setupMutationStress(world);
+      expect(world.player.stage).toBe(POKEMON[pokemonId].stages.length - 1);
+      expect(world.moves).toHaveLength(5);
+      expect(world.moves.every((s) => s.mutation !== null)).toBe(true);
+      let maxEntities = 0;
+      for (let i = 0; i < 600; i++) {
+        topUpStress(world);
+        step(world, { moveX: Math.cos(i / 40), moveY: Math.sin(i / 40) }, DT);
+        expect(world.projectiles.length).toBeLessThanOrEqual(TUNING.budget.maxProjectiles);
+        expect(world.zones.length).toBeLessThanOrEqual(TUNING.budget.maxZones);
+        maxEntities = Math.max(maxEntities, world.entities.length);
+      }
+      expect(world.status).toBe('running');
+      expect(world.kills).toBeGreaterThan(0);
+      // Mutation entities are capped per Mutation; nothing should pile up.
+      expect(maxEntities).toBeLessThan(400);
+    });
+  }
 });
 
 describe('evolution', () => {

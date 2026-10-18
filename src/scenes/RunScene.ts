@@ -33,7 +33,7 @@ import {
 } from '../sim/mutations';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
 import { currentStage } from '../sim/stats';
-import { setupStress, topUpStress } from '../sim/stress';
+import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
 import type { AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, World } from '../sim/types';
 import { createWorld, step } from '../sim/world';
 
@@ -172,7 +172,7 @@ export class RunScene extends Phaser.Scene {
   private lastHp = 0;
   private accumulator = 0;
   private paused = false;
-  /** `?stress=1`: maxed build vs 500 enemies (P2d budget check). */
+  /** `?stress=1`: maxed build vs 500 enemies (P2d budget check); `?stress=<line>`: that line's maxed Mutations (P4f-8). */
   private stress = false;
   private perfText: Phaser.GameObjects.Text | null = null;
   private simMs = 0;
@@ -207,7 +207,8 @@ export class RunScene extends Phaser.Scene {
     if (this.stress) {
       const cam = this.cameras.main;
       this.world.spawnRadius = Math.hypot(cam.width, cam.height) / 2 + TUNING.spawn.ringPadding;
-      setupStress(this.world);
+      if (params.get('stress') === this.world.player.pokemonId) setupMutationStress(this.world);
+      else setupStress(this.world);
     }
     this.perfText =
       this.stress || params.has('perf')

@@ -25,9 +25,11 @@ export class SelectScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Stress mode skips the menu.
-    if (new URLSearchParams(window.location.search).has('stress')) {
-      this.scene.start('run', { pokemonId: 'charmander' } satisfies RunSceneData);
+    // Stress mode skips the menu. `?stress=<line>` (e.g. `?stress=lapras`) runs that line's maxed-Mutation build.
+    const stress = new URLSearchParams(window.location.search).get('stress');
+    if (stress !== null) {
+      const pokemonId = stress in POKEMON ? (stress as PokemonId) : 'charmander';
+      this.scene.start('run', { pokemonId } satisfies RunSceneData);
       return;
     }
 

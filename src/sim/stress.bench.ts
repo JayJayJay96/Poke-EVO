@@ -1,7 +1,7 @@
 import { test } from 'vitest';
-import { TUNING } from '../data/content';
+import { TUNING, type PokemonId } from '../data/content';
 import { createSeededRng } from './rng';
-import { setupStress, topUpStress } from './stress';
+import { STRESS_MUTATION_BUILDS, setupMutationStress, setupStress, topUpStress } from './stress';
 import type { World } from './types';
 import { createWorld, step } from './world';
 
@@ -9,9 +9,7 @@ import { createWorld, step } from './world';
 // Budget: the sim should stay well under 16.7 ms per frame; aim for < 4 ms.
 // Run with `npm run bench` (Vitest 5: `bench` is a test-context fixture).
 
-function stressWorld(): World {
-  const world = createWorld({ rng: createSeededRng(99), spawnRadius: 800 });
-  setupStress(world);
+function warmUp(world: World): World {
   // Warm up so projectiles, gems and the pool reach a steady state.
   for (let i = 0; i < 300; i++) {
     topUpStress(world);
@@ -20,13 +18,31 @@ function stressWorld(): World {
   return world;
 }
 
-test('stress: 500 enemies + maxed build', async ({ bench }) => {
-  const world = stressWorld();
+function stressWorld(): World {
+  const world = createWorld({ rng: createSeededRng(99), spawnRadius: 800 });
+  setupStress(world);
+  return warmUp(world);
+}
+
+/** One step, walking in a slow circle so the horde keeps moving. */
+function stepper(world: World): () => void {
   let frame = 0;
-  await bench('one sim step', () => {
+  return () => {
     topUpStress(world);
-    // Walk in a slow circle so the horde keeps moving.
     const a = (frame++ / 240) * Math.PI * 2;
     step(world, { moveX: Math.cos(a), moveY: Math.sin(a) }, TUNING.stepSeconds);
-  }).run();
+  };
+}
+
+test('stress: 500 enemies + maxed build', async ({ bench }) => {
+  await bench('one sim step', stepper(stressWorld())).run();
 });
+
+// P4f-8: the same horde against each line's final stage with a Mutation on every move.
+for (const pokemonId of Object.keys(STRESS_MUTATION_BUILDS) as PokemonId[]) {
+  test(`stress: 500 enemies + maxed Mutations (${pokemonId})`, async ({ bench }) => {
+    const world = createWorld({ rng: createSeededRng(99), pokemonId, spawnRadius: 800 });
+    setupMutationStress(world);
+    await bench(`one sim step (${pokemonId} Mutations)`, stepper(warmUp(world))).run();
+  });
+}

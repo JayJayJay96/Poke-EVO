@@ -1,7 +1,10 @@
-import { MAX_RANK, maxRankOf, type AugmentId } from '../data/augments';
-import type { EnemyId } from '../data/content';
+import { MAX_RANK, MAX_SOCKETS, maxRankOf, type AugmentId } from '../data/augments';
+import { POKEMON, type EnemyId, type PokemonId } from '../data/content';
 import type { MoveId } from '../data/moves';
+import { MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { BOOST_IDS, BOOST_MAX_PICKS } from '../data/upgrades';
+import { upgradeSignatureByLevel } from './evolution';
+import { grantMutation, socketsUsed } from './mutations';
 import { createSlot, refreshStats } from './stats';
 import type { World } from './types';
 import { spawnEnemy } from './world';
@@ -34,6 +37,54 @@ export function setupStress(world: World): void {
   world.items = ['leftovers', 'quickClaw', 'wideLens'];
   refreshStats(world);
   world.player.invulnLeft = Infinity; // never takes damage, never faints
+  topUpStress(world);
+}
+
+/**
+ * Maxed-Mutation variant (P4f-8): each line at its final stage with a Mutation on every move (the ones
+ * that spawn the most entities, zones and terrain), the other two sockets filled with maxed augments.
+ */
+export const STRESS_MUTATION_BUILDS: Record<PokemonId, readonly MutationId[]> = {
+  charmander: ['ember.flamethrower', 'fireSpin.flameTrail', 'wingAttack.fanTheFlames', 'slash.afterimage', 'dragonRage.dragonBreath'],
+  squirtle: ['bubble.froth', 'whirlpool.maelstrom', 'hydroPump.rainCannon', 'flashCannon.shrapnel', 'rapidSpin.spiralSpin'],
+  bulbasaur: ['vineWhip.thornGarden', 'leechSeed.spread', 'petalDance.frenzy', 'poisonPowder.toxic', 'razorLeaf.embed'],
+  pikachu: ['thunderShock.ballLightning', 'spark.shower', 'electroBall.ricochet', 'thunderWave.terrain', 'thunder.afterglow'],
+  lapras: ['iceShard.hail', 'iceBeam.iceWall', 'bodySlam.shockwave', 'surf.rideTheWave', 'hydroPump.pressureShell'],
+};
+
+/** Augments tried, in order, for the sockets a Mutation leaves free. */
+const STRESS_FILLERS: readonly AugmentId[] = ['powerUp', 'quickCast', 'enlarge', 'lifesteal'];
+
+/** The stress setup for `world` (created for that line), with its maxed-Mutation build. */
+export function setupMutationStress(world: World): void {
+  const line = POKEMON[world.player.pokemonId];
+  const last = line.stages.length - 1;
+  // Evolve straight to the final stage, the way the cinematic would.
+  for (let i = 1; i <= last; i++) {
+    const ability = line.stages[i]!.ability;
+    if (ability) world.player.ability = ability;
+  }
+  world.player.stage = last;
+  world.moves = [createSlot(line.stages[last]!.signatureMove)];
+  // Late-run level: level-based signature tiers (Lapras) are reached; Tide Bonds are in Ebb.
+  world.level = 40;
+  upgradeSignatureByLevel(world);
+  world.signatureTierUp = null;
+  for (const id of STRESS_MUTATION_BUILDS[world.player.pokemonId]) {
+    const result = grantMutation(world, id);
+    if (result !== 'granted') throw new Error(`stress build: ${id} → ${result}`);
+  }
+  for (const slot of world.moves) {
+    const def: MutationDef | null = slot.mutation ? MUTATIONS[slot.mutation] : null;
+    const excluded: readonly string[] = def?.excludesAugments ?? [];
+    const fillers = STRESS_FILLERS.filter((id) => !excluded.includes(id)).slice(0, MAX_SOCKETS - socketsUsed(slot));
+    slot.sockets = fillers.map((augmentId) => ({ augmentId, rank: Math.min(MAX_RANK, maxRankOf(augmentId)) }));
+  }
+  world.spawnEnabled = false;
+  for (const id of BOOST_IDS) world.boosts[id] = BOOST_MAX_PICKS;
+  world.items = ['leftovers', 'quickClaw', 'wideLens'];
+  refreshStats(world);
+  world.player.invulnLeft = Infinity;
   topUpStress(world);
 }
 
