@@ -3,6 +3,7 @@ import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from 
 import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationId } from '../data/mutations';
+import { SITE_TUNING } from '../data/sites';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
@@ -32,9 +33,10 @@ import {
   socketsUsed,
 } from '../sim/mutations';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
+import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
-import type { AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, World } from '../sim/types';
+import type { AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, SiteCard, World } from '../sim/types';
 import { createWorld, step } from '../sim/world';
 
 // Grey-box colours until real sprites arrive in P6.
@@ -72,6 +74,8 @@ const COLORS = {
   bulbFull: 0xff7ad9,
   cheek: 0xff3030,
   bond: 0xffc83d,
+  /** A Mutation Site before its roll is known. */
+  site: 0x8fe3ff,
 } as const;
 /** Player and move colours by Pokémon type, so each line reads differently in grey-box. */
 const TYPE_COLORS: Readonly<Record<PokemonType, number>> = {
@@ -154,6 +158,8 @@ export class RunScene extends Phaser.Scene {
   private tierTextUntil = 0;
   /** A one-off notice for the next frame (debug Mutation grants). */
   private pendingNotice: string | null = null;
+  /** Sites whose Pokémon-bound roll has been announced. */
+  private announcedSites = new Set<number>();
   private panel!: Phaser.GameObjects.Text;
   /** Draws above the overlay dim: the evolving player during the cinematic. */
   private fxGfx!: Phaser.GameObjects.Graphics;
@@ -191,7 +197,12 @@ export class RunScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.world = createWorld({ rng: createSeededRng(createRandomSeed()), pokemonId: this.pokemonId });
+    this.world = createWorld({
+      rng: createSeededRng(createRandomSeed()),
+      pokemonId: this.pokemonId,
+      mapSeed: createRandomSeed(),
+    });
+    this.announcedSites = new Set();
     if (import.meta.env.DEV) {
       // Dev-only handle for browser checks; stripped from production builds.
       (window as unknown as { __world?: World }).__world = this.world;
@@ -343,6 +354,7 @@ export class RunScene extends Phaser.Scene {
           if (offer.kind === 'replace') backFromReplace(world);
           else if (offer.kind === 'augment') backToSkills(world);
           else if (offer.kind === 'mutationReplace') cancelMutationReplace(world);
+          else if (offer.kind === 'site') skipSite(world);
         }
       }
     } else if (JustDown(this.keys.restart) && world.status !== 'running') {
@@ -374,11 +386,23 @@ export class RunScene extends Phaser.Scene {
     const drawStart = performance.now();
 
     this.trackPlayerDamage(deltaMs);
+    this.announceBoundSites();
     this.showSignatureTierUp(time);
     this.syncOverlay(time);
     this.draw();
 
     this.updatePerf(time, drawStart - simStart, performance.now() - drawStart);
+  }
+
+  /** D23: stepping into a site whose roll holds a Bond or signature Mutation says so (and why it takes longer). */
+  private announceBoundSites(): void {
+    for (const site of this.world.sites) {
+      if (!site.bound || this.announcedSites.has(site.id)) continue;
+      this.announcedSites.add(site.id);
+      const name = currentStage(this.world).name;
+      const message = `Something bound to ${name} is inside! Hold ${site.required} s`;
+      this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
+    }
   }
 
   /** Lapras's signature tiers up by level instead of evolving: a short notice says so. Also debug grants. */
@@ -467,8 +491,17 @@ export class RunScene extends Phaser.Scene {
     else if (offer.kind === 'replace') {
       if (index < MAX_SOCKETS) chooseReplace(this.world, index);
       else backFromReplace(this.world);
+    } else if (offer.kind === 'site') {
+      if (index < offer.cards.length) this.siteNotice(chooseSiteCard(this.world, index), offer.cards[index]!);
+      else skipSite(this.world);
     } else if (index < this.world.moves[offer.slot]!.sockets.length) chooseMutationReplace(this.world, index);
     else cancelMutationReplace(this.world);
+  }
+
+  /** Says what a site card did when it isn't obvious (a Mutation that couldn't be placed). */
+  private siteNotice(result: ReturnType<typeof chooseSiteCard>, card: SiteCard): void {
+    if (card.kind !== 'mutation' || result === 'granted' || result === 'replace') return;
+    this.pendingNotice = `Couldn't place ${MUTATIONS[card.mutationId].name}: ${result}`;
   }
 
   /** Debug grant (`?mutate=` or dev `__grantMutation`): grants a Mutation by ID and says what happened. */
@@ -520,6 +553,7 @@ export class RunScene extends Phaser.Scene {
     let frame: number | undefined;
     let views: CardView[];
     let footer = '';
+    let footerAction: (() => void) | null = null;
     switch (offer.kind) {
       case 'cards':
         title = `Level ${level}!  Pick one`;
@@ -539,6 +573,7 @@ export class RunScene extends Phaser.Scene {
         footer = canReroll(world)
           ? `[R] Reroll (${world.rerollsLeft} left)`
           : `Reroll unavailable (${world.rerollsLeft} left)`;
+        if (canReroll(world)) footerAction = () => rerollAugments(this.world);
         if (socketsUsed(world.moves[offer.slot]!) >= MAX_SOCKETS) footer += '   ·   Sockets full: a new augment replaces one';
         break;
       }
@@ -579,6 +614,15 @@ export class RunScene extends Phaser.Scene {
           color: 0xff6b6b,
         }));
         views.push({ heading: 'CANCEL', title: 'Keep all', body: `Don't take ${def.name} (Esc)`, color: 0x888888 });
+        break;
+      }
+      case 'site': {
+        const bound = offer.cards.some(isBoundCard);
+        title = 'Mutation Site!  Pick one';
+        frame = bound ? COLORS.bond : COLORS.mutation;
+        views = offer.cards.map((card) => describeSiteCard(world, card));
+        footer = '[Esc] Skip: leave it (the site is used up)';
+        footerAction = () => skipSite(this.world);
         break;
       }
     }
@@ -644,14 +688,12 @@ export class RunScene extends Phaser.Scene {
         .text(cam.width / 2, cardsTop + CARD_H + 14, footer, {
           fontFamily: 'monospace',
           fontSize: '15px',
-          color: canReroll(world) ? '#ffd34d' : '#888888',
+          color: footerAction ? '#ffd34d' : '#888888',
         })
         .setOrigin(0.5, 0)
         .setScrollFactor(0)
         .setDepth(31);
-      if (canReroll(world)) {
-        foot.setInteractive({ useHandCursor: true }).on('pointerdown', () => rerollAugments(this.world));
-      }
+      if (footerAction) foot.setInteractive({ useHandCursor: true }).on('pointerdown', footerAction);
       this.overlay.push(foot);
     }
   }
@@ -851,6 +893,23 @@ export class RunScene extends Phaser.Scene {
     for (const patch of this.world.scorches) {
       g.fillStyle(COLORS.crater, 0.3 * Math.min(1, patch.lifeLeft / 0.5));
       g.fillCircle(patch.x, patch.y, patch.radius);
+    }
+
+    // Mutation Sites (D23): the ring's colour reveals the roll once you step in (gold = Pokémon-bound);
+    // the outer arc fills while you capture it.
+    for (const site of this.world.sites) {
+      const color = siteColor(site);
+      g.fillStyle(color, 0.12);
+      g.fillCircle(site.x, site.y, site.radius);
+      g.lineStyle(3, color, 0.9);
+      g.strokeCircle(site.x, site.y, site.radius);
+      if (site.progress > 0) {
+        const start = -Math.PI / 2;
+        g.lineStyle(6, color, 1);
+        g.beginPath();
+        g.arc(site.x, site.y, site.radius + 8, start, start + (site.progress / site.required) * Math.PI * 2, false);
+        g.strokePath();
+      }
     }
 
     // Oran Berries: blue with a white rim, so they read as "heal" (D12).
@@ -1167,13 +1226,32 @@ export class RunScene extends Phaser.Scene {
     h.fillStyle(COLORS.xpFill, 1);
     h.fillRect(0, 0, (cam.width * xp) / xpToNext(level), 6);
 
+    // Arrows at the screen edge toward off-screen Mutation Sites in range (D23).
+    const halfW = cam.width / 2;
+    const halfH = cam.height / 2;
+    for (const site of this.world.sites) {
+      const dx = site.x - player.x;
+      const dy = site.y - player.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > SITE_TUNING.arrowRange || dist === 0) continue;
+      if (Math.abs(dx) < halfW + site.radius && Math.abs(dy) < halfH + site.radius) continue; // on screen
+      const pad = 26;
+      const s = Math.min((halfW - pad) / Math.max(Math.abs(dx), 1e-6), (halfH - pad) / Math.max(Math.abs(dy), 1e-6));
+      const ax = halfW + dx * s;
+      const ay = halfH + dy * s;
+      const ux = dx / dist;
+      const uy = dy / dist;
+      h.fillStyle(siteColor(site), 0.95);
+      h.fillTriangle(ax + ux * 14, ay + uy * 14, ax - ux * 7 - uy * 9, ay - uy * 7 + ux * 9, ax - ux * 7 + uy * 9, ay - uy * 7 - ux * 9);
+    }
+
     this.banner.setPosition(cam.width / 2, cam.height / 2);
     this.panel.setPosition(cam.width / 2, cam.height / 2);
     this.panel.setVisible(false);
     if (status === 'survived') {
       this.banner
         .setText(
-          `Survived ${formatTime(TUNING.runSeconds)}!\n\nLv ${level} · KOs ${kills}\n\nR: play again · C: change Pokémon`,
+          `Level 1 cleared: survived ${formatTime(TUNING.runSeconds)}!\n\nLv ${level} · KOs ${kills}\n\nR: play again · C: change Pokémon`,
         )
         .setVisible(true);
     } else if (status === 'fainted') {
@@ -1229,6 +1307,27 @@ function describeCard(world: World, card: Card): CardView {
     case 'bigBoost':
       return { heading: 'FULLY AUGMENTED', title: BIG_BOOST.name, body: BIG_BOOST.description, color: COLORS.augment };
   }
+}
+
+/** Ring and arrow colour: unknown until rolled, then purple (generic) or gold (Pokémon-bound). */
+function siteColor(site: World['sites'][number]): number {
+  if (!site.cards) return COLORS.site;
+  return site.bound ? COLORS.bond : COLORS.mutation;
+}
+
+function describeSiteCard(world: World, card: SiteCard): CardView {
+  if (card.kind !== 'mutation') return describeCard(world, card);
+  const def = MUTATIONS[card.mutationId];
+  // Signature Mutations keep the line's first signature ID; show the current tier's name.
+  const moveId = def.kind === 'signature' ? world.moves[0]!.moveId : def.move;
+  const move = MOVES[moveId].name;
+  const kind = def.kind === 'generic' ? 'MUTATION' : def.kind === 'bond' ? 'BOND' : 'SIGNATURE';
+  return {
+    heading: card.learn ? `LEARN + ${kind}` : kind,
+    title: `${move}: ${def.name}`,
+    body: `${card.learn ? `Learns ${move} with it.\n` : ''}${def.text}`,
+    color: def.kind === 'generic' ? COLORS.mutation : COLORS.bond,
+  };
 }
 
 function describeSkill(slot: MoveSlot): CardView {

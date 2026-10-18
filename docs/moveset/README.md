@@ -44,6 +44,8 @@ data file, so a tuning change is one edit:
 - **Augment levels** give only stat / trade-off / behaviour augments (`src/data/augments.ts`). Never a Mutation.
 - **Map sites**: randomly generated sites the player has to find by exploring. Each one rolls a **generic Mutation**,
   a **Bond Mutation** (signature Mutations count as Bonds), or an **item**.
+- **Site mechanic (D23, built):** chunk-scattered rings; stand inside 5 s (8 s when the roll holds a Bond or signature
+  Mutation); 5 cards. See `PROJECT.md` §9 and `src/sim/sites.ts`.
 - The offer is drawn from `INDEX.md` (every Mutation row has `Pool = site`), filtered by:
   move owned · line (Bonds) · current stage ≥ from stage · requirements met · no Mutation already on that move
   (or offered as a replacement). The full implementer contract is in [`INDEX.md`](INDEX.md) → "For the implementer".

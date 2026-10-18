@@ -448,7 +448,9 @@ export type LevelUpOffer =
       readonly drawn: DrawnAugments;
     }
   /** A Mutation granted to a move whose sockets are all augments: pick the augment it replaces, or cancel. */
-  | { readonly kind: 'mutationReplace'; readonly slot: number; readonly mutationId: MutationId };
+  | { readonly kind: 'mutationReplace'; readonly slot: number; readonly mutationId: MutationId }
+  /** A captured Mutation Site (D23): pick one of its cards, or skip. */
+  | { readonly kind: 'site'; readonly siteId: number; readonly cards: readonly SiteCard[] };
 
 /**
  * An evolution in progress. The sim is paused throughout.
@@ -461,6 +463,32 @@ export interface EvolutionState {
   phase: 'cinematic' | 'summary';
   /** Traits to choose from on the summary card; null when the stage offers no choice. */
   traitChoices: readonly AbilityId[] | null;
+}
+
+/** One reward on a Mutation Site. `learn`: the move isn't owned yet and is learned with it. */
+export type SiteCard =
+  | { readonly kind: 'mutation'; readonly mutationId: MutationId; readonly learn: boolean }
+  | { readonly kind: 'item'; readonly itemId: ItemId }
+  /** Fallback when nothing else is eligible. */
+  | { readonly kind: 'bigBoost' };
+
+/**
+ * A Mutation Site on the map (D16, D23). Its cards are rolled the first time the player
+ * stands inside and stay fixed; Pokémon-bound rolls take longer to capture.
+ */
+export interface MutationSite {
+  readonly id: number;
+  readonly x: number;
+  readonly y: number;
+  readonly radius: number;
+  /** Seconds captured so far; drains while the player is outside. */
+  progress: number;
+  /** Seconds needed; set with the roll. */
+  required: number;
+  /** null until the player first steps inside. */
+  cards: readonly SiteCard[] | null;
+  /** The roll holds a Bond or signature Mutation (longer capture, gold ring). */
+  bound: boolean;
 }
 
 export type RunStatus = 'running' | 'fainted' | 'survived';
@@ -481,6 +509,12 @@ export interface World {
   scorches: Terrain[];
   /** Things Mutations spawned (mines, sprouts, orbs, wires...). */
   entities: MutationEntity[];
+  /** Mutation Sites generated so far (D23). */
+  sites: MutationSite[];
+  /** Map chunks whose site has been decided ("cx,cy"). */
+  siteChunks: Set<string>;
+  /** Seeds site placement, independent of the gameplay RNG. */
+  readonly mapSeed: number;
   /** Seconds until terrain next applies its effects (0.25 s cadence, like status ticks). */
   terrainTickLeft: number;
   swings: Swing[];

@@ -436,11 +436,12 @@ describe('stats', () => {
 });
 
 describe('level-up cards', () => {
-  it('the pool offers learnset moves, every boost and every item at the start', () => {
+  it('the pool offers learnset moves and every boost at the start; items come only from sites (D23)', () => {
     const world = makeWorld();
     const pool = buildCardPool(world);
     const learnset = POKEMON.charmander.learnset.filter((e) => e.fromStage === 0).length;
-    expect(pool).toHaveLength(learnset + BOOST_IDS.length + ITEM_IDS.length);
+    expect(pool).toHaveLength(learnset + BOOST_IDS.length);
+    expect(pool.some((c) => c.kind === 'item')).toBe(false);
   });
 
   it('drops owned moves, maxed boosts and items once the item slots are full', () => {

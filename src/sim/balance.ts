@@ -4,6 +4,7 @@ import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from
 import { cancelMutationReplace } from './mutations';
 import { chooseAugment, chooseCard, chooseReplace, chooseSkill } from './progression';
 import { createSeededRng, type Rng } from './rng';
+import { chooseSiteCard } from './sites';
 import { currentStage } from './stats';
 import type { World } from './types';
 import { createWorld, spawnEnemy, step } from './world';
@@ -59,6 +60,10 @@ function autoPick(world: World, rng: Rng): void {
       break;
     case 'replace':
       chooseReplace(world, pick(world.moves[offer.slot]!.sockets.length));
+      break;
+    // The bot never walks to sites on purpose; if its circle crosses one, it takes a random card.
+    case 'site':
+      chooseSiteCard(world, pick(offer.cards.length));
       break;
     case 'mutationReplace':
       cancelMutationReplace(world);

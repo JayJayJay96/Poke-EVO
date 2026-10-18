@@ -25,6 +25,7 @@ import './mutationDefs';
 import { gainXp, makeOffer } from './progression';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
+import { updateSites } from './sites';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
 import type { Enemy, InputState, MoveSlot, World } from './types';
 import { updateTerrain } from './terrain';
@@ -39,6 +40,8 @@ export interface CreateWorldOptions {
   pokemonId?: PokemonId;
   spawnRadius?: number;
   spawnEnabled?: boolean;
+  /** Seeds Mutation Site placement (D23); the scene passes a random one. */
+  mapSeed?: number;
 }
 
 export function createWorld({
@@ -46,6 +49,7 @@ export function createWorld({
   pokemonId = 'charmander',
   spawnRadius = 600,
   spawnEnabled = true,
+  mapSeed = 1,
 }: CreateWorldOptions): World {
   const def = POKEMON[pokemonId];
   const firstStage = def.stages[0]!;
@@ -86,6 +90,9 @@ export function createWorld({
     puddles: [],
     scorches: [],
     entities: [],
+    sites: [],
+    siteChunks: new Set(),
+    mapSeed,
     terrainTickLeft: 0,
     swings: [],
     cuts: [],
@@ -140,9 +147,10 @@ export function step(world: World, input: InputState, dt: number): void {
   removeDead(world);
   if (world.status !== 'running') return;
   upgradeSignatureByLevel(world);
+  updateSites(world, dt);
   if (world.time >= TUNING.runSeconds) world.status = 'survived';
-  // Evolution first; its summary card hands over to any queued level-up cards.
-  else if (!startEvolutionIfDue(world) && world.pendingLevelUps > 0) world.offer = makeOffer(world);
+  // A captured site opens first; then evolution, whose summary card hands over to queued level-up cards.
+  else if (!world.offer && !startEvolutionIfDue(world) && world.pendingLevelUps > 0) world.offer = makeOffer(world);
 }
 
 export interface WaveState {

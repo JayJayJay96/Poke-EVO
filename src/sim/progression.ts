@@ -13,8 +13,6 @@ import {
   BOOST_IDS,
   BOOST_MAX_PICKS,
   CARDS_PER_OFFER,
-  ITEM_IDS,
-  MAX_ITEMS,
   MAX_LEARNSET_SLOTS,
   POTION_HEAL,
 } from '../data/upgrades';
@@ -50,7 +48,7 @@ export function resolvingLevel(world: World): number {
   return world.level - world.pendingLevelUps + 1;
 }
 
-/** Every normal-level card the player could be offered right now. */
+/** Every normal-level card the player could be offered right now: learnset moves and boosts (D23). */
 export function buildCardPool(world: World): Card[] {
   const pool: Card[] = [];
   const learnsetOwned = world.moves.length - 1; // slot 0 is the signature move
@@ -64,11 +62,7 @@ export function buildCardPool(world: World): Card[] {
   for (const boostId of BOOST_IDS) {
     if (world.boosts[boostId] < BOOST_MAX_PICKS) pool.push({ kind: 'boost', boostId });
   }
-  if (world.items.length < MAX_ITEMS) {
-    for (const itemId of ITEM_IDS) {
-      if (!world.items.includes(itemId)) pool.push({ kind: 'item', itemId });
-    }
-  }
+  // Held items come only from Mutation Sites now (D23).
   return pool;
 }
 
