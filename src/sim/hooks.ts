@@ -49,7 +49,10 @@ export interface MutationHooks {
   /** This move chain finished on `last` (also when it found nowhere to jump). */
   onChainEnd?(world: World, slot: MoveSlot, last: Enemy): void;
   onKill?(world: World, slot: MoveSlot, enemy: Enemy): void;
-  onEvent?(world: World, slot: MoveSlot, event: HookEvent, amount: number): void;
+  /** `enemy` is set for `kill` (the enemy that fainted). */
+  onEvent?(world: World, slot: MoveSlot, event: HookEvent, amount: number, enemy?: Enemy): void;
+  /** Extra Leech (lifesteal fraction) on the player hits against `enemy` (Seed Network, Sweet Dreams). */
+  leechBonus?(world: World, slot: MoveSlot, enemy: Enemy): number;
   /** Player move-speed factor while this Mutation is owned. */
   moveSpeedMult?(world: World, slot: MoveSlot): number;
   /** Player damage-taken factor while this Mutation is owned. */
@@ -77,11 +80,21 @@ export function hooksOf(slot: MoveSlot): MutationHooks | undefined {
 }
 
 /** Tells every owned Mutation that an event happened. */
-export function emit(world: World, event: HookEvent, amount = 0): void {
+export function emit(world: World, event: HookEvent, amount = 0, enemy?: Enemy): void {
   for (const slot of world.moves) {
     const onEvent = hooksOf(slot)?.onEvent;
-    if (onEvent) onEvent(world, slot, event, amount);
+    if (onEvent) onEvent(world, slot, event, amount, enemy);
   }
+}
+
+/** Sum of every owned Mutation extra Leech on a hit against `enemy`. */
+export function mutationLeechBonus(world: World, enemy: Enemy): number {
+  let bonus = 0;
+  for (const slot of world.moves) {
+    const f = hooksOf(slot)?.leechBonus;
+    if (f) bonus += f(world, slot, enemy);
+  }
+  return bonus;
 }
 
 /** Product of every owned Mutation's player move-speed factor. */
@@ -182,6 +195,16 @@ export function blazeActive(world: World): boolean {
 export function chargeLevel(world: World): number {
   const charge = ABILITIES[world.player.ability].charge;
   return charge ? world.player.charge / charge.max : 0;
+}
+
+/** `targetAsleep` */
+export function targetAsleep(enemy: Enemy): boolean {
+  return enemy.stunLeft > 0 && enemy.stunKind === 'sleep';
+}
+
+/** `targetParalysed` */
+export function targetParalysed(enemy: Enemy): boolean {
+  return enemy.stunLeft > 0 && enemy.stunKind === 'paralysis';
 }
 
 /** `targetBurning` */

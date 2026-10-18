@@ -12,6 +12,14 @@ import './fireSpin';
 import './dragonRage';
 import './airSlash';
 import './hurricane';
+import './tackle';
+import './razorLeaf';
+import './leechSeed';
+import './poisonPowder';
+import './sleepPowder';
+import './sludge';
+import './petalDance';
+import './solarBeam';
 // Signature Mutations (P4f-5): evolve with the line's signature tiers.
 import './bubble';
 import './ember';

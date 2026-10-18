@@ -214,8 +214,11 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     soakLeft: 0,
     stunFatigueLeft: 0,
     fatigueOnEnd: false,
+    stunKind: null,
     trapLeft: 0,
     trapDamage: 0,
+    seedJumped: false,
+    poisonStacks: 0,
     vulnPct: 0,
     vulnLeft: 0,
     vulnType: null,
@@ -429,6 +432,7 @@ function applyContactDamage(world: World): void {
     const wasStunned = enemy.stunLeft > 0;
     if (ability.contactStun) {
       enemy.stunLeft = Math.max(enemy.stunLeft, ability.contactStun);
+      enemy.stunKind = 'paralysis';
       if (!wasStunned) {
         addCharge(world, chargePerParalysis(world));
         emit(world, 'staticProc', 1);

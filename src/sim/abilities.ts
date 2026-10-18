@@ -146,7 +146,7 @@ function discharge(world: World): void {
   const d = ability(world).charge!.discharge!;
   world.player.charge = 0;
   burst(world, d.radius, signatureHit(world) * d.signatureHitMult, procHit('Electric'), (j) =>
-    applyNewStun(world.enemies[j]!, d.paralyseSeconds),
+    applyNewStun(world.enemies[j]!, d.paralyseSeconds, 'paralysis'),
   );
   emit(world, 'discharge', 1);
 }

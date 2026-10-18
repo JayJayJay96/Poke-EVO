@@ -965,6 +965,18 @@ export class RunScene extends Phaser.Scene {
           g.fillStyle(TYPE_COLORS.Steel, 1);
           g.fillCircle(m.x, m.y, m.radius);
           break;
+        case 'razorLeaf.embed':
+          g.fillStyle(TYPE_COLORS.Grass, 1);
+          g.fillCircle(m.x, m.y - 6, 3);
+          break;
+        case 'petalDance.frenzy':
+          g.fillStyle(COLORS.bulbFull, 1);
+          g.fillCircle(m.x, m.y, m.radius);
+          break;
+        case 'solarBeam.fullCharge':
+          g.lineStyle(2, TYPE_COLORS.Grass, 0.5);
+          g.lineBetween(m.x, m.y, m.x2, m.y2);
+          break;
         case 'dragonRage.dragonBreath': {
           const a = Math.atan2(m.vy, m.vx);
           const half = (MUTATIONS['dragonRage.dragonBreath'].values.coneDeg * Math.PI) / 360;

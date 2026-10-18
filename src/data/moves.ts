@@ -1,5 +1,7 @@
 import type { MoveTag } from './content';
 
+export type StunKind = 'sleep' | 'paralysis';
+
 // Move definitions. All numbers provisional (PROJECT.md).
 
 export type MoveId =
@@ -75,6 +77,8 @@ export interface InnateEffects {
   readonly slow?: number;
   /** Stun (sleep / paralysis) seconds. */
   readonly stun?: number;
+  /** What the stun is, for Mutations that care (Sweet Dreams, Shock Shatter); none = a flinch. */
+  readonly stunKind?: StunKind;
   /** Poison damage per second as a fraction of the hit, for TUNING.status.poisonSeconds. */
   readonly poisonPct?: number;
   /** Innate push distance in px (adds to the Knockback augment). */
@@ -545,7 +549,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     radius: 55,
     duration: 2,
     tickInterval: 0.5,
-    onHit: { stun: 0.8 },
+    onHit: { stun: 0.8, stunKind: 'sleep' },
   },
   sludge: {
     id: 'sludge',
@@ -649,7 +653,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     angularSpeed: 5.5,
     duration: 3,
     hitInterval: 0.4,
-    onHit: { stun: 0.2 },
+    onHit: { stun: 0.2, stunKind: 'paralysis' },
   },
   electroBall: {
     id: 'electroBall',
@@ -678,7 +682,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     radius: 60,
     duration: 2,
     tickInterval: 0.5,
-    onHit: { stun: 0.6 },
+    onHit: { stun: 0.6, stunKind: 'paralysis' },
   },
   ironTail: {
     id: 'ironTail',
@@ -705,7 +709,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     radius: 45,
     duration: 0.55,
     tickInterval: 0.5,
-    onHit: { stun: 0.5 },
+    onHit: { stun: 0.5, stunKind: 'paralysis' },
   },
   // Lapras signature: one step by level (Lv 25, D18), smaller than an evolution.
   iceShard: {
@@ -749,7 +753,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     damage: 20,
     reach: 70,
     arcDegrees: 140,
-    onHit: { stun: 0.25, knockback: 15 },
+    onHit: { stun: 0.25, stunKind: 'paralysis', knockback: 15 },
   },
   dragonRage: {
     id: 'dragonRage',

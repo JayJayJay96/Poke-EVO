@@ -9,6 +9,11 @@ import type { HitInfo, World, Zone } from './types';
 
 const neighbours: number[] = [];
 
+/** Statuses a zone applies on each tick. */
+export type ZoneEffects = Pick<HitInfo, 'slow' | 'stun' | 'poisonDps' | 'attackType'> & {
+  readonly stunKind?: HitInfo['stunKind'];
+};
+
 /** Adds a zone unless the zone budget is full. Returns it, or null when the budget is full. */
 export function spawnZone(
   world: World,
@@ -19,7 +24,7 @@ export function spawnZone(
   tickInterval: number,
   damage: number,
   critChance: number,
-  effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps' | 'attackType'> = NO_HIT,
+  effects: ZoneEffects = NO_HIT,
   source: MoveId | null = null,
 ): Zone | null {
   if (world.zones.length >= TUNING.budget.maxZones || duration <= 0) return null;
@@ -37,6 +42,7 @@ export function spawnZone(
     critChance,
     slow: effects.slow,
     stun: effects.stun,
+    stunKind: effects.stunKind ?? null,
     poisonDps: effects.poisonDps,
     attackType: effects.attackType,
     source,
@@ -60,7 +66,7 @@ export function strikeZone(
   delay: number,
   damage: number,
   critChance: number,
-  effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps' | 'attackType'> = NO_HIT,
+  effects: ZoneEffects = NO_HIT,
 ): Zone | null {
   return spawnZone(world, x, y, radius, delay + STRIKE_LINGER, delay, damage, critChance, effects);
 }
@@ -79,6 +85,7 @@ export function updateZones(world: World, dt: number): void {
       critChance: zone.critChance,
       slow: zone.slow,
       stun: zone.stun,
+      stunKind: zone.stunKind,
       poisonDps: zone.poisonDps,
       attackType: zone.attackType,
     };

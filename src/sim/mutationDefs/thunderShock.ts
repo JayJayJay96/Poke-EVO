@@ -44,7 +44,7 @@ defineMutation('thunderShock.liveWire', {
         if (w.hitIds.includes(e.id)) return;
         w.hitIds.push(e.id);
         damageEnemy(world, e, w.damage, hit);
-        if (paralyse > 0) applyNewStun(e, paralyse);
+        if (paralyse > 0) applyNewStun(e, paralyse, 'paralysis');
       });
     }
   },

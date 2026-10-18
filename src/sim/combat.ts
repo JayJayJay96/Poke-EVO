@@ -2,7 +2,7 @@ import { ABILITIES, ENEMIES, TUNING } from '../data/content';
 import { MUTATION_TUNING } from '../data/mutations';
 import { effectiveness } from '../data/typeChart';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
-import { emit, healPlayer, hooksOf } from './hooks';
+import { emit, healPlayer, hooksOf, mutationLeechBonus } from './hooks';
 import type { Enemy, Gem, HitInfo, MoveSlot, MoveStats, World } from './types';
 
 export const MAX_ENEMY_RADIUS = Math.max(...Object.values(ENEMIES).map((e) => e.radius));
@@ -20,6 +20,7 @@ export const NO_HIT: Readonly<HitInfo> = {
   dirY: 0,
   slow: 0,
   stun: 0,
+  stunKind: null,
   poisonDps: 0,
   seedDps: 0,
   attackType: null,
@@ -44,6 +45,7 @@ export function makeHitInfo(stats: MoveStats, slot: MoveSlot | null = null): Hit
     dirY: 0,
     slow: stats.slow,
     stun: stats.stun,
+    stunKind: stats.stunKind,
     poisonDps: stats.damage * stats.poisonPct,
     attackType: stats.attackType,
     seedDps: stats.damage * stats.seedPct,
@@ -124,7 +126,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   enemy.hp -= amount;
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
 
-  if (hit.lifesteal > 0) healPlayer(world, dealt * hit.lifesteal);
+  const lifesteal = hit.fromProc ? hit.lifesteal : hit.lifesteal + mutationLeechBonus(world, enemy);
+  if (lifesteal > 0) healPlayer(world, dealt * lifesteal);
   hooks?.onHit?.(world, slot!, enemy, dealt, hit);
 
   if (enemy.hp <= 0) {
@@ -133,7 +136,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     maybeDropBerry(world, enemy.x, enemy.y, def.berryChance);
     if (!hit.fromProc) {
       hooks?.onKill?.(world, slot!, enemy);
-      emit(world, 'kill', 1);
+      emit(world, 'kill', 1, enemy);
     }
     return dealt;
   }
@@ -176,8 +179,9 @@ export function applyBurn(enemy: Enemy, dps: number): void {
  * (D21) blocks it for a while after the last one ended. Base moves keep using applyStatuses.
  * Returns whether it stunned.
  */
-export function applyNewStun(enemy: Enemy, seconds: number): boolean {
+export function applyNewStun(enemy: Enemy, seconds: number, kind: Enemy['stunKind'] = null): boolean {
   if (seconds <= 0 || enemy.stunFatigueLeft > 0 || ENEMIES[enemy.kind].boss) return false;
+  if (seconds >= enemy.stunLeft) enemy.stunKind = kind;
   enemy.stunLeft = Math.max(enemy.stunLeft, seconds);
   enemy.fatigueOnEnd = true;
   return true;
@@ -224,12 +228,18 @@ export function enemySpeedFactor(enemy: Enemy): number {
 }
 
 /** Slow, stun and poison from a hit or a zone tick. Stronger effects win; durations refresh. */
-export function applyStatuses(enemy: Enemy, effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps'>): void {
+export function applyStatuses(
+  enemy: Enemy,
+  effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps'> & { readonly stunKind?: Enemy['stunKind'] },
+): void {
   if (effects.slow > 0) {
     enemy.slow = enemy.slowLeft > 0 ? Math.max(enemy.slow, effects.slow) : effects.slow;
     enemy.slowLeft = TUNING.status.slowSeconds;
   }
-  if (effects.stun > 0) enemy.stunLeft = Math.max(enemy.stunLeft, effects.stun);
+  if (effects.stun > 0) {
+    if (effects.stun >= enemy.stunLeft) enemy.stunKind = effects.stunKind ?? null;
+    enemy.stunLeft = Math.max(enemy.stunLeft, effects.stun);
+  }
   if (effects.poisonDps > 0) {
     const poisoned = enemy.poisonLeft > 0;
     enemy.poisonDps = poisoned ? Math.max(enemy.poisonDps, effects.poisonDps) : effects.poisonDps;
@@ -273,7 +283,10 @@ export function updateStatuses(world: World, dt: number): void {
         damageEnemy(world, enemy, enemy.poisonDps * tick);
         enemy.poisonTickLeft += tick;
       }
-      if (enemy.poisonLeft <= 0) enemy.poisonDps = 0;
+      if (enemy.poisonLeft <= 0) {
+        enemy.poisonDps = 0;
+        enemy.poisonStacks = 0;
+      }
     }
     if (enemy.seedLeft > 0 && enemy.hp > 0) {
       enemy.seedLeft -= dt;
@@ -295,9 +308,12 @@ export function updateStatuses(world: World, dt: number): void {
     if (enemy.stunFatigueLeft > 0) enemy.stunFatigueLeft = Math.max(0, enemy.stunFatigueLeft - dt);
     if (enemy.stunLeft > 0) {
       enemy.stunLeft = Math.max(0, enemy.stunLeft - dt);
-      if (enemy.stunLeft === 0 && enemy.fatigueOnEnd) {
-        enemy.fatigueOnEnd = false;
-        enemy.stunFatigueLeft = MUTATION_TUNING.stunFatigueSeconds;
+      if (enemy.stunLeft === 0) {
+        enemy.stunKind = null;
+        if (enemy.fatigueOnEnd) {
+          enemy.fatigueOnEnd = false;
+          enemy.stunFatigueLeft = MUTATION_TUNING.stunFatigueSeconds;
+        }
       }
     }
   }

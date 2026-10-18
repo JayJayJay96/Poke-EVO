@@ -43,7 +43,7 @@ export function updateBeam(world: World, slot: MoveSlot, def: BeamMoveDef, dt: n
 function beamTick(world: World, slot: MoveSlot, def: BeamMoveDef, dirX: number, dirY: number): void {
   const { player, enemies } = world;
   const length = beamLength(slot, def);
-  const halfWidth = (def.width * slot.stats.area) / 2;
+  const halfWidth = (def.width * slot.stats.area * slot.stats.widthMult) / 2;
   const midX = player.x + (dirX * length) / 2;
   const midY = player.y + (dirY * length) / 2;
   const hit = makeHitInfo(slot.stats, slot);

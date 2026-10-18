@@ -92,7 +92,7 @@ defineMutation('iceShard.song', {
     if (cast % song.everyN !== 0) return castProjectile(world, slot, def);
     const { x, y } = world.player;
     forEachEnemyIn(world, x, y, song.ringRadius, (e) => {
-      if (canTrap(e)) applyNewStun(e, song.sleepSeconds);
+      if (canTrap(e)) applyNewStun(e, song.sleepSeconds, 'sleep');
     });
     world.blasts.push({ x, y, radius: song.ringRadius, lifeLeft: BLAST_SECONDS * 2, type: 'Water' });
     // Sheer Cold tier: the song leaves a calm-sea field that slows.

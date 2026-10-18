@@ -143,12 +143,15 @@ export function computeMoveStats(
     knockback: knockback + (def.onHit?.knockback ?? 0),
     slow: def.onHit?.slow ?? 0,
     stun: def.onHit?.stun ?? 0,
+    stunKind: def.onHit?.stunKind ?? null,
     poisonPct: def.onHit?.poisonPct ?? 0,
     seedPct: def.onHit?.seedPct ?? 0,
     attackType: moveType(def.tags),
     reachMult: 1,
     orbitRadiusMult: 1,
     arcMult: 1,
+    spinMult: 1,
+    widthMult: 1,
   };
 }
 

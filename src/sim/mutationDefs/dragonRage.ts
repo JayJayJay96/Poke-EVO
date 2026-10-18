@@ -39,7 +39,7 @@ function breathTick(world: World, slot: MoveSlot): void {
       dist <= e.radius || ((e.x - player.x) * slot.dirX + (e.y - player.y) * slot.dirY) / dist >= Math.cos(HALF_CONE);
     if (!inCone) return;
     damageEnemy(world, e, slot.stats.damage, hit);
-    if (e.hp > 0 && world.rng.next() < breath.paralyseChance) applyNewStun(e, breath.paralyseSeconds);
+    if (e.hp > 0 && world.rng.next() < breath.paralyseChance) applyNewStun(e, breath.paralyseSeconds, 'paralysis');
   });
 }
 

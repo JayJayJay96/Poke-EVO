@@ -443,8 +443,8 @@ export const MUTATIONS = {
 
   // ── Bulbasaur line moves ───────────────────────────────────────────────
   'tackle.rollout': generic('tackle', 'Rollout', 'Stacks while it keeps hitting', {
-    stackDamagePct: 0.2,
-    stackReachPct: 0.1,
+    stackDamagePct: 0.07, // P4f-6 rule-4 tuning (doc: 0.2 / 0.1 reach, 2.34x)
+    stackReachPct: 0.02,
     maxStacks: 5,
     damageMult: 0.8,
   }),
@@ -462,21 +462,23 @@ export const MUTATIONS = {
   }),
   'razorLeaf.embed': generic('razorLeaf', 'Embed', 'Leaves stick, then rip out', {
     embedSeconds: 1.5,
-    ripFraction: 0.6,
+    ripFraction: 0.45, // P4f-6 rule-4 tuning (doc: 0.6, 1.21x)
     damageMult: 0.85,
   }),
   'razorLeaf.healthyGrowth': bond('razorLeaf', 'bulbasaur', 0, 'fullHp', 'Healthy Growth', 'Full HP: +1 leaf, pierce 1', {
     extraLeaves: 1,
     pierce: 1,
-    damageMultHurt: 0.8,
+    damageMultHurt: 0.6, // P4f-6 rule-4 tuning (doc: 0.8; 1.74x at full HP, so the hurt side pays more)
   }),
   'leechSeed.spread': generic('leechSeed', 'Spreading Seed', 'Seed jumps on death (once)', {
     durationMult: 0.75,
     maxJumps: 1,
+    /** P4f-6 build value: how far a seed can jump. */
+    jumpRange: 140,
   }),
   'leechSeed.seedBomb': generic('leechSeed', 'Seed Bomb', 'Seeds a 50 px area', {
     radius: 50,
-    seedStrength: 0.4,
+    seedStrength: 0.1, // P4f-6 rule-4 tuning (doc: 0.4, 1.69x)
     cooldownMult: 1.3,
   }),
   'leechSeed.seedNetwork': bond('leechSeed', 'bulbasaur', 0, 'leechStrength', 'Seed Network', 'Each Seeded enemy raises Leech', {
@@ -516,6 +518,8 @@ export const MUTATIONS = {
     radius: 40,
     seconds: 2.5,
     damageMult: 0.7,
+    /** P4f-6 rule-4 tuning: the pool poisons for half the glob poison (1.26x at full). */
+    poolPoisonFraction: 0.5,
   }),
   'sludge.acid': generic('sludge', 'Acid', '+15% damage taken from everything', {
     damageTakenPct: 0.15,
@@ -526,11 +530,17 @@ export const MUTATIONS = {
     hpThreshold: 0.5,
     splashRadius: 50,
     poisonMult: 2,
+    /** P4f-6 build value: the bomb splash, as a fraction of the glob. */
+    splashDamageFraction: 0.5,
     damageMultAbove: 0.85,
   }),
   'petalDance.frenzy': generic('petalDance', 'Frenzy Dance', 'Spins faster; petals fly out', {
     spinRampPerSec: 0.3,
     flyOutSeconds: 1,
+    // P4f-6 build values: the petals flying out.
+    petalSpeed: 300,
+    petalRange: 150,
+    petalRadius: 6,
     moveSpeedMult: 0.85,
   }),
   'petalDance.pollen': generic('petalDance', 'Pollen Ring', 'Petal hits heal you', {
@@ -545,14 +555,18 @@ export const MUTATIONS = {
   }),
   'solarBeam.fullCharge': generic('solarBeam', 'Full Charge', '1 s charge, then a huge beam', {
     chargeSeconds: 1,
-    widthMult: 2,
-    damageMult: 1.6,
+    // P4f-6 tuning (doc: x2 width, +60%). The dummy ring overstates width: past ~31 px a beam catches
+    // 4 ring dummies instead of 1, so this is judged on one target (~0.8x the plain beam) plus wider reach.
+    widthMult: 1.5,
+    damageMult: 1.2,
     cooldownMult: 1.25,
   }),
   'solarBeam.prism': generic('solarBeam', 'Prism', 'Splits into 3 beams behind the target', {
     beams: 3,
     fanDeg: 30,
     beamDamageFraction: 0.4,
+    /** P4f-6 build value: the split beams are thinner than the main one. */
+    widthMult: 0.5,
     damageMult: 0.85,
   }),
   'solarBeam.ingrain': bond('solarBeam', 'bulbasaur', 2, 'standingStill', 'Ingrain', 'Standing still: faster cooldown, −15% damage taken', {

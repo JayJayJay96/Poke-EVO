@@ -40,7 +40,7 @@ export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt:
   if (slot.activeLeft <= 0) return;
   slot.activeLeft -= dt;
   if (slot.activeLeft <= 0) hooksOf(slot)?.onExpire?.(world, slot);
-  slot.angle += def.angularSpeed * dt;
+  slot.angle += def.angularSpeed * slot.stats.spinMult * dt;
 
   for (const [enemyId, left] of slot.hitCooldowns) {
     if (left - dt <= 0) slot.hitCooldowns.delete(enemyId);
@@ -66,7 +66,8 @@ export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt:
       hit.dirX = ox / od;
       hit.dirY = oy / od;
       damageEnemy(world, enemy, slot.stats.damage, hit);
-      slot.hitCooldowns.set(enemy.id, def.hitInterval);
+      // A faster spin (Frenzy Dance) hits each enemy more often.
+      slot.hitCooldowns.set(enemy.id, def.hitInterval / slot.stats.spinMult);
     }
   }
 }

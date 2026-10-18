@@ -300,6 +300,7 @@ describe('Bulbasaur — Vine Whip → Power Whip → Frenzy Plant', () => {
       critChance: 0,
       slow: 0,
       stun: 0,
+      stunKind: null,
       poisonDps: 0,
       attackType: null,
       source: 'frenzyPlant',

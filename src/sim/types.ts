@@ -1,6 +1,6 @@
 import type { AugmentId } from '../data/augments';
 import type { AbilityId, EnemyId, PokemonId, PokemonType } from '../data/content';
-import type { MoveId } from '../data/moves';
+import type { MoveId, StunKind } from '../data/moves';
 import type { MutationId } from '../data/mutations';
 import type { BoostId, ItemId } from '../data/upgrades';
 import type { Rng } from './rng';
@@ -77,6 +77,8 @@ export interface Enemy {
   slowLeft: number;
   /** Stunned (sleep / paralysis): no movement, no contact damage. */
   stunLeft: number;
+  /** What the current stun is (null = a flinch or trap). */
+  stunKind: StunKind | null;
   /** Type multiplier of the last hit, for the hit-flash colour (D14). */
   lastEffectiveness: number;
   /** Leech Seed: ticks like poison, and each tick heals the player. */
@@ -96,6 +98,10 @@ export interface Enemy {
   vulnPct: number;
   vulnLeft: number;
   vulnType: PokemonType | null;
+  /** Spreading Seed: the seed on this enemy already jumped once. */
+  seedJumped: boolean;
+  /** Toxic: poison stacks while it stays in the cloud (reset when the poison ends). */
+  poisonStacks: number;
 }
 
 /**
@@ -186,6 +192,7 @@ export interface HitInfo {
   slow: number;
   /** Stun seconds (0 = none). */
   stun: number;
+  stunKind: StunKind | null;
   /** Poison damage per second to apply (0 = none). */
   poisonDps: number;
   /** The move's type for the type chart (null = typeless, e.g. burn/poison ticks). */
@@ -237,6 +244,7 @@ export interface Zone {
   /** Innate statuses applied on each tick (zone-cast moves, Sheer Cold's freezing crater). */
   slow: number;
   stun: number;
+  stunKind: StunKind | null;
   poisonDps: number;
   /** Type of the move that made it, for the type chart. */
   attackType: PokemonType | null;
@@ -313,6 +321,7 @@ export interface MoveStats {
   /** Innate statuses from the move (P4a). */
   slow: number;
   stun: number;
+  stunKind: StunKind | null;
   /** Poison damage per second as a fraction of the hit. */
   poisonPct: number;
   /** For the type chart (D14). */
@@ -325,6 +334,10 @@ export interface MoveStats {
   orbitRadiusMult: number;
   /** Melee arc multiplier (Fury Swipes, Crescent); capped at a full circle. */
   arcMult: number;
+  /** Orbit spin speed multiplier (Frenzy Dance). */
+  spinMult: number;
+  /** Beam width multiplier (Full Charge). */
+  widthMult: number;
 }
 
 export interface AugmentSocket {
