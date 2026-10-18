@@ -68,12 +68,15 @@ change how it behaves), Hades' duo/legendary boons (capstones that reward commit
 | Card look | purple frame, "Mutation" | gold-and-type-colour frame, "Bond · Squirtle" |
 
 ### Rules (both kinds)
-1. **One Mutation per move**, generic *or* Bond, never both. It takes a normal socket. Picking another Mutation
-   on the same move replaces the old one (the existing D11 replacement flow). This is the hard cap on rule-changers.
-2. **Single rank.** Mutations don't rank I→III. The other two sockets still take ranked stat/behaviour augments.
+1. **One Mutation per move**, generic *or* Bond, never both. It sits in the move's own **Mutation slot**, not in an
+   augment socket (D24): every move keeps 3 augment sockets. Picking another Mutation on the same move replaces the old
+   one and **resets the rank to I** (D24). This is the hard cap on rule-changers.
+2. **Ranks I → III (D24).** Rank I is the branch choice. Sites then offer rank-up cards for the Mutation you hold:
+   rank II ≈ +15% DPS, rank III ≈ +30% over rank I (provisional), and rank III adds a small twist where one is natural.
+   Each Mutation lists 2–3 **favoured augments** (shown gold, offered ×3 as often in that move's augment windows).
 3. **Every Mutation pays a cost**: cooldown, damage, range, a positional demand, or a condition.
-4. **Power-neutral on the dummy.** With the balance bot, a mutated move must land within ±15% DPS of the same move
-   with Power Up I instead. Bonds are measured with their condition true about half the time.
+4. **Rank I is power-neutral on the dummy.** With the balance bot, a mutated move at rank I must land within ±15% DPS
+   of the same move with Power Up I instead (ranks II and III add power on top, rule 2). Bonds are measured with their condition true about half the time.
    A Mutation earns its socket through what it *does*, not raw damage.
 5. **No proc-from-proc.** Anything a Mutation spawns (puddles, pops, waves, copies) does plain damage and its own listed
    status only. It never triggers augments, Lifesteal, Mutations or ability counters.
