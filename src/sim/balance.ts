@@ -63,20 +63,27 @@ function autoPick(world: World, rng: Rng): void {
   }
 }
 
-/**
- * Swaps the horde for a dummy ring, measures DPS, then puts everything back.
- * `innerDist` is the closest ring (60 px by default; short-reach moves need a closer one).
- */
-export function measureDps(world: World, innerDist = 60): number {
+/** The dummy ring: `count` dummies spread over `rings` circles from `innerDist`, `step` px apart. */
+export interface DummyRing {
+  readonly innerDist: number;
+  readonly count: number;
+  readonly rings: number;
+  readonly step: number;
+}
+
+const BALANCE_RING: DummyRing = { innerDist: 60, count: DUMMY_COUNT, rings: 4, step: 50 };
+
+/** Swaps the horde for a dummy ring, measures DPS, then puts everything back. */
+export function measureDps(world: World, ring: DummyRing = BALANCE_RING): number {
   const saved = { enemies: world.enemies, time: world.time, spawnEnabled: world.spawnEnabled };
   world.enemies = [];
   world.zones = [];
   world.projectiles = [];
   world.spawnEnabled = false;
   const { x, y } = world.player;
-  const dummies = Array.from({ length: DUMMY_COUNT }, (_, i) => {
-    const angle = (i / DUMMY_COUNT) * Math.PI * 2;
-    const dist = innerDist + (i % 4) * 50;
+  const dummies = Array.from({ length: ring.count }, (_, i) => {
+    const angle = (i / ring.count) * Math.PI * 2;
+    const dist = ring.innerDist + (i % ring.rings) * ring.step;
     const e = spawnEnemy(world, 'raticate', x + Math.cos(angle) * dist, y + Math.sin(angle) * dist);
     e.maxHp = e.hp = DUMMY_HP;
     return { e, x: e.x, y: e.y };

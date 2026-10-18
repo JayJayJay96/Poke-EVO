@@ -621,12 +621,20 @@ export const MUTATIONS = {
     recoilMaxHpFraction: 0.05,
   }),
   'spark.arcPair': generic('spark', 'Arc Pair', 'A rotating line joins the sparks', {
-    damageMult: 0.75,
+    /** P4f-6 rule-4 tuning: 0.75 read 1.30. */
+    damageMult: 0.6,
+    /** P4f-6 build value: the crackling line's width. */
+    lineWidth: 10,
   }),
   'spark.shower': generic('spark', 'Spark Shower', 'Sparks burst into 6 bolts', {
     bolts: 6,
-    boltDamageFraction: 0.35,
+    /** P4f-6 rule-4 tuning: 0.35 read 0.81, 0.55 read 0.85 (the spin dominates; the burst adds little). */
+    boltDamageFraction: 0.65,
     cooldownMult: 1.2,
+    // P4f-6 build values: bolt flight.
+    boltSpeed: 350,
+    boltRange: 140,
+    boltRadius: 5,
   }),
   'spark.staticSpark': bond('spark', 'pikachu', 0, 'staticProc', 'Static Spark', 'Static paralysis adds sparks', {
     sparkSeconds: 2,
@@ -635,6 +643,8 @@ export const MUTATIONS = {
   }),
   'electroBall.ricochet': generic('electroBall', 'Ricochet', 'Bounces enemy to enemy (max 2)', {
     maxBounces: 2,
+    /** P4f-6 rule-4 tuning (new value): read 2.61 on the 16 ring, 1.30 on the dense ring; the sparse ring undersells pierce 2. */
+    damageMult: 0.8,
   }),
   'electroBall.plasma': generic('electroBall', 'Plasma Orb', 'Grows as it rolls', {
     maxRadiusMult: 2.5,
@@ -654,6 +664,8 @@ export const MUTATIONS = {
   'thunderWave.terrain': generic('thunderWave', 'Electric Terrain', '+25% Electric damage field', {
     fieldSeconds: 5,
     electricBonus: 0.25,
+    /** P4f-6 rule-4 tuning (new value): the field's own ticks; the longer, boosted field read 2.90 at full damage. */
+    fieldDamageMult: 0.35,
   }),
   'thunderWave.conductor': bond('thunderWave', 'pikachu', 0, 'chainJump', 'Conductor', 'Your chain prefers Thunder Wave fields', {
     jumpRangeMult: 1.6,
@@ -667,17 +679,21 @@ export const MUTATIONS = {
     radius: 60,
     telegraphSeconds: 0.3,
     stunSeconds: 0.5,
-    cooldownMult: 1.3,
+    /** P4f-6 rule-4 tuning: 1.3 read 1.39. */
+    cooldownMult: 1.6,
   }),
   'ironTail.shockShatter': bond('ironTail', 'pikachu', 0, 'targetParalysed', 'Shock Shatter', 'Shatters paralysis for ×1.8', {
     shatterMult: 1.8,
     leapRadius: 100,
+    /** P4f-6 build value: the leaping shock deals this fraction of the shattering hit. */
+    leapDamageFraction: 0.5,
     damageMultNotParalysed: 0.8,
   }),
   'thunder.storm': generic('thunder', 'Storm Call', '3 smaller strikes', {
     strikes: 3,
     strikeRadius: 30,
-    strikeDamageFraction: 0.5,
+    /** P4f-6 rule-4 tuning: 0.5 read 0.47 (0.61 on the dense ring); 0.8 reads 0.75 here, about 0.98 on the dense ring. */
+    strikeDamageFraction: 0.8,
     paralyseSeconds: 0.3,
   }),
   'thunder.afterglow': generic('thunder', 'Afterglow', 'Electrified ground after the strike', {

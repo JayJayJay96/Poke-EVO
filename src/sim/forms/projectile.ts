@@ -1,7 +1,7 @@
 import { TUNING } from '../../data/content';
 import type { ProjectileMoveDef } from '../../data/moves';
 import { NO_HIT, damageEnemy, findNearestEnemy, queryEnemies } from '../combat';
-import { emit, hooksOf } from '../hooks';
+import { chainBias, emit, hooksOf } from '../hooks';
 import type { Enemy, MoveSlot, Projectile, World } from '../types';
 import { spawnZone } from '../zones';
 
@@ -215,15 +215,22 @@ function chain(world: World, proj: Projectile, from: Enemy): void {
   const slot = proj.hit.slot;
   const hooks = slot ? hooksOf(slot) : undefined;
   for (let jump = 0; jump < proj.chainJumps; jump++) {
+    // Nearest unhit enemy in range; Mutations (Conductor) can mark preferred targets with a longer reach.
     let next: Enemy | undefined;
-    let bestDist2 = TUNING.chain.range * TUNING.chain.range;
+    let nextPreferred = false;
+    let bestDist2 = Infinity;
     for (const enemy of world.enemies) {
       if (enemy.hp <= 0 || enemy === current || proj.hitIds.includes(enemy.id)) continue;
       const dx = enemy.x - current.x;
       const dy = enemy.y - current.y;
       const dist2 = dx * dx + dy * dy;
-      if (dist2 <= bestDist2) {
+      const bias = chainBias(world, current, enemy);
+      const range = TUNING.chain.range * bias.rangeMult;
+      if (dist2 > range * range) continue;
+      const preferred = bias.preferred;
+      if ((preferred && !nextPreferred) || (preferred === nextPreferred && dist2 < bestDist2)) {
         next = enemy;
+        nextPreferred = preferred;
         bestDist2 = dist2;
       }
     }

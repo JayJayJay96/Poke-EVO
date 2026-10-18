@@ -1,7 +1,7 @@
 import { ABILITIES, type AbilityDef } from '../data/content';
 import { applyBurn, applyNewStun, applySlow, damageEnemy, procHit, queryEnemies, soak } from './combat';
 import { BLAST_SECONDS } from './forms/projectile';
-import { bulbCapacity, emit, healPlayer } from './hooks';
+import { bulbCapacity, chargeHeld, emit, healPlayer } from './hooks';
 import { spawnScorch } from './terrain';
 import type { HitInfo, World } from './types';
 
@@ -139,10 +139,12 @@ export function chargePerParalysis(world: World): number {
 /** Pikachu: the damage factor for the next signature shot (×2 at full Charge, else 1). */
 export function chargedShotMult(world: World): number {
   const charge = ability(world).charge;
+  if (chargeHeld(world)) return 1;
   return charge?.chargedShotMult && world.player.charge >= charge.max ? charge.chargedShotMult : 1;
 }
 
-function discharge(world: World): void {
+/** Raichu: releases a Discharge now (also called at the end of a Volt Tackle). */
+export function discharge(world: World): void {
   const d = ability(world).charge!.discharge!;
   world.player.charge = 0;
   burst(world, d.radius, signatureHit(world) * d.signatureHitMult, procHit('Electric'), (j) =>
@@ -159,5 +161,5 @@ export function updateAbilities(world: World, dt: number): void {
   p.emergencyCooldownLeft = Math.max(0, p.emergencyCooldownLeft - dt);
   const def = ability(world);
   if (def.bulb && p.bloomCooldownLeft <= 0 && p.bulb > 0 && p.bulb >= bulbCapacity(world)) bloom(world);
-  if (def.charge?.discharge && p.charge >= def.charge.max) discharge(world);
+  if (def.charge?.discharge && p.charge >= def.charge.max && !chargeHeld(world)) discharge(world);
 }

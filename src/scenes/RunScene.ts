@@ -965,6 +965,24 @@ export class RunScene extends Phaser.Scene {
           g.fillStyle(TYPE_COLORS.Steel, 1);
           g.fillCircle(m.x, m.y, m.radius);
           break;
+        case 'thunderWave.pulse':
+          g.lineStyle(3, COLORS.stun, 0.8);
+          g.strokeCircle(m.x, m.y, m.radius);
+          break;
+        case 'spark.shower':
+          g.fillStyle(COLORS.stun, 1);
+          g.fillCircle(m.x, m.y, m.radius);
+          break;
+        case 'ironTail.slam':
+          g.lineStyle(2, TYPE_COLORS.Steel, 0.8);
+          g.strokeCircle(m.x, m.y, m.radius);
+          break;
+        case 'thunder.afterglow':
+          if (m.timer <= 0 || m.lifeLeft > 0) {
+            g.fillStyle(COLORS.stun, 0.15);
+            g.fillCircle(m.x, m.y, m.radius);
+          }
+          break;
         case 'razorLeaf.embed':
           g.fillStyle(TYPE_COLORS.Grass, 1);
           g.fillCircle(m.x, m.y - 6, 3);

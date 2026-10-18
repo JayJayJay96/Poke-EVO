@@ -3,7 +3,7 @@ import { test } from 'vitest';
 import { POKEMON, type PokemonId } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_IDS, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
-import { measureDps } from './balance';
+import { measureDps, type DummyRing } from './balance';
 import { isBuilt } from './mutations';
 import { createSeededRng } from './rng';
 import { createSlot, refreshStats } from './stats';
@@ -16,7 +16,12 @@ import { createWorld } from './world';
 
 const TOLERANCE = 0.15;
 const SEEDS = [1, 2, 3];
-const INNER_RING = 30;
+/** The default ring: 16 dummies on 4 circles from 30 px, so short melee reaches count too. */
+const RING: DummyRing = { innerDist: 30, count: 16, rings: 4, step: 50 };
+/** Moves whose base form misses the default ring (Spark orbits at 55 px, between circles) get a denser one. */
+const RING_FOR: Partial<Record<MoveId, DummyRing>> = {
+  spark: { innerDist: 30, count: 32, rings: 8, step: 25 },
+};
 
 /** The line a generic Mutation is measured on: the first line that learns the move. */
 function lineFor(def: MutationDef): PokemonId {
@@ -31,8 +36,7 @@ function dpsWith(pokemonId: PokemonId, move: MoveId, seed: number, mutation: Mut
   else slot.sockets.push({ augmentId: 'powerUp', rank: 1 });
   world.moves = [slot];
   refreshStats(world);
-  // A ring that starts right next to the player, so short melee reaches count too.
-  return measureDps(world, INNER_RING);
+  return measureDps(world, RING_FOR[move] ?? RING);
 }
 
 test('Mutation rule 4: DPS vs Power Up I', { timeout: 30 * 60_000 }, () => {
@@ -51,7 +55,7 @@ test('Mutation rule 4: DPS vs Power Up I', { timeout: 30 * 60_000 }, () => {
   }
   const header = '| Mutation | kind | measured on | Power Up I DPS | mutated DPS | ratio | ±15% |\n|---|---|---|---|---|---|---|';
   const note =
-    'Dummy ring from 30 px, move alone at its first stage, bot standing still and invulnerable (Shell always ready, ' +
+    'Dummy ring of 16 from 30 px (32 from 30 to 205 px for Spark), move alone at its first stage, bot standing still and invulnerable (Shell always ready, ' +
     'never hit, full HP). Utility (puddles, slips, Soak, stagger, movement) is not damage and is not counted.';
   writeFileSync('mutations-report.md', `# Mutation rule 4 (seeds ${SEEDS.join(', ')})\n\n${note}\n\n${header}\n${rows.join('\n')}\n`);
 });

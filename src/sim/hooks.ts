@@ -51,6 +51,10 @@ export interface MutationHooks {
   onKill?(world: World, slot: MoveSlot, enemy: Enemy): void;
   /** `enemy` is set for `kill` (the enemy that fainted). */
   onEvent?(world: World, slot: MoveSlot, event: HookEvent, amount: number, enemy?: Enemy): void;
+  /** True while this Mutation spends full Charge itself (Volt Tackle): no Charged shot or auto Discharge. */
+  holdsCharge?: boolean;
+  /** A signature chain jump from `from` to `to`: is `to` preferred, and how far can the jump reach (Conductor)? */
+  chainBias?(world: World, slot: MoveSlot, from: Enemy, to: Enemy): ChainBias;
   /** Extra Leech (lifesteal fraction) on the player hits against `enemy` (Seed Network, Sweet Dreams). */
   leechBonus?(world: World, slot: MoveSlot, enemy: Enemy): number;
   /** Player move-speed factor while this Mutation is owned. */
@@ -85,6 +89,30 @@ export function emit(world: World, event: HookEvent, amount = 0, enemy?: Enemy):
     const onEvent = hooksOf(slot)?.onEvent;
     if (onEvent) onEvent(world, slot, event, amount, enemy);
   }
+}
+
+/** Some owned Mutation spends full Charge itself (Volt Tackle). */
+export function chargeHeld(world: World): boolean {
+  return world.moves.some((slot) => hooksOf(slot)?.holdsCharge === true);
+}
+
+export interface ChainBias {
+  readonly preferred: boolean;
+  readonly rangeMult: number;
+}
+
+const NO_BIAS: ChainBias = { preferred: false, rangeMult: 1 };
+
+/** What the owned Mutations say about a chain jump from `from` to `to`. */
+export function chainBias(world: World, from: Enemy, to: Enemy): ChainBias {
+  let bias = NO_BIAS;
+  for (const slot of world.moves) {
+    const f = hooksOf(slot)?.chainBias;
+    if (!f) continue;
+    const b = f(world, slot, from, to);
+    bias = { preferred: bias.preferred || b.preferred, rangeMult: Math.max(bias.rangeMult, b.rangeMult) };
+  }
+  return bias;
 }
 
 /** Sum of every owned Mutation extra Leech on a hit against `enemy`. */

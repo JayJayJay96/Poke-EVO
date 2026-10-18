@@ -20,6 +20,12 @@ import './sleepPowder';
 import './sludge';
 import './petalDance';
 import './solarBeam';
+import './quickAttack';
+import './spark';
+import './electroBall';
+import './thunderWave';
+import './ironTail';
+import './thunder';
 // Signature Mutations (P4f-5): evolve with the line's signature tiers.
 import './bubble';
 import './ember';
