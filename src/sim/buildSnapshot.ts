@@ -10,7 +10,8 @@ import type { World } from './types';
 // The player's build as plain JSON, so a later map level can continue it (owner, D23).
 // Only the build is kept: no position, enemies, timers or XP progress inside a level.
 
-export const BUILD_SNAPSHOT_VERSION = 1;
+// v2 (D24): Mutation ranks.
+export const BUILD_SNAPSHOT_VERSION = 2;
 
 export interface BuildSnapshot {
   readonly version: typeof BUILD_SNAPSHOT_VERSION;
@@ -22,6 +23,7 @@ export interface BuildSnapshot {
     readonly moveId: MoveId;
     readonly sockets: readonly { readonly augmentId: AugmentId; readonly rank: number }[];
     readonly mutation: MutationId | null;
+    readonly mutationRank: number;
   }[];
   readonly boosts: Readonly<Record<BoostId, number>>;
   readonly items: readonly ItemId[];
@@ -41,6 +43,7 @@ export function snapshotBuild(world: World): BuildSnapshot {
       moveId: slot.moveId,
       sockets: slot.sockets.map((s) => ({ augmentId: s.augmentId, rank: s.rank })),
       mutation: slot.mutation,
+      mutationRank: slot.mutationRank,
     })),
     boosts: { ...world.boosts },
     items: [...world.items],
@@ -66,7 +69,7 @@ export function restoreBuild(world: World, snap: BuildSnapshot): void {
   world.moves = snap.moves.map((m) => {
     const slot = createSlot(m.moveId);
     slot.sockets = m.sockets.map((s) => ({ augmentId: s.augmentId, rank: s.rank }));
-    setMutation(slot, m.mutation);
+    setMutation(slot, m.mutation, m.mutationRank);
     return slot;
   });
   world.boosts = { ...snap.boosts };

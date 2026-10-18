@@ -74,6 +74,16 @@ export interface MutationDef {
   readonly excludesAugments?: readonly AugmentId[];
 }
 
+/**
+ * Mutation ranks (D24): a Mutation sits in its own slot and ranks I → III at sites.
+ * Until P4h-3…7 give every Mutation its own rank values, a rank scales the move's damage
+ * (provisional placeholder: rank II ≈ +15%, rank III ≈ +30% over rank I).
+ */
+export const MUTATION_RANKS = {
+  max: 3,
+  placeholderDamageMult: [1, 1.15, 1.3],
+} as const;
+
 /** Shared terrain, crowd-control guard rails and the Tide (docs/moveset/README.md). */
 export const MUTATION_TUNING = {
   puddle: { radius: 35, seconds: 4, maxAlive: 6 },

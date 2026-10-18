@@ -1,7 +1,6 @@
 import { TUNING, type PokemonId } from '../data/content';
 import { MOVES } from '../data/moves';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from './evolution';
-import { cancelMutationReplace } from './mutations';
 import { chooseAugment, chooseCard, chooseReplace, chooseSkill } from './progression';
 import { createSeededRng, type Rng } from './rng';
 import { chooseSiteCard } from './sites';
@@ -64,9 +63,6 @@ function autoPick(world: World, rng: Rng): void {
     // The bot never walks to sites on purpose; if its circle crosses one, it takes a random card.
     case 'site':
       chooseSiteCard(world, pick(offer.cards.length));
-      break;
-    case 'mutationReplace':
-      cancelMutationReplace(world);
       break;
   }
 }

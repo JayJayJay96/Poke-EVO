@@ -239,23 +239,14 @@ export function chooseAugment(world: World, index: number): void {
   completeLevelUp(world);
 }
 
-/**
- * Replace window: the new augment takes this socket at rank I; the old one is gone.
- * Indices past the augments pick the move's Mutation socket.
- */
+/** Replace window: the new augment takes this socket at rank I; the old one is gone. */
 export function chooseReplace(world: World, socketIndex: number): void {
   const offer = world.offer;
   if (offer?.kind !== 'replace') return;
   const slot = world.moves[offer.slot];
   if (!slot) return;
-  if (slot.sockets[socketIndex]) {
-    slot.sockets[socketIndex] = { augmentId: offer.card.augmentId, rank: 1 };
-  } else if (socketIndex === slot.sockets.length && slot.mutation) {
-    slot.mutation = null;
-    slot.sockets.push({ augmentId: offer.card.augmentId, rank: 1 });
-  } else {
-    return;
-  }
+  if (!slot.sockets[socketIndex]) return;
+  slot.sockets[socketIndex] = { augmentId: offer.card.augmentId, rank: 1 };
   completeLevelUp(world);
 }
 

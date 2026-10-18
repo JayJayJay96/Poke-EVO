@@ -374,6 +374,8 @@ export interface MoveSlot {
   sockets: AugmentSocket[];
   /** At most one Mutation per move; it takes one of the 3 sockets and never ranks up. */
   mutation: MutationId | null;
+  /** Rank of the Mutation, 1..MUTATION_RANKS.max (0 when there is none). D24. */
+  mutationRank: number;
   /** An orbit can circle a point instead of the player (Tornado). */
   anchored: boolean;
   anchorX: number;
@@ -448,7 +450,6 @@ export type LevelUpOffer =
       readonly drawn: DrawnAugments;
     }
   /** A Mutation granted to a move whose sockets are all augments: pick the augment it replaces, or cancel. */
-  | { readonly kind: 'mutationReplace'; readonly slot: number; readonly mutationId: MutationId }
   /** A captured Mutation Site (D23): pick one of its cards, or skip. */
   | { readonly kind: 'site'; readonly siteId: number; readonly cards: readonly SiteCard[] };
 
@@ -468,6 +469,8 @@ export interface EvolutionState {
 /** One reward on a Mutation Site. `learn`: the move isn't owned yet and is learned with it. */
 export type SiteCard =
   | { readonly kind: 'mutation'; readonly mutationId: MutationId; readonly learn: boolean }
+  /** Ranks up the Mutation the move already holds, to `rank` (D24). */
+  | { readonly kind: 'mutationRank'; readonly mutationId: MutationId; readonly rank: number }
   | { readonly kind: 'item'; readonly itemId: ItemId }
   /** Fallback when nothing else is eligible. */
   | { readonly kind: 'bigBoost' };

@@ -73,6 +73,8 @@ export function setupMutationStress(world: World): void {
   for (const id of STRESS_MUTATION_BUILDS[world.player.pokemonId]) {
     const result = grantMutation(world, id);
     if (result !== 'granted') throw new Error(`stress build: ${id} → ${result}`);
+    // Maxed: top rank (D24).
+    while (grantMutation(world, id) === 'rankUp');
   }
   for (const slot of world.moves) {
     const def: MutationDef | null = slot.mutation ? MUTATIONS[slot.mutation] : null;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { POKEMON, TUNING } from '../data/content';
-import { MUTATION_IDS, MUTATIONS, type MutationDef } from '../data/mutations';
+import { MUTATION_IDS, MUTATION_RANKS, MUTATIONS, type MutationDef } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
 import { ITEM_IDS, MAX_ITEMS, MAX_LEARNSET_SLOTS } from '../data/upgrades';
 import { restoreBuild, snapshotBuild } from './buildSnapshot';
@@ -162,10 +162,13 @@ describe('Mutation Sites: cards (D23)', () => {
         const def: MutationDef = MUTATIONS[id];
         return def.move === move && (def.kind === 'signature') === signature && (!def.line || def.line === 'charmander');
       })!;
+    // Every Mutation at the top rank (D24), or the site would offer rank-ups.
     world.moves[0]!.mutation = mutationFor(world.moves[0]!.moveId, true);
+    world.moves[0]!.mutationRank = MUTATION_RANKS.max;
     for (const { move } of POKEMON.charmander.learnset.filter((e) => e.fromStage === 0).slice(0, MAX_LEARNSET_SLOTS)) {
       const slot = createSlot(move);
       slot.mutation = mutationFor(move, false);
+      slot.mutationRank = MUTATION_RANKS.max;
       world.moves.push(slot);
     }
     world.items = ITEM_IDS.slice(0, MAX_ITEMS);
@@ -201,6 +204,7 @@ describe('build snapshot (D23)', () => {
     world.moves.push(createSlot('waterGun'));
     const mutation = MUTATION_IDS.find((id) => MUTATIONS[id].move === 'waterGun' && isBuilt(id))!;
     world.moves[1]!.mutation = mutation;
+    world.moves[1]!.mutationRank = 2;
     world.items = ['leftovers'];
     world.boosts.damage = 3;
     refreshStats(world);

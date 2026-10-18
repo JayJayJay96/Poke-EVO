@@ -11,6 +11,7 @@ import {
   type ItemId,
   type ModifierDelta,
 } from '../data/upgrades';
+import { MUTATION_RANKS } from '../data/mutations';
 import { hooksOf } from './hooks';
 import type { AugmentSocket, Modifiers, MoveSlot, MoveStats, World } from './types';
 
@@ -168,6 +169,7 @@ export function createSlot(moveId: MoveId): MoveSlot {
     hitCooldowns: new Map(),
     sockets: [],
     mutation: null,
+    mutationRank: 0,
     anchored: false,
     anchorX: 0,
     anchorY: 0,
@@ -209,6 +211,8 @@ export function refreshStats(world: World): void {
     // Leech: the ability's lifesteal applies to every move.
     slot.stats.lifesteal += ability.lifesteal ?? 0;
     hooksOf(slot)?.stats?.(slot.stats, world, slot);
+    // D24 placeholder until each Mutation has its own rank values.
+    if (slot.mutation) slot.stats.damage *= MUTATION_RANKS.placeholderDamageMult[slot.mutationRank - 1] ?? 1;
     slot.baseStats = { ...slot.stats };
   }
 }

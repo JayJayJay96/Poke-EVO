@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
 import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
-import { MUTATION_TUNING, MUTATIONS, type MutationId } from '../data/mutations';
+import { MUTATION_RANKS, MUTATION_TUNING, MUTATIONS, type MutationId } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
@@ -26,8 +26,6 @@ import {
   xpToNext,
 } from '../sim/progression';
 import {
-  cancelMutationReplace,
-  chooseMutationReplace,
   grantMutation,
   isMutationId,
   socketsUsed,
@@ -353,7 +351,6 @@ export class RunScene extends Phaser.Scene {
         else if (JustDown(this.keys.pause)) {
           if (offer.kind === 'replace') backFromReplace(world);
           else if (offer.kind === 'augment') backToSkills(world);
-          else if (offer.kind === 'mutationReplace') cancelMutationReplace(world);
           else if (offer.kind === 'site') skipSite(world);
         }
       }
@@ -494,13 +491,12 @@ export class RunScene extends Phaser.Scene {
     } else if (offer.kind === 'site') {
       if (index < offer.cards.length) this.siteNotice(chooseSiteCard(this.world, index), offer.cards[index]!);
       else skipSite(this.world);
-    } else if (index < this.world.moves[offer.slot]!.sockets.length) chooseMutationReplace(this.world, index);
-    else cancelMutationReplace(this.world);
+    }
   }
 
   /** Says what a site card did when it isn't obvious (a Mutation that couldn't be placed). */
   private siteNotice(result: ReturnType<typeof chooseSiteCard>, card: SiteCard): void {
-    if (card.kind !== 'mutation' || result === 'granted' || result === 'replace') return;
+    if ((card.kind !== 'mutation' && card.kind !== 'mutationRank') || result === 'granted' || result === 'rankUp') return;
     this.pendingNotice = `Couldn't place ${MUTATIONS[card.mutationId].name}: ${result}`;
   }
 
@@ -508,8 +504,9 @@ export class RunScene extends Phaser.Scene {
   private debugGrant(id: string): string {
     const result = isMutationId(id) ? grantMutation(this.world, id) : 'unknownId';
     const label = isMutationId(id) ? mutationLabel(id) : id;
-    const message = result === 'granted' ? `Mutation: ${label}` : result === 'replace' ? `${label}: pick a socket` : `Can't grant ${label}: ${result}`;
-    if (result !== 'granted' && result !== 'replace') console.warn(`[mutate] ${message}`);
+    const message =
+      result === 'granted' ? `Mutation: ${label}` : result === 'rankUp' ? `${label}: rank up` : `Can't grant ${label}: ${result}`;
+    if (result !== 'granted' && result !== 'rankUp') console.warn(`[mutate] ${message}`);
     this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
     return result;
   }
@@ -587,33 +584,7 @@ export class RunScene extends Phaser.Scene {
           body: `${AUGMENTS[socket.augmentId].ranks[socket.rank - 1]!.text}\n\n→ becomes ${augmentLabel(offer.card.augmentId, 1)}`,
           color: 0xff6b6b,
         }));
-        if (slot.mutation) {
-          views.push({
-            heading: 'REPLACE MUTATION',
-            title: mutationLabel(slot.mutation),
-            body: `${MUTATIONS[slot.mutation].text}
-
-→ becomes ${augmentLabel(offer.card.augmentId, 1)}`,
-            color: 0xff6b6b,
-          });
-        }
         views.push({ heading: 'BACK', title: 'Keep all', body: 'Back to the augment cards (Esc)', color: 0x888888 });
-        break;
-      }
-      case 'mutationReplace': {
-        const slot = world.moves[offer.slot]!;
-        const def = MUTATIONS[offer.mutationId];
-        title = `${MOVES[slot.moveId].name}: ${def.name} replaces which augment?`;
-        frame = def.kind === 'generic' ? COLORS.mutation : COLORS.bond;
-        views = slot.sockets.map((socket) => ({
-          heading: 'REPLACE',
-          title: augmentLabel(socket.augmentId, socket.rank),
-          body: `${AUGMENTS[socket.augmentId].ranks[socket.rank - 1]!.text}
-
-→ becomes ${def.name}`,
-          color: 0xff6b6b,
-        }));
-        views.push({ heading: 'CANCEL', title: 'Keep all', body: `Don't take ${def.name} (Esc)`, color: 0x888888 });
         break;
       }
       case 'site': {
@@ -1316,12 +1287,23 @@ function siteColor(site: World['sites'][number]): number {
 }
 
 function describeSiteCard(world: World, card: SiteCard): CardView {
-  if (card.kind !== 'mutation') return describeCard(world, card);
+  if (card.kind !== 'mutation' && card.kind !== 'mutationRank') return describeCard(world, card);
   const def = MUTATIONS[card.mutationId];
   // Signature Mutations keep the line's first signature ID; show the current tier's name.
   const moveId = def.kind === 'signature' ? world.moves[0]!.moveId : def.move;
   const move = MOVES[moveId].name;
   const kind = def.kind === 'generic' ? 'MUTATION' : def.kind === 'bond' ? 'BOND' : 'SIGNATURE';
+  if (card.kind === 'mutationRank') {
+    // D24: rank values per Mutation arrive in P4h-3…7; until then a rank scales damage.
+    const mult = MUTATION_RANKS.placeholderDamageMult;
+    const gain = Math.round((mult[card.rank - 1]! / mult[card.rank - 2]! - 1) * 100);
+    return {
+      heading: `${kind} RANK UP ⬆`,
+      title: `${move}: ${def.name} ${RANK_NUMERALS[card.rank - 1]}`,
+      body: `${def.text}\n\nRank ${RANK_NUMERALS[card.rank - 1]}: +${gain}% damage`,
+      color: def.kind === 'generic' ? COLORS.mutation : COLORS.bond,
+    };
+  }
   return {
     heading: card.learn ? `LEARN + ${kind}` : kind,
     title: `${move}: ${def.name}`,
@@ -1370,19 +1352,21 @@ function describeAugment(card: AugmentCard): CardView {
   };
 }
 
+/** The 3 augment sockets, then the Mutation slot (D24: separate from the sockets). */
 function socketLines(slot: MoveSlot): string[] {
   const lines: string[] = slot.sockets.map((socket) => `◆ ${augmentLabel(socket.augmentId, socket.rank)}`);
-  if (slot.mutation) lines.push(`✦ ${mutationLabel(slot.mutation)}`);
   while (lines.length < MAX_SOCKETS) lines.push('◇ empty');
+  lines.push(slot.mutation ? `✦ ${mutationLabel(slot.mutation, slot.mutationRank)}` : '✧ no Mutation');
   return lines;
 }
 
-/** "Slick (Mutation)" or "Steady Aim (Bond · Squirtle)". */
-function mutationLabel(id: MutationId): string {
+/** "Slick (Mutation)" or "Steady Aim II (Bond · Squirtle)"; rank I shows no numeral. */
+function mutationLabel(id: MutationId, rank = 1): string {
   const def = MUTATIONS[id];
-  if (def.kind === 'generic') return `${def.name} (Mutation)`;
+  const name = rank > 1 ? `${def.name} ${RANK_NUMERALS[rank - 1]}` : def.name;
+  if (def.kind === 'generic') return `${name} (Mutation)`;
   const line = POKEMON[def.line].stages[0]!.name;
-  return `${def.name} (${def.kind === 'bond' ? 'Bond' : 'Signature'} · ${line})`;
+  return `${name} (${def.kind === 'bond' ? 'Bond' : 'Signature'} · ${line})`;
 }
 
 /** "Pierce II"; single-rank augments show just the name. */

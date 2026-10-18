@@ -2,7 +2,7 @@ import { POKEMON } from '../data/content';
 import { MUTATION_IDS, MUTATIONS, type MutationDef } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
 import { ITEM_IDS, MAX_ITEMS, MAX_LEARNSET_SLOTS } from '../data/upgrades';
-import { grantMutation, isBuilt, mutationOffers, requirementMet, type GrantResult } from './mutations';
+import { grantMutation, isBuilt, mutationOffers, mutationRankUps, requirementMet, type GrantResult } from './mutations';
 import { createSeededRng, type Rng } from './rng';
 import { refreshStats } from './stats';
 import type { MutationSite, SiteCard, World } from './types';
@@ -89,13 +89,15 @@ function take<T>(rng: Rng, pool: T[], count: number): T[] {
 }
 
 /**
- * A site's cards: Mutations for owned moves, Mutations that teach a learnset move, and held items
- * not owned. At least one Mutation and one item when available; Power Surge if nothing is eligible.
+ * A site's cards: Mutations for owned moves, rank-ups for the Mutations held (D24), Mutations that
+ * teach a learnset move, and held items not owned. At least one Mutation and one item when available;
+ * Power Surge if nothing is eligible.
  */
 export function rollSiteCards(world: World): SiteCard[] {
   const { rng } = world;
   const mutations: SiteCard[] = [
     ...mutationOffers(world).map((mutationId): SiteCard => ({ kind: 'mutation', mutationId, learn: false })),
+    ...mutationRankUps(world).map(({ mutationId, rank }): SiteCard => ({ kind: 'mutationRank', mutationId, rank })),
     ...learnableMutations(world),
   ];
   const items: SiteCard[] =
@@ -108,9 +110,9 @@ export function rollSiteCards(world: World): SiteCard[] {
   return take(rng, cards, cards.length); // shuffle so the guaranteed cards aren't always first
 }
 
-/** A Bond or signature Mutation: bound to the player's Pokémon (D23: longer capture). */
+/** A Bond or signature Mutation (or its rank-up): bound to the player's Pokémon (D23: longer capture). */
 export function isBoundCard(card: SiteCard): boolean {
-  return card.kind === 'mutation' && MUTATIONS[card.mutationId].kind !== 'generic';
+  return (card.kind === 'mutation' || card.kind === 'mutationRank') && MUTATIONS[card.mutationId].kind !== 'generic';
 }
 
 function isInside(world: World, site: MutationSite): boolean {
@@ -151,16 +153,14 @@ function closeSite(world: World): SiteCard[] | null {
   return [...offer.cards];
 }
 
-/**
- * Takes a site card; the site is used up. A Mutation on a move with 3 augments opens the
- * Mutation replace window (cancelling it keeps the augments, and the Mutation is lost).
- */
+/** Takes a site card; the site is used up. Mutations never touch augment sockets (D24). */
 export function chooseSiteCard(world: World, index: number): GrantResult | 'item' | 'bigBoost' | null {
   const offer = world.offer;
   if (offer?.kind !== 'site' || !offer.cards[index]) return null;
   const card = closeSite(world)![index]!;
   switch (card.kind) {
     case 'mutation':
+    case 'mutationRank':
       return grantMutation(world, card.mutationId);
     case 'item':
       world.items.push(card.itemId);

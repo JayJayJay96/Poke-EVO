@@ -1,12 +1,20 @@
-import { MAX_SOCKETS } from '../data/augments';
-import { MUTATION_IDS, MUTATIONS, REQUIREMENTS, type MutationDef, type MutationId, type RequirementId } from '../data/mutations';
+import {
+  MUTATION_IDS,
+  MUTATION_RANKS,
+  MUTATIONS,
+  REQUIREMENTS,
+  type MutationDef,
+  type MutationId,
+  type RequirementId,
+} from '../data/mutations';
 import { MAX_LEARNSET_SLOTS } from '../data/upgrades';
 import { isBuilt } from './hooks';
 import { createSlot, refreshStats } from './stats';
 import type { MoveSlot, World } from './types';
 
-// Mutation acquisition and sockets (docs/moveset/README.md rules 1, 6–8; D16).
-// Map sites will call mutationOffers / grantMutation; until they exist the only way in is the debug grant.
+// Mutation acquisition and ranks (docs/moveset/README.md rules 1, 2, 6–8; D16, D23, D24).
+// A Mutation sits in its move's own slot, outside the 3 augment sockets, and ranks I → III at sites.
+// Sites call mutationOffers / mutationRankUps / grantMutation; the debug grant uses grantMutation too.
 
 export { isBuilt, registerBuilt } from './hooks';
 
@@ -14,9 +22,9 @@ export function isMutationId(id: string): id is MutationId {
   return id in MUTATIONS;
 }
 
-/** Sockets a move has filled: its augments plus its Mutation. */
+/** Augment sockets a move has filled. The Mutation has its own slot (D24). */
 export function socketsUsed(slot: MoveSlot): number {
-  return slot.sockets.length + (slot.mutation ? 1 : 0);
+  return slot.sockets.length;
 }
 
 /** The move a Mutation sits on in this world, or -1 if it isn't owned. Signature Mutations sit on slot 0. */
@@ -50,12 +58,19 @@ export function mutationOffers(world: World): MutationId[] {
   });
 }
 
-export type GrantResult = 'granted' | 'replace' | 'notBuilt' | 'wrongLine' | 'noSlot' | 'busy';
+/** Rank-up cards for the Mutations the build holds below the top rank (D24). */
+export function mutationRankUps(world: World): { mutationId: MutationId; rank: number }[] {
+  return world.moves.flatMap((slot) =>
+    slot.mutation && slot.mutationRank < MUTATION_RANKS.max ? [{ mutationId: slot.mutation, rank: slot.mutationRank + 1 }] : [],
+  );
+}
+
+export type GrantResult = 'granted' | 'rankUp' | 'maxRank' | 'notBuilt' | 'wrongLine' | 'noSlot' | 'busy';
 
 /**
- * Debug grant (until map sites exist): puts a Mutation on its move, ignoring stage and requirements.
- * A missing learnset move is learned first if a slot is free. An existing Mutation on that move is
- * replaced (rule 1). If all 3 sockets hold augments, the replace window opens instead (D11 flow).
+ * Puts a Mutation on its move (sites and the debug grant), ignoring stage and requirements.
+ * A missing learnset move is learned first if a slot is free. The same Mutation again ranks it up;
+ * a different one replaces it at rank I (rule 1, D24). Augment sockets are never touched.
  */
 export function grantMutation(world: World, id: MutationId): GrantResult {
   if (world.offer || world.evolution || world.status !== 'running') return 'busy';
@@ -69,36 +84,22 @@ export function grantMutation(world: World, id: MutationId): GrantResult {
     index = world.moves.length - 1;
   }
   const slot = world.moves[index]!;
-  if (slot.mutation === null && socketsUsed(slot) >= MAX_SOCKETS) {
-    world.offer = { kind: 'mutationReplace', slot: index, mutationId: id };
-    return 'replace';
+  if (slot.mutation === id) {
+    if (slot.mutationRank >= MUTATION_RANKS.max) return 'maxRank';
+    slot.mutationRank++;
+    refreshStats(world);
+    return 'rankUp';
   }
   setMutation(slot, id);
   refreshStats(world);
   return 'granted';
 }
 
-/** Replace window: the Mutation takes this augment's socket; the augment is gone. */
-export function chooseMutationReplace(world: World, socketIndex: number): void {
-  const offer = world.offer;
-  if (offer?.kind !== 'mutationReplace') return;
-  const slot = world.moves[offer.slot];
-  if (!slot || !slot.sockets[socketIndex]) return;
-  slot.sockets.splice(socketIndex, 1);
-  setMutation(slot, offer.mutationId);
-  world.offer = null;
-  refreshStats(world);
-}
-
-/** Puts a Mutation on a move with fresh hook state. */
-export function setMutation(slot: MoveSlot, id: MutationId | null): void {
+/** Puts a Mutation on a move at `rank` (switching resets to rank I, D24) with fresh hook state. */
+export function setMutation(slot: MoveSlot, id: MutationId | null, rank = 1): void {
   slot.mutation = id;
+  slot.mutationRank = id ? Math.min(MUTATION_RANKS.max, Math.max(1, rank)) : 0;
   slot.mutState = {};
   slot.cooldownLeft = 0;
   slot.activeLeft = 0;
-}
-
-/** Replace window: keep every augment; the Mutation is not taken. */
-export function cancelMutationReplace(world: World): void {
-  if (world.offer?.kind === 'mutationReplace') world.offer = null;
 }

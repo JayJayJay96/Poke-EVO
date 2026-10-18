@@ -6,21 +6,14 @@ import { MOVES } from '../data/moves';
 import {
   HOOK_IDS,
   MUTATION_IDS,
+  MUTATION_RANKS,
   MUTATIONS,
   REQUIREMENT_IDS,
   type MutationDef,
   type MutationId,
 } from '../data/mutations';
-import {
-  cancelMutationReplace,
-  chooseMutationReplace,
-  grantMutation,
-  isBuilt,
-  mutationOffers,
-  registerBuilt,
-  requirementMet,
-  socketsUsed,
-} from './mutations';
+import { grantMutation, isBuilt, mutationOffers, mutationRankUps, registerBuilt, requirementMet, socketsUsed } from './mutations';
+import { chooseSiteCard, rollSiteCards } from './sites';
 import { chooseAugment, chooseReplace, chooseSkill, drawAugmentCards, makeOffer, needsReplace } from './progression';
 import { createSeededRng } from './rng';
 import { createSlot, refreshStats } from './stats';
@@ -131,14 +124,16 @@ describe('Mutation sockets and offers', () => {
     }
   });
 
-  it('a Mutation takes one of the 3 sockets, and an augment can replace it', () => {
+  it('a Mutation has its own slot (D24): 3 augments fit beside it, and augment replacing never touches it', () => {
     const w = world();
     const slot = w.moves[0]!;
     slot.mutation = 'bubble.trap';
+    slot.mutationRank = 1;
     slot.sockets.push({ augmentId: 'powerUp', rank: 1 }, { augmentId: 'quickCast', rank: 1 });
-    expect(socketsUsed(slot)).toBe(3);
-    expect(needsReplace(w, 0, { augmentId: 'enlarge', rank: 1 })).toBe(true);
-    expect(needsReplace(w, 0, { augmentId: 'powerUp', rank: 2 })).toBe(false);
+    expect(socketsUsed(slot)).toBe(2);
+    expect(needsReplace(w, 0, { augmentId: 'enlarge', rank: 1 })).toBe(false);
+    slot.sockets.push({ augmentId: 'enlarge', rank: 1 });
+    expect(needsReplace(w, 0, { augmentId: 'keenEdge', rank: 1 })).toBe(true);
 
     w.pendingLevelUps = 1;
     w.level = 3; // augment level
@@ -149,8 +144,10 @@ describe('Mutation sockets and offers', () => {
     const index = offer.cards.findIndex((c) => c.rank === 1);
     chooseAugment(w, index);
     expect(w.offer?.kind).toBe('replace');
-    chooseReplace(w, 2); // past the 2 augments: the Mutation socket
-    expect(slot.mutation).toBeNull();
+    chooseReplace(w, 3); // past the 3 augments: there is no Mutation socket any more
+    expect(w.offer?.kind).toBe('replace');
+    chooseReplace(w, 2);
+    expect(slot.mutation).toBe('bubble.trap');
     expect(slot.sockets.length).toBe(3);
     expect(w.offer).toBeNull();
   });
@@ -177,24 +174,53 @@ describe('Mutation sockets and offers', () => {
     expect(w.moves.filter((m) => m.moveId === 'waterGun').length).toBe(1);
   });
 
-  it('grant onto 3 augments opens a replace window; cancel keeps them, choosing swaps one out', () => {
+  it('grant onto 3 augments keeps every augment (D24)', () => {
     registerBuilt('waterGun.slick');
     const w = world();
     w.moves.push(createSlot('waterGun'));
     const slot = w.moves[1]!;
     slot.sockets.push({ augmentId: 'powerUp', rank: 1 }, { augmentId: 'quickCast', rank: 2 }, { augmentId: 'enlarge', rank: 1 });
-    expect(grantMutation(w, 'waterGun.slick')).toBe('replace');
-    expect(w.offer).toEqual({ kind: 'mutationReplace', slot: 1, mutationId: 'waterGun.slick' });
-    expect(grantMutation(w, 'waterGun.slick')).toBe('busy');
-    cancelMutationReplace(w);
-    expect(w.offer).toBeNull();
-    expect(slot.mutation).toBeNull();
-
-    grantMutation(w, 'waterGun.slick');
-    chooseMutationReplace(w, 1);
+    expect(grantMutation(w, 'waterGun.slick')).toBe('granted');
     expect(slot.mutation).toBe('waterGun.slick');
-    expect(slot.sockets.map((s) => s.augmentId)).toEqual(['powerUp', 'enlarge']);
+    expect(slot.mutationRank).toBe(1);
+    expect(slot.sockets.map((s) => s.augmentId)).toEqual(['powerUp', 'quickCast', 'enlarge']);
     expect(w.offer).toBeNull();
+  });
+
+  it('the same Mutation again ranks it up to III; a different one resets to rank I (D24)', () => {
+    registerBuilt('waterGun.slick');
+    registerBuilt('waterGun.washDown');
+    const w = world();
+    expect(grantMutation(w, 'waterGun.slick')).toBe('granted');
+    const slot = w.moves.find((m) => m.moveId === 'waterGun')!;
+    const rankI = slot.stats.damage;
+    expect(mutationRankUps(w)).toEqual([{ mutationId: 'waterGun.slick', rank: 2 }]);
+    expect(grantMutation(w, 'waterGun.slick')).toBe('rankUp');
+    expect(slot.mutationRank).toBe(2);
+    expect(slot.stats.damage).toBeCloseTo(rankI * MUTATION_RANKS.placeholderDamageMult[1]);
+    expect(grantMutation(w, 'waterGun.slick')).toBe('rankUp');
+    expect(slot.mutationRank).toBe(3);
+    expect(slot.stats.damage).toBeCloseTo(rankI * MUTATION_RANKS.placeholderDamageMult[2]);
+    expect(grantMutation(w, 'waterGun.slick')).toBe('maxRank');
+    expect(mutationRankUps(w)).toEqual([]);
+
+    expect(grantMutation(w, 'waterGun.washDown')).toBe('granted');
+    expect(slot.mutation).toBe('waterGun.washDown');
+    expect(slot.mutationRank).toBe(1);
+  });
+
+  it('sites offer rank-up cards for the Mutations held, and taking one ranks it up', () => {
+    const w = world();
+    expect(grantMutation(w, 'bubble.trap')).toBe('granted');
+    let rankCard = -1;
+    for (let tries = 0; tries < 50 && rankCard < 0; tries++) {
+      const cards = rollSiteCards(w);
+      rankCard = cards.findIndex((c) => c.kind === 'mutationRank' && c.mutationId === 'bubble.trap' && c.rank === 2);
+      if (rankCard >= 0) w.offer = { kind: 'site', siteId: 0, cards };
+    }
+    expect(rankCard).toBeGreaterThanOrEqual(0);
+    expect(chooseSiteCard(w, rankCard)).toBe('rankUp');
+    expect(w.moves[0]!.mutationRank).toBe(2);
   });
 
   it('site offers follow the INDEX filter: built, line, stage, owned move, one per move, requirements', () => {
