@@ -92,7 +92,7 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 1. **Rule-4 utility:** rule 4 is DPS-only. About 50 Mutations read below ±15% because their value is control, safety or a condition the bot never meets. Recommendation: judge those by playtest.
 2. **Costs I added beyond the docs** (provisional): Crescent ×0.45, Dragon Breath ×0.6, Ricochet ×0.8, Electric Terrain field ticks ×0.35, Belly Flop cooldown ×2 (doc ×1.25), Flurry cuts at 100% (doc 50%, so the doc's cost is gone).
 3. **Charmander's early game with 8 moves:** a random bot now stalls far more often (Lv 7 at 5 min, was 13), because early move cards are spread over 8 moves including Smokescreen. Check in the playtest whether it feels slow.
-4. **Damage augments on Smokescreen:** the augment pool still offers Power Up, Crit and the like for a move with no damage; they do nothing unless Choking Smoke is on it. Recommendation: hide damage-only augments for zero-damage moves (a small offer-filter change), if you agree.
+4. **Damage augments on Smokescreen:** the augment pool still offers Power Up, Crit and the like for a move with no damage; they do nothing unless Choking Smoke is on it. **Resolved (D22, 2026-10-18):** owner: "Leave the augment pool as is."
 
 **Checks (observed):** `npm run typecheck` clean; `npm test` **326/326 passed**; `npm run build` passed; `npm run bench` ran (6 benches); `npm run balance` ran.
 
