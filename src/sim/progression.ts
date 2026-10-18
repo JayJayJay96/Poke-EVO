@@ -8,6 +8,7 @@ import {
 } from '../data/augments';
 import { POKEMON, TUNING } from '../data/content';
 import { MOVES } from '../data/moves';
+import { MUTATIONS, type MutationDef } from '../data/mutations';
 import {
   BOOST_IDS,
   BOOST_MAX_PICKS,
@@ -84,8 +85,9 @@ export function augmentPool(world: World, slotIndex: number): AugmentCard[] {
   for (const socket of slot.sockets) {
     if (socket.rank < maxRankOf(socket.augmentId)) pool.push({ augmentId: socket.augmentId, rank: socket.rank + 1 });
   }
+  const excluded = slot.mutation ? (MUTATIONS[slot.mutation] as MutationDef).excludesAugments : undefined;
   for (const id of AUGMENT_IDS) {
-    if (slot.sockets.some((s) => s.augmentId === id)) continue;
+    if (slot.sockets.some((s) => s.augmentId === id) || excluded?.includes(id)) continue;
     const { requiresAny, exclusiveTo } = AUGMENTS[id];
     if (requiresAny.length > 0 && !requiresAny.some((tag) => tags.includes(tag))) continue;
     if (exclusiveTo && !exclusiveTo.includes(slot.moveId)) continue;

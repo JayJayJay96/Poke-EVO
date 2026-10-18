@@ -1,7 +1,7 @@
 import { TUNING } from '../../data/content';
 import type { ProjectileMoveDef } from '../../data/moves';
 import { NO_HIT, damageEnemy, findNearestEnemy, queryEnemies } from '../combat';
-import { emit } from '../hooks';
+import { emit, hooksOf } from '../hooks';
 import type { Enemy, MoveSlot, Projectile, World } from '../types';
 import { spawnZone } from '../zones';
 
@@ -47,6 +47,7 @@ export function createProjectile(): Projectile {
     turnAt: 0,
     speed: 0,
     hitIds: [],
+    tag: 0,
     lifeLeft: 0,
     dead: true,
   };
@@ -110,6 +111,7 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
     // Return: fly out for half the lifetime, then come back.
     p.turnAt = s.returns ? lifetime / 2 : 0;
     p.hitIds.length = 0;
+    p.tag = 0;
     p.lifeLeft = lifetime;
     p.dead = false;
     world.projectiles.push(p);
@@ -166,6 +168,8 @@ export function updateProjectiles(world: World, dt: number): void {
       detonate(world, proj, enemy);
       remember(proj, enemy.id);
       chain(world, proj, enemy);
+      const owner = proj.hit.slot;
+      if (owner) hooksOf(owner)?.onProjectileHit?.(world, owner, proj, enemy);
       if (proj.returns) continue; // a boomerang passes through everything, both ways
       if (proj.pierceLeft > 0) {
         proj.pierceLeft--;
@@ -205,6 +209,8 @@ function steer(proj: Projectile, tx: number, ty: number, maxTurn: number): void 
  */
 function chain(world: World, proj: Projectile, from: Enemy): void {
   let current = from;
+  const slot = proj.hit.slot;
+  const hooks = slot ? hooksOf(slot) : undefined;
   for (let jump = 0; jump < proj.chainJumps; jump++) {
     let next: Enemy | undefined;
     let bestDist2 = TUNING.chain.range * TUNING.chain.range;
@@ -218,13 +224,15 @@ function chain(world: World, proj: Projectile, from: Enemy): void {
         bestDist2 = dist2;
       }
     }
-    if (!next) return;
+    if (!next) break;
     world.arcs.push({ x1: current.x, y1: current.y, x2: next.x, y2: next.y, lifeLeft: ARC_SECONDS });
     damageEnemy(world, next, proj.damage * proj.chainFraction, proj.hit);
     emit(world, 'chainJump', 1);
+    if (hooks?.onChainJump) hooks.onChainJump(world, slot!, current, next);
     remember(proj, next.id);
     current = next;
   }
+  if (proj.chainJumps > 0 && hooks?.onChainEnd) hooks.onChainEnd(world, slot!, current);
 }
 
 function remember(proj: Projectile, enemyId: number): void {

@@ -1,3 +1,4 @@
+import type { AugmentId } from './augments';
 import type { AbilityId, PokemonId } from './content';
 import type { MoveId } from './moves';
 
@@ -73,6 +74,8 @@ export interface MutationDef {
   readonly tide?: { readonly flood: MutationValues; readonly ebb: MutationValues };
   /** Every tuning number. Signature Mutations nest per-tier additions under `tier1` / `tier2`. */
   readonly values: MutationValues;
+  /** Augments this Mutation's move can no longer take (Undertow: Return). */
+  readonly excludesAugments?: readonly AugmentId[];
 }
 
 /** Shared terrain, crowd-control guard rails and the Tide (docs/moveset/README.md). */
@@ -236,6 +239,8 @@ export const MUTATIONS = {
   'bubble.trap': signature('bubble', 'squirtle', undefined, 'Bubble Trap', 'Traps a light enemy, then pops', {
     floatSeconds: 1.2,
     popRadius: 40,
+    /** P4f-5 rule-4 tuning: the pop splashes a crowd, so it deals less than the full hit. */
+    popDamageFraction: 0.8,
     popStagger: 20,
     cooldownMult: 1.3,
     tier1: { pullRadius: 60, pullPx: 15 },
@@ -244,18 +249,25 @@ export const MUTATIONS = {
   'bubble.froth': signature('bubble', 'squirtle', undefined, 'Froth Mines', 'Shots leave hovering bubble mines', {
     minesPerShot: 3,
     mineSeconds: 3,
-    mineDamageFraction: 0.5,
+    mineDamageFraction: 0.25, // P4f-5 rule-4 tuning (doc: 0.5, measured 1.52× Power Up I)
     maxMines: 9,
     damageMult: 0.7,
+    // P4f-5 build values (not in the doc): mine size, stagger ring, drift search range.
+    mineRadius: 9,
+    mineRingRadius: 30,
+    driftRange: 200,
     tier1: { mineStagger: 10 },
     tier2: { driftSpeed: 40 },
   }),
-  'bubble.undertow': signature('bubble', 'squirtle', undefined, 'Undertow', 'Bubbles return to you, hitting twice', {
-    damageMult: 0.75,
-    rangeMult: 0.8,
-    tier1: { dragPx: 25 },
-    tier2: { soaks: true, puddleEvery: 0.2 },
-  }),
+  'bubble.undertow': {
+    ...signature('bubble', 'squirtle', undefined, 'Undertow', 'Bubbles return to you, hitting twice', {
+      damageMult: 0.65, // P4f-5 rule-4 tuning (doc: 0.75; both legs hit, 1.25×)
+      rangeMult: 0.8,
+      tier1: { dragPx: 25 },
+      tier2: { soaks: true, puddleEvery: 0.2 },
+    }),
+    excludesAugments: ['boomerang'],
+  },
 
   // ── Charmander line moves ──────────────────────────────────────────────
   'scratch.furySwipes': generic('scratch', 'Fury Swipes', 'Stacks damage on one target', {
@@ -394,7 +406,7 @@ export const MUTATIONS = {
     flames: 4,
     coneDeg: 40,
     reach: 130,
-    flameDamageFraction: 0.35,
+    flameDamageFraction: 0.3, // P4f-5 rule-4 tuning (doc: 0.35, 1.22× in a crowd)
     blazeReachMult: 1.3,
     tier1: { burnPct: 0.2 },
     tier2: { scorchLine: true },
@@ -403,7 +415,9 @@ export const MUTATIONS = {
     maxWisps: 3,
     maxWispsBlaze: 5,
     triggerRadius: 110,
-    damageMult: 1.4,
+    damageMult: 1.3, // P4f-5 rule-4 tuning (doc: 1.4, 1.22×)
+    /** P4f-5 build value: seconds between two wisp launches. */
+    launchInterval: 0.15,
     tier1: { splash: true },
     tier2: { craterSizeMult: 0.5 },
   }),
@@ -534,6 +548,8 @@ export const MUTATIONS = {
     tipFraction: 0.3,
     tipCritMult: 1.5,
     closeMult: 0.6,
+    /** P4f-5 build value: "close" = inside this fraction of the reach. */
+    closeFraction: 0.4,
     tier2: { rootFieldSizeMult: 0.6 },
   }),
   'vineWhip.thornGarden': signature('vineWhip', 'bulbasaur', 'bloom', 'Thorn Garden', 'Swings plant thorn sprouts', {
@@ -643,6 +659,9 @@ export const MUTATIONS = {
     wireSeconds: 1,
     wireDamageFraction: 0.2,
     jumpDamageMult: 0.7,
+    /** P4f-5 build values: wire hit width and check interval. */
+    wireWidth: 8,
+    wireTickInterval: 0.25,
     chargeThreshold: 0.5,
     chargeWireMult: 2,
     tier1: { wireSeconds: 1.5, paralyseSeconds: 0.2 },
@@ -652,14 +671,14 @@ export const MUTATIONS = {
     orbSeconds: 1.6,
     zapRadius: 90,
     zapInterval: 0.3,
-    zapDamageFraction: 0.25,
+    zapDamageFraction: 0.65, // P4f-5 rule-4 tuning (doc: 0.25, 0.34× vs the chaining bolt)
     chargeMaxBonus: 0.5,
     tier1: { endChain: true },
   }),
   'thunderShock.returnArc': signature('thunderShock', 'pikachu', 'chargeLevel', 'Return Arc', 'The last jump arcs back to you: +Charge', {
     chargePerJump: 4,
     damageMult: 0.8,
-    tier1: { returnLineFraction: 0.5 },
+    tier1: { returnLineFraction: 0.5, returnLineWidth: 8 },
   }),
 
   // ── Lapras moves ───────────────────────────────────────────────────────
@@ -717,12 +736,14 @@ export const MUTATIONS = {
     range: 200,
     shadowSeconds: 0.25,
     damageFraction: 0.6,
+    /** P4f-5 build value: each shard hits this radius. */
+    impactRadius: 20,
     tier1: { fieldSizeMult: 0.4 },
   }),
   'iceShard.frostLance': signature('iceShard', 'lapras', undefined, 'Frost Lance', 'A lance that pierces every enemy', {
     slow: 0.3,
     cooldownMult: 1.4,
-    tier1: { stripSeconds: 2 },
+    tier1: { stripSeconds: 2, stripRadius: 30, stripPatches: 4 },
   }),
   'iceShard.song': signature('iceShard', 'lapras', undefined, 'Song of the Sea', 'Every 4th cast is a sleep song', {
     everyN: 4,

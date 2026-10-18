@@ -4,6 +4,7 @@ import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonT
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationId } from '../data/mutations';
 import { bulbCapacity, tideFlood } from '../sim/hooks';
+import { wispCount } from '../sim/mutationDefs/ember';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { isAbilityActive } from '../sim/combat';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
@@ -909,6 +910,48 @@ export class RunScene extends Phaser.Scene {
       ring(e.slowLeft > 0, COLORS.slow);
       ring(e.stunLeft > 0, COLORS.stun);
       ring(e.seedLeft > 0, COLORS.seed);
+      // Bubble Trap: a floating bubble around the trapped enemy.
+      if (e.trapLeft > 0) {
+        g.lineStyle(3, COLORS.puddle, 0.9);
+        g.strokeCircle(e.x, e.y, e.radius + 6);
+      }
+    }
+
+    // Things Mutations spawned, drawn by owner.
+    for (const m of this.world.entities) {
+      if (m.lifeLeft <= 0) continue;
+      switch (m.owner) {
+        case 'bubble.froth':
+          g.fillStyle(COLORS.puddle, 0.5);
+          g.fillCircle(m.x, m.y, m.radius);
+          g.lineStyle(1, COLORS.flash, 0.8);
+          g.strokeCircle(m.x, m.y, m.radius);
+          break;
+        case 'vineWhip.thornGarden':
+          g.lineStyle(1, COLORS.seed, 0.35);
+          g.strokeCircle(m.x, m.y, m.radius);
+          g.fillStyle(COLORS.seed, 1);
+          g.fillCircle(m.x, m.y, 6);
+          break;
+        case 'thunderShock.ballLightning':
+          g.lineStyle(1, COLORS.stun, 0.3);
+          g.strokeCircle(m.x, m.y, m.radius);
+          g.fillStyle(COLORS.stun, 1);
+          g.fillCircle(m.x, m.y, 8);
+          break;
+        case 'thunderShock.liveWire':
+          g.lineStyle(2, COLORS.stun, 0.8);
+          g.lineBetween(m.x, m.y, m.x2, m.y2);
+          break;
+      }
+    }
+
+    // Will-o-Wisp: stored wisps orbit the player.
+    const wisps = moves[0] ? wispCount(moves[0]) : 0;
+    for (let i = 0; i < wisps; i++) {
+      const a = this.time.now / 300 + (i / wisps) * Math.PI * 2;
+      g.fillStyle(COLORS.crater, 1);
+      g.fillCircle(player.x + Math.cos(a) * (player.radius + 16), player.y + Math.sin(a) * (player.radius + 16), 5);
     }
 
     // Chain lightning arcs.

@@ -62,6 +62,7 @@ export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): bool
         poisonDps: s.damage * (field.onTick?.poisonPct ?? 0),
         attackType: s.attackType,
       },
+      slot.moveId,
     );
   }
   return true;

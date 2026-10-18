@@ -870,8 +870,8 @@ describe('signature tiers', () => {
 
   it('the zone budget skips new zones once full', () => {
     const world = makeWorld();
-    for (let i = 0; i < TUNING.budget.maxZones; i++) expect(spawnZone(world, i * 10, 0, 20, 5, 0.5, 1, 0)).toBe(true);
-    expect(spawnZone(world, 0, 0, 20, 5, 0.5, 1, 0)).toBe(false);
+    for (let i = 0; i < TUNING.budget.maxZones; i++) expect(spawnZone(world, i * 10, 0, 20, 5, 0.5, 1, 0)).not.toBeNull();
+    expect(spawnZone(world, 0, 0, 20, 5, 0.5, 1, 0)).toBeNull();
     expect(world.zones).toHaveLength(TUNING.budget.maxZones);
   });
 

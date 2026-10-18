@@ -206,8 +206,9 @@ describe('Mutation sockets and offers', () => {
     registerBuilt('bubble.trap');
     registerBuilt('ember.kindle');
     const w = world();
-    // The built set is module-wide, so other tests in this file may have registered more.
-    const offers = () => mutationOffers(w).filter((id) => !id.startsWith('waterGun.washDown'));
+    // Other Mutations are built too (and more get registered by other tests): look only at these.
+    const watched: string[] = ['waterGun.slick', 'waterGun.steadyAim', 'whirlpool.eyeOfTheStorm', 'bubble.trap', 'ember.kindle'];
+    const offers = () => mutationOffers(w).filter((id) => watched.includes(id));
     expect(offers()).toEqual(['bubble.trap']); // Water Gun and Whirlpool not owned yet
     w.moves.push(createSlot('waterGun'), createSlot('whirlpool'));
     expect(offers()).toEqual(['waterGun.slick', 'waterGun.steadyAim', 'bubble.trap']); // Eye needs Wartortle

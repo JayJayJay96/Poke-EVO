@@ -1,6 +1,6 @@
 import { ABILITIES } from '../data/content';
 import { MUTATION_TUNING, type MutationId } from '../data/mutations';
-import type { Enemy, MoveSlot, MoveStats, World } from './types';
+import type { Enemy, HitInfo, MoveSlot, MoveStats, Projectile, World } from './types';
 
 // Mutation hook layer (P4f-2). Each Mutation is a small set of named functions (§8.8) registered
 // with defineMutation; the sim calls them at fixed points. Hook functions hold no numbers: they
@@ -37,7 +37,13 @@ export interface MutationHooks {
   onExpire?(world: World, slot: MoveSlot): void;
   /** Live damage factor for one hit from this move on this enemy. */
   damageMult?(world: World, slot: MoveSlot, enemy: Enemy): number;
-  onHit?(world: World, slot: MoveSlot, enemy: Enemy, dealt: number): void;
+  onHit?(world: World, slot: MoveSlot, enemy: Enemy, dealt: number, hit: Readonly<HitInfo>): void;
+  /** One of this move projectiles hit an enemy (after its damage, splash and crater). */
+  onProjectileHit?(world: World, slot: MoveSlot, proj: Projectile, enemy: Enemy): void;
+  /** This move chain jumped between two enemies. */
+  onChainJump?(world: World, slot: MoveSlot, from: Enemy, to: Enemy): void;
+  /** This move chain finished on `last` (also when it found nowhere to jump). */
+  onChainEnd?(world: World, slot: MoveSlot, last: Enemy): void;
   onKill?(world: World, slot: MoveSlot, enemy: Enemy): void;
   onEvent?(world: World, slot: MoveSlot, event: HookEvent, amount: number): void;
   /** Player move-speed factor while this Mutation is owned. */
@@ -160,6 +166,18 @@ export function levelBelow(world: World, level: number): boolean {
 /** The Tide (Lapras, D18): Bonds use their Flood values before `tideLevel`, Ebb values from it. */
 export function tideFlood(world: World): boolean {
   return world.level < MUTATION_TUNING.tideLevel;
+}
+
+/** `blazeActive`: the low-HP bonus of Blaze (or Blaze+) is on. Hidden Flame can fake it (P4f-7). */
+export function blazeActive(world: World): boolean {
+  const { lowHpThreshold } = ABILITIES[world.player.ability];
+  return lowHpThreshold !== undefined && world.player.hp > 0 && world.player.hp < world.player.maxHp * lowHpThreshold;
+}
+
+/** `chargeLevel`: Charge as a fraction 0..1 (0 without Charge). */
+export function chargeLevel(world: World): number {
+  const charge = ABILITIES[world.player.ability].charge;
+  return charge ? world.player.charge / charge.max : 0;
 }
 
 /** `targetBurning` */

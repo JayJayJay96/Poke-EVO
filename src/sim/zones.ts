@@ -1,6 +1,7 @@
 import { TUNING } from '../data/content';
 import { NO_HIT, damageEnemy, queryEnemies } from './combat';
-import type { HitInfo, World } from './types';
+import type { MoveId } from '../data/moves';
+import type { HitInfo, World, Zone } from './types';
 
 // Lingering damage areas (Blast Burn's crater; zone-cast moves like Poison Powder, P4).
 // A zone may carry innate statuses (slow / stun / poison) applied on each tick.
@@ -8,7 +9,7 @@ import type { HitInfo, World } from './types';
 
 const neighbours: number[] = [];
 
-/** Adds a zone unless the zone budget is full. Returns whether it was added. */
+/** Adds a zone unless the zone budget is full. Returns it, or null when the budget is full. */
 export function spawnZone(
   world: World,
   x: number,
@@ -19,9 +20,10 @@ export function spawnZone(
   damage: number,
   critChance: number,
   effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps' | 'attackType'> = NO_HIT,
-): boolean {
-  if (world.zones.length >= TUNING.budget.maxZones || duration <= 0) return false;
-  world.zones.push({
+  source: MoveId | null = null,
+): Zone | null {
+  if (world.zones.length >= TUNING.budget.maxZones || duration <= 0) return null;
+  const zone: Zone = {
     id: world.nextId++,
     x,
     y,
@@ -37,8 +39,30 @@ export function spawnZone(
     stun: effects.stun,
     poisonDps: effects.poisonDps,
     attackType: effects.attackType,
-  });
-  return true;
+    source,
+  };
+  world.zones.push(zone);
+  return zone;
+}
+
+/** Keeps a one-tick zone alive a few steps past its tick, so float drift can never skip it. Engine constant. */
+const STRIKE_LINGER = 0.05;
+
+/**
+ * A delayed strike (Thunder, a meteor, a hailstone): the circle shows as a telegraph and deals
+ * its damage once, `delay` seconds later.
+ */
+export function strikeZone(
+  world: World,
+  x: number,
+  y: number,
+  radius: number,
+  delay: number,
+  damage: number,
+  critChance: number,
+  effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps' | 'attackType'> = NO_HIT,
+): Zone | null {
+  return spawnZone(world, x, y, radius, delay + STRIKE_LINGER, delay, damage, critChance, effects);
 }
 
 export function updateZones(world: World, dt: number): void {

@@ -123,7 +123,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
 
   if (hit.lifesteal > 0) healPlayer(world, dealt * hit.lifesteal);
-  hooks?.onHit?.(world, slot!, enemy, dealt);
+  hooks?.onHit?.(world, slot!, enemy, dealt, hit);
 
   if (enemy.hp <= 0) {
     world.kills++;
@@ -144,16 +144,21 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     if (!seeded) enemy.seedTickLeft = TUNING.status.burnTick;
     enemy.seedLeft = TUNING.status.seedSeconds;
   }
-  if (hit.knockback > 0) {
-    // Exponential decay makes the total push ≈ the knockback distance; heavy enemies resist,
-    // Soaked enemies stagger further, bosses half as far.
-    const soaked = enemy.soakLeft > 0 ? MUTATION_TUNING.soaked.staggerTakenMult : 1;
-    const boss = def.boss ? MUTATION_TUNING.bossStaggerMult : 1;
-    const v = hit.knockback * TUNING.status.knockbackDecay * (1 - knockbackResistance(def.weightKg)) * soaked * boss;
-    enemy.kbX += hit.dirX * v;
-    enemy.kbY += hit.dirY * v;
-  }
+  if (hit.knockback > 0) pushEnemy(enemy, hit.dirX, hit.dirY, hit.knockback);
   return dealt;
+}
+
+/**
+ * Pushes an enemy about `px` along (dirX, dirY); a negative `px` pulls. Exponential decay makes the
+ * total push about the distance; heavy enemies resist, Soaked enemies stagger further, bosses half as far.
+ */
+export function pushEnemy(enemy: Enemy, dirX: number, dirY: number, px: number): void {
+  const def = ENEMIES[enemy.kind];
+  const soaked = enemy.soakLeft > 0 ? MUTATION_TUNING.soaked.staggerTakenMult : 1;
+  const boss = def.boss ? MUTATION_TUNING.bossStaggerMult : 1;
+  const v = px * TUNING.status.knockbackDecay * (1 - knockbackResistance(def.weightKg)) * soaked * boss;
+  enemy.kbX += dirX * v;
+  enemy.kbY += dirY * v;
 }
 
 /** Starts or refreshes a burn; a stronger burn replaces a weaker one. */
@@ -186,6 +191,14 @@ export function canTrap(enemy: Enemy): boolean {
 export function applySlow(enemy: Enemy, slow: number, seconds: number): void {
   enemy.slow = enemy.slowLeft > 0 ? Math.max(enemy.slow, slow) : slow;
   enemy.slowLeft = Math.max(enemy.slowLeft, seconds);
+}
+
+/** Leech Seed from a Mutation (Sap Lash): a stronger seed replaces a weaker one; the time refreshes. */
+export function applySeed(enemy: Enemy, dps: number, seconds: number): void {
+  const seeded = enemy.seedLeft > 0;
+  enemy.seedDps = seeded ? Math.max(enemy.seedDps, dps) : dps;
+  if (!seeded) enemy.seedTickLeft = TUNING.status.burnTick;
+  enemy.seedLeft = Math.max(enemy.seedLeft, seconds);
 }
 
 /** Soaked (shared Water terrain): refreshes. */

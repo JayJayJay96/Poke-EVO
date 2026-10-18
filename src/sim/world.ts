@@ -85,6 +85,7 @@ export function createWorld({
     zones: [],
     puddles: [],
     scorches: [],
+    entities: [],
     terrainTickLeft: 0,
     swings: [],
     blasts: [],
@@ -213,6 +214,8 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     soakLeft: 0,
     stunFatigueLeft: 0,
     fatigueOnEnd: false,
+    trapLeft: 0,
+    trapDamage: 0,
   };
   world.enemies.push(enemy);
   return enemy;
@@ -473,6 +476,7 @@ function removeDead(world: World): void {
   compact(world.zones, (z) => z.lifeLeft > 0);
   compact(world.puddles, (t) => t.lifeLeft > 0);
   compact(world.scorches, (t) => t.lifeLeft > 0);
+  compact(world.entities, (e) => e.lifeLeft > 0);
   compact(world.swings, (s) => s.lifeLeft > 0);
   compact(world.blasts, (b) => b.lifeLeft > 0);
   compact(world.arcs, (a) => a.lifeLeft > 0);

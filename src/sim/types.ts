@@ -89,6 +89,32 @@ export interface Enemy {
   stunFatigueLeft: number;
   /** The current stun came from a new effect, so fatigue starts when it ends. */
   fatigueOnEnd: boolean;
+  /** Bubble Trap: seconds until the bubble around it pops (0 = not trapped), and the pop damage. */
+  trapLeft: number;
+  trapDamage: number;
+}
+
+/**
+ * Something a Mutation spawned that lives on its own for a while (mines, sprouts, orbs,
+ * live wires...). The owning Mutation hooks move and resolve it; the scene draws it by owner.
+ */
+export interface MutationEntity {
+  readonly id: number;
+  readonly owner: MutationId;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  /** Second end point for line-shaped entities (wires). */
+  x2: number;
+  y2: number;
+  radius: number;
+  lifeLeft: number;
+  /** Seconds until its next action (zap, lash...). */
+  timer: number;
+  damage: number;
+  /** Enemies already hit, where an entity hits each enemy once. Reused. */
+  hitIds: number[];
 }
 
 /** Pooled: dead projectiles are reused, so every field is reassigned on spawn. */
@@ -131,6 +157,8 @@ export interface Projectile {
   speed: number;
   /** Ids already hit this leg, so pierce/return never hit the same enemy twice in a row. Reused. */
   hitIds: number[];
+  /** Mutation marker (e.g. a Kindled shot); 0 = plain. */
+  tag: number;
   lifeLeft: number;
   dead: boolean;
 }
@@ -208,6 +236,8 @@ export interface Zone {
   poisonDps: number;
   /** Type of the move that made it, for the type chart. */
   attackType: PokemonType | null;
+  /** The move that made it (root fields, for Sap Lash), if any. */
+  source: MoveId | null;
 }
 
 /** A chain-lightning jump, kept briefly so it can be drawn. Presentation only. */
@@ -407,6 +437,8 @@ export interface World {
   /** Shared terrain, each capped (oldest dries first). */
   puddles: Terrain[];
   scorches: Terrain[];
+  /** Things Mutations spawned (mines, sprouts, orbs, wires...). */
+  entities: MutationEntity[];
   /** Seconds until terrain next applies its effects (0.25 s cadence, like status ticks). */
   terrainTickLeft: number;
   swings: Swing[];

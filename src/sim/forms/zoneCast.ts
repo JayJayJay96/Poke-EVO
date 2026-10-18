@@ -11,7 +11,7 @@ export function castZone(world: World, slot: MoveSlot, def: ZoneMoveDef): boolea
   const target = findNearestEnemy(world, def.range);
   if (!target) return false;
   const s = slot.stats;
-  return spawnZone(
+  const zone = spawnZone(
     world,
     target.x,
     target.y,
@@ -22,4 +22,5 @@ export function castZone(world: World, slot: MoveSlot, def: ZoneMoveDef): boolea
     s.critChance,
     { slow: s.slow, stun: s.stun, poisonDps: s.damage * s.poisonPct, attackType: s.attackType },
   );
+  return zone !== null;
 }
