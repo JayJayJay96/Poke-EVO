@@ -18,13 +18,20 @@ export function castOrbit(_world: World, slot: MoveSlot, def: OrbitMoveDef): boo
   return true;
 }
 
+/** Where the orbit circles: the player, or an anchor point (Tornado). */
+export function orbitCenter(slot: MoveSlot, player: Player): { x: number; y: number } {
+  return slot.anchored ? { x: slot.anchorX, y: slot.anchorY } : player;
+}
+
 export function orbitBalls(slot: MoveSlot, def: OrbitMoveDef, player: Player): OrbitBall[] {
   const radius = def.orbitRadius * slot.stats.area * slot.stats.orbitRadiusMult;
   const r = def.ballRadius * slot.stats.area;
+  const { x, y } = orbitCenter(slot, player);
+  const count = def.count + slot.stats.extraCount;
   const balls: OrbitBall[] = [];
-  for (let i = 0; i < def.count; i++) {
-    const angle = slot.angle + (i * Math.PI * 2) / def.count;
-    balls.push({ x: player.x + Math.cos(angle) * radius, y: player.y + Math.sin(angle) * radius, r });
+  for (let i = 0; i < count; i++) {
+    const angle = slot.angle + (i * Math.PI * 2) / count;
+    balls.push({ x: x + Math.cos(angle) * radius, y: y + Math.sin(angle) * radius, r });
   }
   return balls;
 }
@@ -42,6 +49,7 @@ export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt:
 
   const { enemies } = world;
   const hit = makeHitInfo(slot.stats, slot);
+  const center = orbitCenter(slot, world.player);
   for (const ball of orbitBalls(slot, def, world.player)) {
     queryEnemies(world, ball.x, ball.y, ball.r, neighbours);
     for (const j of neighbours) {
@@ -51,6 +59,12 @@ export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt:
       const dy = enemy.y - ball.y;
       const reach = enemy.radius + ball.r;
       if (dx * dx + dy * dy > reach * reach) continue;
+      // Stagger pushes away from the orbit's centre.
+      const ox = enemy.x - center.x;
+      const oy = enemy.y - center.y;
+      const od = Math.hypot(ox, oy) || 1;
+      hit.dirX = ox / od;
+      hit.dirY = oy / od;
       damageEnemy(world, enemy, slot.stats.damage, hit);
       slot.hitCooldowns.set(enemy.id, def.hitInterval);
     }

@@ -20,7 +20,7 @@ export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): bool
   const tdist = Math.hypot(tx, ty);
   const dirX = tdist > 0 ? tx / tdist : 1;
   const dirY = tdist > 0 ? ty / tdist : 0;
-  const halfArc = (def.arcDegrees * Math.PI) / 360;
+  const halfArc = Math.min(Math.PI, (def.arcDegrees * slot.stats.arcMult * Math.PI) / 360);
   const cosHalf = Math.cos(halfArc);
   const hit = makeHitInfo(slot.stats, slot);
 

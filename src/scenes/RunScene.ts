@@ -965,6 +965,14 @@ export class RunScene extends Phaser.Scene {
           g.fillStyle(TYPE_COLORS.Steel, 1);
           g.fillCircle(m.x, m.y, m.radius);
           break;
+        case 'dragonRage.dragonBreath': {
+          const a = Math.atan2(m.vy, m.vx);
+          const half = (MUTATIONS['dragonRage.dragonBreath'].values.coneDeg * Math.PI) / 360;
+          g.fillStyle(TYPE_COLORS.Dragon, 0.35);
+          g.slice(m.x, m.y, m.radius, a - half, a + half, false);
+          g.fillPath();
+          break;
+        }
       }
     }
 

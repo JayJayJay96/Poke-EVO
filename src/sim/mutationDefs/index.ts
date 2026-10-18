@@ -7,6 +7,11 @@ import './whirlpool';
 import './surf';
 import './hydroPump';
 import './flashCannon';
+import './scratch';
+import './fireSpin';
+import './dragonRage';
+import './airSlash';
+import './hurricane';
 // Signature Mutations (P4f-5): evolve with the line's signature tiers.
 import './bubble';
 import './ember';

@@ -283,14 +283,18 @@ export const MUTATIONS = {
   // ── Charmander line moves ──────────────────────────────────────────────
   'scratch.furySwipes': generic('scratch', 'Fury Swipes', 'Stacks damage on one target', {
     stackWindow: 2,
-    stackPct: 0.15,
+    stackPct: 0.08, // P4f-6 rule-4 tuning (doc: 0.15, 1.36x)
     maxStacks: 5,
     arcMult: 0.6,
   }),
   'scratch.crescent': generic('scratch', 'Crescent', '200° arc plus a slash wave', {
     arcDeg: 200,
+    /** P4f-6 rule-4 tuning: the doc gave Crescent no damage cost; 200° plus the wave measured 2.46x. */
+    damageMult: 0.45,
     waveLength: 70,
     waveDamageFraction: 0.4,
+    /** P4f-6 build value: the slash wave's width. */
+    waveWidth: 30,
     reachMult: 0.8,
     cooldownMult: 1.2,
   }),
@@ -301,7 +305,7 @@ export const MUTATIONS = {
   }),
   'fireSpin.vortex': generic('fireSpin', 'Vortex', 'Collapses, then bursts out', {
     burstRadius: 110,
-    burstDamageMult: 2,
+    burstDamageMult: 1.6, // P4f-6 rule-4 tuning (doc: 2, 1.20x)
     cooldownMult: 1.2,
   }),
   'fireSpin.flameTrail': generic('fireSpin', 'Flame Trail', 'Flames leave Scorch', {
@@ -315,12 +319,14 @@ export const MUTATIONS = {
     damageMult: 0.75,
   }),
   'dragonRage.fixedRage': generic('dragonRage', 'Fixed Rage', 'Fixed damage; ignores types and damage augments', {
-    fixedDamage: 10,
+    fixedDamage: 7, // P4f-6 rule-4 tuning (doc: 10, 1.45x at Lv 1; it ignores every boost, so it falls off later)
     levelsPerPoint: 4,
   }),
   'dragonRage.dragonBreath': generic('dragonRage', 'Dragon Breath', 'Short cone; paralysis chance', {
     coneDeg: 60,
     coneLength: 140,
+    /** P4f-6 rule-4 tuning: the doc gave no damage cost; the cone covers far more than the beam (1.74x). */
+    damageMult: 0.6,
     paralyseChance: 0.1,
     paralyseSeconds: 0.5,
     rangeMult: 0.55,
@@ -331,6 +337,8 @@ export const MUTATIONS = {
   }),
   'airSlash.crosscut': generic('airSlash', 'Crosscut', 'Blades cross; the 2nd hit crits', {
     damageMult: 0.85,
+    /** P4f-6 build value: the blades start this far apart, then converge on the target. */
+    crossOffset: 12,
   }),
   'airSlash.tailwind': generic('airSlash', 'Tailwind', 'Hits give move speed', {
     speedPctPerHit: 0.03,

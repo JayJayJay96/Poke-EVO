@@ -148,6 +148,7 @@ export function computeMoveStats(
     attackType: moveType(def.tags),
     reachMult: 1,
     orbitRadiusMult: 1,
+    arcMult: 1,
   };
 }
 
@@ -164,6 +165,9 @@ export function createSlot(moveId: MoveId): MoveSlot {
     hitCooldowns: new Map(),
     sockets: [],
     mutation: null,
+    anchored: false,
+    anchorX: 0,
+    anchorY: 0,
     mutState: {},
     stats,
     baseStats: { ...stats },

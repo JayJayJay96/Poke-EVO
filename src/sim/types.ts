@@ -323,6 +323,8 @@ export interface MoveStats {
   reachMult: number;
   /** Orbit radius multiplier (Spiral Spin); area still scales it. */
   orbitRadiusMult: number;
+  /** Melee arc multiplier (Fury Swipes, Crescent); capped at a full circle. */
+  arcMult: number;
 }
 
 export interface AugmentSocket {
@@ -350,6 +352,10 @@ export interface MoveSlot {
   sockets: AugmentSocket[];
   /** At most one Mutation per move; it takes one of the 3 sockets and never ranks up. */
   mutation: MutationId | null;
+  /** An orbit can circle a point instead of the player (Tornado). */
+  anchored: boolean;
+  anchorX: number;
+  anchorY: number;
   /** Per-move scratch state for its Mutation's hooks; reset when the Mutation changes. */
   mutState: Record<string, number>;
   stats: MoveStats;
