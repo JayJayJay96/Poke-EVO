@@ -106,11 +106,11 @@ describe('Mutation rank values (D24)', () => {
   });
 
   it('Mutations without their own ranks still get the placeholder damage scaling', () => {
-    const w = world('charmander');
-    expect((MUTATIONS['ember.kindle'] as MutationDef).ranks).toBeUndefined();
-    expect(grantMutation(w, 'ember.kindle')).toBe('granted');
+    const w = world('bulbasaur');
+    expect((MUTATIONS['vineWhip.longLash'] as MutationDef).ranks).toBeUndefined();
+    expect(grantMutation(w, 'vineWhip.longLash')).toBe('granted');
     const rankI = w.moves[0]!.stats.damage;
-    grantMutation(w, 'ember.kindle');
+    grantMutation(w, 'vineWhip.longLash');
     expect(w.moves[0]!.stats.damage).toBeCloseTo(rankI * MUTATION_RANKS.placeholderDamageMult[1]);
   });
 });

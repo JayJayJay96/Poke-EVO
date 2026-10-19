@@ -399,132 +399,228 @@ export const MUTATIONS = {
   },
 
   // ── Charmander line moves ──────────────────────────────────────────────
-  'scratch.furySwipes': generic('scratch', 'Fury Swipes', 'Stacks damage on one target', {
-    stackWindow: 2,
-    stackPct: 0.08, // P4f-6 rule-4 tuning (doc: 0.15, 1.36x)
-    maxStacks: 5,
-    arcMult: 0.6,
-  }),
-  'scratch.crescent': generic('scratch', 'Crescent', '200° arc plus a slash wave', {
-    arcDeg: 200,
-    /** P4f-6 rule-4 tuning: the doc gave Crescent no damage cost; 200° plus the wave measured 2.46x. */
-    damageMult: 0.45,
-    waveLength: 70,
-    waveDamageFraction: 0.4,
-    /** P4f-6 build value: the slash wave's width. */
-    waveWidth: 30,
-    reachMult: 0.8,
-    cooldownMult: 1.2,
-  }),
-  'scratch.blazeClaws': bond('scratch', 'charmander', 0, 'blazeActive', 'Blaze Claws', 'Blaze active: Fire-type, burns, longer reach', {
-    burnPct: 0.3,
-    reachMult: 1.3,
-    damageMultOff: 0.85,
-  }),
-  'fireSpin.vortex': generic('fireSpin', 'Vortex', 'Collapses, then bursts out', {
-    burstRadius: 110,
-    burstDamageMult: 1.6, // P4f-6 rule-4 tuning (doc: 2, 1.20x)
-    cooldownMult: 1.2,
-  }),
-  'fireSpin.flameTrail': generic('fireSpin', 'Flame Trail', 'Flames leave Scorch', {
-    scorchEvery: 0.6,
-    damageMult: 0.7,
-  }),
-  'fireSpin.tailFlame': bond('fireSpin', 'charmander', 0, 'missingHp', 'Tail Flame', 'More flames as HP drops', {
-    hpOneFlame: 0.7,
-    hpTwoFlames: 0.4,
-    burnPct: 0.2,
-    damageMult: 0.75,
-  }),
-  'dragonRage.fixedRage': generic('dragonRage', 'Fixed Rage', 'Fixed damage; ignores types and damage augments', {
-    fixedDamage: 7, // P4f-6 rule-4 tuning (doc: 10, 1.45x at Lv 1; it ignores every boost, so it falls off later)
-    levelsPerPoint: 4,
-  }),
-  'dragonRage.dragonBreath': generic('dragonRage', 'Dragon Breath', 'Short cone; paralysis chance', {
-    coneDeg: 60,
-    coneLength: 140,
-    /** P4f-6 rule-4 tuning: the doc gave no damage cost; the cone covers far more than the beam (1.74x). */
-    damageMult: 0.6,
-    paralyseChance: 0.1,
-    paralyseSeconds: 0.5,
-    rangeMult: 0.55,
-  }),
-  'dragonRage.corneredDragon': bond('dragonRage', 'charmander', 1, 'flareUp', 'Cornered Dragon', 'Flare Up fires Dragon Rage in a cross', {
-    directions: 4,
-    cooldownMult: 1.3,
-  }),
-  'airSlash.crosscut': generic('airSlash', 'Crosscut', 'Blades cross; the 2nd hit crits', {
-    damageMult: 0.85,
-    /** P4f-6 build value: the blades start this far apart, then converge on the target. */
-    crossOffset: 12,
-  }),
-  'airSlash.tailwind': generic('airSlash', 'Tailwind', 'Hits give move speed', {
-    speedPctPerHit: 0.03,
-    speedSeconds: 2,
-    maxSpeedPct: 0.15,
-    damageMult: 0.8,
-  }),
-  'airSlash.aerialAce': bond('airSlash', 'charmander', 2, 'moving', 'Aerial Ace', 'Moving: homing blades, +20% crit', {
-    movingSeconds: 1,
-    critBonus: 0.2,
-    damageMultStill: 0.75,
-  }),
-  'hurricane.tornado': generic('hurricane', 'Tornado', 'The storm travels forward', {
-    travelSpeed: 120,
-    damageMult: 0.8,
-  }),
-  'hurricane.galeWall': generic('hurricane', 'Gale Wall', 'Shoves the crowd outward', {
-    stagger: 30,
-    damageMult: 0.65,
-  }),
-  'hurricane.infernoStorm': bond('hurricane', 'charmander', 2, 'kill', 'Inferno Storm', 'Kills extend it; 30 kills turn it Fire', {
-    secondsPerKill: 0.25,
-    maxBonusSeconds: 1.5,
-    killsToIgnite: 30,
-    burnPct: 0.2,
-    damageMult: 0.85,
-  }),
-  'smokescreen.chokingSmoke': generic('smokescreen', 'Choking Smoke', 'The cloud also damages', {
-    tickDamage: 4,
-    tickInterval: 0.5,
-    radiusMult: 0.7,
-  }),
-  'smokescreen.smokeTrail': generic('smokescreen', 'Smoke Trail', 'Smoke puffs behind you while kiting', {
-    puffRadius: 40,
-    puffEvery: 0.4,
-    trailSeconds: 4,
-    puffSeconds: 1.5,
-    cooldownMult: 1.2,
-  }),
-  'smokescreen.hiddenFlame': bond('smokescreen', 'charmander', 0, 'inOwnSmoke', 'Hidden Flame', 'In your smoke, Blaze counts as active', {
-    radiusMult: 0.6,
-    cooldownMult: 1.4,
-  }),
-  'slash.afterimage': generic('slash', 'Afterimage', 'The X lingers and cuts again', {
-    markSeconds: 0.6,
-    recutFraction: 0.5,
-    innateCrit: 0.15,
-  }),
-  'slash.flurry': generic('slash', 'Flurry', '3 cuts on 3 enemies', {
-    targets: 3,
-    /**
-     * P4f-7 rule-4 tuning: 0.5 read 0.43. The base X already hits ~3 enemies in a crowd, so 3 half cuts
-     * are half its damage anywhere. Full cuts: the cost is losing the X area (flagged for the owner).
-     */
-    cutDamageFraction: 1,
-  }),
-  'slash.searingSlash': bond('slash', 'charmander', 1, 'targetBurning', 'Searing Slash', 'Crits Burning enemies and cashes in the Burn', {
-    damageMultNotBurning: 0.8,
-  }),
-  'wingAttack.updraft': generic('wingAttack', 'Updraft', 'Lifts light enemies off the ground', {
-    liftSeconds: 0.6,
-    landStagger: 10,
-    damageMult: 0.75,
-  }),
-  'wingAttack.backdraft': generic('wingAttack', 'Backdraft', 'One rear gust guards your escape', {
-    arcDeg: 160,
-    stagger: 35,
-  }),
+  'scratch.furySwipes': {
+    ...generic('scratch', 'Fury Swipes', 'Stacks damage on one target', {
+      stackWindow: 2,
+      stackPct: 0.08, // P4f-6 rule-4 tuning (doc: 0.15, 1.36x)
+      maxStacks: 5,
+      arcMult: 0.6,
+    }),
+    ranks: [{ stackPct: 0.135 }, { stackPct: 0.16, maxStacks: 6 }],
+    rankText: ['+13.5% per stack (8%)', '+16%; ★ up to 6 stacks (5)'],
+  },
+  'scratch.crescent': {
+    ...generic('scratch', 'Crescent', '200° arc plus a slash wave', {
+      arcDeg: 200,
+      /** P4f-6 rule-4 tuning: the doc gave Crescent no damage cost; 200° plus the wave measured 2.46x. */
+      damageMult: 0.45,
+      waveLength: 70,
+      waveDamageFraction: 0.4,
+      /** P4f-6 build value: the slash wave's width. */
+      waveWidth: 30,
+      reachMult: 0.8,
+      cooldownMult: 1.2,
+    }),
+    ranks: [{ damageMult: 0.52, waveDamageFraction: 0.45 }, { damageMult: 0.58, waveDamageFraction: 0.5, waveLength: 100 }],
+    rankText: ['dmg ×0.52 (0.45); wave 45% (40%)', '×0.58; wave 50%; ★ wave travels 100 px (70)'],
+  },
+  'scratch.blazeClaws': {
+    ...bond('scratch', 'charmander', 0, 'blazeActive', 'Blaze Claws', 'Blaze active: Fire-type, burns, longer reach', {
+      burnPct: 0.3,
+      reachMult: 1.3,
+      damageMultOff: 0.85,
+    }),
+    ranks: [{ burnPct: 0.4, damageMultOff: 0.95 }, { burnPct: 0.5, damageMultOff: 1.05, reachMult: 1.4 }],
+    rankText: ['burn 40% (30%); off ×0.95 (0.85)', 'burn 50%; off ×1.05; ★ reach ×1.4 (1.3)'],
+  },
+  'fireSpin.vortex': {
+    ...generic('fireSpin', 'Vortex', 'Collapses, then bursts out', {
+      burstRadius: 110,
+      burstDamageMult: 1.6, // P4f-6 rule-4 tuning (doc: 2, 1.20x)
+      cooldownMult: 1.2,
+    }),
+    ranks: [{ burstDamageMult: 2 }, { burstDamageMult: 2.1, burstRadius: 130 }],
+    rankText: ['burst ×2.0 (1.6)', '×2.1; ★ burst radius 130 px (110)'],
+  },
+  'fireSpin.flameTrail': {
+    ...generic('fireSpin', 'Flame Trail', 'Flames leave Scorch', {
+      scorchEvery: 0.6,
+      damageMult: 0.7,
+    }),
+    ranks: [{ damageMult: 0.8, scorchEvery: 0.5 }, { damageMult: 0.9, scorchEvery: 0.4 }],
+    rankText: ['dmg ×0.8 (0.7); Scorch every 0.5 s (0.6)', '×0.9; every 0.4 s'],
+  },
+  'fireSpin.tailFlame': {
+    ...bond('fireSpin', 'charmander', 0, 'missingHp', 'Tail Flame', 'More flames as HP drops', {
+      hpOneFlame: 0.7,
+      hpTwoFlames: 0.4,
+      burnPct: 0.2,
+      damageMult: 0.75,
+    }),
+    ranks: [{ damageMult: 0.86 }, { damageMult: 0.97, hpOneFlame: 0.8, hpTwoFlames: 0.5 }],
+    rankText: ['dmg ×0.86 (0.75)', '×0.97; ★ flames at 80% / 50% HP (70% / 40%)'],
+  },
+  'dragonRage.fixedRage': {
+    ...generic('dragonRage', 'Fixed Rage', 'Fixed damage; ignores types and damage augments', {
+      fixedDamage: 7, // P4f-6 rule-4 tuning (doc: 10, 1.45x at Lv 1; it ignores every boost, so it falls off later)
+      levelsPerPoint: 4,
+    }),
+    ranks: [{ fixedDamage: 8 }, { fixedDamage: 9, levelsPerPoint: 3 }],
+    rankText: ['fixed 8 (7)', 'fixed 9; ★ +1 per 3 levels (4)'],
+  },
+  'dragonRage.dragonBreath': {
+    ...generic('dragonRage', 'Dragon Breath', 'Short cone; paralysis chance', {
+      coneDeg: 60,
+      coneLength: 140,
+      /** P4f-6 rule-4 tuning: the doc gave no damage cost; the cone covers far more than the beam (1.74x). */
+      damageMult: 0.6,
+      paralyseChance: 0.1,
+      paralyseSeconds: 0.5,
+      rangeMult: 0.55,
+    }),
+    ranks: [{ damageMult: 0.69 }, { damageMult: 0.78, paralyseChance: 0.15 }],
+    rankText: ['dmg ×0.69 (0.6)', '×0.78; ★ paralysis chance 15% (10%)'],
+  },
+  'dragonRage.corneredDragon': {
+    ...bond('dragonRage', 'charmander', 1, 'flareUp', 'Cornered Dragon', 'Flare Up fires Dragon Rage in a cross', {
+      directions: 4,
+      cooldownMult: 1.3,
+      crossDamageMult: 1,
+    }),
+    ranks: [{ cooldownMult: 1.15 }, { cooldownMult: 1, crossDamageMult: 1.5 }],
+    rankText: ['cooldown ×1.15 (1.3)', '×1.0; ★ the cross hits ×1.5'],
+  },
+  'airSlash.crosscut': {
+    ...generic('airSlash', 'Crosscut', 'Blades cross; the 2nd hit crits', {
+      damageMult: 0.85,
+      /** P4f-6 build value: the blades start this far apart, then converge on the target. */
+      crossOffset: 12,
+    }),
+    ranks: [{ damageMult: 0.98 }, { damageMult: 1.1 }],
+    rankText: ['dmg ×0.98 (0.85)', '×1.1'],
+  },
+  'airSlash.tailwind': {
+    ...generic('airSlash', 'Tailwind', 'Hits give move speed', {
+      speedPctPerHit: 0.03,
+      speedSeconds: 2,
+      maxSpeedPct: 0.15,
+      damageMult: 0.8,
+    }),
+    ranks: [{ damageMult: 0.92, maxSpeedPct: 0.2 }, { damageMult: 1.04, maxSpeedPct: 0.25 }],
+    rankText: ['dmg ×0.92 (0.8); speed cap +20% (15%)', '×1.04; cap +25%'],
+  },
+  'airSlash.aerialAce': {
+    ...bond('airSlash', 'charmander', 2, 'moving', 'Aerial Ace', 'Moving: homing blades, +20% crit', {
+      movingSeconds: 1,
+      critBonus: 0.2,
+      damageMultStill: 0.75,
+    }),
+    ranks: [{ critBonus: 0.25, damageMultStill: 0.85 }, { critBonus: 0.3, damageMultStill: 0.95, movingSeconds: 0.7 }],
+    rankText: ['crit +25% (20%); still ×0.85 (0.75)', '+30%; still ×0.95; ★ homing after 0.7 s moving (1)'],
+  },
+  'hurricane.tornado': {
+    ...generic('hurricane', 'Tornado', 'The storm travels forward', {
+      travelSpeed: 120,
+      damageMult: 0.8,
+    }),
+    ranks: [{ damageMult: 0.92 }, { damageMult: 1.04, travelSpeed: 150 }],
+    rankText: ['dmg ×0.92 (0.8)', '×1.04; ★ travels 150 px/s (120)'],
+  },
+  'hurricane.galeWall': {
+    ...generic('hurricane', 'Gale Wall', 'Shoves the crowd outward', {
+      stagger: 30,
+      damageMult: 0.65,
+    }),
+    ranks: [{ damageMult: 0.75 }, { damageMult: 0.85, stagger: 40 }],
+    rankText: ['dmg ×0.75 (0.65)', '×0.85; ★ stagger 40 (30)'],
+  },
+  'hurricane.infernoStorm': {
+    ...bond('hurricane', 'charmander', 2, 'kill', 'Inferno Storm', 'Kills extend it; 30 kills turn it Fire', {
+      secondsPerKill: 0.25,
+      maxBonusSeconds: 1.5,
+      killsToIgnite: 30,
+      burnPct: 0.2,
+      damageMult: 0.85,
+    }),
+    ranks: [{ damageMult: 0.98, killsToIgnite: 25 }, { damageMult: 1.1, killsToIgnite: 20 }],
+    rankText: ['dmg ×0.98 (0.85); ignites at 25 kills (30)', '×1.1; 20 kills'],
+  },
+  'smokescreen.chokingSmoke': {
+    ...generic('smokescreen', 'Choking Smoke', 'The cloud also damages', {
+      tickDamage: 4,
+      tickInterval: 0.5,
+      radiusMult: 0.7,
+    }),
+    ranks: [{ tickDamage: 4.6 }, { tickDamage: 5, radiusMult: 0.72 }],
+    rankText: ['4.6 per tick (4)', '5 per tick; ★ radius ×0.72 (0.7)'],
+  },
+  'smokescreen.smokeTrail': {
+    ...generic('smokescreen', 'Smoke Trail', 'Smoke puffs behind you while kiting', {
+      puffRadius: 40,
+      puffEvery: 0.4,
+      trailSeconds: 4,
+      puffSeconds: 1.5,
+      cooldownMult: 1.2,
+    }),
+    ranks: [{ puffSeconds: 2 }, { puffSeconds: 2.5, trailSeconds: 5 }],
+    rankText: ['puffs last 2 s (1.5)', '2.5 s; ★ trail lasts 5 s (4)'],
+  },
+  'smokescreen.hiddenFlame': {
+    ...bond('smokescreen', 'charmander', 0, 'inOwnSmoke', 'Hidden Flame', 'In your smoke, Blaze counts as active', {
+      radiusMult: 0.6,
+      cooldownMult: 1.4,
+    }),
+    ranks: [{ radiusMult: 0.7, cooldownMult: 1.25 }, { radiusMult: 0.8, cooldownMult: 1.1 }],
+    rankText: ['radius ×0.7 (0.6); cooldown ×1.25 (1.4)', '×0.8; cooldown ×1.1'],
+  },
+  'slash.afterimage': {
+    ...generic('slash', 'Afterimage', 'The X lingers and cuts again', {
+      markSeconds: 0.6,
+      recutFraction: 0.5,
+      innateCrit: 0.15,
+      damageMult: 1,
+    }),
+    ranks: [{ recutFraction: 0.6, innateCrit: 0.2, damageMult: 1.1 }, { recutFraction: 0.7, innateCrit: 0.25, markSeconds: 0.9, damageMult: 1.2 }],
+    rankText: ['re-cut 60% (50%); innate crit 20% (15%); move dmg ×1.1', '70%; crit 25%; move dmg ×1.2; ★ mark lasts 0.9 s (0.6)'],
+  },
+  'slash.flurry': {
+    ...generic('slash', 'Flurry', '3 cuts on 3 enemies', {
+      targets: 3,
+      /**
+       * P4f-7 rule-4 tuning: 0.5 read 0.43. The base X already hits ~3 enemies in a crowd, so 3 half cuts
+       * are half its damage anywhere. Full cuts: the cost is losing the X area (flagged for the owner).
+       */
+      cutDamageFraction: 1,
+    }),
+    ranks: [{ cutDamageFraction: 1.15 }, { cutDamageFraction: 1.3 }],
+    rankText: ['cuts 115% (100%)', 'cuts 130%'],
+  },
+  'slash.searingSlash': {
+    ...bond('slash', 'charmander', 1, 'targetBurning', 'Searing Slash', 'Crits Burning enemies and cashes in the Burn', {
+      damageMultNotBurning: 0.8,
+      cashInMult: 1,
+    }),
+    ranks: [{ damageMultNotBurning: 0.9 }, { damageMultNotBurning: 1, cashInMult: 1.25 }],
+    rankText: ['not Burning ×0.9 (0.8)', '×1.0; ★ the cash-in deals ×1.25 the remaining Burn'],
+  },
+  'wingAttack.updraft': {
+    ...generic('wingAttack', 'Updraft', 'Lifts light enemies off the ground', {
+      liftSeconds: 0.6,
+      landStagger: 10,
+      damageMult: 0.75,
+    }),
+    ranks: [{ damageMult: 0.86 }, { damageMult: 0.97, liftSeconds: 0.8 }],
+    rankText: ['dmg ×0.86 (0.75)', '×0.97; ★ lift 0.8 s (0.6)'],
+  },
+  'wingAttack.backdraft': {
+    ...generic('wingAttack', 'Backdraft', 'One rear gust guards your escape', {
+      arcDeg: 160,
+      stagger: 35,
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.15 }, { damageMult: 1.05, arcDeg: 200 }],
+    rankText: ['move dmg ×1.15', 'move dmg ×1.05; ★ rear arc 200° (160)'],
+  },
   'wingAttack.fanTheFlames': {
     ...bond('wingAttack', 'charmander', 2, 'ownScorch', 'Fan the Flames', 'Gusts flare and push your Scorch', {
       refreshSeconds: 3,
@@ -533,35 +629,50 @@ export const MUTATIONS = {
       damageMult: 0.8,
     }),
     requires: ['scorchSource'],
+    ranks: [{ damageMult: 0.92 }, { damageMult: 1.04, growPct: 0.75 }],
+    rankText: ['dmg ×0.92 (0.8)', '×1.04; ★ patches grow to ×1.75 (1.5)'],
   },
-  'ember.kindle': signature('ember', 'charmander', 'blazeActive', 'Kindle', 'Every 3rd shot is Kindled', {
-    everyN: 3,
-    everyNBlaze: 2,
-    kindledMult: 2.2,
-    kindledSizeMult: 1.5,
-    otherMult: 0.6,
-    tier1: { scorchRingPatches: 3 },
-    tier2: { meteorTelegraph: 0.6, craterSizeMult: 1.5 },
-  }),
-  'ember.flamethrower': signature('ember', 'charmander', 'blazeActive', 'Flamethrower', 'A short cone of flames', {
-    flames: 4,
-    coneDeg: 40,
-    reach: 130,
-    flameDamageFraction: 0.3, // P4f-5 rule-4 tuning (doc: 0.35, 1.22× in a crowd)
-    blazeReachMult: 1.3,
-    tier1: { burnPct: 0.2 },
-    tier2: { scorchLine: true },
-  }),
-  'ember.wisp': signature('ember', 'charmander', 'blazeActive', 'Will-o-Wisp', 'Orbiting wisps launch at close enemies', {
-    maxWisps: 3,
-    maxWispsBlaze: 5,
-    triggerRadius: 110,
-    damageMult: 1.3, // P4f-5 rule-4 tuning (doc: 1.4, 1.22×)
-    /** P4f-5 build value: seconds between two wisp launches. */
-    launchInterval: 0.15,
-    tier1: { splash: true },
-    tier2: { craterSizeMult: 0.5 },
-  }),
+  'ember.kindle': {
+    ...signature('ember', 'charmander', 'blazeActive', 'Kindle', 'Every 3rd shot is Kindled', {
+      everyN: 3,
+      everyNBlaze: 2,
+      kindledMult: 2.2,
+      kindledSizeMult: 1.5,
+      otherMult: 0.6,
+      tier1: { scorchRingPatches: 3 },
+      tier2: { meteorTelegraph: 0.6, craterSizeMult: 1.5 },
+      kindledBurnPct: 0,
+    }),
+    ranks: [{ kindledMult: 2.75 }, { kindledMult: 2.75, kindledBurnPct: 0.05 }],
+    rankText: ['Kindled ×2.75 (2.2)', '×2.75; ★ Kindled shots Burn (5% per s)'],
+  },
+  'ember.flamethrower': {
+    ...signature('ember', 'charmander', 'blazeActive', 'Flamethrower', 'A short cone of flames', {
+      flames: 4,
+      coneDeg: 40,
+      reach: 130,
+      flameDamageFraction: 0.3, // P4f-5 rule-4 tuning (doc: 0.35, 1.22× in a crowd)
+      blazeReachMult: 1.3,
+      tier1: { burnPct: 0.2 },
+      tier2: { scorchLine: true },
+    }),
+    ranks: [{ flameDamageFraction: 0.35 }, { flameDamageFraction: 0.4, reach: 150 }],
+    rankText: ['flames 35% (30%)', '40%; ★ reach 150 px (130)'],
+  },
+  'ember.wisp': {
+    ...signature('ember', 'charmander', 'blazeActive', 'Will-o-Wisp', 'Orbiting wisps launch at close enemies', {
+      maxWisps: 3,
+      maxWispsBlaze: 5,
+      triggerRadius: 110,
+      damageMult: 1.3, // P4f-5 rule-4 tuning (doc: 1.4, 1.22×)
+      /** P4f-5 build value: seconds between two wisp launches. */
+      launchInterval: 0.15,
+      tier1: { splash: true },
+      tier2: { craterSizeMult: 0.5 },
+    }),
+    ranks: [{ damageMult: 1.5 }, { damageMult: 1.7, maxWisps: 4, maxWispsBlaze: 6 }],
+    rankText: ['dmg ×1.5 (1.3)', '×1.7; ★ +1 wisp (3 / 5 with Blaze)'],
+  },
 
   // ── Bulbasaur line moves ───────────────────────────────────────────────
   'tackle.rollout': generic('tackle', 'Rollout', 'Stacks while it keeps hitting', {

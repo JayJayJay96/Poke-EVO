@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **P4f done** (P4f-1 to P4f-8, 2026-10-18): all **110 of 110** Mutations built and tested; Charmander has its 8-move learnset; D19 holds on the balance bot (narrowly for Charizard); the maxed-Mutation stress builds stay far under budget. **Next:** ~~the Mutation map sites~~ **done as P4g (2026-10-18, D23)**; the owner tested sites and asked for a separate Mutation track with ranks: **D24 approved (2026-10-19)**, built as **P4h**. **P4h-1 done** (2026-10-19). **P4h-2 approved** (owner, 2026-10-19: "RANKS.md approved as written"). **P4h-3 done** (Squirtle ranks). **Next: P4h-4** (Charmander ranks), then P4h-5…9 and the P4 gate playtest. Open owner questions are listed in the P4f-8 entry and the P4 gate playtest. Owner said "continue" after P4f-3 without feel-check notes; the rule-4 utility question is still open.
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **P4f done** (P4f-1 to P4f-8, 2026-10-18): all **110 of 110** Mutations built and tested; Charmander has its 8-move learnset; D19 holds on the balance bot (narrowly for Charizard); the maxed-Mutation stress builds stay far under budget. **Next:** ~~the Mutation map sites~~ **done as P4g (2026-10-18, D23)**; the owner tested sites and asked for a separate Mutation track with ranks: **D24 approved (2026-10-19)**, built as **P4h**. **P4h-1 done** (2026-10-19). **P4h-2 approved** (owner, 2026-10-19: "RANKS.md approved as written"). **P4h-3 and P4h-4 done** (Squirtle and Charmander ranks). **Next: P4h-5** (Bulbasaur ranks), then P4h-6…9 and the P4 gate playtest. Open owner questions are listed in the P4f-8 entry and the P4 gate playtest. Owner said "continue" after P4f-3 without feel-check notes; the rule-4 utility question is still open.
 
 ## P4 plan (owner-approved 2026-10-17, D13)
 **Gate:** do the starters feel truly different? Is picking a tier (3-stage / 2-stage / no evolution) a real gamble?
@@ -75,6 +75,37 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-19 — P4h-4: Charmander-line Mutation ranks (D24)
+**Owner:** "Continue with P4h-4: Charmander-line ranks."
+
+**Built (27 Mutations):** all hooks in `scratch`, `fireSpin`, `dragonRage`, `airSlash`, `hurricane`, `smokescreen`, `slash`, `wingAttack` and `ember` read their values at the slot's rank. New rank-I keys for twists:
+- `corneredDragon.crossDamageMult`: the Flare Up cross hits ×1.5 at III. RANKS.md now says "hits", since the cross is instant.
+- `searingSlash.cashInMult`: ×1.25 at III.
+- `backdraft.damageMult`.
+- `kindle.kindledBurnPct`: Kindled shots add Burn to their hit. The Blast Burn meteor (a strike zone) doesn't Burn.
+- `afterimage.damageMult`.
+
+Fan the Flames' growth cap now follows its rank. The other twists reuse existing keys (stacks, burst radius, HP thresholds, level step, homing delay, travel speed, stagger, kill count, cloud radius, trail time, mark time, lift time, arc, flame reach, wisp count). `charmanderRanks.test.ts`: 10 tests.
+
+**Rank tuning (provisional; target II ≈ 1.15, III ≈ 1.30):**
+- Fury Swipes +13.5% / +16% per stack (doc +10% / +12%; read 1.06 / 1.16).
+- Vortex II burst ×2.0 (doc 1.85).
+- Choking Smoke 4.6 / 5 per tick, III radius ×0.72 (doc 5 / 6 and ×0.85: past ×0.73 the cloud reaches the 80 px dummy circle, which read 3.0×).
+- Afterimage gains move damage ×1.1 / ×1.2 (static dummies never walk into the mark; read 1.02 / 1.04).
+- Backdraft III move damage ×1.05 (doc ×1.3: the 200° arc already adds ~25% area).
+- Kindle ×2.75 at II and III, III Burn 5%/s (doc ×2.5 / ×2.8 with 20%/s; read 1.08 / 1.57).
+
+RANKS.md and the card text were updated to match. Final readings: most at 1.12–1.17 / 1.23–1.33.
+- Vortex II 1.08: the burst is a small share of the move.
+- Backdraft III 1.75: ring geometry; ≈1.31 in a crowd.
+- Tornado III 1.06: it travels off the ring faster.
+- Blaze Claws, Cornered Dragon, Searing Slash, Aerial Ace: Bond conditions the bot never meets.
+- Smoke Trail and Hidden Flame: no damage to measure.
+
+`mutations.test.ts`'s placeholder check now uses Long Lash (Bulbasaur), since Kindle has its own ranks.
+
+**Checks (observed):** `npm run typecheck` clean; `npm test` **368/368 passed**; `npm run build` passed; `npm run mutations` (Charmander moves) ran. Browser: not rechecked; the hidden pane can't draw cards, as in P4h-3.
 
 ### 2026-10-19 — P4h-3: Squirtle-line Mutation ranks (D24)
 **Owner:** "RANKS.md approved as written. Start P4h-3 with the Squirtle line." (recorded in D24.)
