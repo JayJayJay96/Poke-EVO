@@ -1283,6 +1283,17 @@ function describeCard(world: World, card: Card): CardView {
   }
 }
 
+/** A site's fallback card (D25): a heal and a timed Power Surge. */
+function describeSurge(): CardView {
+  const { heal, damagePct, seconds } = SITE_TUNING.surge;
+  return {
+    heading: 'NOTHING LEFT HERE',
+    title: `Heal + ${BIG_BOOST.name}`,
+    body: `Heal ${heal} HP\n+${Math.round(damagePct * 100)}% damage for ${seconds} s`,
+    color: COLORS.augment,
+  };
+}
+
 /** Ring and arrow colour: unknown until rolled, then purple (generic) or gold (Pokémon-bound). */
 function siteColor(site: World['sites'][number]): number {
   if (!site.cards) return COLORS.site;
@@ -1290,6 +1301,7 @@ function siteColor(site: World['sites'][number]): number {
 }
 
 function describeSiteCard(world: World, card: SiteCard): CardView {
+  if (card.kind === 'surge') return describeSurge();
   if (card.kind !== 'mutation' && card.kind !== 'mutationRank') return describeCard(world, card);
   const def = MUTATIONS[card.mutationId];
   // Signature Mutations keep the line's first signature ID; show the current tier's name.
@@ -1390,6 +1402,7 @@ function buildPanelText(world: World): string {
   }
   const boosts = BOOST_IDS.filter((id) => world.boosts[id] > 0).map((id) => `${BOOSTS[id].name} ${world.boosts[id]}`);
   if (world.bigBoosts > 0) boosts.push(`${BIG_BOOST.name} ×${world.bigBoosts}`);
+  if (world.surgeLeft > 0) boosts.push(`Site surge ${Math.ceil(world.surgeLeft)} s`);
   lines.push('');
   lines.push(`Boosts: ${boosts.length ? boosts.join(', ') : '—'}`);
   lines.push(`Items: ${world.items.length ? world.items.map((id) => ITEMS[id].name).join(', ') : '—'}`);

@@ -102,6 +102,7 @@ export function createWorld({
     boosts: Object.fromEntries(BOOST_IDS.map((id) => [id, 0])) as Record<BoostId, number>,
     items: [],
     bigBoosts: 0,
+    surgeLeft: 0,
     rerollsLeft: REROLLS_PER_RUN,
     mods: emptyModifiers(),
     kills: 0,
@@ -247,6 +248,10 @@ function tickTimers(world: World, dt: number): void {
   const p = world.player;
   p.invulnLeft = Math.max(0, p.invulnLeft - dt);
   p.hurtFlashLeft = Math.max(0, p.hurtFlashLeft - dt);
+  if (world.surgeLeft > 0) {
+    world.surgeLeft = Math.max(0, world.surgeLeft - dt);
+    if (world.surgeLeft === 0) refreshStats(world); // the site surge wears off (D25)
+  }
   if (world.mods.regenPerSec > 0) healPlayer(world, world.mods.regenPerSec * dt);
   // Solar Power's drain never takes the last HP point.
   const drain = ABILITIES[p.ability].hpDrainPerSec ?? 0;

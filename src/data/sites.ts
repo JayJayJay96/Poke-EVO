@@ -3,8 +3,8 @@
 export const SITE_TUNING = {
   /** The endless map is split into square chunks; each may hold one site (seeded per run). */
   chunkSize: 1000,
-  /** Chance that a chunk holds a site. */
-  chance: 0.35,
+  /** Chance that a chunk holds a site (D25: 35% → 20%). */
+  chance: 0.2,
   /** Sites stay this far inside their chunk's edges. */
   edgeMargin: 150,
   /** Chunks this many steps around the player get their site decided as they come near. */
@@ -23,4 +23,9 @@ export const SITE_TUNING = {
   cards: 5,
   /** px: the HUD points at sites within this distance when they're off-screen. */
   arrowRange: 1500,
+  /**
+   * Fallback when nothing is eligible (D25): a heal plus a timed Power Surge. Provisional: a new one
+   * refreshes the timer instead of stacking.
+   */
+  surge: { heal: 30, damagePct: 0.15, seconds: 30 },
 } as const;

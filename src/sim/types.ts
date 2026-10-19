@@ -475,8 +475,8 @@ export type SiteCard =
   /** Ranks up the Mutation the move already holds, to `rank` (D24). */
   | { readonly kind: 'mutationRank'; readonly mutationId: MutationId; readonly rank: number }
   | { readonly kind: 'item'; readonly itemId: ItemId }
-  /** Fallback when nothing else is eligible. */
-  | { readonly kind: 'bigBoost' };
+  /** Fallback when nothing else is eligible: a heal and a timed Power Surge (D25). */
+  | { readonly kind: 'surge' };
 
 /**
  * A Mutation Site on the map (D16, D23). Its cards are rolled the first time the player
@@ -534,6 +534,8 @@ export interface World {
   items: ItemId[];
   /** Power Surge picks from the augment-level fallback. */
   bigBoosts: number;
+  /** Seconds left on the timed Power Surge from a site's fallback (D25). */
+  surgeLeft: number;
   rerollsLeft: number;
   mods: Modifiers;
   kills: number;

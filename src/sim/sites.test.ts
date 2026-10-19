@@ -155,7 +155,7 @@ describe('Mutation Sites: cards (D23)', () => {
     for (let i = 0; i < 10; i++) expect(rollSiteCards(world).some((c) => c.kind === 'item')).toBe(false);
   });
 
-  it('falls back to Power Surge when nothing is eligible', () => {
+  it('falls back to a heal and a timed Power Surge when nothing is eligible (D25)', () => {
     const world = makeWorld();
     const mutationFor = (move: string, signature: boolean) =>
       MUTATION_IDS.find((id) => {
@@ -173,7 +173,22 @@ describe('Mutation Sites: cards (D23)', () => {
     }
     world.items = ITEM_IDS.slice(0, MAX_ITEMS);
     refreshStats(world);
-    expect(rollSiteCards(world)).toEqual([{ kind: 'bigBoost' }]);
+    expect(rollSiteCards(world)).toEqual([{ kind: 'surge' }]);
+    // Taking it: heal, +15% damage for 30 s, a second one refreshes rather than stacks; then it wears off.
+    world.player.hp = 10;
+    const base = world.mods.damageMult;
+    const surge = SITE_TUNING.surge;
+    for (const _ of [1, 2]) {
+      world.offer = { kind: 'site', siteId: 999, cards: [{ kind: 'surge' }] };
+      expect(chooseSiteCard(world, 0)).toBe('surge');
+      expect(world.mods.damageMult).toBeCloseTo(base + surge.damagePct);
+    }
+    expect(world.player.hp).toBe(10 + 2 * surge.heal);
+    expect(world.bigBoosts).toBe(0);
+    world.spawnEnabled = false;
+    for (let t = 0; t < surge.seconds + 0.1; t += TUNING.stepSeconds) step(world, { moveX: 0, moveY: 0 }, TUNING.stepSeconds);
+    expect(world.surgeLeft).toBe(0);
+    expect(world.mods.damageMult).toBeCloseTo(base);
   });
 
   it('a learn card teaches the move with its Mutation; an item card fills a slot', () => {

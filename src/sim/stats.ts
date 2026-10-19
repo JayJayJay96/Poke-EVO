@@ -1,6 +1,7 @@
 import { AUGMENTS } from '../data/augments';
 import { ABILITIES, POKEMON, TUNING, type AbilityId, type EvolutionStage, type PokemonType } from '../data/content';
 import { MOVES, type MoveDef, type MoveId } from '../data/moves';
+import { SITE_TUNING } from '../data/sites';
 import { moveType } from '../data/typeChart';
 import {
   BIG_BOOST,
@@ -181,6 +182,7 @@ export function createSlot(moveId: MoveId): MoveSlot {
 /** Recomputes cached modifiers, player stats and every move's stats. Call after any build change. */
 export function refreshStats(world: World): void {
   const m = computeModifiers(world.boosts, world.items, world.bigBoosts);
+  if (world.surgeLeft > 0) m.damageMult += SITE_TUNING.surge.damagePct;
   // Glass is a move augment with a player-wide cost.
   for (const slot of world.moves) {
     for (const socket of slot.sockets) {

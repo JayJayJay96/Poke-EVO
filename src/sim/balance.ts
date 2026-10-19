@@ -1,5 +1,6 @@
 import { TUNING, type PokemonId } from '../data/content';
 import { MOVES } from '../data/moves';
+import { SITE_TUNING } from '../data/sites';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from './evolution';
 import { chooseAugment, chooseCard, chooseReplace, chooseSkill } from './progression';
 import { createSeededRng, type Rng } from './rng';
@@ -17,6 +18,8 @@ import { createWorld, spawnEnemy, step } from './world';
 const DUMMY_COUNT = 16;
 const DUMMY_HP = 1e9;
 const MEASURE_SECONDS = 10;
+/** Site-taking bot: seconds per roaming leg. */
+const ROAM_SECONDS = 8;
 
 export interface Checkpoint {
   /** Run time in seconds. */
@@ -30,6 +33,20 @@ export interface Checkpoint {
   readonly effectiveHp: number;
   readonly kills: number;
   readonly moves: string;
+  /** Mutations held, with rank (P4h-9: the site-taking bot). */
+  readonly mutations: string;
+  /** Sites opened so far. */
+  readonly sites: number;
+  /** Power Surges from the augment-level fallback (the timed site surge isn't counted). */
+  readonly surges: number;
+}
+
+export interface PlayOptions {
+  /**
+   * Walk to the nearest Mutation Site in HUD-arrow range and stand in it until it opens; with none in
+   * range, roam (a new random heading every `ROAM_SECONDS`) to find more, as a player would (P4h-9).
+   */
+  readonly sites?: boolean;
 }
 
 /** Resolves whatever window is open with a random choice, like a player who doesn't plan. */
@@ -60,7 +77,7 @@ function autoPick(world: World, rng: Rng): void {
     case 'replace':
       chooseReplace(world, pick(world.moves[offer.slot]!.sockets.length));
       break;
-    // The bot never walks to sites on purpose; if its circle crosses one, it takes a random card.
+    // Without `sites` the bot only meets sites its circle crosses; either way it takes a random card.
     case 'site':
       chooseSiteCard(world, pick(offer.cards.length));
       break;
@@ -112,12 +129,37 @@ export function measureDps(world: World, ring: DummyRing = BALANCE_RING): number
   return dealt / MEASURE_SECONDS;
 }
 
+/** Unit vector to the nearest site in arrow range (zero once inside it), or null when there is none. */
+function towardSite(world: World): [number, number] | null {
+  const { x, y } = world.player;
+  let best: World['sites'][number] | null = null;
+  let bestD2 = SITE_TUNING.arrowRange ** 2;
+  for (const site of world.sites) {
+    const d2 = (site.x - x) ** 2 + (site.y - y) ** 2;
+    if (d2 < bestD2) [best, bestD2] = [site, d2];
+  }
+  if (!best) return null;
+  const d = Math.sqrt(bestD2);
+  // Stand near the centre so capture never drops out at the edge.
+  return d < best.radius * 0.5 ? [0, 0] : [(best.x - x) / d, (best.y - y) / d];
+}
+
 /** Plays one run of a line to the last checkpoint. Deterministic for a seed. */
-export function playLine(pokemonId: PokemonId, seed: number, checkpoints: readonly number[]): Checkpoint[] {
+export function playLine(
+  pokemonId: PokemonId,
+  seed: number,
+  checkpoints: readonly number[],
+  options: PlayOptions = {},
+): Checkpoint[] {
   const world = createWorld({ rng: createSeededRng(seed), pokemonId, spawnRadius: 600 });
   const picks = createSeededRng(seed + 7919);
   const results: Checkpoint[] = [];
   let frame = 0;
+  let sitesOpened = 0;
+  // Own stream, so roaming doesn't change the card picks' sequence.
+  const roam = createSeededRng(seed + 31337);
+  let heading = roam.next() * Math.PI * 2;
+  let legLeft = ROAM_SECONDS;
   for (const time of checkpoints) {
     while (world.time < time && world.status === 'running') {
       world.player.invulnLeft = Infinity;
@@ -125,7 +167,19 @@ export function playLine(pokemonId: PokemonId, seed: number, checkpoints: readon
       // long-range lines would starve of XP otherwise.
       world.player.pickupRadius = 1e6;
       if (world.offer || world.evolution) {
+        if (world.offer?.kind === 'site') sitesOpened++;
         autoPick(world, picks);
+        continue;
+      }
+      const site = options.sites ? towardSite(world) : null;
+      if (site) {
+        step(world, { moveX: site[0], moveY: site[1] }, TUNING.stepSeconds);
+        continue;
+      }
+      if (options.sites) {
+        legLeft -= TUNING.stepSeconds;
+        if (legLeft <= 0) [heading, legLeft] = [roam.next() * Math.PI * 2, ROAM_SECONDS];
+        step(world, { moveX: Math.cos(heading), moveY: Math.sin(heading) }, TUNING.stepSeconds);
         continue;
       }
       // Walk a slow circle so gems keep getting collected.
@@ -141,6 +195,9 @@ export function playLine(pokemonId: PokemonId, seed: number, checkpoints: readon
       effectiveHp: world.player.maxHp / world.mods.damageTakenMult,
       kills: world.kills,
       moves: world.moves.map((m) => `${m.moveId}[${m.sockets.map((s) => s.augmentId + s.rank).join(',')}]`).join(' '),
+      mutations: world.moves.flatMap((m) => (m.mutation ? [`${m.mutation}${m.mutationRank}`] : [])).join(' '),
+      sites: sitesOpened,
+      surges: world.bigBoosts,
     });
   }
   return results;

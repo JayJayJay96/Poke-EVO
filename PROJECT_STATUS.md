@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **P4f done** (P4f-1 to P4f-8, 2026-10-18): all **110 of 110** Mutations built and tested; Charmander has its 8-move learnset; D19 holds on the balance bot (narrowly for Charizard); the maxed-Mutation stress builds stay far under budget. **Next:** ~~the Mutation map sites~~ **done as P4g (2026-10-18, D23)**; the owner tested sites and asked for a separate Mutation track with ranks: **D24 approved (2026-10-19)**, built as **P4h**. **P4h-1 done** (2026-10-19). **P4h-2 approved** (owner, 2026-10-19: "RANKS.md approved as written"). **P4h-3…P4h-8 done** (every line has its own Mutation ranks; favoured augments are in). **Next: P4h-9** (balance with a site-taking bot, D19 with Mutations, rank-III stress, browser FPS), then the P4 gate playtest. Open owner questions are listed in the P4f-8 entry and the P4 gate playtest. Owner said "continue" after P4f-3 without feel-check notes; the rule-4 utility question is still open.
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **P4f done** (P4f-1 to P4f-8, 2026-10-18): all **110 of 110** Mutations built and tested; Charmander has its 8-move learnset; D19 holds on the balance bot (narrowly for Charizard); the maxed-Mutation stress builds stay far under budget. **Next:** ~~the Mutation map sites~~ **done as P4g (2026-10-18, D23)**; the owner tested sites and asked for a separate Mutation track with ranks: **D24 approved (2026-10-19)**, built as **P4h**. **P4h-1 done** (2026-10-19). **P4h-2 approved** (owner, 2026-10-19: "RANKS.md approved as written"). **P4h done** (P4h-1…9: Mutation slot and ranks for every line, favoured augments, site-bot balance; D25 recorded). **Next: the P4 gate playtest** (owner). Open owner questions are listed in the P4f-8 entry and the P4 gate playtest. Owner said "continue" after P4f-3 without feel-check notes; the rule-4 utility question is still open.
 
 ## P4 plan (owner-approved 2026-10-17, D13)
 **Gate:** do the starters feel truly different? Is picking a tier (3-stage / 2-stage / no evolution) a real gamble?
@@ -75,6 +75,58 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-19 — P4h-9: balance with the site-taking bot, rank-III stress, browser FPS (D25)
+**Owner:** "Continue with P4h-9: balance and stress."
+
+**Balance bot (test tooling):** `playLine(..., { sites: true })` walks to the nearest Mutation Site within the HUD arrow range (1500 px), stands near its centre until it opens and takes a random card. With no site in range it roams, picking a new random heading every 8 s from its own seeded stream, so card picks are unchanged. Checkpoints now record Mutations with ranks, sites opened and Power Surges. `npm run balance` prints both bots side by side: `dps` (no sites) and `site dps`.
+
+**Findings that needed the owner (asked 2026-10-19):**
+- A circling bot only found ~2 sites. A roaming bot opened **~60 sites per run** and held all 5 moves at rank III by ~9:00.
+- Once nothing was eligible, every site gave the uncapped Power Surge (+15% damage each, ~40 per run). DPS reached ×5–9 at 15:00 (Venusaur 6086, Charizard 3593, Raichu 3421, Blastoise 3039, Lapras 2274).
+- Without sites the bot now gets no items either (items are site-only since P4g). D19 fails there: Charizard 473 < Raichu 484, and Lapras 420 is 13% below Raichu.
+
+**Decision D25 (owner, recorded in `PROJECT.md` §13):**
+1. A site with nothing eligible gives a heal plus a time-limited Power Surge (owner: "maybe gives a heal and a surge but just for a limited of time").
+2. D19 is judged on the site-taking bot.
+3. Site density goes from 35% to 20% of chunks.
+
+The build defaults I set (provisional, not asked): heal 30 HP, +15% damage for 30 s, and a new surge refreshes the timer (no stacking). Level-up Power Surge is unchanged.
+
+**Built:**
+- `SITE_TUNING.chance` 0.2, plus `SITE_TUNING.surge`.
+- `SiteCard` `bigBoost` became `surge`.
+- `World.surgeLeft` ticks down in `tickTimers` and refreshes stats when it ends; `refreshStats` adds the surge's damage while it lasts.
+- The site card reads "NOTHING LEFT HERE · Heal + Power Surge".
+- The Esc panel shows "Site surge N s".
+- `sites.test.ts` fallback test: heal, +15% damage, a second surge refreshes rather than stacks, it wears off after 30 s, and `bigBoosts` stays 0.
+
+**D19 on the site bot, after D25 (8 seeds, 15:00 DPS):** Venusaur 1286, Charizard 717, Blastoise 641, Lapras 610, Raichu 606. **D19 holds:** every 3-stage final form is above Lapras and Raichu, which are 1% apart. No tuning was needed.
+- Blastoise is only 5% above Lapras.
+- Venusaur is ~2× the rest (Bloom reads high on an always-full-HP bot, as before).
+- The roaming bot opens ~35 sites per run and reaches 15 Mutation ranks (all rank III) by ~12:00.
+- The roaming bot ends at Lv ~30, not ~40 like the circling bot. Fewer kills while roaming is the likely cause; not investigated.
+- A timed site surge may be active during a measurement (up to +15% on that reading).
+- §5 (provisional, not D19): Lapras does not lead at 5:00 (Ivysaur 429, Lapras 206).
+
+**Rank-III stress (`npm run bench`, sim only):** maxed Mutation builds at rank III, 500 enemies. Mean per step: charmander 0.39 ms, squirtle 0.42, bulbasaur 0.37, pikachu 0.36, lapras 0.39 (p99 ≤ 0.9 ms). `?stress=1` build: 0.80 ms. All far under the 4 ms aim.
+
+**Browser FPS (dev server, pane hidden):** `?stress=<line>` and `?stress=1`, 500 enemies held, no console errors.
+
+| Build | FPS | Sim ms |
+|---|---|---|
+| charmander | 62–74 | 0.42–0.49 |
+| squirtle | 61–69 | 0.40–0.58 |
+| bulbasaur | 65–78 | 0.35–0.58 |
+| pikachu | 59–64 | 0.47–0.52 |
+| lapras | 61–65 | 0.36–0.54 |
+| `?stress=1` | 61–70 | 0.8–1.0 |
+
+Draw-cmd was 0.16–0.44 ms throughout. The hidden pane caps the frame rate: `?stress=1` read 159 FPS with the pane visible in P2d. So these FPS figures are a floor; real FPS on a visible screen is not measured.
+
+**Checks (observed):** `npm run typecheck` clean; `npm test` **392/392 passed**; `npm run build` passed; `npm run balance` ran (3 runs this session, ~10 min each); `npm run bench` ran. Not checked: the new site fallback card on screen.
+
+**Next:** the P4 gate playtest (owner). Worth watching there: how many sites a real player opens with the horde around (the bot is invulnerable), whether the 30 s surge feels worth a detour, and Blastoise's narrow lead over Lapras.
 
 ### 2026-10-19 — P4h-8: favoured augments (D24)
 **Owner:** "Continue with P4h-8: favoured augments."

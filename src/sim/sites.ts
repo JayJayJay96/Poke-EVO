@@ -3,6 +3,7 @@ import { MUTATION_IDS, MUTATIONS, type MutationDef } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
 import { ITEM_IDS, MAX_ITEMS, MAX_LEARNSET_SLOTS } from '../data/upgrades';
 import { grantMutation, isBuilt, mutationOffers, mutationRankUps, requirementMet, type GrantResult } from './mutations';
+import { healPlayer } from './hooks';
 import { createSeededRng, type Rng } from './rng';
 import { refreshStats } from './stats';
 import type { MutationSite, SiteCard, World } from './types';
@@ -91,7 +92,7 @@ function take<T>(rng: Rng, pool: T[], count: number): T[] {
 /**
  * A site's cards: Mutations for owned moves, rank-ups for the Mutations held (D24), Mutations that
  * teach a learnset move, and held items not owned. At least one Mutation and one item when available;
- * Power Surge if nothing is eligible.
+ * a heal and a timed Power Surge if nothing is eligible (D25).
  */
 export function rollSiteCards(world: World): SiteCard[] {
   const { rng } = world;
@@ -106,7 +107,7 @@ export function rollSiteCards(world: World): SiteCard[] {
       : [];
   const cards = [...take(rng, mutations, 1), ...take(rng, items, 1)];
   cards.push(...take(rng, [...mutations, ...items], SITE_TUNING.cards - cards.length));
-  if (cards.length === 0) return [{ kind: 'bigBoost' }];
+  if (cards.length === 0) return [{ kind: 'surge' }];
   return take(rng, cards, cards.length); // shuffle so the guaranteed cards aren't always first
 }
 
@@ -154,7 +155,7 @@ function closeSite(world: World): SiteCard[] | null {
 }
 
 /** Takes a site card; the site is used up. Mutations never touch augment sockets (D24). */
-export function chooseSiteCard(world: World, index: number): GrantResult | 'item' | 'bigBoost' | null {
+export function chooseSiteCard(world: World, index: number): GrantResult | 'item' | 'surge' | null {
   const offer = world.offer;
   if (offer?.kind !== 'site' || !offer.cards[index]) return null;
   const card = closeSite(world)![index]!;
@@ -166,10 +167,11 @@ export function chooseSiteCard(world: World, index: number): GrantResult | 'item
       world.items.push(card.itemId);
       refreshStats(world);
       return 'item';
-    case 'bigBoost':
-      world.bigBoosts++;
+    case 'surge':
+      healPlayer(world, SITE_TUNING.surge.heal);
+      world.surgeLeft = SITE_TUNING.surge.seconds;
       refreshStats(world);
-      return 'bigBoost';
+      return 'surge';
   }
 }
 
