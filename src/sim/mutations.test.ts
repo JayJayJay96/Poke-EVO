@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import indexMd from '../../docs/moveset/INDEX.md?raw';
-import { AUGMENT_IDS } from '../data/augments';
+import ranksMd from '../../docs/moveset/RANKS.md?raw';
+import { AUGMENT_IDS, AUGMENTS, type AugmentId } from '../data/augments';
 import { ABILITIES, POKEMON, type AbilityId, type PokemonId } from '../data/content';
-import { MOVES } from '../data/moves';
+import { MOVES, type MoveId } from '../data/moves';
 import {
   HOOK_IDS,
   MUTATION_IDS,
@@ -36,6 +37,45 @@ const code = (cell: string): string => /`([^`]+)`/.exec(cell)?.[1] ?? cell;
 function world(pokemonId: PokemonId = 'squirtle', seed = 1): World {
   return createWorld({ rng: createSeededRng(seed), pokemonId, spawnEnabled: false });
 }
+
+describe('Mutation ranks doc (docs/moveset/RANKS.md, D24)', () => {
+  // | `id` Name | rank II | rank III | `aug`, `aug` |
+  const rows = ranksMd
+    .split('\n')
+    .filter((line) => line.startsWith('| `'))
+    .map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()));
+
+  it('lists every Mutation exactly once, with rank II and III', () => {
+    const ids = rows.map((r) => /^`([\w.]+)`/.exec(r[0]!)![1]);
+    expect([...ids].sort()).toEqual([...MUTATION_IDS].sort());
+    for (const r of rows) expect(r[1] && r[2], r[0]).toBeTruthy();
+  });
+
+  it('favoured augments: 2–3 distinct, legal for the move (or a later signature tier), not excluded', () => {
+    for (const r of rows) {
+      const id = /^`([\w.]+)`/.exec(r[0]!)![1] as MutationId;
+      const def: MutationDef = MUTATIONS[id];
+      const favoured = [...r[3]!.matchAll(/`(\w+)`/g)].map((m) => m[1]!);
+      expect(favoured.length, id).toBeGreaterThanOrEqual(2);
+      expect(favoured.length, id).toBeLessThanOrEqual(3);
+      expect(new Set(favoured).size, id).toBe(favoured.length);
+      // Signature Mutations ride every tier of the line's signature move.
+      const line = def.line ? POKEMON[def.line] : null;
+      const moves: MoveId[] =
+        def.kind === 'signature' && line
+          ? [...line.stages.map((s) => s.signatureMove), ...(line.signatureTiers ?? []).map((t) => t.move)]
+          : [def.move];
+      const tags = new Set(moves.flatMap((m) => MOVES[m].tags));
+      for (const aug of favoured) {
+        expect(AUGMENT_IDS as readonly string[], `${id}: ${aug}`).toContain(aug);
+        const a = AUGMENTS[aug as AugmentId];
+        expect(a.requiresAny.length === 0 || a.requiresAny.some((t) => tags.has(t)), `${id}: ${aug} tags`).toBe(true);
+        expect(!a.exclusiveTo || a.exclusiveTo.some((m) => moves.includes(m)), `${id}: ${aug} exclusive`).toBe(true);
+        expect(def.excludesAugments ?? [], `${id}: ${aug} excluded`).not.toContain(aug);
+      }
+    }
+  });
+});
 
 describe('Mutation registry (docs/moveset/INDEX.md ↔ src/data/mutations.ts)', () => {
   const rows = tableRows('## Mutations');

@@ -74,6 +74,7 @@ change how it behaves), Hades' duo/legendary boons (capstones that reward commit
 2. **Ranks I → III (D24).** Rank I is the branch choice. Sites then offer rank-up cards for the Mutation you hold:
    rank II ≈ +15% DPS, rank III ≈ +30% over rank I (provisional), and rank III adds a small twist where one is natural.
    Each Mutation lists 2–3 **favoured augments** (shown gold, offered ×3 as often in that move's augment windows).
+   The per-Mutation rank values and favoured augments are in [`RANKS.md`](RANKS.md).
 3. **Every Mutation pays a cost**: cooldown, damage, range, a positional demand, or a condition.
 4. **Rank I is power-neutral on the dummy.** With the balance bot, a mutated move at rank I must land within ±15% DPS
    of the same move with Power Up I instead (ranks II and III add power on top, rule 2). Bonds are measured with their condition true about half the time.
