@@ -120,7 +120,7 @@ describe('Leech Seed', () => {
     run(w, DT);
     damageEnemy(w, a, 1e9);
     expect(b.seedLeft).toBeGreaterThan(0);
-    expect(b.seedJumped).toBe(true);
+    expect(b.seedJumps).toBe(1);
   });
 
   it('Seed Bomb: the seed bursts and Seeds everything around the impact', () => {

@@ -108,8 +108,8 @@ export interface Enemy {
   /** Aurora Beam: deals contactDamage × weakenMult while weakenLeft > 0. */
   weakenMult: number;
   weakenLeft: number;
-  /** Spreading Seed: the seed on this enemy already jumped once. */
-  seedJumped: boolean;
+  /** Spreading Seed: how many times the seed on this enemy has already jumped. */
+  seedJumps: number;
   /** Toxic: poison stacks while it stays in the cloud (reset when the poison ends). */
   poisonStacks: number;
 }

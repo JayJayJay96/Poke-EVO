@@ -4,26 +4,27 @@ import { damageEnemy, findNearestEnemy, procHit } from '../combat';
 import { beamLength } from '../forms/beam';
 import { defineMutation, standingStill } from '../hooks';
 import type { Enemy } from '../types';
-import { dirTo, entitiesOf, forEachEnemyOnSegment, spawnEntity } from './util';
+import { dirTo, entitiesOf, forEachEnemyOnSegment, ranked, spawnEntity } from './util';
 
 // Solar Beam Mutations (docs/moveset/shared/solar-beam.md, bulbasaur/README.md). Venusaur only.
 
 const solarBeam = MOVES.solarBeam as BeamMoveDef;
 
 /** Full Charge (generic): like the real move: a telegraphed charge, then a far wider, harder beam. */
-const charge = MUTATIONS['solarBeam.fullCharge'].values;
+const charge = ranked('solarBeam.fullCharge');
 defineMutation('solarBeam.fullCharge', {
-  stats: (s) => {
-    s.damage *= charge.damageMult;
-    s.widthMult *= charge.widthMult;
-    s.cooldown *= charge.cooldownMult;
+  stats: (s, _world, slot) => {
+    const v = charge(slot);
+    s.damage *= v.damageMult;
+    s.widthMult *= v.widthMult;
+    s.cooldown *= v.cooldownMult;
   },
   cast: (world, slot) => {
     const target = findNearestEnemy(world, solarBeam.range);
     if (!target) return false;
     [slot.dirX, slot.dirY] = dirTo(world.player.x, world.player.y, target.x, target.y);
-    slot.mutState.charging = charge.chargeSeconds;
-    spawnEntity(world, 'solarBeam.fullCharge', world.player.x, world.player.y, charge.chargeSeconds);
+    slot.mutState.charging = charge(slot).chargeSeconds;
+    spawnEntity(world, 'solarBeam.fullCharge', world.player.x, world.player.y, charge(slot).chargeSeconds);
     return true;
   },
   update: (world, slot, dt) => {
@@ -44,11 +45,11 @@ defineMutation('solarBeam.fullCharge', {
 });
 
 /** Prism (generic): at the first enemy the beam splits into thinner beams fanning out behind it. */
-const prism = MUTATIONS['solarBeam.prism'].values;
-const HALF_FAN = (prism.fanDeg * Math.PI) / 360;
+const prism = ranked('solarBeam.prism');
+const HALF_FAN = (MUTATIONS['solarBeam.prism'].values.fanDeg * Math.PI) / 360;
 defineMutation('solarBeam.prism', {
-  stats: (s) => {
-    s.damage *= prism.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= prism(slot).damageMult;
   },
   onCast: (_world, slot) => {
     slot.mutState.tick = 0;
@@ -76,12 +77,13 @@ defineMutation('solarBeam.prism', {
     const rest = len - along;
     const base = Math.atan2(slot.dirY, slot.dirX);
     const hit = procHit(slot.stats.attackType);
-    const damage = (slot.stats.damage / prism.damageMult) * prism.beamDamageFraction;
-    for (let i = 0; i < prism.beams; i++) {
-      const a = base - HALF_FAN + (prism.beams > 1 ? (i / (prism.beams - 1)) * HALF_FAN * 2 : HALF_FAN);
+    const v = prism(slot);
+    const damage = (slot.stats.damage / v.damageMult) * v.beamDamageFraction;
+    for (let i = 0; i < v.beams; i++) {
+      const a = base - HALF_FAN + (v.beams > 1 ? (i / (v.beams - 1)) * HALF_FAN * 2 : HALF_FAN);
       const x2 = at.x + Math.cos(a) * rest;
       const y2 = at.y + Math.sin(a) * rest;
-      forEachEnemyOnSegment(world, at.x, at.y, x2, y2, width * prism.widthMult, (e) => {
+      forEachEnemyOnSegment(world, at.x, at.y, x2, y2, width * v.widthMult, (e) => {
         if (e !== at) damageEnemy(world, e, damage, hit);
       });
     }
@@ -89,15 +91,19 @@ defineMutation('solarBeam.prism', {
 });
 
 /** Ingrain (Bond, standing still, Venusaur): rooted, Solar Beam recharges twice as fast and you take less damage. */
-const ingrain = MUTATIONS['solarBeam.ingrain'].values;
+const ingrain = ranked('solarBeam.ingrain');
 defineMutation('solarBeam.ingrain', {
-  live: (s, world) => {
-    if (world.player.movingFor > 0) s.damage *= ingrain.damageMultMoving;
+  live: (s, world, slot) => {
+    if (world.player.movingFor > 0) s.damage *= ingrain(slot).damageMultMoving;
   },
   update: (world, slot, dt) => {
-    if (standingStill(world, ingrain.stillSeconds)) {
-      slot.cooldownLeft = Math.max(0, slot.cooldownLeft - dt * (ingrain.cooldownRate - 1));
+    const v = ingrain(slot);
+    if (standingStill(world, v.stillSeconds)) {
+      slot.cooldownLeft = Math.max(0, slot.cooldownLeft - dt * (v.cooldownRate - 1));
     }
   },
-  damageTakenMult: (world) => (standingStill(world, ingrain.stillSeconds) ? ingrain.damageTakenMult : 1),
+  damageTakenMult: (world, slot) => {
+    const v = ingrain(slot);
+    return standingStill(world, v.stillSeconds) ? v.damageTakenMult : 1;
+  },
 });

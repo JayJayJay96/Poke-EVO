@@ -1,9 +1,8 @@
 import { MOVES, type ProjectileMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
 import { damageEnemy, procHit } from '../combat';
 import { castProjectile } from '../forms/projectile';
 import { atFullHp, defineMutation } from '../hooks';
-import { entitiesOf, spawnEntity } from './util';
+import { entitiesOf, ranked, spawnEntity } from './util';
 
 // Razor Leaf Mutations (docs/moveset/shared/razor-leaf.md, bulbasaur/README.md).
 
@@ -12,10 +11,10 @@ const razorLeaf = MOVES.razorLeaf as ProjectileMoveDef;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 /** Leaf Spiral (generic): the leaves fly out all around you instead of at one target. */
-const spiral = MUTATIONS['razorLeaf.spiral'].values;
+const spiral = ranked('razorLeaf.spiral');
 defineMutation('razorLeaf.spiral', {
-  stats: (s) => {
-    s.damage *= spiral.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= spiral(slot).damageMult;
   },
   cast: (world, slot) => {
     const before = world.projectiles.length;
@@ -33,16 +32,17 @@ defineMutation('razorLeaf.spiral', {
 });
 
 /** Embed (generic): leaves stick in the enemy, then rip out for a second hit. */
-const embed = MUTATIONS['razorLeaf.embed'].values;
+const embed = ranked('razorLeaf.embed');
 defineMutation('razorLeaf.embed', {
-  stats: (s) => {
-    s.damage *= embed.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= embed(slot).damageMult;
   },
   onHit: (world, slot, enemy) => {
     if (enemy.hp <= 0) return;
-    const leaf = spawnEntity(world, 'razorLeaf.embed', enemy.x, enemy.y, embed.embedSeconds);
+    const v = embed(slot);
+    const leaf = spawnEntity(world, 'razorLeaf.embed', enemy.x, enemy.y, v.embedSeconds);
     leaf.hitIds.push(enemy.id);
-    leaf.damage = (slot.stats.damage / embed.damageMult) * embed.ripFraction;
+    leaf.damage = (slot.stats.damage / v.damageMult) * v.ripFraction;
   },
   update: (world, slot, dt) => {
     const hit = procHit(slot.stats.attackType);
@@ -61,14 +61,16 @@ defineMutation('razorLeaf.embed', {
 });
 
 /** Healthy Growth (Bond, full HP): at full HP, one more leaf and the leaves pierce; weaker when hurt. */
-const growth = MUTATIONS['razorLeaf.healthyGrowth'].values;
+const growth = ranked('razorLeaf.healthyGrowth');
 defineMutation('razorLeaf.healthyGrowth', {
-  live: (s, world) => {
+  live: (s, world, slot) => {
+    const v = growth(slot);
     if (atFullHp(world)) {
-      s.extraCount += growth.extraLeaves;
-      s.pierce += growth.pierce;
+      s.extraCount += v.extraLeaves;
+      s.pierce += v.pierce;
+      s.damage *= v.damageMultFull;
     } else {
-      s.damage *= growth.damageMultHurt;
+      s.damage *= v.damageMultHurt;
     }
   },
 });

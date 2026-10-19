@@ -1,9 +1,8 @@
 import { MOVES, type ZoneMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
 import { applyVuln, damageEnemy } from '../combat';
 import { defineMutation, hpBelow } from '../hooks';
 import { spawnZone } from '../zones';
-import { forEachEnemyIn } from './util';
+import { forEachEnemyIn, ranked } from './util';
 
 // Sludge Mutations (docs/moveset/shared/sludge.md, bulbasaur/README.md).
 
@@ -11,49 +10,52 @@ import { forEachEnemyIn } from './util';
 const POOL_TICK = (MOVES.poisonPowder as ZoneMoveDef).tickInterval;
 
 /** Sludge Pool (generic): the glob leaves a toxic pool that poisons anyone walking through. */
-const pool = MUTATIONS['sludge.pool'].values;
+const pool = ranked('sludge.pool');
 defineMutation('sludge.pool', {
-  stats: (s) => {
-    s.damage *= pool.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= pool(slot).damageMult;
   },
   onProjectileHit: (world, slot, proj) => {
+    const v = pool(slot);
     spawnZone(
       world,
       proj.x,
       proj.y,
-      pool.radius * slot.stats.area,
-      pool.seconds * slot.stats.zoneDurationMult,
+      v.radius * slot.stats.area,
+      v.seconds * slot.stats.zoneDurationMult,
       POOL_TICK,
       0,
       0,
-      { slow: 0, stun: 0, poisonDps: proj.hit.poisonDps * pool.poolPoisonFraction, attackType: proj.hit.attackType },
+      { slow: 0, stun: 0, poisonDps: proj.hit.poisonDps * v.poolPoisonFraction, attackType: proj.hit.attackType },
       'sludge',
     );
   },
 });
 
 /** Acid (generic): hit enemies take more damage from every source for a while. */
-const acid = MUTATIONS['sludge.acid'].values;
+const acid = ranked('sludge.acid');
 defineMutation('sludge.acid', {
-  stats: (s) => {
-    s.damage *= acid.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= acid(slot).damageMult;
   },
-  onHit: (_world, _slot, enemy) => {
-    applyVuln(enemy, acid.damageTakenPct, acid.debuffSeconds, null);
+  onHit: (_world, slot, enemy) => {
+    applyVuln(enemy, acid(slot).damageTakenPct, acid(slot).debuffSeconds, null);
   },
 });
 
 /** Sludge Bomb (Bond, HP below 50%): when you're hurt the glob bursts in a splash and poisons twice as hard. */
-const bomb = MUTATIONS['sludge.sludgeBomb'].values;
+const bomb = ranked('sludge.sludgeBomb');
 defineMutation('sludge.sludgeBomb', {
-  live: (s, world) => {
-    if (hpBelow(world, bomb.hpThreshold)) s.poisonPct *= bomb.poisonMult;
-    else s.damage *= bomb.damageMultAbove;
+  live: (s, world, slot) => {
+    const v = bomb(slot);
+    if (hpBelow(world, v.hpThreshold)) s.poisonPct *= v.poisonMult;
+    else s.damage *= v.damageMultAbove;
   },
-  onProjectileHit: (world, _slot, proj, primary) => {
-    if (!hpBelow(world, bomb.hpThreshold)) return;
-    forEachEnemyIn(world, proj.x, proj.y, bomb.splashRadius, (e) => {
-      if (e !== primary) damageEnemy(world, e, proj.damage * bomb.splashDamageFraction, proj.hit);
+  onProjectileHit: (world, slot, proj, primary) => {
+    const v = bomb(slot);
+    if (!hpBelow(world, v.hpThreshold)) return;
+    forEachEnemyIn(world, proj.x, proj.y, v.splashRadius, (e) => {
+      if (e !== primary) damageEnemy(world, e, proj.damage * v.splashDamageFraction, proj.hit);
     });
   },
 });

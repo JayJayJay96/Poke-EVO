@@ -1,11 +1,10 @@
 import { MOVES, type FieldDef, type MeleeMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
 import { MAX_ENEMY_RADIUS, applySeed, applySlow, damageEnemy, findNearestEnemy, makeHitInfo, procHit } from '../combat';
 import { SWING_SECONDS } from '../forms/melee';
 import { atFullHp, bulbCapacity, defineMutation, healPlayer } from '../hooks';
 import type { MoveSlot, World } from '../types';
 import { spawnZone } from '../zones';
-import { capEntities, dirTo, entitiesOf, forEachEnemyIn, signatureTier, spawnEntity } from './util';
+import { capEntities, dirTo, entitiesOf, forEachEnemyIn, ranked, signatureTier, spawnEntity } from './util';
 
 // Bulbasaur signature Mutations: Vine Whip → Power Whip → Frenzy Plant (docs/moveset/bulbasaur §4).
 // Each has a Bulb link from Ivysaur on and keeps its earlier tiers (rule 10).
@@ -30,7 +29,7 @@ function rootField(world: World, slot: MoveSlot, x: number, y: number, field: Fi
 }
 
 // ── A. Long Lash ────────────────────────────────────────────────────────
-const lash = MUTATIONS['vineWhip.longLash'].values;
+const lash = ranked('vineWhip.longLash');
 
 /**
  * One lash: the tip always crits, enemies close to you take less; Frenzy tier sprouts a root field.
@@ -39,11 +38,12 @@ const lash = MUTATIONS['vineWhip.longLash'].values;
 function longLash(world: World, slot: MoveSlot, fromBloom: boolean): boolean {
   const def = MOVES[slot.moveId] as MeleeMoveDef;
   const { player } = world;
-  const reach = def.reach * slot.stats.area * slot.stats.reachMult * lash.reachMult;
+  const v = lash(slot);
+  const reach = def.reach * slot.stats.area * slot.stats.reachMult * v.reachMult;
   const target = findNearestEnemy(world, reach + MAX_ENEMY_RADIUS);
   if (!target) return false;
   const tier = signatureTier(world, slot);
-  const halfArc = fromBloom || tier >= 1 ? Math.PI : (lash.arcDeg * Math.PI) / 360;
+  const halfArc = fromBloom || tier >= 1 ? Math.PI : (v.arcDeg * Math.PI) / 360;
   const [dirX, dirY] = dirTo(player.x, player.y, target.x, target.y);
   const hit = fromBloom ? procHit(slot.stats.attackType) : makeHitInfo(slot.stats, slot);
   let sprouted = fromBloom;
@@ -52,12 +52,12 @@ function longLash(world: World, slot: MoveSlot, fromBloom: boolean): boolean {
     const inArc =
       halfArc >= Math.PI || dist <= e.radius || ((e.x - player.x) * dirX + (e.y - player.y) * dirY) / dist >= Math.cos(halfArc);
     if (!inArc) return;
-    const tip = dist >= reach * (1 - lash.tipFraction);
-    const close = dist < reach * lash.closeFraction;
+    const tip = dist >= reach * (1 - v.tipFraction);
+    const close = dist < reach * v.closeFraction;
     [hit.dirX, hit.dirY] = dirTo(player.x, player.y, e.x, e.y);
-    damageEnemy(world, e, slot.stats.damage * (tip ? lash.tipCritMult : close ? lash.closeMult : 1), hit);
+    damageEnemy(world, e, slot.stats.damage * (tip ? v.tipCritMult : close ? v.closeMult : 1), hit);
     if (tip && tier >= 2 && !sprouted) {
-      rootField(world, slot, e.x, e.y, FRENZY_FIELD, lash.tier2.rootFieldSizeMult);
+      rootField(world, slot, e.x, e.y, FRENZY_FIELD, v.tier2.rootFieldSizeMult);
       sprouted = true;
     }
   });
@@ -68,6 +68,9 @@ function longLash(world: World, slot: MoveSlot, fromBloom: boolean): boolean {
 }
 
 defineMutation('vineWhip.longLash', {
+  stats: (s, _world, slot) => {
+    s.damage *= lash(slot).damageMult;
+  },
   cast: (world, slot) => longLash(world, slot, false),
   // Bulb link: each Bloom cracks a free 360° tip sweep.
   onEvent: (world, slot, event) => {
@@ -76,24 +79,25 @@ defineMutation('vineWhip.longLash', {
 });
 
 // ── B. Thorn Garden ─────────────────────────────────────────────────────
-const garden = MUTATIONS['vineWhip.thornGarden'].values;
+const garden = ranked('vineWhip.thornGarden');
 
 function sproutLash(world: World, slot: MoveSlot, x: number, y: number, damage: number): void {
   const hit = procHit(slot.stats.attackType);
+  const v = garden(slot);
   if (signatureTier(world, slot) >= 1) {
-    forEachEnemyIn(world, x, y, garden.sproutRadius, (e) => {
+    forEachEnemyIn(world, x, y, v.sproutRadius, (e) => {
       damageEnemy(world, e, damage, hit);
-      applySlow(e, garden.tier1.sproutSlow, garden.lashInterval);
+      applySlow(e, v.tier1.sproutSlow, v.lashInterval);
     });
   } else {
-    const target = findNearestEnemy(world, garden.sproutRadius, x, y);
+    const target = findNearestEnemy(world, v.sproutRadius, x, y);
     if (target) damageEnemy(world, target, damage, hit);
   }
 }
 
 defineMutation('vineWhip.thornGarden', {
-  stats: (s) => {
-    s.damage *= garden.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= garden(slot).damageMult;
   },
   // Each swing plants a sprout at its target.
   onCast: (world, slot) => {
@@ -101,23 +105,25 @@ defineMutation('vineWhip.thornGarden', {
     const reach = def.reach * slot.stats.area * slot.stats.reachMult;
     const target = findNearestEnemy(world, reach + MAX_ENEMY_RADIUS);
     if (!target) return;
-    const sprout = spawnEntity(world, 'vineWhip.thornGarden', target.x, target.y, garden.sproutSeconds);
-    sprout.radius = garden.sproutRadius;
-    sprout.timer = garden.lashInterval;
+    const v = garden(slot);
+    const sprout = spawnEntity(world, 'vineWhip.thornGarden', target.x, target.y, v.sproutSeconds);
+    sprout.radius = v.sproutRadius;
+    sprout.timer = v.lashInterval;
     // Sprouts lash for a fraction of the whip before its −30% cost.
-    sprout.damage = (slot.stats.damage / garden.damageMult) * garden.lashDamageFraction;
-    capEntities(world, 'vineWhip.thornGarden', garden.maxSprouts);
+    sprout.damage = (slot.stats.damage / v.damageMult) * v.lashDamageFraction;
+    capEntities(world, 'vineWhip.thornGarden', v.maxSprouts);
   },
   update: (world, slot, dt) => {
+    const v = garden(slot);
     for (const sprout of entitiesOf(world, 'vineWhip.thornGarden')) {
       sprout.lifeLeft -= dt;
       sprout.timer -= dt;
       if (sprout.timer <= 0) {
-        sprout.timer += garden.lashInterval;
+        sprout.timer += v.lashInterval;
         sproutLash(world, slot, sprout.x, sprout.y, sprout.damage);
       }
       // Frenzy tier: an expiring sprout becomes a root field.
-      if (sprout.lifeLeft <= 0 && signatureTier(world, slot) >= 2 && garden.tier2.expiringRootField) {
+      if (sprout.lifeLeft <= 0 && signatureTier(world, slot) >= 2 && v.tier2.expiringRootField) {
         rootField(world, slot, sprout.x, sprout.y, FRENZY_FIELD, 1);
       }
     }
@@ -126,31 +132,32 @@ defineMutation('vineWhip.thornGarden', {
   onEvent: (world, slot, event) => {
     if (event !== 'bloom') return;
     for (const sprout of entitiesOf(world, 'vineWhip.thornGarden')) {
-      sproutLash(world, slot, sprout.x, sprout.y, sprout.damage * garden.bloomLashMult);
+      sproutLash(world, slot, sprout.x, sprout.y, sprout.damage * garden(slot).bloomLashMult);
     }
   },
 });
 
 // ── C. Sap Lash ─────────────────────────────────────────────────────────
-const sap = MUTATIONS['vineWhip.sapLash'].values;
+const sap = ranked('vineWhip.sapLash');
 const SEED_PCT = MOVES.leechSeed.onHit?.seedPct ?? 0;
 
 defineMutation('vineWhip.sapLash', {
-  stats: (s) => {
-    s.damage *= sap.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= sap(slot).damageMult;
   },
   onHit: (world, slot, enemy, dealt) => {
-    if ((slot.mutState.heals ?? 0) < sap.maxHealPerSwing) {
+    const v = sap(slot);
+    if ((slot.mutState.heals ?? 0) < v.maxHealPerSwing) {
       slot.mutState.heals = (slot.mutState.heals ?? 0) + 1;
       const hurt = !atFullHp(world);
-      healPlayer(world, sap.healPerHit);
+      healPlayer(world, v.healPerHit);
       // Bulb link: Sap heals fill the Bulb even while hurt, at half rate.
       const cap = bulbCapacity(world);
-      if (hurt && cap > 0) world.player.bulb = Math.min(cap, world.player.bulb + sap.healPerHit * sap.bulbFillRateHurt);
+      if (hurt && cap > 0) world.player.bulb = Math.min(cap, world.player.bulb + v.healPerHit * v.bulbFillRateHurt);
     }
     // Power Whip tier: hit enemies are Seeded.
     if (signatureTier(world, slot) >= 1 && enemy.hp > 0) {
-      applySeed(enemy, dealt * SEED_PCT * sap.tier1.seedStrength, sap.tier1.seedSeconds);
+      applySeed(enemy, dealt * SEED_PCT * v.tier1.seedStrength, v.tier1.seedSeconds);
     }
   },
   update: (world, slot, dt) => {
@@ -161,7 +168,7 @@ defineMutation('vineWhip.sapLash', {
     for (const zone of world.zones) {
       if (zone.source !== 'frenzyPlant' || zone.lifeLeft <= 0) continue;
       if ((player.x - zone.x) ** 2 + (player.y - zone.y) ** 2 <= zone.radius * zone.radius) {
-        healPlayer(world, sap.tier2.rootHealPerSec * dt);
+        healPlayer(world, sap(slot).tier2.rootHealPerSec * dt);
         break;
       }
     }

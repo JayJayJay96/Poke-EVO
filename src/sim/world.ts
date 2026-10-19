@@ -226,7 +226,7 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     stunKind: null,
     trapLeft: 0,
     trapDamage: 0,
-    seedJumped: false,
+    seedJumps: 0,
     poisonStacks: 0,
     vulnPct: 0,
     vulnLeft: 0,

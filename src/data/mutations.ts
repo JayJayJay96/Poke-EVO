@@ -675,168 +675,281 @@ export const MUTATIONS = {
   },
 
   // ── Bulbasaur line moves ───────────────────────────────────────────────
-  'tackle.rollout': generic('tackle', 'Rollout', 'Stacks while it keeps hitting', {
-    stackDamagePct: 0.07, // P4f-6 rule-4 tuning (doc: 0.2 / 0.1 reach, 2.34x)
-    stackReachPct: 0.02,
-    maxStacks: 5,
-    damageMult: 0.8,
-  }),
-  'tackle.bowling': generic('tackle', 'Bowling', 'Knocked enemies hit others', {
-    stagger: 30,
-    collisionDamageFraction: 0.3,
-    cooldownMult: 1.2,
-  }),
-  'tackle.bulbBash': bond('tackle', 'bulbasaur', 1, 'bulbFill', 'Bulb Bash', 'Up to +80% damage with a full Bulb', {
-    maxBonus: 0.8,
-    emptyMult: 0.8,
-  }),
-  'razorLeaf.spiral': generic('razorLeaf', 'Leaf Spiral', '360° spiral of leaves', {
-    damageMult: 0.8,
-  }),
-  'razorLeaf.embed': generic('razorLeaf', 'Embed', 'Leaves stick, then rip out', {
-    embedSeconds: 1.5,
-    ripFraction: 0.45, // P4f-6 rule-4 tuning (doc: 0.6, 1.21x)
-    damageMult: 0.85,
-  }),
-  'razorLeaf.healthyGrowth': bond('razorLeaf', 'bulbasaur', 0, 'fullHp', 'Healthy Growth', 'Full HP: +1 leaf, pierce 1', {
-    extraLeaves: 1,
-    pierce: 1,
-    damageMultHurt: 0.6, // P4f-6 rule-4 tuning (doc: 0.8; 1.74x at full HP, so the hurt side pays more)
-  }),
-  'leechSeed.spread': generic('leechSeed', 'Spreading Seed', 'Seed jumps on death (once)', {
-    durationMult: 0.75,
-    maxJumps: 1,
-    /** P4f-6 build value: how far a seed can jump. */
-    jumpRange: 140,
-  }),
-  'leechSeed.seedBomb': generic('leechSeed', 'Seed Bomb', 'Seeds a 50 px area', {
-    radius: 50,
-    seedStrength: 0.1, // P4f-6 rule-4 tuning (doc: 0.4, 1.69x)
-    cooldownMult: 1.3,
-  }),
-  'leechSeed.seedNetwork': bond('leechSeed', 'bulbasaur', 0, 'leechStrength', 'Seed Network', 'Each Seeded enemy raises Leech', {
-    leechPerSeeded: 0.005,
-    maxLeechBonus: 0.03,
-    seedDamageMult: 0.7,
-  }),
-  'poisonPowder.drift': generic('poisonPowder', 'Drift Cloud', 'The cloud follows enemies', {
-    driftSpeed: 30,
-    radiusMult: 0.8,
-  }),
-  'poisonPowder.toxic': generic('poisonPowder', 'Toxic', 'Poison stacks up to ×5', {
-    maxStacks: 5,
-    stackPct: 0.2,
-    durationMult: 0.7,
-  }),
-  'poisonPowder.sporeSac': bond('poisonPowder', 'bulbasaur', 0, 'hitTaken', 'Spore Sac', 'Getting hit puffs a poison cloud', {
-    sizeMult: 0.5,
-    cloudSeconds: 1.5,
-    minInterval: 2,
-    cooldownMult: 1.3,
-  }),
-  'sleepPowder.drowsy': generic('sleepPowder', 'Drowsy Haze', 'Big slowing cloud, delayed sleep', {
-    radiusMult: 1.8,
-    slow: 0.5,
-    sleepAfter: 1.5,
-  }),
-  'sleepPowder.nightmare': generic('sleepPowder', 'Nightmare', 'Sleepers take +25% damage', {
-    damageTakenPct: 0.25,
-    sleepSeconds: 0.6,
-  }),
-  'sleepPowder.sweetDreams': bond('sleepPowder', 'bulbasaur', 0, 'targetAsleep', 'Sweet Dreams', 'Leech ×3 on sleeping enemies', {
-    leechMult: 3,
-    sleepMult: 0.75,
-  }),
-  'sludge.pool': generic('sludge', 'Sludge Pool', 'Leaves a toxic pool', {
-    radius: 40,
-    seconds: 2.5,
-    damageMult: 0.7,
-    /** P4f-6 rule-4 tuning: the pool poisons for half the glob poison (1.26x at full). */
-    poolPoisonFraction: 0.5,
-  }),
-  'sludge.acid': generic('sludge', 'Acid', '+15% damage taken from everything', {
-    damageTakenPct: 0.15,
-    debuffSeconds: 3,
-    damageMult: 0.75,
-  }),
-  'sludge.sludgeBomb': bond('sludge', 'bulbasaur', 0, 'hpBelow', 'Sludge Bomb', 'Below 50% HP: splash and poison ×2', {
-    hpThreshold: 0.5,
-    splashRadius: 50,
-    poisonMult: 2,
-    /** P4f-6 build value: the bomb splash, as a fraction of the glob. */
-    splashDamageFraction: 0.5,
-    damageMultAbove: 0.85,
-  }),
-  'petalDance.frenzy': generic('petalDance', 'Frenzy Dance', 'Spins faster; petals fly out', {
-    spinRampPerSec: 0.3,
-    flyOutSeconds: 1,
-    // P4f-6 build values: the petals flying out.
-    petalSpeed: 300,
-    petalRange: 150,
-    petalRadius: 6,
-    moveSpeedMult: 0.85,
-  }),
-  'petalDance.pollen': generic('petalDance', 'Pollen Ring', 'Petal hits heal you', {
-    healPerHit: 1,
-    maxHealPerSec: 5,
-    damageMult: 0.75,
-  }),
-  'petalDance.petalBlizzard': bond('petalDance', 'bulbasaur', 1, 'bloom', 'Petal Blizzard', 'Each Bloom launches double petals', {
-    petalMult: 2,
-    seconds: 2,
-    cooldownMult: 1.3,
-  }),
-  'solarBeam.fullCharge': generic('solarBeam', 'Full Charge', '1 s charge, then a huge beam', {
-    chargeSeconds: 1,
-    // P4f-6 tuning (doc: x2 width, +60%). The dummy ring overstates width: past ~31 px a beam catches
-    // 4 ring dummies instead of 1, so this is judged on one target (~0.8x the plain beam) plus wider reach.
-    widthMult: 1.5,
-    damageMult: 1.2,
-    cooldownMult: 1.25,
-  }),
-  'solarBeam.prism': generic('solarBeam', 'Prism', 'Splits into 3 beams behind the target', {
-    beams: 3,
-    fanDeg: 30,
-    beamDamageFraction: 0.4,
-    /** P4f-6 build value: the split beams are thinner than the main one. */
-    widthMult: 0.5,
-    damageMult: 0.85,
-  }),
-  'solarBeam.ingrain': bond('solarBeam', 'bulbasaur', 2, 'standingStill', 'Ingrain', 'Standing still: faster cooldown, −15% damage taken', {
-    stillSeconds: 1,
-    cooldownRate: 2,
-    damageTakenMult: 0.85,
-    damageMultMoving: 0.8,
-  }),
-  'vineWhip.longLash': signature('vineWhip', 'bulbasaur', 'bloom', 'Long Lash', 'Long reach; the tip always crits', {
-    reachMult: 1.8,
-    arcDeg: 50,
-    tipFraction: 0.3,
-    tipCritMult: 1.5,
-    closeMult: 0.6,
-    /** P4f-5 build value: "close" = inside this fraction of the reach. */
-    closeFraction: 0.4,
-    tier2: { rootFieldSizeMult: 0.6 },
-  }),
-  'vineWhip.thornGarden': signature('vineWhip', 'bulbasaur', 'bloom', 'Thorn Garden', 'Swings plant thorn sprouts', {
-    maxSprouts: 4,
-    sproutSeconds: 5,
-    sproutRadius: 50,
-    lashInterval: 1,
-    lashDamageFraction: 0.3,
-    damageMult: 0.7,
-    bloomLashMult: 2,
-    tier1: { sproutSlow: 0.2 },
-    tier2: { expiringRootField: true },
-  }),
-  'vineWhip.sapLash': signature('vineWhip', 'bulbasaur', 'bloom', 'Sap Lash', 'Hits heal you', {
-    healPerHit: 1,
-    maxHealPerSwing: 4,
-    damageMult: 0.75,
-    bulbFillRateHurt: 0.5,
-    tier1: { seedSeconds: 2, seedStrength: 0.5 },
-    tier2: { rootHealPerSec: 2 },
-  }),
+  'tackle.rollout': {
+    ...generic('tackle', 'Rollout', 'Stacks while it keeps hitting', {
+      stackDamagePct: 0.07, // P4f-6 rule-4 tuning (doc: 0.2 / 0.1 reach, 2.34x)
+      stackReachPct: 0.02,
+      maxStacks: 5,
+      damageMult: 0.8,
+    }),
+    ranks: [{ stackDamagePct: 0.08, damageMult: 0.88 }, { stackDamagePct: 0.09, damageMult: 0.96, maxStacks: 6 }],
+    rankText: ['+8% per stack (7%); dmg ×0.88 (0.8)', '+9%; ×0.96; ★ up to 6 stacks (5)'],
+  },
+  'tackle.bowling': {
+    ...generic('tackle', 'Bowling', 'Knocked enemies hit others', {
+      stagger: 30,
+      collisionDamageFraction: 0.3,
+      cooldownMult: 1.2,
+    }),
+    ranks: [{ collisionDamageFraction: 0.45 }, { collisionDamageFraction: 0.6, stagger: 40 }],
+    rankText: ['collisions 45% (30%)', '60%; ★ stagger 40 (30)'],
+  },
+  'tackle.bulbBash': {
+    ...bond('tackle', 'bulbasaur', 1, 'bulbFill', 'Bulb Bash', 'Up to +80% damage with a full Bulb', {
+      maxBonus: 0.8,
+      emptyMult: 0.8,
+    }),
+    ranks: [{ maxBonus: 0.95, emptyMult: 0.9 }, { maxBonus: 1.1, emptyMult: 1 }],
+    rankText: ['full Bulb +95% (80%); empty ×0.9 (0.8)', '+110%; empty ×1.0'],
+  },
+  'razorLeaf.spiral': {
+    ...generic('razorLeaf', 'Leaf Spiral', '360° spiral of leaves', {
+      damageMult: 0.8,
+    }),
+    ranks: [{ damageMult: 0.92 }, { damageMult: 1.04 }],
+    rankText: ['dmg ×0.92 (0.8)', '×1.04'],
+  },
+  'razorLeaf.embed': {
+    ...generic('razorLeaf', 'Embed', 'Leaves stick, then rip out', {
+      embedSeconds: 1.5,
+      ripFraction: 0.45, // P4f-6 rule-4 tuning (doc: 0.6, 1.21x)
+      damageMult: 0.85,
+    }),
+    ranks: [{ ripFraction: 0.66 }, { ripFraction: 0.85, embedSeconds: 1.2 }],
+    rankText: ['rip 66% (45%)', '85%; ★ rips after 1.2 s (1.5)'],
+  },
+  'razorLeaf.healthyGrowth': {
+    ...bond('razorLeaf', 'bulbasaur', 0, 'fullHp', 'Healthy Growth', 'Full HP: +1 leaf, pierce 1', {
+      extraLeaves: 1,
+      pierce: 1,
+      damageMultHurt: 0.6, // P4f-6 rule-4 tuning (doc: 0.8; 1.74x at full HP, so the hurt side pays more)
+      damageMultFull: 1,
+    }),
+    ranks: [{ damageMultHurt: 0.7, damageMultFull: 1.1 }, { damageMultHurt: 0.8, damageMultFull: 1.15, pierce: 2 }],
+    rankText: ['hurt ×0.7 (0.6); full HP +10% damage', 'hurt ×0.8; full HP +15%; ★ pierce 2 (1)'],
+  },
+  'leechSeed.spread': {
+    ...generic('leechSeed', 'Spreading Seed', 'Seed jumps on death (once)', {
+      durationMult: 0.75,
+      maxJumps: 1,
+      /** P4f-6 build value: how far a seed can jump. */
+      jumpRange: 140,
+    }),
+    ranks: [{ durationMult: 0.9 }, { durationMult: 1, maxJumps: 2 }],
+    rankText: ['duration ×0.9 (0.75)', '×1.0; ★ jumps twice (1)'],
+  },
+  'leechSeed.seedBomb': {
+    ...generic('leechSeed', 'Seed Bomb', 'Seeds a 50 px area', {
+      radius: 50,
+      seedStrength: 0.1, // P4f-6 rule-4 tuning (doc: 0.4, 1.69x)
+      cooldownMult: 1.3,
+    }),
+    ranks: [{ seedStrength: 0.155 }, { seedStrength: 0.16, radius: 65 }],
+    rankText: ['strength 15.5% (10%)', '16%; ★ radius 65 px (50)'],
+  },
+  'leechSeed.seedNetwork': {
+    ...bond('leechSeed', 'bulbasaur', 0, 'leechStrength', 'Seed Network', 'Each Seeded enemy raises Leech', {
+      leechPerSeeded: 0.005,
+      maxLeechBonus: 0.03,
+      seedDamageMult: 0.7,
+    }),
+    ranks: [{ seedDamageMult: 0.83, maxLeechBonus: 0.04 }, { seedDamageMult: 0.95, maxLeechBonus: 0.05 }],
+    rankText: ['seed dmg ×0.83 (0.7); Leech cap +4% (3%)', '×0.95; cap +5%'],
+  },
+  'poisonPowder.drift': {
+    ...generic('poisonPowder', 'Drift Cloud', 'The cloud follows enemies', {
+      driftSpeed: 30,
+      radiusMult: 0.8,
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.15 }, { damageMult: 1.3, driftSpeed: 45 }],
+    rankText: ['move dmg ×1.15', '×1.3; ★ drifts 45 px/s (30)'],
+  },
+  'poisonPowder.toxic': {
+    ...generic('poisonPowder', 'Toxic', 'Poison stacks up to ×5', {
+      maxStacks: 5,
+      stackPct: 0.2,
+      durationMult: 0.7,
+    }),
+    ranks: [{ stackPct: 0.31 }, { stackPct: 0.28, durationMult: 0.85 }],
+    rankText: ['+31% per stack (20%)', '+28% with ★ duration ×0.85 (0.7)'],
+  },
+  'poisonPowder.sporeSac': {
+    ...bond('poisonPowder', 'bulbasaur', 0, 'hitTaken', 'Spore Sac', 'Getting hit puffs a poison cloud', {
+      sizeMult: 0.5,
+      cloudSeconds: 1.5,
+      minInterval: 2,
+      cooldownMult: 1.3,
+    }),
+    ranks: [{ sizeMult: 0.6, minInterval: 1.5 }, { sizeMult: 0.7, minInterval: 1 }],
+    rankText: ['cloud size ×0.6 (0.5); every 1.5 s at most (2)', '×0.7; every 1 s'],
+  },
+  'sleepPowder.drowsy': {
+    ...generic('sleepPowder', 'Drowsy Haze', 'Big slowing cloud, delayed sleep', {
+      radiusMult: 1.8,
+      slow: 0.5,
+      sleepAfter: 1.5,
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.15, sleepAfter: 1.2 }, { damageMult: 1.3, sleepAfter: 1, slow: 0.6 }],
+    rankText: ['move dmg ×1.15; sleep after 1.2 s (1.5)', '×1.3; 1 s; ★ slow 60% (50%)'],
+  },
+  'sleepPowder.nightmare': {
+    ...generic('sleepPowder', 'Nightmare', 'Sleepers take +25% damage', {
+      damageTakenPct: 0.25,
+      sleepSeconds: 0.6,
+    }),
+    ranks: [{ damageTakenPct: 0.3 }, { damageTakenPct: 0.35, sleepSeconds: 0.8 }],
+    rankText: ['sleepers take +30% (25%)', '+35%; ★ sleep 0.8 s (0.6)'],
+  },
+  'sleepPowder.sweetDreams': {
+    ...bond('sleepPowder', 'bulbasaur', 0, 'targetAsleep', 'Sweet Dreams', 'Leech ×3 on sleeping enemies', {
+      leechMult: 3,
+      sleepMult: 0.75,
+    }),
+    ranks: [{ sleepMult: 0.85 }, { sleepMult: 0.95, leechMult: 4 }],
+    rankText: ['sleep ×0.85 (0.75)', '×0.95; ★ Leech ×4 (3)'],
+  },
+  'sludge.pool': {
+    ...generic('sludge', 'Sludge Pool', 'Leaves a toxic pool', {
+      radius: 40,
+      seconds: 2.5,
+      damageMult: 0.7,
+      /** P4f-6 rule-4 tuning: the pool poisons for half the glob poison (1.26x at full). */
+      poolPoisonFraction: 0.5,
+    }),
+    ranks: [{ damageMult: 0.8 }, { damageMult: 0.9, seconds: 3.5 }],
+    rankText: ['dmg ×0.8 (0.7)', '×0.9; ★ pool lasts 3.5 s (2.5)'],
+  },
+  'sludge.acid': {
+    ...generic('sludge', 'Acid', '+15% damage taken from everything', {
+      damageTakenPct: 0.15,
+      debuffSeconds: 3,
+      damageMult: 0.75,
+    }),
+    ranks: [{ damageTakenPct: 0.18, damageMult: 0.82 }, { damageTakenPct: 0.2, damageMult: 0.9, debuffSeconds: 4 }],
+    rankText: ['+18% taken (15%); dmg ×0.82 (0.75)', '+20%; ×0.9; ★ lasts 4 s (3)'],
+  },
+  'sludge.sludgeBomb': {
+    ...bond('sludge', 'bulbasaur', 0, 'hpBelow', 'Sludge Bomb', 'Below 50% HP: splash and poison ×2', {
+      hpThreshold: 0.5,
+      splashRadius: 50,
+      poisonMult: 2,
+      /** P4f-6 build value: the bomb splash, as a fraction of the glob. */
+      splashDamageFraction: 0.5,
+      damageMultAbove: 0.85,
+    }),
+    ranks: [{ damageMultAbove: 0.95, hpThreshold: 0.6 }, { damageMultAbove: 1.05, hpThreshold: 0.7 }],
+    rankText: ['above ×0.95 (0.85); threshold 60% HP (50%)', '×1.05; 70%'],
+  },
+  'petalDance.frenzy': {
+    ...generic('petalDance', 'Frenzy Dance', 'Spins faster; petals fly out', {
+      spinRampPerSec: 0.3,
+      flyOutSeconds: 1,
+      // P4f-6 build values: the petals flying out.
+      petalSpeed: 300,
+      petalRange: 150,
+      petalRadius: 6,
+      moveSpeedMult: 0.85,
+      damageMult: 1,
+    }),
+    ranks: [{ spinRampPerSec: 0.35, moveSpeedMult: 0.9, damageMult: 1.1 }, { spinRampPerSec: 0.4, moveSpeedMult: 0.95, petalRange: 200, damageMult: 1.2 }],
+    rankText: ['spin ramp 0.35/s (0.3); move ×0.9 (0.85); move dmg ×1.1', '0.4/s; ×0.95; move dmg ×1.2; ★ petals fly 200 px (150)'],
+  },
+  'petalDance.pollen': {
+    ...generic('petalDance', 'Pollen Ring', 'Petal hits heal you', {
+      healPerHit: 1,
+      maxHealPerSec: 5,
+      damageMult: 0.75,
+    }),
+    ranks: [{ damageMult: 0.86, maxHealPerSec: 6 }, { damageMult: 0.97, maxHealPerSec: 7 }],
+    rankText: ['dmg ×0.86 (0.75); heal cap 6/s (5)', '×0.97; cap 7/s'],
+  },
+  'petalDance.petalBlizzard': {
+    ...bond('petalDance', 'bulbasaur', 1, 'bloom', 'Petal Blizzard', 'Each Bloom launches double petals', {
+      petalMult: 2,
+      seconds: 2,
+      cooldownMult: 1.3,
+    }),
+    ranks: [{ cooldownMult: 1.15 }, { cooldownMult: 1, seconds: 3 }],
+    rankText: ['cooldown ×1.15 (1.3)', '×1.0; ★ lasts 3 s (2)'],
+  },
+  'solarBeam.fullCharge': {
+    ...generic('solarBeam', 'Full Charge', '1 s charge, then a huge beam', {
+      chargeSeconds: 1,
+      // P4f-6 tuning (doc: x2 width, +60%). The dummy ring overstates width: past ~31 px a beam catches
+      // 4 ring dummies instead of 1, so this is judged on one target (~0.8x the plain beam) plus wider reach.
+      widthMult: 1.5,
+      damageMult: 1.2,
+      cooldownMult: 1.25,
+    }),
+    ranks: [{ damageMult: 1.38 }, { damageMult: 1.56, chargeSeconds: 0.75 }],
+    rankText: ['dmg ×1.38 (1.2)', '×1.56; ★ charges in 0.75 s (1)'],
+  },
+  'solarBeam.prism': {
+    ...generic('solarBeam', 'Prism', 'Splits into 3 beams behind the target', {
+      beams: 3,
+      fanDeg: 30,
+      beamDamageFraction: 0.4,
+      /** P4f-6 build value: the split beams are thinner than the main one. */
+      widthMult: 0.5,
+      damageMult: 0.85,
+    }),
+    ranks: [{ beamDamageFraction: 0.46, damageMult: 0.95 }, { beamDamageFraction: 0.52, damageMult: 1.05 }],
+    rankText: ['46% per beam (40%); main beam ×0.95 (0.85)', '52%; main beam ×1.05'],
+  },
+  'solarBeam.ingrain': {
+    ...bond('solarBeam', 'bulbasaur', 2, 'standingStill', 'Ingrain', 'Standing still: faster cooldown, −15% damage taken', {
+      stillSeconds: 1,
+      cooldownRate: 2,
+      damageTakenMult: 0.85,
+      damageMultMoving: 0.8,
+    }),
+    ranks: [{ damageMultMoving: 0.9, cooldownRate: 2.3 }, { damageMultMoving: 1, cooldownRate: 2.6, stillSeconds: 0.7 }],
+    rankText: ['moving ×0.9 (0.8); recharge ×2.3 (2)', '×1.0; ×2.6; ★ roots after 0.7 s (1)'],
+  },
+  'vineWhip.longLash': {
+    ...signature('vineWhip', 'bulbasaur', 'bloom', 'Long Lash', 'Long reach; the tip always crits', {
+      reachMult: 1.8,
+      arcDeg: 50,
+      tipFraction: 0.3,
+      tipCritMult: 1.5,
+      closeMult: 0.6,
+      /** P4f-5 build value: "close" = inside this fraction of the reach. */
+      closeFraction: 0.4,
+      tier2: { rootFieldSizeMult: 0.6 },
+      damageMult: 1,
+    }),
+    ranks: [{ tipCritMult: 1.7, closeMult: 0.7, damageMult: 1.08 }, { tipCritMult: 1.9, closeMult: 0.8, damageMult: 1.15 }],
+    rankText: ['tip crit ×1.7 (1.5); close ×0.7 (0.6); move dmg ×1.08', '×1.9; close ×0.8; move dmg ×1.15'],
+  },
+  'vineWhip.thornGarden': {
+    ...signature('vineWhip', 'bulbasaur', 'bloom', 'Thorn Garden', 'Swings plant thorn sprouts', {
+      maxSprouts: 4,
+      sproutSeconds: 5,
+      sproutRadius: 50,
+      lashInterval: 1,
+      lashDamageFraction: 0.3,
+      damageMult: 0.7,
+      bloomLashMult: 2,
+      tier1: { sproutSlow: 0.2 },
+      tier2: { expiringRootField: true },
+    }),
+    ranks: [{ lashDamageFraction: 0.45 }, { lashDamageFraction: 0.5, maxSprouts: 5 }],
+    rankText: ['lashes 45% (30%)', '50%; ★ 5 sprouts (4)'],
+  },
+  'vineWhip.sapLash': {
+    ...signature('vineWhip', 'bulbasaur', 'bloom', 'Sap Lash', 'Hits heal you', {
+      healPerHit: 1,
+      maxHealPerSwing: 4,
+      damageMult: 0.75,
+      bulbFillRateHurt: 0.5,
+      tier1: { seedSeconds: 2, seedStrength: 0.5 },
+      tier2: { rootHealPerSec: 2 },
+    }),
+    ranks: [{ damageMult: 0.86, maxHealPerSwing: 5 }, { damageMult: 0.97, maxHealPerSwing: 6 }],
+    rankText: ['dmg ×0.86 (0.75); heal cap 5 per swing (4)', '×0.97; cap 6'],
+  },
 
   // ── Pikachu line moves ─────────────────────────────────────────────────
   'quickAttack.blink': generic('quickAttack', 'Blink Strike', 'Instant strike up to 140 px away', {

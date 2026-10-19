@@ -1,10 +1,9 @@
 import { ABILITIES } from '../../data/content';
 import { MOVES, type ZoneMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
 import { applyStatuses, applyVuln } from '../combat';
 import { defineMutation, targetAsleep } from '../hooks';
 import type { MoveSlot } from '../types';
-import { forEachEnemyIn } from './util';
+import { forEachEnemyIn, ranked } from './util';
 
 // Sleep Powder Mutations (docs/moveset/shared/sleep-powder.md, bulbasaur/README.md).
 
@@ -15,11 +14,13 @@ const SLEEP = sleepPowder.onHit?.stun ?? 0;
 const drowsyTime = new WeakMap<MoveSlot, Map<number, number>>();
 
 /** Drowsy Haze (generic): a much bigger cloud that slows; enemies only fall asleep after a while inside. */
-const drowsy = MUTATIONS['sleepPowder.drowsy'].values;
+const drowsy = ranked('sleepPowder.drowsy');
 defineMutation('sleepPowder.drowsy', {
-  stats: (s) => {
-    s.area *= drowsy.radiusMult;
-    s.slow = Math.max(s.slow, drowsy.slow);
+  stats: (s, _world, slot) => {
+    const v = drowsy(slot);
+    s.area *= v.radiusMult;
+    s.slow = Math.max(s.slow, v.slow);
+    s.damage *= v.damageMult;
     s.stun = 0; // sleep comes from time inside, below
   },
   onCast: (world, slot) => {
@@ -34,30 +35,31 @@ defineMutation('sleepPowder.drowsy', {
     forEachEnemyIn(world, zone.x, zone.y, zone.radius, (e) => {
       const inside = (time.get(e.id) ?? 0) + dt;
       time.set(e.id, inside);
-      if (inside >= drowsy.sleepAfter) applyStatuses(e, { slow: 0, stun: SLEEP, poisonDps: 0, stunKind: 'sleep' });
+      if (inside >= drowsy(slot).sleepAfter) applyStatuses(e, { slow: 0, stun: SLEEP, poisonDps: 0, stunKind: 'sleep' });
     });
   },
 });
 
 /** Nightmare (generic): sleeping enemies take more damage from everything; sleep is shorter. */
-const nightmare = MUTATIONS['sleepPowder.nightmare'].values;
+const nightmare = ranked('sleepPowder.nightmare');
 defineMutation('sleepPowder.nightmare', {
-  stats: (s) => {
-    s.stun = nightmare.sleepSeconds;
+  stats: (s, _world, slot) => {
+    s.stun = nightmare(slot).sleepSeconds;
   },
-  update: (world) => {
+  update: (world, slot) => {
+    const pct = nightmare(slot).damageTakenPct;
     for (const e of world.enemies) {
-      if (targetAsleep(e)) applyVuln(e, nightmare.damageTakenPct, e.stunLeft, null);
+      if (targetAsleep(e)) applyVuln(e, pct, e.stunLeft, null);
     }
   },
 });
 
 /** Sweet Dreams (Bond, enemy asleep + Leech): damage to sleeping enemies heals through Leech at ×3. Shorter sleep. */
-const dreams = MUTATIONS['sleepPowder.sweetDreams'].values;
+const dreams = ranked('sleepPowder.sweetDreams');
 defineMutation('sleepPowder.sweetDreams', {
-  stats: (s) => {
-    s.stun *= dreams.sleepMult;
+  stats: (s, _world, slot) => {
+    s.stun *= dreams(slot).sleepMult;
   },
-  leechBonus: (world, _slot, enemy) =>
-    targetAsleep(enemy) ? (ABILITIES[world.player.ability].lifesteal ?? 0) * (dreams.leechMult - 1) : 0,
+  leechBonus: (world, slot, enemy) =>
+    targetAsleep(enemy) ? (ABILITIES[world.player.ability].lifesteal ?? 0) * (dreams(slot).leechMult - 1) : 0,
 });
