@@ -8,7 +8,7 @@ import {
 } from '../data/augments';
 import { POKEMON, TUNING } from '../data/content';
 import { MOVES } from '../data/moves';
-import { MUTATIONS, type MutationDef } from '../data/mutations';
+import { MUTATION_RANKS, MUTATIONS, type MutationDef } from '../data/mutations';
 import {
   BOOST_IDS,
   BOOST_MAX_PICKS,
@@ -98,14 +98,27 @@ export function needsReplace(world: World, slotIndex: number, card: AugmentCard)
   return !owned && socketsUsed(slot) >= MAX_SOCKETS;
 }
 
-/** Up to `count` distinct random entries. */
-function draw<T>(rng: Rng, items: readonly T[], count: number): T[] {
+/** Up to `count` distinct random entries; `weight` biases the draw (uniform without it). */
+function draw<T>(rng: Rng, items: readonly T[], count: number, weight?: (item: T) => number): T[] {
   const pool = [...items];
   const picked: T[] = [];
   while (picked.length < count && pool.length > 0) {
-    picked.push(pool.splice(Math.floor(rng.next() * pool.length), 1)[0]!);
+    let i = 0;
+    if (weight) {
+      let roll = rng.next() * pool.reduce((sum, item) => sum + weight(item), 0);
+      for (; i < pool.length - 1 && roll >= weight(pool[i]!); i++) roll -= weight(pool[i]!);
+    } else {
+      i = Math.floor(rng.next() * pool.length);
+    }
+    picked.push(pool.splice(i, 1)[0]!);
   }
   return picked;
+}
+
+/** True when `augmentId` is one of the favoured augments of the Mutation on this move (D24). */
+export function isFavoured(world: World, slotIndex: number, augmentId: AugmentCard['augmentId']): boolean {
+  const mutation = world.moves[slotIndex]?.mutation;
+  return Boolean(mutation && (MUTATIONS[mutation] as MutationDef).favoured?.includes(augmentId));
 }
 
 /**
@@ -130,11 +143,14 @@ export function makeOffer(world: World): LevelUpOffer {
  */
 export function drawAugmentCards(world: World, slotIndex: number): AugmentCard[] {
   const pool = augmentPool(world, slotIndex);
+  // Favoured augments (new or rank-up) are drawn ×3 as often (D24).
+  const weight = (card: AugmentCard) =>
+    isFavoured(world, slotIndex, card.augmentId) ? MUTATION_RANKS.favouredOfferWeight : 1;
   const special = pool.filter((card) => isSpecialAugment(card.augmentId));
   const cards: AugmentCard[] = [];
-  if (special.length > 0) cards.push(...draw(world.rng, special, 1));
+  if (special.length > 0) cards.push(...draw(world.rng, special, 1, weight));
   const rest = pool.filter((card) => !cards.includes(card));
-  cards.push(...draw(world.rng, rest, CARDS_PER_OFFER - cards.length));
+  cards.push(...draw(world.rng, rest, CARDS_PER_OFFER - cards.length, weight));
   // Shuffle so the guaranteed card isn't always in the first position.
   return draw(world.rng, cards, cards.length);
 }

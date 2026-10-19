@@ -81,12 +81,18 @@ export interface MutationDef {
   readonly rankText?: readonly [string, string];
   /** Lapras Bonds: rank II and III overrides of the Flood and Ebb values, like `ranks` (RANKS.md). */
   readonly tideRanks?: readonly [TideOverride, TideOverride];
+  /** Favoured augments (D24): shown gold and offered `MUTATION_RANKS.favouredOfferWeight`× as often on this move. */
+  readonly favoured?: readonly AugmentId[];
 }
 
 type TideOverride = { readonly flood?: MutationValues; readonly ebb?: MutationValues };
 
 /** Mutation ranks (D24): a Mutation sits in its own slot and ranks I → III at sites (values per Mutation). */
-export const MUTATION_RANKS = { max: 3 } as const;
+export const MUTATION_RANKS = {
+  max: 3,
+  /** Favoured augments' draw weight in the move's augment windows (others 1); no other bonus (D24). */
+  favouredOfferWeight: 3,
+} as const;
 
 /** Shared terrain, crowd-control guard rails and the Tide (docs/moveset/README.md). */
 export const MUTATION_TUNING = {
@@ -145,6 +151,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ tickDamageFraction: 0.32 }, { tickDamageFraction: 0.3, auraSeconds: 4 }],
     rankText: ['aura ticks 0.32 (0.28)', 'ticks 0.3; ★ aura lasts 4 s (3)'],
+    favoured: ['enlarge', 'quickCast', 'lifesteal'],
   },
   'withdraw.hunkerDown': {
     ...generic('withdraw', 'Hunker Down', '−40% damage taken for 1.5 s after a cast', {
@@ -156,6 +163,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.92, buffSeconds: 1.75 }, { damageMult: 1.04, buffSeconds: 2, hitStagger: 15 }],
     rankText: ['dmg ×0.92 (0.8); buff 1.75 s (1.5)', 'dmg ×1.04; buff 2 s; ★ hits taken while hunkered stagger the attacker 15 px'],
+    favoured: ['quickCast', 'knockback', 'powerUp'],
   },
   'withdraw.counterShell': {
     ...bond('withdraw', 'squirtle', 0, 'shellBlock', 'Counter Shell', 'Shell blocks reset Withdraw; stagger ×2', {
@@ -165,6 +173,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.92 }, { damageMult: 1.04, resetHitMult: 1.5 }],
     rankText: ['dmg ×0.92 (0.8)', 'dmg ×1.04; ★ the reset Withdraw hits +50%'],
+    favoured: ['knockback', 'powerUp', 'enlarge'],
   },
   'rapidSpin.spiralSpin': {
     ...generic('rapidSpin', 'Spiral Spin', 'Shells spiral out from 30 to 120 px', {
@@ -174,6 +183,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 1.03 }, { damageMult: 1.17, outerRadius: 140 }],
     rankText: ['dmg ×1.03 (0.9)', 'dmg ×1.17; ★ spirals out to 140 px (120)'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'rapidSpin.deflector': {
     ...generic('rapidSpin', 'Deflector', 'Shells eat enemy projectiles', {
@@ -182,6 +192,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.8 }, { damageMult: 0.91, secondsPerDeflect: 0.2 }],
     rankText: ['dmg ×0.8 (0.7)', 'dmg ×0.91; deflect window 0.2 s (0.3)'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
   },
   'rapidSpin.shellSpin': {
     ...bond('rapidSpin', 'squirtle', 0, 'shellRecharge', 'Shell Spin', 'Shell hits cut Shell recharge', {
@@ -191,6 +202,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ rechargeCutPerHit: 0.3, damageMult: 0.92 }, { rechargeCutPerHit: 0.35, maxCutPerCast: 2, damageMult: 1.04 }],
     rankText: ['cut 0.3 s per hit (0.25); dmg ×0.92 (0.8)', 'cut 0.35 s; max 2 s per cast (1.5); dmg ×1.04'],
+    favoured: ['extend', 'powerUp', 'quickCast'],
   },
   'waterGun.slick': {
     ...generic('waterGun', 'Slick', 'Leaves a puddle line; light enemies slip', {
@@ -201,6 +213,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.8, slipChancePerSec: 0.2 }, { damageMult: 0.91, slipChancePerSec: 0.25, puddleSeconds: 4.5 }],
     rankText: ['dmg ×0.8 (0.7); slip 0.2/s (0.15)', 'dmg ×0.91; slip 0.25/s; ★ puddles last 4.5 s (3)'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
   },
   'waterGun.washDown': {
     ...generic('waterGun', 'Wash Down', 'Soaks; +20% Water damage taken', {
@@ -212,6 +225,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ waterDamageTakenPct: 0.25, damageMult: 0.55 }, { waterDamageTakenPct: 0.3, damageMult: 0.55, otherDamageTakenPct: 0.1 }],
     rankText: ['Water taken +25% (20%); dmg ×0.55 (0.5)', '+30%; dmg ×0.55; ★ also +10% from every other type'],
+    favoured: ['extend', 'quickCast', 'enlarge'],
   },
   'waterGun.steadyAim': {
     ...bond('waterGun', 'squirtle', 0, 'shellReady', 'Steady Aim', 'Shell up: longer beam, push ×2', {
@@ -222,6 +236,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ lengthMult: 1.5, damageMultShellDown: 0.85, shellUpDamageMult: 1.1 }, { lengthMult: 1.6, damageMultShellDown: 0.95, shellUpDamageMult: 1.2 }],
     rankText: ['length ×1.5 (1.4); Shell down ×0.85 (0.75); Shell up +10% damage', 'length ×1.6; Shell down ×0.95; ★ Shell up: +20% damage'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'whirlpool.maelstrom': {
     ...generic('whirlpool', 'Maelstrom', 'Pulls in, then collapses into a burst', {
@@ -233,6 +248,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ collapseTickMult: 1.85, cooldownMult: 1.25 }, { collapseTickMult: 2.1, cooldownMult: 1.15, pullSpeed: 45 }],
     rankText: ['collapse ×1.85 (1.6); cooldown ×1.25 (1.4)', 'collapse ×2.1; cooldown ×1.15; ★ pull 45 px/s (30)'],
+    favoured: ['linger', 'enlarge', 'concentrated'],
   },
   'whirlpool.moat': {
     ...generic('whirlpool', 'Moat', 'A slowing ring that follows you', {
@@ -244,6 +260,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.58 }, { damageMult: 0.65, soaksCrossers: true }],
     rankText: ['dmg ×0.58 (0.5)', 'dmg ×0.65; ★ enemies crossing the ring are Soaked'],
+    favoured: ['enlarge', 'linger', 'powerUp'],
   },
   'whirlpool.eyeOfTheStorm': {
     ...bond('whirlpool', 'squirtle', 1, 'shellBurst', 'Eye of the Storm', 'Shell Burst drops a whirlpool at your feet', {
@@ -254,6 +271,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ sizeMult: 0.6, seconds: 2.5 }, { sizeMult: 0.7, seconds: 3, pullSpeed: 30 }],
     rankText: ['size ×0.6 (0.5); 2.5 s (2)', 'size ×0.7; 3 s; ★ it pulls like Maelstrom (30 px/s)'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'surf.rideTheWave': {
     ...generic('surf', 'Ride the Wave', 'A wall rolling the way you move', {
@@ -269,6 +287,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ waveDamageMult: 1.15, travel: 250 }, { waveDamageMult: 1.3, speedSeconds: 2 }],
     rankText: ['wave dmg ×1.15; travel 250 px (220)', 'wave dmg ×1.3; ★ speed boost 2 s (1)'],
+    favoured: ['enlarge', 'quickCast', 'knockback'],
   },
   'surf.backwash': {
     ...generic('surf', 'Backwash', 'The wave rolls back in and pulls', {
@@ -281,6 +300,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ returnDamageFraction: 0.5 }, { returnDamageFraction: 0.7, returnSoaks: true }],
     rankText: ['return 50% (30%)', 'return 70%; ★ the return wave Soaks'],
+    favoured: ['enlarge', 'knockback', 'quickCast'],
   },
   'surf.lastWave': {
     ...bond('surf', 'squirtle', 0, 'hpBelow', 'Last Wave', 'Below 40% HP: faster, bigger Surf', {
@@ -291,6 +311,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMultAbove: 0.9, hpThreshold: 0.5 }, { damageMultAbove: 1, hpThreshold: 0.6 }],
     rankText: ['above-threshold dmg ×0.9 (0.8); threshold 50% HP (40%)', '×1.0; threshold 60%'],
+    favoured: ['enlarge', 'quickCast', 'glass'],
   },
   'hydroPump.splitStream': {
     ...generic('hydroPump', 'Split Stream', 'Two beams at ±30°', {
@@ -299,6 +320,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ beamDamageFraction: 0.38 }, { beamDamageFraction: 0.43 }],
     rankText: ['38% per beam (33%)', '43% per beam'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'hydroPump.pressureBuild': {
     ...generic('hydroPump', 'Pressure Build', 'Damage ramps each tick', {
@@ -308,6 +330,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ rampPerTick: 0.15, cooldownMult: 1.35 }, { rampPerTick: 0.2, cooldownMult: 1.3 }],
     rankText: ['ramp +15% per tick (12%); cooldown ×1.35 (1.5)', 'ramp +20%; ★ cooldown ×1.3'],
+    favoured: ['extend', 'concentrated', 'keenEdge'],
   },
   'hydroPump.rainCannon': {
     ...bond('hydroPump', 'squirtle', 2, 'healing', 'Rain Cannon', 'Rains around you; heals per enemy hit', {
@@ -320,6 +343,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.115, maxHealPerSec: 5 }, { damageMult: 0.13, maxHealPerSec: 6, rainSoaks: true }],
     rankText: ['dmg ×0.115 (0.1); heal cap 5/s (4)', 'dmg ×0.13; cap 6/s; ★ the rain Soaks'],
+    favoured: ['enlarge', 'extend', 'lifesteal'],
   },
   'flashCannon.shrapnel': {
     ...generic('flashCannon', 'Shrapnel', 'Shatters into 6 shards', {
@@ -334,6 +358,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ shardDamageFraction: 0.4, cooldownMult: 1.15 }, { shardDamageFraction: 0.45, cooldownMult: 1, shardPierce: 1 }],
     rankText: ['shards 40% (35%); cooldown ×1.15 (1.3)', '45%; cooldown ×1.0; ★ shards pierce 1'],
+    favoured: ['pierce', 'velocity', 'multishot'],
   },
   'flashCannon.railgun': {
     ...generic('flashCannon', 'Railgun', 'Fires where you move; infinite pierce', {
@@ -342,6 +367,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 1.5 }, { damageMult: 1.7 }],
     rankText: ['dmg ×1.5 (1.3)', 'dmg ×1.7'],
+    favoured: ['velocity', 'concentrated', 'keenEdge'],
   },
   'flashCannon.armorRounds': {
     ...bond('flashCannon', 'squirtle', 2, 'hitTaken', 'Armor Rounds', 'Hit since last shot: a second round', {
@@ -350,6 +376,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ secondRoundFraction: 0.7, damageMult: 0.92 }, { secondRoundFraction: 0.8, damageMult: 1.04 }],
     rankText: ['second round 70% (60%); dmg ×0.92 (0.8)', '80%; dmg ×1.04'],
+    favoured: ['velocity', 'powerUp', 'homing'],
   },
   'bubble.trap': {
     ...signature('bubble', 'squirtle', undefined, 'Bubble Trap', 'Traps a light enemy, then pops', {
@@ -365,6 +392,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ popDamageFraction: 1 }, { popDamageFraction: 1.2, popSoaks: true }],
     rankText: ['pop 100% (80%)', 'pop 120%; ★ the pop Soaks'],
+    favoured: ['enlarge', 'wideBlast', 'multishot'],
   },
   'bubble.froth': {
     ...signature('bubble', 'squirtle', undefined, 'Froth Mines', 'Shots leave hovering bubble mines', {
@@ -382,6 +410,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ mineDamageFraction: 0.33 }, { mineDamageFraction: 0.4, maxMines: 12 }],
     rankText: ['mines 33% (25%)', '40%; ★ up to 12 mines (9)'],
+    favoured: ['multishot', 'extend', 'enlarge'],
   },
   'bubble.undertow': {
     ...signature('bubble', 'squirtle', undefined, 'Undertow', 'Bubbles return to you, hitting twice', {
@@ -393,6 +422,7 @@ export const MUTATIONS = {
     excludesAugments: ['boomerang'],
     ranks: [{ damageMult: 0.75 }, { damageMult: 0.88, rangeMult: 0.9 }],
     rankText: ['dmg ×0.75 (0.65)', 'dmg ×0.88; ★ range ×0.9 (0.8)'],
+    favoured: ['pierce', 'velocity', 'enlarge'],
   },
 
   // ── Charmander line moves ──────────────────────────────────────────────
@@ -405,6 +435,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ stackPct: 0.135 }, { stackPct: 0.16, maxStacks: 6 }],
     rankText: ['+13.5% per stack (8%)', '+16%; ★ up to 6 stacks (5)'],
+    favoured: ['quickCast', 'keenEdge', 'lifesteal'],
   },
   'scratch.crescent': {
     ...generic('scratch', 'Crescent', '200° arc plus a slash wave', {
@@ -420,6 +451,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.52, waveDamageFraction: 0.45 }, { damageMult: 0.58, waveDamageFraction: 0.5, waveLength: 100 }],
     rankText: ['dmg ×0.52 (0.45); wave 45% (40%)', '×0.58; wave 50%; ★ wave travels 100 px (70)'],
+    favoured: ['enlarge', 'powerUp', 'knockback'],
   },
   'scratch.blazeClaws': {
     ...bond('scratch', 'charmander', 0, 'blazeActive', 'Blaze Claws', 'Blaze active: Fire-type, burns, longer reach', {
@@ -429,6 +461,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ burnPct: 0.4, damageMultOff: 0.95 }, { burnPct: 0.5, damageMultOff: 1.05, reachMult: 1.4 }],
     rankText: ['burn 40% (30%); off ×0.95 (0.85)', 'burn 50%; off ×1.05; ★ reach ×1.4 (1.3)'],
+    favoured: ['enlarge', 'keenEdge', 'glass'],
   },
   'fireSpin.vortex': {
     ...generic('fireSpin', 'Vortex', 'Collapses, then bursts out', {
@@ -438,6 +471,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ burstDamageMult: 2 }, { burstDamageMult: 2.1, burstRadius: 130 }],
     rankText: ['burst ×2.0 (1.6)', '×2.1; ★ burst radius 130 px (110)'],
+    favoured: ['enlarge', 'extend', 'burn'],
   },
   'fireSpin.flameTrail': {
     ...generic('fireSpin', 'Flame Trail', 'Flames leave Scorch', {
@@ -446,6 +480,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.8, scorchEvery: 0.5 }, { damageMult: 0.9, scorchEvery: 0.4 }],
     rankText: ['dmg ×0.8 (0.7); Scorch every 0.5 s (0.6)', '×0.9; every 0.4 s'],
+    favoured: ['extend', 'burn', 'enlarge'],
   },
   'fireSpin.tailFlame': {
     ...bond('fireSpin', 'charmander', 0, 'missingHp', 'Tail Flame', 'More flames as HP drops', {
@@ -456,6 +491,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.86 }, { damageMult: 0.97, hpOneFlame: 0.8, hpTwoFlames: 0.5 }],
     rankText: ['dmg ×0.86 (0.75)', '×0.97; ★ flames at 80% / 50% HP (70% / 40%)'],
+    favoured: ['burn', 'extend', 'glass'],
   },
   'dragonRage.fixedRage': {
     ...generic('dragonRage', 'Fixed Rage', 'Fixed damage; ignores types and damage augments', {
@@ -464,6 +500,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ fixedDamage: 8 }, { fixedDamage: 9, levelsPerPoint: 3 }],
     rankText: ['fixed 8 (7)', 'fixed 9; ★ +1 per 3 levels (4)'],
+    favoured: ['quickCast', 'extend', 'enlarge'],
   },
   'dragonRage.dragonBreath': {
     ...generic('dragonRage', 'Dragon Breath', 'Short cone; paralysis chance', {
@@ -477,6 +514,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.69 }, { damageMult: 0.78, paralyseChance: 0.15 }],
     rankText: ['dmg ×0.69 (0.6)', '×0.78; ★ paralysis chance 15% (10%)'],
+    favoured: ['enlarge', 'quickCast', 'extend'],
   },
   'dragonRage.corneredDragon': {
     ...bond('dragonRage', 'charmander', 1, 'flareUp', 'Cornered Dragon', 'Flare Up fires Dragon Rage in a cross', {
@@ -486,6 +524,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ cooldownMult: 1.15 }, { cooldownMult: 1, crossDamageMult: 1.5 }],
     rankText: ['cooldown ×1.15 (1.3)', '×1.0; ★ the cross hits ×1.5'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'airSlash.crosscut': {
     ...generic('airSlash', 'Crosscut', 'Blades cross; the 2nd hit crits', {
@@ -495,6 +534,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.98 }, { damageMult: 1.1 }],
     rankText: ['dmg ×0.98 (0.85)', '×1.1'],
+    favoured: ['keenEdge', 'velocity', 'pierce'],
   },
   'airSlash.tailwind': {
     ...generic('airSlash', 'Tailwind', 'Hits give move speed', {
@@ -505,6 +545,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.92, maxSpeedPct: 0.2 }, { damageMult: 1.04, maxSpeedPct: 0.25 }],
     rankText: ['dmg ×0.92 (0.8); speed cap +20% (15%)', '×1.04; cap +25%'],
+    favoured: ['multishot', 'pierce', 'velocity'],
   },
   'airSlash.aerialAce': {
     ...bond('airSlash', 'charmander', 2, 'moving', 'Aerial Ace', 'Moving: homing blades, +20% crit', {
@@ -514,6 +555,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ critBonus: 0.25, damageMultStill: 0.85 }, { critBonus: 0.3, damageMultStill: 0.95, movingSeconds: 0.7 }],
     rankText: ['crit +25% (20%); still ×0.85 (0.75)', '+30%; still ×0.95; ★ homing after 0.7 s moving (1)'],
+    favoured: ['keenEdge', 'velocity', 'pierce'],
   },
   'hurricane.tornado': {
     ...generic('hurricane', 'Tornado', 'The storm travels forward', {
@@ -522,6 +564,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.92 }, { damageMult: 1.04, travelSpeed: 150 }],
     rankText: ['dmg ×0.92 (0.8)', '×1.04; ★ travels 150 px/s (120)'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'hurricane.galeWall': {
     ...generic('hurricane', 'Gale Wall', 'Shoves the crowd outward', {
@@ -530,6 +573,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.75 }, { damageMult: 0.85, stagger: 40 }],
     rankText: ['dmg ×0.75 (0.65)', '×0.85; ★ stagger 40 (30)'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
   },
   'hurricane.infernoStorm': {
     ...bond('hurricane', 'charmander', 2, 'kill', 'Inferno Storm', 'Kills extend it; 30 kills turn it Fire', {
@@ -541,6 +585,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.98, killsToIgnite: 25 }, { damageMult: 1.1, killsToIgnite: 20 }],
     rankText: ['dmg ×0.98 (0.85); ignites at 25 kills (30)', '×1.1; 20 kills'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'smokescreen.chokingSmoke': {
     ...generic('smokescreen', 'Choking Smoke', 'The cloud also damages', {
@@ -550,6 +595,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ tickDamage: 4.6 }, { tickDamage: 5, radiusMult: 0.72 }],
     rankText: ['4.6 per tick (4)', '5 per tick; ★ radius ×0.72 (0.7)'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'smokescreen.smokeTrail': {
     ...generic('smokescreen', 'Smoke Trail', 'Smoke puffs behind you while kiting', {
@@ -561,6 +607,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ puffSeconds: 2 }, { puffSeconds: 2.5, trailSeconds: 5 }],
     rankText: ['puffs last 2 s (1.5)', '2.5 s; ★ trail lasts 5 s (4)'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'smokescreen.hiddenFlame': {
     ...bond('smokescreen', 'charmander', 0, 'inOwnSmoke', 'Hidden Flame', 'In your smoke, Blaze counts as active', {
@@ -569,6 +616,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ radiusMult: 0.7, cooldownMult: 1.25 }, { radiusMult: 0.8, cooldownMult: 1.1 }],
     rankText: ['radius ×0.7 (0.6); cooldown ×1.25 (1.4)', '×0.8; cooldown ×1.1'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'slash.afterimage': {
     ...generic('slash', 'Afterimage', 'The X lingers and cuts again', {
@@ -579,6 +627,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ recutFraction: 0.6, innateCrit: 0.2, damageMult: 1.1 }, { recutFraction: 0.7, innateCrit: 0.25, markSeconds: 0.9, damageMult: 1.2 }],
     rankText: ['re-cut 60% (50%); innate crit 20% (15%); move dmg ×1.1', '70%; crit 25%; move dmg ×1.2; ★ mark lasts 0.9 s (0.6)'],
+    favoured: ['keenEdge', 'enlarge', 'wideBlast'],
   },
   'slash.flurry': {
     ...generic('slash', 'Flurry', '3 cuts on 3 enemies', {
@@ -591,6 +640,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ cutDamageFraction: 1.15 }, { cutDamageFraction: 1.3 }],
     rankText: ['cuts 115% (100%)', 'cuts 130%'],
+    favoured: ['keenEdge', 'quickCast', 'lifesteal'],
   },
   'slash.searingSlash': {
     ...bond('slash', 'charmander', 1, 'targetBurning', 'Searing Slash', 'Crits Burning enemies and cashes in the Burn', {
@@ -599,6 +649,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMultNotBurning: 0.9 }, { damageMultNotBurning: 1, cashInMult: 1.25 }],
     rankText: ['not Burning ×0.9 (0.8)', '×1.0; ★ the cash-in deals ×1.25 the remaining Burn'],
+    favoured: ['keenEdge', 'concentrated', 'glass'],
   },
   'wingAttack.updraft': {
     ...generic('wingAttack', 'Updraft', 'Lifts light enemies off the ground', {
@@ -608,6 +659,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.86 }, { damageMult: 0.97, liftSeconds: 0.8 }],
     rankText: ['dmg ×0.86 (0.75)', '×0.97; ★ lift 0.8 s (0.6)'],
+    favoured: ['enlarge', 'knockback', 'quickCast'],
   },
   'wingAttack.backdraft': {
     ...generic('wingAttack', 'Backdraft', 'One rear gust guards your escape', {
@@ -617,6 +669,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 1.15 }, { damageMult: 1.05, arcDeg: 200 }],
     rankText: ['move dmg ×1.15', 'move dmg ×1.05; ★ rear arc 200° (160)'],
+    favoured: ['knockback', 'enlarge', 'quickCast'],
   },
   'wingAttack.fanTheFlames': {
     ...bond('wingAttack', 'charmander', 2, 'ownScorch', 'Fan the Flames', 'Gusts flare and push your Scorch', {
@@ -628,6 +681,7 @@ export const MUTATIONS = {
     requires: ['scorchSource'],
     ranks: [{ damageMult: 0.92 }, { damageMult: 1.04, growPct: 0.75 }],
     rankText: ['dmg ×0.92 (0.8)', '×1.04; ★ patches grow to ×1.75 (1.5)'],
+    favoured: ['enlarge', 'quickCast', 'powerUp'],
   },
   'ember.kindle': {
     ...signature('ember', 'charmander', 'blazeActive', 'Kindle', 'Every 3rd shot is Kindled', {
@@ -642,6 +696,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ kindledMult: 2.75 }, { kindledMult: 2.75, kindledBurnPct: 0.05 }],
     rankText: ['Kindled ×2.75 (2.2)', '×2.75; ★ Kindled shots Burn (5% per s)'],
+    favoured: ['blazeCore', 'burn', 'wideBlast'],
   },
   'ember.flamethrower': {
     ...signature('ember', 'charmander', 'blazeActive', 'Flamethrower', 'A short cone of flames', {
@@ -655,6 +710,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ flameDamageFraction: 0.35 }, { flameDamageFraction: 0.4, reach: 150 }],
     rankText: ['flames 35% (30%)', '40%; ★ reach 150 px (130)'],
+    favoured: ['burn', 'blazeCore', 'enlarge'],
   },
   'ember.wisp': {
     ...signature('ember', 'charmander', 'blazeActive', 'Will-o-Wisp', 'Orbiting wisps launch at close enemies', {
@@ -669,6 +725,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 1.5 }, { damageMult: 1.7, maxWisps: 4, maxWispsBlaze: 6 }],
     rankText: ['dmg ×1.5 (1.3)', '×1.7; ★ +1 wisp (3 / 5 with Blaze)'],
+    favoured: ['blazeCore', 'homing', 'velocity'],
   },
 
   // ── Bulbasaur line moves ───────────────────────────────────────────────
@@ -681,6 +738,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ stackDamagePct: 0.08, damageMult: 0.88 }, { stackDamagePct: 0.09, damageMult: 0.96, maxStacks: 6 }],
     rankText: ['+8% per stack (7%); dmg ×0.88 (0.8)', '+9%; ×0.96; ★ up to 6 stacks (5)'],
+    favoured: ['quickCast', 'knockback', 'enlarge'],
   },
   'tackle.bowling': {
     ...generic('tackle', 'Bowling', 'Knocked enemies hit others', {
@@ -690,6 +748,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ collisionDamageFraction: 0.45 }, { collisionDamageFraction: 0.6, stagger: 40 }],
     rankText: ['collisions 45% (30%)', '60%; ★ stagger 40 (30)'],
+    favoured: ['knockback', 'powerUp', 'enlarge'],
   },
   'tackle.bulbBash': {
     ...bond('tackle', 'bulbasaur', 1, 'bulbFill', 'Bulb Bash', 'Up to +80% damage with a full Bulb', {
@@ -698,6 +757,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ maxBonus: 0.95, emptyMult: 0.9 }, { maxBonus: 1.1, emptyMult: 1 }],
     rankText: ['full Bulb +95% (80%); empty ×0.9 (0.8)', '+110%; empty ×1.0'],
+    favoured: ['powerUp', 'glass', 'keenEdge'],
   },
   'razorLeaf.spiral': {
     ...generic('razorLeaf', 'Leaf Spiral', '360° spiral of leaves', {
@@ -705,6 +765,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.92 }, { damageMult: 1.04 }],
     rankText: ['dmg ×0.92 (0.8)', '×1.04'],
+    favoured: ['multishot', 'pierce', 'enlarge'],
   },
   'razorLeaf.embed': {
     ...generic('razorLeaf', 'Embed', 'Leaves stick, then rip out', {
@@ -714,6 +775,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ ripFraction: 0.66 }, { ripFraction: 0.85, embedSeconds: 1.2 }],
     rankText: ['rip 66% (45%)', '85%; ★ rips after 1.2 s (1.5)'],
+    favoured: ['keenEdge', 'multishot', 'velocity'],
   },
   'razorLeaf.healthyGrowth': {
     ...bond('razorLeaf', 'bulbasaur', 0, 'fullHp', 'Healthy Growth', 'Full HP: +1 leaf, pierce 1', {
@@ -724,6 +786,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMultHurt: 0.7, damageMultFull: 1.1 }, { damageMultHurt: 0.8, damageMultFull: 1.15, pierce: 2 }],
     rankText: ['hurt ×0.7 (0.6); full HP +10% damage', 'hurt ×0.8; full HP +15%; ★ pierce 2 (1)'],
+    favoured: ['multishot', 'pierce', 'lifesteal'],
   },
   'leechSeed.spread': {
     ...generic('leechSeed', 'Spreading Seed', 'Seed jumps on death (once)', {
@@ -734,6 +797,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ durationMult: 0.9 }, { durationMult: 1, maxJumps: 2 }],
     rankText: ['duration ×0.9 (0.75)', '×1.0; ★ jumps twice (1)'],
+    favoured: ['homing', 'extend', 'lifesteal'],
   },
   'leechSeed.seedBomb': {
     ...generic('leechSeed', 'Seed Bomb', 'Seeds a 50 px area', {
@@ -743,6 +807,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ seedStrength: 0.155 }, { seedStrength: 0.16, radius: 65 }],
     rankText: ['strength 15.5% (10%)', '16%; ★ radius 65 px (50)'],
+    favoured: ['enlarge', 'extend', 'quickCast'],
   },
   'leechSeed.seedNetwork': {
     ...bond('leechSeed', 'bulbasaur', 0, 'leechStrength', 'Seed Network', 'Each Seeded enemy raises Leech', {
@@ -752,6 +817,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ seedDamageMult: 0.83, maxLeechBonus: 0.04 }, { seedDamageMult: 0.95, maxLeechBonus: 0.05 }],
     rankText: ['seed dmg ×0.83 (0.7); Leech cap +4% (3%)', '×0.95; cap +5%'],
+    favoured: ['lifesteal', 'homing', 'multishot'],
   },
   'poisonPowder.drift': {
     ...generic('poisonPowder', 'Drift Cloud', 'The cloud follows enemies', {
@@ -761,6 +827,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 1.15 }, { damageMult: 1.3, driftSpeed: 45 }],
     rankText: ['move dmg ×1.15', '×1.3; ★ drifts 45 px/s (30)'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'poisonPowder.toxic': {
     ...generic('poisonPowder', 'Toxic', 'Poison stacks up to ×5', {
@@ -770,6 +837,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ stackPct: 0.31 }, { stackPct: 0.28, durationMult: 0.85 }],
     rankText: ['+31% per stack (20%)', '+28% with ★ duration ×0.85 (0.7)'],
+    favoured: ['linger', 'enlarge', 'powerUp'],
   },
   'poisonPowder.sporeSac': {
     ...bond('poisonPowder', 'bulbasaur', 0, 'hitTaken', 'Spore Sac', 'Getting hit puffs a poison cloud', {
@@ -780,6 +848,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ sizeMult: 0.6, minInterval: 1.5 }, { sizeMult: 0.7, minInterval: 1 }],
     rankText: ['cloud size ×0.6 (0.5); every 1.5 s at most (2)', '×0.7; every 1 s'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'sleepPowder.drowsy': {
     ...generic('sleepPowder', 'Drowsy Haze', 'Big slowing cloud, delayed sleep', {
@@ -790,6 +859,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 1.15, sleepAfter: 1.2 }, { damageMult: 1.3, sleepAfter: 1, slow: 0.6 }],
     rankText: ['move dmg ×1.15; sleep after 1.2 s (1.5)', '×1.3; 1 s; ★ slow 60% (50%)'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'sleepPowder.nightmare': {
     ...generic('sleepPowder', 'Nightmare', 'Sleepers take +25% damage', {
@@ -798,6 +868,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageTakenPct: 0.3 }, { damageTakenPct: 0.35, sleepSeconds: 0.8 }],
     rankText: ['sleepers take +30% (25%)', '+35%; ★ sleep 0.8 s (0.6)'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'sleepPowder.sweetDreams': {
     ...bond('sleepPowder', 'bulbasaur', 0, 'targetAsleep', 'Sweet Dreams', 'Leech ×3 on sleeping enemies', {
@@ -806,6 +877,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ sleepMult: 0.85 }, { sleepMult: 0.95, leechMult: 4 }],
     rankText: ['sleep ×0.85 (0.75)', '×0.95; ★ Leech ×4 (3)'],
+    favoured: ['linger', 'lifesteal', 'enlarge'],
   },
   'sludge.pool': {
     ...generic('sludge', 'Sludge Pool', 'Leaves a toxic pool', {
@@ -817,6 +889,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.8 }, { damageMult: 0.9, seconds: 3.5 }],
     rankText: ['dmg ×0.8 (0.7)', '×0.9; ★ pool lasts 3.5 s (2.5)'],
+    favoured: ['multishot', 'powerUp', 'enlarge'],
   },
   'sludge.acid': {
     ...generic('sludge', 'Acid', '+15% damage taken from everything', {
@@ -826,6 +899,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageTakenPct: 0.18, damageMult: 0.82 }, { damageTakenPct: 0.2, damageMult: 0.9, debuffSeconds: 4 }],
     rankText: ['+18% taken (15%); dmg ×0.82 (0.75)', '+20%; ×0.9; ★ lasts 4 s (3)'],
+    favoured: ['multishot', 'homing', 'quickCast'],
   },
   'sludge.sludgeBomb': {
     ...bond('sludge', 'bulbasaur', 0, 'hpBelow', 'Sludge Bomb', 'Below 50% HP: splash and poison ×2', {
@@ -838,6 +912,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMultAbove: 0.95, hpThreshold: 0.6 }, { damageMultAbove: 1.05, hpThreshold: 0.7 }],
     rankText: ['above ×0.95 (0.85); threshold 60% HP (50%)', '×1.05; 70%'],
+    favoured: ['multishot', 'glass', 'enlarge'],
   },
   'petalDance.frenzy': {
     ...generic('petalDance', 'Frenzy Dance', 'Spins faster; petals fly out', {
@@ -852,6 +927,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ spinRampPerSec: 0.35, moveSpeedMult: 0.9, damageMult: 1.1 }, { spinRampPerSec: 0.4, moveSpeedMult: 0.95, petalRange: 200, damageMult: 1.2 }],
     rankText: ['spin ramp 0.35/s (0.3); move ×0.9 (0.85); move dmg ×1.1', '0.4/s; ×0.95; move dmg ×1.2; ★ petals fly 200 px (150)'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
   },
   'petalDance.pollen': {
     ...generic('petalDance', 'Pollen Ring', 'Petal hits heal you', {
@@ -861,6 +937,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.86, maxHealPerSec: 6 }, { damageMult: 0.97, maxHealPerSec: 7 }],
     rankText: ['dmg ×0.86 (0.75); heal cap 6/s (5)', '×0.97; cap 7/s'],
+    favoured: ['extend', 'lifesteal', 'enlarge'],
   },
   'petalDance.petalBlizzard': {
     ...bond('petalDance', 'bulbasaur', 1, 'bloom', 'Petal Blizzard', 'Each Bloom launches double petals', {
@@ -870,6 +947,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ cooldownMult: 1.15 }, { cooldownMult: 1, seconds: 3 }],
     rankText: ['cooldown ×1.15 (1.3)', '×1.0; ★ lasts 3 s (2)'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'solarBeam.fullCharge': {
     ...generic('solarBeam', 'Full Charge', '1 s charge, then a huge beam', {
@@ -882,6 +960,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 1.38 }, { damageMult: 1.56, chargeSeconds: 0.75 }],
     rankText: ['dmg ×1.38 (1.2)', '×1.56; ★ charges in 0.75 s (1)'],
+    favoured: ['concentrated', 'extend', 'keenEdge'],
   },
   'solarBeam.prism': {
     ...generic('solarBeam', 'Prism', 'Splits into 3 beams behind the target', {
@@ -894,6 +973,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ beamDamageFraction: 0.46, damageMult: 0.95 }, { beamDamageFraction: 0.52, damageMult: 1.05 }],
     rankText: ['46% per beam (40%); main beam ×0.95 (0.85)', '52%; main beam ×1.05'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'solarBeam.ingrain': {
     ...bond('solarBeam', 'bulbasaur', 2, 'standingStill', 'Ingrain', 'Standing still: faster cooldown, −15% damage taken', {
@@ -904,6 +984,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMultMoving: 0.9, cooldownRate: 2.3 }, { damageMultMoving: 1, cooldownRate: 2.6, stillSeconds: 0.7 }],
     rankText: ['moving ×0.9 (0.8); recharge ×2.3 (2)', '×1.0; ×2.6; ★ roots after 0.7 s (1)'],
+    favoured: ['extend', 'quickCast', 'concentrated'],
   },
   'vineWhip.longLash': {
     ...signature('vineWhip', 'bulbasaur', 'bloom', 'Long Lash', 'Long reach; the tip always crits', {
@@ -919,6 +1000,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ tipCritMult: 1.7, closeMult: 0.7, damageMult: 1.08 }, { tipCritMult: 1.9, closeMult: 0.8, damageMult: 1.15 }],
     rankText: ['tip crit ×1.7 (1.5); close ×0.7 (0.6); move dmg ×1.08', '×1.9; close ×0.8; move dmg ×1.15'],
+    favoured: ['keenEdge', 'enlarge', 'knockback'],
   },
   'vineWhip.thornGarden': {
     ...signature('vineWhip', 'bulbasaur', 'bloom', 'Thorn Garden', 'Swings plant thorn sprouts', {
@@ -934,6 +1016,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ lashDamageFraction: 0.45 }, { lashDamageFraction: 0.5, maxSprouts: 5 }],
     rankText: ['lashes 45% (30%)', '50%; ★ 5 sprouts (4)'],
+    favoured: ['enlarge', 'quickCast', 'powerUp'],
   },
   'vineWhip.sapLash': {
     ...signature('vineWhip', 'bulbasaur', 'bloom', 'Sap Lash', 'Hits heal you', {
@@ -946,6 +1029,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.86, maxHealPerSwing: 5 }, { damageMult: 0.97, maxHealPerSwing: 6 }],
     rankText: ['dmg ×0.86 (0.75); heal cap 5 per swing (4)', '×0.97; cap 6'],
+    favoured: ['lifesteal', 'enlarge', 'quickCast'],
   },
 
   // ── Pikachu line moves ─────────────────────────────────────────────────
@@ -956,6 +1040,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.86, range: 160 }, { damageMult: 0.97, range: 180 }],
     rankText: ['dmg ×0.86 (0.75); range 160 px (140)', '×0.97; 180 px'],
+    favoured: ['keenEdge', 'quickCast', 'lifesteal'],
   },
   'quickAttack.doubleHit': {
     ...generic('quickAttack', 'Double Hit', 'Hits twice', {
@@ -965,6 +1050,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ secondHitFraction: 0.8 }, { secondHitFraction: 0.9, cooldownMult: 1.2 }],
     rankText: ['second hit 80% (60%)', '90%; ★ cooldown ×1.2 (1.3)'],
+    favoured: ['keenEdge', 'knockback', 'powerUp'],
   },
   'quickAttack.voltTackle': {
     ...bond('quickAttack', 'pikachu', 0, 'chargeFull', 'Volt Tackle', 'Full Charge: a ×3 dash-strike, with recoil', {
@@ -974,6 +1060,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 3.45, recoilMaxHpFraction: 0.04 }, { damageMult: 3.9, recoilMaxHpFraction: 0.03, dashPx: 150 }],
     rankText: ['×3.45 (3); recoil 4% (5%)', '×3.9; recoil 3%; ★ dash 150 px (120)'],
+    favoured: ['glass', 'keenEdge', 'concentrated'],
   },
   'spark.arcPair': {
     ...generic('spark', 'Arc Pair', 'A rotating line joins the sparks', {
@@ -984,6 +1071,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.69 }, { damageMult: 0.75, lineWidth: 14 }],
     rankText: ['dmg ×0.69 (0.6)', '×0.75; ★ line 14 px wide (10)'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
   },
   'spark.shower': {
     ...generic('spark', 'Spark Shower', 'Sparks burst into 6 bolts', {
@@ -998,6 +1086,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ boltDamageFraction: 0.75, cooldownMult: 1.05 }, { boltDamageFraction: 0.85, cooldownMult: 0.95 }],
     rankText: ['bolts 75% (65%); cooldown ×1.05 (1.2)', '85%; cooldown ×0.95'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
   },
   'spark.staticSpark': {
     ...bond('spark', 'pikachu', 0, 'staticProc', 'Static Spark', 'Static paralysis adds sparks', {
@@ -1007,6 +1096,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ sparkSeconds: 2.5, cooldownMult: 1.1 }, { sparkSeconds: 3, cooldownMult: 1, maxExtraSparks: 4 }],
     rankText: ['sparks last 2.5 s (2); cooldown ×1.1 (1.2)', '3 s; ×1.0; ★ up to 4 extra sparks (3)'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'electroBall.ricochet': {
     ...generic('electroBall', 'Ricochet', 'Bounces enemy to enemy (max 2)', {
@@ -1016,6 +1106,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.92 }, { damageMult: 0.8, maxBounces: 3 }],
     rankText: ['dmg ×0.92 (0.8)', '★ 3 bounces (2, inside the chain cap) at dmg ×0.8'],
+    favoured: ['velocity', 'homing', 'keenEdge'],
   },
   'electroBall.plasma': {
     ...generic('electroBall', 'Plasma Orb', 'Grows as it rolls', {
@@ -1026,6 +1117,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ maxDamageBonus: 0.55, damageMult: 1.15 }, { maxDamageBonus: 0.7, speedMult: 0.8, damageMult: 1.27 }],
     rankText: ['grows to +55% (+40%); move dmg ×1.15', '+70%; move dmg ×1.27; ★ speed ×0.8 (0.7)'],
+    favoured: ['extend', 'enlarge', 'pierce'],
   },
   'electroBall.velocityBall': {
     ...bond('electroBall', 'pikachu', 0, 'moveSpeed', 'Velocity Ball', 'Damage scales with how much faster you are', {
@@ -1035,6 +1127,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.66, maxBonus: 0.9 }, { damageMult: 0.72, maxBonus: 1 }],
     rankText: ['dmg ×0.66 (0.6); cap +90% (80%)', '×0.72; cap +100%'],
+    favoured: ['velocity', 'quickCast', 'pierce'],
   },
   'thunderWave.pulse': {
     ...generic('thunderWave', 'Static Pulse', 'A paralysing ring expands from you', {
@@ -1045,6 +1138,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 1.15, paralyseSeconds: 0.45 }, { damageMult: 1.08, paralyseSeconds: 0.5, ringRadius: 165 }],
     rankText: ['move dmg ×1.15; paralysis 0.45 s (0.4)', 'move dmg ×1.08; 0.5 s; ★ ring 165 px (150)'],
+    favoured: ['enlarge', 'quickCast', 'powerUp'],
   },
   'thunderWave.terrain': {
     ...generic('thunderWave', 'Electric Terrain', '+25% Electric damage field', {
@@ -1055,6 +1149,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ electricBonus: 0.3 }, { electricBonus: 0.35, fieldSeconds: 6 }],
     rankText: ['Electric +30% (25%)', '+35%; ★ field 6 s (5)'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'thunderWave.conductor': {
     ...bond('thunderWave', 'pikachu', 0, 'chainJump', 'Conductor', 'Your chain prefers Thunder Wave fields', {
@@ -1064,6 +1159,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ jumpRangeMult: 1.8, chainDamageMult: 1.15 }, { jumpRangeMult: 2, chainDamageMult: 1.3 }],
     rankText: ['jump range ×1.8 (1.6); jumps between fields +15% dmg', '×2.0; +30%'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'ironTail.spin': {
     ...generic('ironTail', 'Iron Spin', 'A 360° tail spin', {
@@ -1072,6 +1168,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.92 }, { damageMult: 0.9, reachMult: 0.85 }],
     rankText: ['dmg ×0.92 (0.8)', '×0.9; ★ reach ×0.85 (0.8)'],
+    favoured: ['enlarge', 'knockback', 'powerUp'],
   },
   'ironTail.slam': {
     ...generic('ironTail', 'Iron Slam', 'Telegraphed slam at the target; stuns', {
@@ -1083,6 +1180,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ cooldownMult: 1.4 }, { cooldownMult: 1.25, radius: 75 }],
     rankText: ['cooldown ×1.4 (1.6)', '×1.25; ★ radius 75 px (60)'],
+    favoured: ['enlarge', 'concentrated', 'keenEdge'],
   },
   'ironTail.shockShatter': {
     ...bond('ironTail', 'pikachu', 0, 'targetParalysed', 'Shock Shatter', 'Shatters paralysis for ×1.8', {
@@ -1094,6 +1192,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ shatterMult: 2, damageMultNotParalysed: 0.9 }, { shatterMult: 2.2, damageMultNotParalysed: 1, leapDamageFraction: 0.75 }],
     rankText: ['shatter ×2.0 (1.8); not paralysed ×0.9 (0.8)', '×2.2; ×1.0; ★ leap 75% (50%)'],
+    favoured: ['keenEdge', 'glass', 'concentrated'],
   },
   'thunder.storm': {
     ...generic('thunder', 'Storm Call', '3 smaller strikes', {
@@ -1105,6 +1204,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ strikeDamageFraction: 0.92 }, { strikeDamageFraction: 1.05, strikeRadius: 34 }],
     rankText: ['strikes 92% (80%)', '105%; ★ strike radius 34 px (30)'],
+    favoured: ['enlarge', 'quickCast', 'powerUp'],
   },
   'thunder.afterglow': {
     ...generic('thunder', 'Afterglow', 'Electrified ground after the strike', {
@@ -1114,6 +1214,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.92, fieldSeconds: 2.5 }, { damageMult: 1.04, fieldSeconds: 3 }],
     rankText: ['dmg ×0.92 (0.8); field 2.5 s (2)', '×1.04; 3 s'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'thunder.thunderstorm': {
     ...bond('thunder', 'pikachu', 1, 'discharge', 'Thunderstorm', 'Each Discharge calls a Thunder strike', {
@@ -1122,6 +1223,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ cooldownMult: 1.15 }, { cooldownMult: 1, strikeRadiusMult: 1.5 }],
     rankText: ['cooldown ×1.15 (1.3)', '×1.0; ★ the Discharge strike is ×1.5 wider'],
+    favoured: ['enlarge', 'powerUp', 'quickCast'],
   },
   'thunderShock.liveWire': {
     ...signature('thunderShock', 'pikachu', 'chargeLevel', 'Live Wire', 'Chain jumps leave live wires', {
@@ -1137,6 +1239,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ wireDamageFraction: 0.27, jumpDamageMult: 0.82 }, { wireDamageFraction: 0.32, jumpDamageMult: 0.93 }],
     rankText: ['wires 27% (20%); jumps ×0.82 (0.7)', '32%; ×0.93'],
+    favoured: ['keenEdge', 'velocity', 'homing'],
   },
   'thunderShock.ballLightning': {
     ...signature('thunderShock', 'pikachu', 'chargeLevel', 'Ball Lightning', 'A slow orb that zaps nearby enemies', {
@@ -1150,6 +1253,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ zapDamageFraction: 0.75 }, { zapDamageFraction: 0.85, orbSeconds: 2 }],
     rankText: ['zaps 75% (65%)', '85%; ★ orb lasts 2 s (1.6)'],
+    favoured: ['extend', 'enlarge', 'velocity'],
   },
   'thunderShock.returnArc': {
     ...signature('thunderShock', 'pikachu', 'chargeLevel', 'Return Arc', 'The last jump arcs back to you: +Charge', {
@@ -1159,6 +1263,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.85, chargePerJump: 5 }, { damageMult: 0.95, chargePerJump: 6 }],
     rankText: ['dmg ×0.85 (0.8); +5 Charge per jump (4)', '×0.95; +6'],
+    favoured: ['velocity', 'keenEdge', 'homing'],
   },
 
   // ── Lapras moves ───────────────────────────────────────────────────────
@@ -1171,6 +1276,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ cooldownMult: 1.75 }, { cooldownMult: 1.55, radius: 105 }],
     rankText: ['cooldown ×1.75 (2)', '×1.55; ★ radius 105 px (90)'],
+    favoured: ['enlarge', 'concentrated', 'knockback'],
   },
   'bodySlam.shockwave': {
     ...generic('bodySlam', 'Shockwave', 'A ground wave 150 px forward', {
@@ -1184,6 +1290,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.82, waveDamageFraction: 0.45 }, { damageMult: 0.9, waveDamageFraction: 0.5, waveLength: 200 }],
     rankText: ['slam ×0.82 (0.75); wave 45% (40%)', '×0.9; 50%; ★ wave runs 200 px (150)'],
+    favoured: ['enlarge', 'knockback', 'powerUp'],
   },
   'bodySlam.surge': {
     ...bond('bodySlam', 'lapras', 0, 'levelUp', 'Surging Slam', 'Level-ups empower the next slams', {
@@ -1194,6 +1301,7 @@ export const MUTATIONS = {
     ranks: [{ damageMult: 0.97 }, { damageMult: 1.08 }],
     tideRanks: [{ flood: { empoweredSlams: 4 }, ebb: { empoweredSlams: 2 } }, { flood: { empoweredSlams: 5 } }],
     rankText: ['dmg ×0.97 (0.85); Flood 4 slams (3), Ebb 2 (1)', '×1.08; Flood 5, Ebb 2'],
+    favoured: ['enlarge', 'quickCast', 'knockback'],
   },
   'iceBeam.iceWall': {
     ...generic('iceBeam', 'Ice Wall', 'A wall enemies must walk around', {
@@ -1206,6 +1314,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 0.8, wallSeconds: 2.5 }, { damageMult: 0.9, wallSeconds: 3, wallWidth: 110 }],
     rankText: ['dmg ×0.8 (0.7); wall 2.5 s (2)', '×0.9; 3 s; ★ wall 110 px wide (80)'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
   },
   'iceBeam.aurora': {
     ...generic('iceBeam', 'Aurora Beam', 'Hit enemies deal −20% contact damage', {
@@ -1216,6 +1325,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ contactDamageMult: 0.75, damageMult: 0.92 }, { contactDamageMult: 0.7, damageMult: 1.04 }],
     rankText: ['contact ×0.75 (0.8); dmg ×0.92 (0.8)', '×0.7; ×1.04'],
+    favoured: ['extend', 'enlarge', 'lifesteal'],
   },
   'iceBeam.flashFreeze': {
     ...bond('iceBeam', 'lapras', 0, 'levelBelow', 'Flash Freeze', 'Before Lv 30 Ice Beam freezes', {
@@ -1225,6 +1335,7 @@ export const MUTATIONS = {
     ranks: [{ damageMult: 0.92 }, { damageMult: 1.04 }],
     tideRanks: [{ flood: { freezeSeconds: 0.7 }, ebb: { widthMult: 1.3 } }, { flood: { freezeSeconds: 0.8 }, ebb: { widthMult: 1.4 } }],
     rankText: ['dmg ×0.92 (0.8); Flood freeze 0.7 s (0.6); Ebb width ×1.3 (1.2)', '×1.04; Flood 0.8 s; Ebb ×1.4'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
   },
   'surf.ferryWave': {
     ...bond('surf', 'lapras', 0, 'xpGem', 'Ferry Wave', 'Surf pulls XP gems to you', {
@@ -1237,6 +1348,7 @@ export const MUTATIONS = {
     ranks: [{ damageMult: 0.92 }, { damageMult: 1.04 }],
     tideRanks: [{ flood: { gemRadiusMult: 1.75 }, ebb: { gemRadiusMult: 1.2 } }, { flood: { gemRadiusMult: 2 }, ebb: { gemRadiusMult: 1.4 } }],
     rankText: ['dmg ×0.92 (0.8); Flood gems ×1.75 (1.5), Ebb ×1.2 (1)', '×1.04; Flood ×2, Ebb ×1.4'],
+    favoured: ['enlarge', 'quickCast', 'knockback'],
   },
   'hydroPump.pressureShell': {
     ...bond('hydroPump', 'lapras', 0, 'armorAbsorb', 'Pressure Shell', 'Armor-blocked damage charges the pump', {
@@ -1246,6 +1358,7 @@ export const MUTATIONS = {
     ranks: [{ cooldownMult: 1.1 }, { cooldownMult: 1 }],
     tideRanks: [{ flood: { storeCap: 80 }, ebb: { storeCap: 40 } }, { flood: { storeCap: 100 }, ebb: { storeCap: 50 } }],
     rankText: ['cooldown ×1.1 (1.2); cap Flood 80 (60), Ebb 40 (30)', '×1.0; Flood 100, Ebb 50'],
+    favoured: ['extend', 'concentrated', 'powerUp'],
   },
   'iceShard.hail': {
     ...signature('iceShard', 'lapras', undefined, 'Hail', 'Shards fall on the 2 nearest enemies', {
@@ -1259,6 +1372,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageFraction: 0.7 }, { damageFraction: 0.8 }],
     rankText: ['shards 70% (60%)', '80%'],
+    favoured: ['wideBlast', 'keenEdge', 'quickCast'],
   },
   'iceShard.frostLance': {
     ...signature('iceShard', 'lapras', undefined, 'Frost Lance', 'A lance that pierces every enemy', {
@@ -1268,6 +1382,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ cooldownMult: 1.2 }, { cooldownMult: 1.02, slow: 0.4 }],
     rankText: ['cooldown ×1.2 (1.4)', '×1.02; ★ slow 40% (30%)'],
+    favoured: ['velocity', 'concentrated', 'keenEdge'],
   },
   'iceShard.song': {
     ...signature('iceShard', 'lapras', undefined, 'Song of the Sea', 'Every 4th cast is a sleep song', {
@@ -1279,6 +1394,7 @@ export const MUTATIONS = {
     }),
     ranks: [{ damageMult: 1.15, sleepSeconds: 1.2 }, { damageMult: 1.3, sleepSeconds: 1.4 }],
     rankText: ['move dmg ×1.15; sleep 1.2 s (1)', '×1.3; 1.4 s'],
+    favoured: ['enlarge', 'quickCast', 'multishot'],
   },
 } as const satisfies Record<string, MutationDef>;
 

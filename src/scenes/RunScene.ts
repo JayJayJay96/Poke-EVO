@@ -21,6 +21,7 @@ import {
   chooseReplace,
   chooseCard,
   chooseSkill,
+  isFavoured,
   rerollAugments,
   resolvingLevel,
   xpToNext,
@@ -72,6 +73,8 @@ const COLORS = {
   bulbFull: 0xff7ad9,
   cheek: 0xff3030,
   bond: 0xffc83d,
+  /** Favoured augment cards (D24). */
+  favoured: 0xffb000,
   /** A Mutation Site before its roll is known. */
   site: 0x8fe3ff,
 } as const;
@@ -565,7 +568,7 @@ export class RunScene extends Phaser.Scene {
         const slot = world.moves[offer.slot]!;
         title = `Augment ${MOVES[slot.moveId].name}`;
         frame = COLORS.augment;
-        views = offer.cards.map((card) => describeAugment(card));
+        views = offer.cards.map((card) => describeAugment(card, isFavoured(world, offer.slot, card.augmentId) ? slot.mutation : null));
         views.push({ heading: 'BACK', title: 'Other move', body: 'Back to choosing a move (Esc).\nSame cards if you return.', color: 0x888888 });
         footer = canReroll(world)
           ? `[R] Reroll (${world.rerollsLeft} left)`
@@ -1321,7 +1324,8 @@ function describeSkill(slot: MoveSlot): CardView {
   };
 }
 
-function describeAugment(card: AugmentCard): CardView {
+/** `favouredBy`: the move's Mutation when this augment is one of its favoured ones (D24: gold). */
+function describeAugment(card: AugmentCard, favouredBy: MutationId | null = null): CardView {
   const def = AUGMENTS[card.augmentId];
   const rankUp = card.rank > 1;
   const exclusive = def.exclusiveTo !== undefined;
@@ -1344,10 +1348,12 @@ function describeAugment(card: AugmentCard): CardView {
           ? 0x5dff8a
           : 0x5ad1ff;
   return {
-    heading,
+    heading: favouredBy ? `★ FAVOURED · ${heading}` : heading,
     title: augmentLabel(card.augmentId, card.rank),
-    body: def.ranks[card.rank - 1]!.text,
-    color,
+    body: def.ranks[card.rank - 1]!.text + (favouredBy ? `
+
+Suits ${MUTATIONS[favouredBy].name}.` : ''),
+    color: favouredBy ? COLORS.favoured : color,
   };
 }
 

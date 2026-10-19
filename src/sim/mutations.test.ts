@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import indexMd from '../../docs/moveset/INDEX.md?raw';
 import ranksMd from '../../docs/moveset/RANKS.md?raw';
-import { AUGMENT_IDS, AUGMENTS, type AugmentId } from '../data/augments';
+import { AUGMENT_IDS, AUGMENTS, isSpecialAugment, type AugmentId } from '../data/augments';
 import { ABILITIES, POKEMON, type AbilityId, type PokemonId } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
 import {
@@ -15,7 +15,16 @@ import {
 } from '../data/mutations';
 import { grantMutation, isBuilt, mutationOffers, mutationRankUps, registerBuilt, requirementMet, socketsUsed } from './mutations';
 import { chooseSiteCard, rollSiteCards } from './sites';
-import { chooseAugment, chooseReplace, chooseSkill, drawAugmentCards, makeOffer, needsReplace } from './progression';
+import {
+  augmentPool,
+  chooseAugment,
+  chooseReplace,
+  chooseSkill,
+  drawAugmentCards,
+  isFavoured,
+  makeOffer,
+  needsReplace,
+} from './progression';
 import { createSeededRng } from './rng';
 import { createSlot, refreshStats } from './stats';
 import type { World } from './types';
@@ -73,6 +82,14 @@ describe('Mutation ranks doc (docs/moveset/RANKS.md, D24)', () => {
         expect(!a.exclusiveTo || a.exclusiveTo.some((m) => moves.includes(m)), `${id}: ${aug} exclusive`).toBe(true);
         expect(def.excludesAugments ?? [], `${id}: ${aug} excluded`).not.toContain(aug);
       }
+    }
+  });
+
+  it('favoured augments in the data match the doc', () => {
+    for (const r of rows) {
+      const id = /^`([\w.]+)`/.exec(r[0]!)![1] as MutationId;
+      const favoured = [...r[3]!.matchAll(/`(\w+)`/g)].map((m) => m[1]);
+      expect((MUTATIONS[id] as MutationDef).favoured, id).toEqual(favoured);
     }
   });
 });
@@ -191,6 +208,38 @@ describe('Mutation registry (docs/moveset/INDEX.md ↔ src/data/mutations.ts)', 
 });
 
 describe('Mutation sockets and offers', () => {
+  it('favoured augments (D24) are drawn about ×3 as often; without the Mutation, evenly', () => {
+    /** Mean appearances per draw of the plain (non-special) favoured vs other augments in the pool. */
+    const rates = (mutation: MutationId | null) => {
+      const w = world('squirtle', 5);
+      w.moves[0]!.mutation = mutation;
+      w.moves[0]!.mutationRank = mutation ? 1 : 0;
+      const fav = (MUTATIONS['bubble.trap'] as MutationDef).favoured!;
+      const plain = augmentPool(w, 0).filter((c) => !isSpecialAugment(c.augmentId));
+      const seen = new Map<string, number>();
+      for (let i = 0; i < 4000; i++) {
+        for (const c of drawAugmentCards(w, 0)) seen.set(c.augmentId, (seen.get(c.augmentId) ?? 0) + 1);
+      }
+      const mean = (ids: string[]) => ids.reduce((sum, id) => sum + (seen.get(id) ?? 0), 0) / ids.length;
+      const favIds = plain.map((c) => c.augmentId).filter((id) => fav.includes(id));
+      const others = plain.map((c) => c.augmentId).filter((id) => !fav.includes(id));
+      expect(favIds.length).toBeGreaterThan(0);
+      return mean(favIds) / mean(others);
+    };
+    expect(rates('bubble.trap')).toBeGreaterThan(2);
+    expect(rates(null)).toBeGreaterThan(0.8);
+    expect(rates(null)).toBeLessThan(1.25);
+  });
+
+  it('isFavoured only for the move holding the Mutation', () => {
+    const w = world();
+    w.moves.push(createSlot('waterGun'));
+    w.moves[0]!.mutation = 'bubble.trap';
+    expect(isFavoured(w, 0, 'enlarge')).toBe(true);
+    expect(isFavoured(w, 0, 'pierce')).toBe(false);
+    expect(isFavoured(w, 1, 'enlarge')).toBe(false);
+  });
+
   it('augment levels never offer a Mutation (D16)', () => {
     for (const pokemonId of Object.keys(POKEMON) as PokemonId[]) {
       const w = world(pokemonId, 7);
