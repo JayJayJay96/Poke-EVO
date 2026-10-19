@@ -8,6 +8,7 @@ import {
   HOOK_IDS,
   MUTATION_IDS,
   MUTATION_RANKS,
+  rankedValues,
   MUTATIONS,
   REQUIREMENT_IDS,
   type MutationDef,
@@ -74,6 +75,43 @@ describe('Mutation ranks doc (docs/moveset/RANKS.md, D24)', () => {
         expect(def.excludesAugments ?? [], `${id}: ${aug} excluded`).not.toContain(aug);
       }
     }
+  });
+});
+
+describe('Mutation rank values (D24)', () => {
+  it('rank II/III override keys exist at rank I with the same type (twists start "off")', () => {
+    for (const id of MUTATION_IDS) {
+      const def: MutationDef = MUTATIONS[id];
+      for (const override of def.ranks ?? []) {
+        for (const [key, value] of Object.entries(override)) {
+          expect(key in def.values, `${id}.${key}`).toBe(true);
+          expect(typeof value, `${id}.${key}`).toBe(typeof def.values[key]);
+        }
+      }
+    }
+  });
+
+  it('rank card text exists exactly for the Mutations with their own ranks', () => {
+    for (const id of MUTATION_IDS) {
+      const def: MutationDef = MUTATIONS[id];
+      expect(Boolean(def.rankText), id).toBe(Boolean(def.ranks));
+    }
+  });
+
+  it('rank III builds on rank II; rank I is the plain values', () => {
+    expect(rankedValues('withdraw.hunkerDown', 1)).toBe(MUTATIONS['withdraw.hunkerDown'].values);
+    expect(rankedValues('withdraw.hunkerDown', 2).buffSeconds).toBe(1.75);
+    expect(rankedValues('withdraw.hunkerDown', 3)).toMatchObject({ buffSeconds: 2, hitStagger: 15, damageMult: 1.04 });
+    expect(rankedValues('rapidSpin.shellSpin', 3).rechargeCutPerHit).toBe(0.35);
+  });
+
+  it('Mutations without their own ranks still get the placeholder damage scaling', () => {
+    const w = world('charmander');
+    expect((MUTATIONS['ember.kindle'] as MutationDef).ranks).toBeUndefined();
+    expect(grantMutation(w, 'ember.kindle')).toBe('granted');
+    const rankI = w.moves[0]!.stats.damage;
+    grantMutation(w, 'ember.kindle');
+    expect(w.moves[0]!.stats.damage).toBeCloseTo(rankI * MUTATION_RANKS.placeholderDamageMult[1]);
   });
 });
 
@@ -237,10 +275,12 @@ describe('Mutation sockets and offers', () => {
     expect(mutationRankUps(w)).toEqual([{ mutationId: 'waterGun.slick', rank: 2 }]);
     expect(grantMutation(w, 'waterGun.slick')).toBe('rankUp');
     expect(slot.mutationRank).toBe(2);
-    expect(slot.stats.damage).toBeCloseTo(rankI * MUTATION_RANKS.placeholderDamageMult[1]);
+    // Slick has its own rank values (P4h-3): its damage factor changes per rank.
+    const slickAt = (r: number) => rankedValues('waterGun.slick', r).damageMult;
+    expect(slot.stats.damage).toBeCloseTo((rankI * slickAt(2)) / slickAt(1));
     expect(grantMutation(w, 'waterGun.slick')).toBe('rankUp');
     expect(slot.mutationRank).toBe(3);
-    expect(slot.stats.damage).toBeCloseTo(rankI * MUTATION_RANKS.placeholderDamageMult[2]);
+    expect(slot.stats.damage).toBeCloseTo((rankI * slickAt(3)) / slickAt(1));
     expect(grantMutation(w, 'waterGun.slick')).toBe('maxRank');
     expect(mutationRankUps(w)).toEqual([]);
 

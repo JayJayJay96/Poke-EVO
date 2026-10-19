@@ -120,7 +120,9 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   enemy.lastEffectiveness = typeMult;
   const mutationMult = hooks?.damageMult ? hooks.damageMult(world, slot!, enemy) : 1;
   // Vulnerability debuffs (Wash Down, Acid, Nightmare...): extra damage taken, for one type or all.
-  const vuln = enemy.vulnLeft > 0 && (enemy.vulnType === null || enemy.vulnType === hit.attackType) ? 1 + enemy.vulnPct : 1;
+  const vuln =
+    (enemy.vulnLeft > 0 && (enemy.vulnType === null || enemy.vulnType === hit.attackType) ? 1 + enemy.vulnPct : 1) *
+    (enemy.vulnAllLeft > 0 ? 1 + enemy.vulnAllPct : 1);
   const amount =
     (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world) * (1 + missing) * typeMult * mutationMult * vuln;
   const dealt = Math.min(enemy.hp, amount);
@@ -222,6 +224,13 @@ export function applyVuln(enemy: Enemy, pct: number, seconds: number, type: Enem
   enemy.vulnLeft = Math.max(enemy.vulnLeft, seconds);
 }
 
+/** The stacking all-types vulnerability (Wash Down III); a stronger one replaces a weaker one. */
+export function applyVulnAll(enemy: Enemy, pct: number, seconds: number): void {
+  if (enemy.vulnAllLeft > 0 && enemy.vulnAllPct > pct) return;
+  enemy.vulnAllPct = pct;
+  enemy.vulnAllLeft = Math.max(enemy.vulnAllLeft, seconds);
+}
+
 /** Leech Seed from a Mutation (Sap Lash): a stronger seed replaces a weaker one; the time refreshes. */
 export function applySeed(enemy: Enemy, dps: number, seconds: number): void {
   const seeded = enemy.seedLeft > 0;
@@ -320,6 +329,7 @@ export function updateStatuses(world: World, dt: number): void {
     }
     if (enemy.soakLeft > 0) enemy.soakLeft = Math.max(0, enemy.soakLeft - dt);
     if (enemy.vulnLeft > 0) enemy.vulnLeft = Math.max(0, enemy.vulnLeft - dt);
+    if (enemy.vulnAllLeft > 0) enemy.vulnAllLeft = Math.max(0, enemy.vulnAllLeft - dt);
     if (enemy.weakenLeft > 0) enemy.weakenLeft = Math.max(0, enemy.weakenLeft - dt);
     if (enemy.blindLeft > 0) enemy.blindLeft = Math.max(0, enemy.blindLeft - dt);
     if (enemy.stunFatigueLeft > 0) enemy.stunFatigueLeft = Math.max(0, enemy.stunFatigueLeft - dt);

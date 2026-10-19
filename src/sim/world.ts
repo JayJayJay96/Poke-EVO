@@ -231,6 +231,8 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     vulnPct: 0,
     vulnLeft: 0,
     vulnType: null,
+    vulnAllPct: 0,
+    vulnAllLeft: 0,
     weakenMult: 1,
     weakenLeft: 0,
     blindLeft: 0,
@@ -479,7 +481,7 @@ function applyContactDamage(world: World): void {
     // Shell Armor's share of the reduction, for armorAbsorb (Lapras).
     const armor = -(ability.damageTakenPct ?? 0);
     if (armor > 0) emit(world, 'armorAbsorb', contact * armor);
-    emit(world, 'hitTaken', taken);
+    emit(world, 'hitTaken', taken, enemy);
     if (player.hp <= 0) world.status = 'fainted';
   }
 }

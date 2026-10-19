@@ -1,25 +1,26 @@
 import { MOVES, type MeleeMoveDef } from '../../data/moves';
 import { MUTATIONS } from '../../data/mutations';
-import { canTrap, damageEnemy, findNearestEnemy, makeHitInfo, procHit, pushEnemy } from '../combat';
+import { canTrap, damageEnemy, findNearestEnemy, makeHitInfo, procHit, pushEnemy, soak } from '../combat';
 import { defineMutation, hpBelow, tideFlood } from '../hooks';
-import { dirTo, entitiesOf, forEachEnemyIn, forEachEnemyOnSegment, spawnEntity } from './util';
+import { dirTo, entitiesOf, forEachEnemyIn, forEachEnemyOnSegment, ranked, spawnEntity } from './util';
 
 // Surf Mutations (docs/moveset/shared/surf.md; Bonds in squirtle/ and lapras/).
 
 const surf = MOVES.surf as MeleeMoveDef;
 
 /** Ride the Wave (generic): Surf becomes a wall rolling the way you move, carrying light enemies; you speed up. */
-const ride = MUTATIONS['surf.rideTheWave'].values;
+const ride = ranked('surf.rideTheWave');
 defineMutation('surf.rideTheWave', {
   cast: (world, slot) => {
-    if (!findNearestEnemy(world, ride.travel)) return false;
+    const v = ride(slot);
+    if (!findNearestEnemy(world, v.travel)) return false;
     const { player } = world;
-    const wave = spawnEntity(world, 'surf.rideTheWave', player.x, player.y, ride.travel / ride.waveSpeed);
-    wave.vx = player.faceX * ride.waveSpeed;
-    wave.vy = player.faceY * ride.waveSpeed;
-    wave.radius = (ride.wallLength / 2) * slot.stats.area;
-    wave.damage = slot.stats.damage;
-    slot.mutState.speedLeft = ride.speedSeconds;
+    const wave = spawnEntity(world, 'surf.rideTheWave', player.x, player.y, v.travel / v.waveSpeed);
+    wave.vx = player.faceX * v.waveSpeed;
+    wave.vy = player.faceY * v.waveSpeed;
+    wave.radius = (v.wallLength / 2) * slot.stats.area;
+    wave.damage = slot.stats.damage * v.waveDamageMult;
+    slot.mutState.speedLeft = v.speedSeconds;
     return true;
   },
   update: (world, slot, dt) => {
@@ -35,25 +36,26 @@ defineMutation('surf.rideTheWave', {
       // The wall is perpendicular to its travel.
       const px = -dy * wave.radius;
       const py = dx * wave.radius;
-      forEachEnemyOnSegment(world, wave.x - px, wave.y - py, wave.x + px, wave.y + py, ride.wallThickness, (e) => {
+      const v = ride(slot);
+      forEachEnemyOnSegment(world, wave.x - px, wave.y - py, wave.x + px, wave.y + py, v.wallThickness, (e) => {
         if (wave.hitIds.includes(e.id)) return;
         wave.hitIds.push(e.id);
         damageEnemy(world, e, wave.damage, hit);
-        if (canTrap(e)) pushEnemy(e, dx, dy, ride.carryPx);
+        if (canTrap(e)) pushEnemy(e, dx, dy, v.carryPx);
       });
     }
   },
-  moveSpeedMult: (_world, slot) => (slot.mutState.speedLeft ? 1 + ride.moveSpeedPct : 1),
+  moveSpeedMult: (_world, slot) => (slot.mutState.speedLeft ? 1 + ride(slot).moveSpeedPct : 1),
 });
 
-/** Backwash (generic): after the wave reaches its edge it rolls back in, hitting again and pulling enemies in. */
-const back = MUTATIONS['surf.backwash'].values;
+/** Backwash (generic): after the wave reaches its edge it rolls back in, hitting again and pulling enemies in (III: Soaking). */
+const back = ranked('surf.backwash');
 defineMutation('surf.backwash', {
-  stats: (s) => {
-    s.cooldown *= back.cooldownMult;
+  stats: (s, _world, slot) => {
+    s.cooldown *= back(slot).cooldownMult;
   },
   onCast: (_world, slot) => {
-    slot.mutState.backLeft = back.returnDelay;
+    slot.mutState.backLeft = back(slot).returnDelay;
   },
   update: (world, slot, dt) => {
     if (!slot.mutState.backLeft) return;
@@ -62,25 +64,28 @@ defineMutation('surf.backwash', {
     const { player } = world;
     const reach = surf.reach * slot.stats.area * slot.stats.reachMult;
     const hit = procHit(slot.stats.attackType);
+    const v = back(slot);
     forEachEnemyIn(world, player.x, player.y, reach, (e) => {
-      damageEnemy(world, e, slot.stats.damage * back.returnDamageFraction, hit);
+      damageEnemy(world, e, slot.stats.damage * v.returnDamageFraction, hit);
+      if (v.returnSoaks) soak(e);
       if (canTrap(e)) {
         const [dx, dy] = dirTo(e.x, e.y, player.x, player.y);
-        pushEnemy(e, dx, dy, back.pullPx);
+        pushEnemy(e, dx, dy, v.pullPx);
       }
     });
   },
 });
 
 /** Last Wave (Bond, HP below 40%): a tank's last stand: Surf comes faster and wider; weaker above it. */
-const last = MUTATIONS['surf.lastWave'].values;
+const last = ranked('surf.lastWave');
 defineMutation('surf.lastWave', {
-  live: (s, world) => {
-    if (hpBelow(world, last.hpThreshold)) {
-      s.cooldown *= last.cooldownMult;
-      s.reachMult *= last.radiusMult;
+  live: (s, world, slot) => {
+    const v = last(slot);
+    if (hpBelow(world, v.hpThreshold)) {
+      s.cooldown *= v.cooldownMult;
+      s.reachMult *= v.radiusMult;
     } else {
-      s.damage *= last.damageMultAbove;
+      s.damage *= v.damageMultAbove;
     }
   },
 });

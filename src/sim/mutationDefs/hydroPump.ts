@@ -1,19 +1,19 @@
 import { MOVES, type BeamMoveDef } from '../../data/moves';
 import { MUTATIONS } from '../../data/mutations';
-import { damageEnemy, findNearestEnemy, makeHitInfo } from '../combat';
+import { damageEnemy, findNearestEnemy, makeHitInfo, soak } from '../combat';
 import { defineMutation, healPlayer, tideFlood } from '../hooks';
-import { entitiesOf, forEachEnemyIn, spawnEntity } from './util';
+import { entitiesOf, forEachEnemyIn, ranked, spawnEntity } from './util';
 
 // Hydro Pump Mutations (docs/moveset/shared/hydro-pump.md; Bonds in squirtle/ and lapras/).
 
 const hydroPump = MOVES.hydroPump as BeamMoveDef;
 
 /** Split Stream (generic): two beams at ±30°, each weaker. */
-const split = MUTATIONS['hydroPump.splitStream'].values;
-const SPLIT = (split.angleDeg * Math.PI) / 180;
+const split = ranked('hydroPump.splitStream');
+const SPLIT = (MUTATIONS['hydroPump.splitStream'].values.angleDeg * Math.PI) / 180;
 defineMutation('hydroPump.splitStream', {
-  stats: (s) => {
-    s.damage *= split.beamDamageFraction;
+  stats: (s, _world, slot) => {
+    s.damage *= split(slot).beamDamageFraction;
   },
   beamDirs: (_world, slot) => {
     const base = Math.atan2(slot.dirY, slot.dirX);
@@ -25,11 +25,11 @@ defineMutation('hydroPump.splitStream', {
 });
 
 /** Pressure Build (generic): each tick hits harder than the last, and the beam lasts longer. A boss killer. */
-const pressure = MUTATIONS['hydroPump.pressureBuild'].values;
+const pressure = ranked('hydroPump.pressureBuild');
 defineMutation('hydroPump.pressureBuild', {
-  stats: (s) => {
-    s.duration *= pressure.durationMult;
-    s.cooldown *= pressure.cooldownMult;
+  stats: (s, _world, slot) => {
+    s.duration *= pressure(slot).durationMult;
+    s.cooldown *= pressure(slot).cooldownMult;
   },
   onCast: (_world, slot) => {
     slot.mutState.total = slot.activeLeft;
@@ -37,7 +37,7 @@ defineMutation('hydroPump.pressureBuild', {
   live: (s, _world, slot) => {
     if (slot.activeLeft <= 0) return; // the first tick of a cast is a plain tick
     const ticks = Math.floor((slot.mutState.total! - slot.activeLeft) / hydroPump.tickInterval);
-    s.damage *= 1 + pressure.rampPerTick * ticks;
+    s.damage *= 1 + pressure(slot).rampPerTick * ticks;
   },
 });
 
@@ -45,14 +45,14 @@ defineMutation('hydroPump.pressureBuild', {
  * Rain Cannon (Bond, healing, Blastoise): the pump fires straight up and rains on a circle around you
  * for the beam's duration; each tick heals you per enemy hit (capped). No push, no beam.
  */
-const rain = MUTATIONS['hydroPump.rainCannon'].values;
+const rain = ranked('hydroPump.rainCannon');
 defineMutation('hydroPump.rainCannon', {
-  stats: (s) => {
-    s.damage *= rain.damageMult;
-    s.knockback *= rain.pushMult;
+  stats: (s, _world, slot) => {
+    s.damage *= rain(slot).damageMult;
+    s.knockback *= rain(slot).pushMult;
   },
   cast: (world, slot) => {
-    const radius = rain.radius * slot.stats.area;
+    const radius = rain(slot).radius * slot.stats.area;
     if (!findNearestEnemy(world, radius)) return false;
     slot.activeLeft = hydroPump.duration * slot.stats.duration;
     slot.tickLeft = 0;
@@ -70,12 +70,14 @@ defineMutation('hydroPump.rainCannon', {
       if (cloud.timer > 0) continue;
       cloud.timer += hydroPump.tickInterval;
       const hit = makeHitInfo(slot.stats, slot);
+      const v = rain(slot);
       let hits = 0;
       forEachEnemyIn(world, cloud.x, cloud.y, cloud.radius, (e) => {
         damageEnemy(world, e, slot.stats.damage, hit);
+        if (v.rainSoaks) soak(e);
         hits++;
       });
-      healPlayer(world, Math.min(hits * rain.healPerEnemy, rain.maxHealPerSec * hydroPump.tickInterval));
+      healPlayer(world, Math.min(hits * v.healPerEnemy, v.maxHealPerSec * hydroPump.tickInterval));
     }
   },
 });

@@ -1,10 +1,11 @@
 import { writeFileSync } from 'node:fs';
+import { env } from 'node:process';
 import { test } from 'vitest';
 import { POKEMON, type PokemonId } from '../data/content';
 import type { MoveId } from '../data/moves';
 import { MUTATION_IDS, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { measureDps, type DummyRing } from './balance';
-import { isBuilt } from './mutations';
+import { isBuilt, setMutation } from './mutations';
 import { createSeededRng } from './rng';
 import { createSlot, refreshStats } from './stats';
 import { createWorld } from './world';
@@ -29,19 +30,23 @@ function lineFor(def: MutationDef): PokemonId {
   return (Object.keys(POKEMON) as PokemonId[]).find((id) => POKEMON[id].learnset.some((e) => e.move === def.move))!;
 }
 
-function dpsWith(pokemonId: PokemonId, move: MoveId, seed: number, mutation: MutationId | null): number {
+function dpsWith(pokemonId: PokemonId, move: MoveId, seed: number, mutation: MutationId | null, rank = 1): number {
   const world = createWorld({ rng: createSeededRng(seed), pokemonId, spawnEnabled: false });
   const slot = createSlot(move);
-  if (mutation) slot.mutation = mutation;
+  if (mutation) setMutation(slot, mutation, rank);
   else slot.sockets.push({ augmentId: 'powerUp', rank: 1 });
   world.moves = [slot];
   refreshStats(world);
   return measureDps(world, RING_FOR[move] ?? RING);
 }
 
-test('Mutation rule 4: DPS vs Power Up I', { timeout: 30 * 60_000 }, () => {
+// `MUTATIONS_ONLY=withdraw,bubble npm run mutations` measures only those moves' Mutations.
+const ONLY = env.MUTATIONS_ONLY?.split(',');
+
+test('Mutation rule 4: DPS vs Power Up I', { timeout: 60 * 60_000 }, () => {
   const rows: string[] = [];
   for (const id of MUTATION_IDS.filter(isBuilt)) {
+    if (ONLY && !ONLY.includes(id.split('.')[0]!)) continue;
     const def: MutationDef = MUTATIONS[id];
     const line = lineFor(def);
     const move = def.move;
@@ -50,9 +55,18 @@ test('Mutation rule 4: DPS vs Power Up I', { timeout: 30 * 60_000 }, () => {
     const mutated = avg((seed) => dpsWith(line, move, seed, id));
     const ratio = powerUp > 0 ? mutated / powerUp : 0;
     const ok = Math.abs(ratio - 1) <= TOLERANCE ? '✓' : '✗';
-    rows.push(`| ${id} | ${def.kind} | ${line} | ${powerUp.toFixed(1)} | ${mutated.toFixed(1)} | ${ratio.toFixed(2)} | ${ok} |`);
+    // D24: ranks II and III against rank I (targets ≈ 1.15 and ≈ 1.30).
+    const rankRatio = (rank: number) => {
+      const dps = avg((seed) => dpsWith(line, move, seed, id, rank));
+      return mutated > 0 ? (dps / mutated).toFixed(2) : '–';
+    };
+    const own = def.ranks ? '' : ' (placeholder)';
+    rows.push(
+      `| ${id} | ${def.kind} | ${line} | ${powerUp.toFixed(1)} | ${mutated.toFixed(1)} | ${ratio.toFixed(2)} | ${ok} | ${rankRatio(2)} | ${rankRatio(3)}${own} |`,
+    );
   }
-  const header = '| Mutation | kind | measured on | Power Up I DPS | mutated DPS | ratio | ±15% |\n|---|---|---|---|---|---|---|';
+  const header =
+    '| Mutation | kind | measured on | Power Up I DPS | mutated DPS | ratio | ±15% | II / I | III / I |\n|---|---|---|---|---|---|---|---|---|';
   const note =
     'Dummy ring of 16 from 30 px (32 from 30 to 205 px for Spark), move alone at its first stage, bot standing still and invulnerable (Shell always ready, ' +
     'never hit, full HP). Utility (puddles, slips, Soak, stagger, movement) is not damage and is not counted.';

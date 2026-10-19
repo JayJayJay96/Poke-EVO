@@ -1,9 +1,9 @@
 import { MOVES, type MeleeMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
-import { MAX_ENEMY_RADIUS, damageEnemy, findNearestEnemy, makeHitInfo, queryEnemies } from '../combat';
+import { MAX_ENEMY_RADIUS, damageEnemy, findNearestEnemy, makeHitInfo, pushEnemy, queryEnemies } from '../combat';
 import { SWING_SECONDS } from '../forms/melee';
 import { defineMutation } from '../hooks';
 import type { MoveSlot, World } from '../types';
+import { dirTo, ranked } from './util';
 
 // Withdraw Mutations (docs/moveset/shared/withdraw.md, squirtle/README.md).
 
@@ -38,15 +38,15 @@ function bashAround(world: World, slot: MoveSlot, damageFraction: number): void 
  * Spiked Shell (generic): Withdraw becomes a 3 s aura that hits everything touching you every
  * 0.5 s and staggers it (no stun, or it would lock the crowd). You move slower while it's up.
  */
-const spiked = MUTATIONS['withdraw.spikedShell'].values;
+const spiked = ranked('withdraw.spikedShell');
 defineMutation('withdraw.spikedShell', {
-  stats: (s) => {
-    s.cooldown *= spiked.cooldownMult;
+  stats: (s, _world, slot) => {
+    s.cooldown *= spiked(slot).cooldownMult;
     s.stun = 0;
   },
   cast: (world, slot) => {
     if (!findNearestEnemy(world, reachOf(slot) + MAX_ENEMY_RADIUS)) return false;
-    slot.activeLeft = spiked.auraSeconds * slot.stats.duration;
+    slot.activeLeft = spiked(slot).auraSeconds * slot.stats.duration;
     slot.tickLeft = 0;
     return true;
   },
@@ -55,17 +55,17 @@ defineMutation('withdraw.spikedShell', {
     slot.activeLeft -= dt;
     slot.tickLeft -= dt;
     if (slot.tickLeft > 0) return;
-    slot.tickLeft += spiked.tickInterval;
-    bashAround(world, slot, spiked.tickDamageFraction);
+    slot.tickLeft += spiked(slot).tickInterval;
+    bashAround(world, slot, spiked(slot).tickDamageFraction);
   },
-  moveSpeedMult: (_world, slot) => (slot.activeLeft > 0 ? spiked.moveSpeedMult : 1),
+  moveSpeedMult: (_world, slot) => (slot.activeLeft > 0 ? spiked(slot).moveSpeedMult : 1),
 });
 
-/** Counter Shell (Bond, Shell blocks): every block resets Withdraw, and that bash staggers ×2. */
-const counter = MUTATIONS['withdraw.counterShell'].values;
+/** Counter Shell (Bond, Shell blocks): every block resets Withdraw, and that bash staggers ×2 (III: hits harder too). */
+const counter = ranked('withdraw.counterShell');
 defineMutation('withdraw.counterShell', {
-  stats: (s) => {
-    s.damage *= counter.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= counter(slot).damageMult;
   },
   onEvent: (_world, slot, event) => {
     if (event !== 'shellBlock') return;
@@ -73,25 +73,33 @@ defineMutation('withdraw.counterShell', {
     slot.mutState.armed = 1;
   },
   live: (s, _world, slot) => {
-    if (slot.mutState.armed) s.knockback *= counter.staggerMult;
+    if (!slot.mutState.armed) return;
+    s.knockback *= counter(slot).staggerMult;
+    s.damage *= counter(slot).resetHitMult;
   },
   onCast: (_world, slot) => {
     slot.mutState.armed = 0;
   },
 });
 
-/** Hunker Down (generic): for a moment after each cast you take much less damage, but crawl. */
-const hunker = MUTATIONS['withdraw.hunkerDown'].values;
+/** Hunker Down (generic): for a moment after each cast you take much less damage, but crawl (III: hits taken stagger back). */
+const hunker = ranked('withdraw.hunkerDown');
 defineMutation('withdraw.hunkerDown', {
-  stats: (s) => {
-    s.damage *= hunker.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= hunker(slot).damageMult;
   },
   onCast: (_world, slot) => {
-    slot.mutState.buff = hunker.buffSeconds;
+    slot.mutState.buff = hunker(slot).buffSeconds;
   },
   update: (_world, slot, dt) => {
     if (slot.mutState.buff) slot.mutState.buff = Math.max(0, slot.mutState.buff - dt);
   },
-  damageTakenMult: (_world, slot) => (slot.mutState.buff ? hunker.damageTakenMult : 1),
-  moveSpeedMult: (_world, slot) => (slot.mutState.buff ? hunker.moveSpeedMult : 1),
+  onEvent: (world, slot, event, _amount, enemy) => {
+    const stagger = hunker(slot).hitStagger;
+    if (event !== 'hitTaken' || !slot.mutState.buff || stagger <= 0 || !enemy) return;
+    const [dx, dy] = dirTo(world.player.x, world.player.y, enemy.x, enemy.y);
+    pushEnemy(enemy, dx, dy, stagger);
+  },
+  damageTakenMult: (_world, slot) => (slot.mutState.buff ? hunker(slot).damageTakenMult : 1),
+  moveSpeedMult: (_world, slot) => (slot.mutState.buff ? hunker(slot).moveSpeedMult : 1),
 });

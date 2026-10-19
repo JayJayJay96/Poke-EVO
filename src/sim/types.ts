@@ -98,6 +98,9 @@ export interface Enemy {
   vulnPct: number;
   vulnLeft: number;
   vulnType: PokemonType | null;
+  /** A second, all-types vulnerability that stacks with the one above (Wash Down III, D24). */
+  vulnAllPct: number;
+  vulnAllLeft: number;
   /** Blinded (Smokescreen, D20): wanders toward (wanderX, wanderY) instead of you and hits softer. */
   blindLeft: number;
   wanderX: number;

@@ -23,30 +23,30 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 ## Squirtle line
 | Mutation | Rank II | Rank III | Favoured |
 |---|---|---|---|
-| `withdraw.spikedShell` Spiked Shell | aura ticks 0.32 (0.28) | ticks 0.36; ★ aura lasts 4 s (3) | `enlarge`, `quickCast`, `lifesteal` |
+| `withdraw.spikedShell` Spiked Shell | aura ticks 0.32 (0.28) | ticks 0.3; ★ aura lasts 4 s (3) | `enlarge`, `quickCast`, `lifesteal` |
 | `withdraw.hunkerDown` Hunker Down | dmg ×0.92 (0.8); buff 1.75 s (1.5) | dmg ×1.04; buff 2 s; ★ hits taken while hunkered stagger the attacker 15 px | `quickCast`, `knockback`, `powerUp` |
 | `withdraw.counterShell` Counter Shell | dmg ×0.92 (0.8) | dmg ×1.04; ★ the reset Withdraw hits +50% | `knockback`, `powerUp`, `enlarge` |
 | `rapidSpin.spiralSpin` Spiral Spin | dmg ×1.03 (0.9) | dmg ×1.17; ★ spirals out to 140 px (120) | `extend`, `enlarge`, `powerUp` |
 | `rapidSpin.deflector` Deflector | dmg ×0.8 (0.7) | dmg ×0.91; deflect window 0.2 s (0.3) | `extend`, `enlarge`, `quickCast` |
-| `rapidSpin.shellSpin` Shell Spin | cut 0.3 s per hit (0.25); dmg ×0.88 (0.8) | cut 0.35 s; max 2 s per cast (1.5); dmg ×0.96 | `extend`, `powerUp`, `quickCast` |
+| `rapidSpin.shellSpin` Shell Spin | cut 0.3 s per hit (0.25); dmg ×0.92 (0.8) | cut 0.35 s; max 2 s per cast (1.5); dmg ×1.04 | `extend`, `powerUp`, `quickCast` |
 | `waterGun.slick` Slick | dmg ×0.8 (0.7); slip 0.2/s (0.15) | dmg ×0.91; slip 0.25/s; ★ puddles last 4.5 s (3) | `extend`, `enlarge`, `quickCast` |
-| `waterGun.washDown` Wash Down | Water taken +25% (20%); dmg ×0.58 (0.5) | +30%; dmg ×0.65; ★ also +10% from every other type | `extend`, `quickCast`, `enlarge` |
-| `waterGun.steadyAim` Steady Aim | length ×1.5 (1.4); Shell down ×0.85 (0.75) | length ×1.6; Shell down ×0.95; ★ Shell up: +20% damage | `extend`, `enlarge`, `powerUp` |
-| `whirlpool.maelstrom` Maelstrom | collapse ×1.85 (1.6) | collapse ×2.1; ★ pull 45 px/s (30) | `linger`, `enlarge`, `concentrated` |
+| `waterGun.washDown` Wash Down | Water taken +25% (20%); dmg ×0.55 (0.5) | +30%; dmg ×0.55; ★ also +10% from every other type | `extend`, `quickCast`, `enlarge` |
+| `waterGun.steadyAim` Steady Aim | length ×1.5 (1.4); Shell down ×0.85 (0.75); Shell up +10% damage | length ×1.6; Shell down ×0.95; ★ Shell up: +20% damage | `extend`, `enlarge`, `powerUp` |
+| `whirlpool.maelstrom` Maelstrom | collapse ×1.85 (1.6); cooldown ×1.25 (1.4) | collapse ×2.1; cooldown ×1.15; ★ pull 45 px/s (30) | `linger`, `enlarge`, `concentrated` |
 | `whirlpool.moat` Moat | dmg ×0.58 (0.5) | dmg ×0.65; ★ enemies crossing the ring are Soaked | `enlarge`, `linger`, `powerUp` |
 | `whirlpool.eyeOfTheStorm` Eye of the Storm | size ×0.6 (0.5); 2.5 s (2) | size ×0.7; 3 s; ★ it pulls like Maelstrom (30 px/s) | `linger`, `enlarge`, `quickCast` |
 | `surf.rideTheWave` Ride the Wave | wave dmg ×1.15; travel 250 px (220) | wave dmg ×1.3; ★ speed boost 2 s (1) | `enlarge`, `quickCast`, `knockback` |
 | `surf.backwash` Backwash | return 50% (30%) | return 70%; ★ the return wave Soaks | `enlarge`, `knockback`, `quickCast` |
 | `surf.lastWave` Last Wave | above-threshold dmg ×0.9 (0.8); threshold 50% HP (40%) | ×1.0; threshold 60% | `enlarge`, `quickCast`, `glass` |
 | `hydroPump.splitStream` Split Stream | 38% per beam (33%) | 43% per beam | `extend`, `enlarge`, `powerUp` |
-| `hydroPump.pressureBuild` Pressure Build | ramp +15% per tick (12%) | ramp +18%; ★ cooldown ×1.3 (1.5) | `extend`, `concentrated`, `keenEdge` |
+| `hydroPump.pressureBuild` Pressure Build | ramp +15% per tick (12%); cooldown ×1.35 (1.5) | ramp +20%; ★ cooldown ×1.3 | `extend`, `concentrated`, `keenEdge` |
 | `hydroPump.rainCannon` Rain Cannon | dmg ×0.115 (0.1); heal cap 5/s (4) | dmg ×0.13; cap 6/s; ★ the rain Soaks | `enlarge`, `extend`, `lifesteal` |
-| `flashCannon.shrapnel` Shrapnel | shards 40% (35%) | 45%; ★ shards pierce 1 | `pierce`, `velocity`, `multishot` |
+| `flashCannon.shrapnel` Shrapnel | shards 40% (35%); cooldown ×1.15 (1.3) | 45%; cooldown ×1.0; ★ shards pierce 1 | `pierce`, `velocity`, `multishot` |
 | `flashCannon.railgun` Railgun | dmg ×1.5 (1.3) | dmg ×1.7 | `velocity`, `concentrated`, `keenEdge` |
-| `flashCannon.armorRounds` Armor Rounds | second round 70% (60%); dmg ×0.88 (0.8) | 80%; dmg ×0.96 | `velocity`, `powerUp`, `homing` |
-| `bubble.trap` Bubble Trap (signature) | pop 95% (80%) | pop 110%; ★ the pop Soaks | `enlarge`, `wideBlast`, `multishot` |
-| `bubble.froth` Froth Mines (signature) | mines 30% (25%) | 35%; ★ up to 12 mines (9) | `multishot`, `extend`, `enlarge` |
-| `bubble.undertow` Undertow (signature) | dmg ×0.75 (0.65) | dmg ×0.85; ★ range ×0.9 (0.8) | `pierce`, `velocity`, `enlarge` |
+| `flashCannon.armorRounds` Armor Rounds | second round 70% (60%); dmg ×0.92 (0.8) | 80%; dmg ×1.04 | `velocity`, `powerUp`, `homing` |
+| `bubble.trap` Bubble Trap (signature) | pop 100% (80%) | pop 120%; ★ the pop Soaks | `enlarge`, `wideBlast`, `multishot` |
+| `bubble.froth` Froth Mines (signature) | mines 33% (25%) | 40%; ★ up to 12 mines (9) | `multishot`, `extend`, `enlarge` |
+| `bubble.undertow` Undertow (signature) | dmg ×0.75 (0.65) | dmg ×0.88; ★ range ×0.9 (0.8) | `pierce`, `velocity`, `enlarge` |
 
 ## Charmander line
 | Mutation | Rank II | Rank III | Favoured |

@@ -1,6 +1,6 @@
 import { POKEMON } from '../../data/content';
 import type { MoveId } from '../../data/moves';
-import type { MutationId } from '../../data/mutations';
+import { rankedValues, type MutationId, type RankedValues } from '../../data/mutations';
 import type { ProjectileMoveDef } from '../../data/moves';
 import { queryEnemies } from '../combat';
 import { castProjectile } from '../forms/projectile';
@@ -136,4 +136,9 @@ export function nearestEnemies(world: World, x: number, y: number, range: number
   }
   found.sort((a, b) => a.d2 - b.d2);
   return found.slice(0, count).map((f) => f.e);
+}
+
+/** Reads a Mutation's values at the rank its slot holds (D24). */
+export function ranked<I extends MutationId>(id: I): (slot: MoveSlot) => RankedValues<I> {
+  return (slot) => rankedValues(id, slot.mutationRank);
 }

@@ -72,6 +72,13 @@ export interface MutationDef {
   readonly values: MutationValues;
   /** Augments this Mutation's move can no longer take (Undertow: Return). */
   readonly excludesAugments?: readonly AugmentId[];
+  /**
+   * Rank II and III (D24, docs/moveset/RANKS.md): overrides of top-level `values`, absolute.
+   * Rank III applies on top of rank II. Every key must already exist at rank I (twists start "off").
+   */
+  readonly ranks?: readonly [MutationValues, MutationValues];
+  /** Card text for rank II and III (the RANKS.md cells); present exactly when `ranks` is. */
+  readonly rankText?: readonly [string, string];
 }
 
 /**
@@ -130,152 +137,255 @@ const signature = <const V extends MutationValues>(
 
 export const MUTATIONS = {
   // ── Squirtle line moves ────────────────────────────────────────────────
-  'withdraw.spikedShell': generic('withdraw', 'Spiked Shell', 'A 3 s contact-damage aura', {
-    auraSeconds: 3,
-    tickInterval: 0.5,
-    /** P4f-3 rule-4 tuning: 7 ticks per cast, so each tick is a fraction of a bash. */
-    tickDamageFraction: 0.28,
-    moveSpeedMult: 0.8,
-    cooldownMult: 1.6,
-  }),
-  'withdraw.hunkerDown': generic('withdraw', 'Hunker Down', '−40% damage taken for 1.5 s after a cast', {
-    buffSeconds: 1.5,
-    damageTakenMult: 0.6,
-    moveSpeedMult: 0.5,
-    damageMult: 0.8,
-  }),
-  'withdraw.counterShell': bond('withdraw', 'squirtle', 0, 'shellBlock', 'Counter Shell', 'Shell blocks reset Withdraw; stagger ×2', {
-    staggerMult: 2,
-    damageMult: 0.8,
-  }),
-  'rapidSpin.spiralSpin': generic('rapidSpin', 'Spiral Spin', 'Shells spiral out from 30 to 120 px', {
-    innerRadius: 30,
-    outerRadius: 120,
-    damageMult: 0.9, // P4f-6 rule-4 tuning (doc: 0.85, 0.84x)
-  }),
-  'rapidSpin.deflector': generic('rapidSpin', 'Deflector', 'Shells eat enemy projectiles', {
-    secondsPerDeflect: 0.3,
-    damageMult: 0.7,
-  }),
-  'rapidSpin.shellSpin': bond('rapidSpin', 'squirtle', 0, 'shellRecharge', 'Shell Spin', 'Shell hits cut Shell recharge', {
-    rechargeCutPerHit: 0.25,
-    maxCutPerCast: 1.5,
-    damageMult: 0.8,
-  }),
-  'waterGun.slick': generic('waterGun', 'Slick', 'Leaves a puddle line; light enemies slip', {
-    puddleSeconds: 3,
-    slipChancePerSec: 0.15,
-    slipStun: 0.6,
-    damageMult: 0.7,
-  }),
-  'waterGun.washDown': generic('waterGun', 'Wash Down', 'Soaks; +20% Water damage taken', {
-    debuffSeconds: 3,
-    waterDamageTakenPct: 0.2,
-    damageMult: 0.5,
-    pushMult: 0,
-  }),
-  'waterGun.steadyAim': bond('waterGun', 'squirtle', 0, 'shellReady', 'Steady Aim', 'Shell up: longer beam, push ×2', {
-    lengthMult: 1.4,
-    pushMult: 2,
-    damageMultShellDown: 0.75,
-  }),
-  'whirlpool.maelstrom': generic('whirlpool', 'Maelstrom', 'Pulls in, then collapses into a burst', {
-    pullSpeed: 30,
-    collapseTickMult: 1.6, // P4f-6 rule-4 tuning (doc: 3, 1.33x)
-    perEnemyPct: 0.15,
-    maxEnemies: 10,
-    cooldownMult: 1.4,
-  }),
-  'whirlpool.moat': generic('whirlpool', 'Moat', 'A slowing ring that follows you', {
-    innerRadius: 40,
-    outerRadius: 90,
-    slow: 0.7,
-    damageMult: 0.5, // P4f-6 rule-4 tuning (doc: 0.6, 1.17x)
-  }),
-  'whirlpool.eyeOfTheStorm': bond('whirlpool', 'squirtle', 1, 'shellBurst', 'Eye of the Storm', 'Shell Burst drops a whirlpool at your feet', {
-    sizeMult: 0.5,
-    seconds: 2,
-    cooldownMult: 1.3,
-  }),
-  'surf.rideTheWave': generic('surf', 'Ride the Wave', 'A wall rolling the way you move', {
-    wallLength: 250,
-    moveSpeedPct: 0.3,
-    speedSeconds: 1,
-    // P4f-6 build values: how fast and far the wall rolls, and how far it carries light enemies.
-    waveSpeed: 300,
-    travel: 220,
-    carryPx: 40,
-    wallThickness: 24,
-  }),
-  'surf.backwash': generic('surf', 'Backwash', 'The wave rolls back in and pulls', {
-    returnDamageFraction: 0.3, // P4f-6 rule-4 tuning (doc: 0.5, 1.30x)
-    pullPx: 20,
-    cooldownMult: 1.3,
-    /** P4f-6 build value: seconds until the wave rolls back in. */
-    returnDelay: 0.3,
-  }),
-  'surf.lastWave': bond('surf', 'squirtle', 0, 'hpBelow', 'Last Wave', 'Below 40% HP: faster, bigger Surf', {
-    hpThreshold: 0.4,
-    cooldownMult: 0.5,
-    radiusMult: 1.3,
-    damageMultAbove: 0.8,
-  }),
-  'hydroPump.splitStream': generic('hydroPump', 'Split Stream', 'Two beams at ±30°', {
-    angleDeg: 30,
-    beamDamageFraction: 0.33, // P4f-6 rule-4 tuning (doc: 0.6; two beams cover twice the crowd, 2.09x)
-  }),
-  'hydroPump.pressureBuild': generic('hydroPump', 'Pressure Build', 'Damage ramps each tick', {
-    rampPerTick: 0.12, // P4f-6 rule-4 tuning (doc: 0.25, 1.34x)
-    durationMult: 1.5,
-    cooldownMult: 1.5,
-  }),
-  'hydroPump.rainCannon': bond('hydroPump', 'squirtle', 2, 'healing', 'Rain Cannon', 'Rains around you; heals per enemy hit', {
-    radius: 130,
-    healPerEnemy: 1,
-    maxHealPerSec: 4,
-    damageMult: 0.1, // P4f-6 rule-4 tuning (doc: 0.7; a 130 px rain every tick instead of one beam line, 7.3x)
-    pushMult: 0,
-  }),
-  'flashCannon.shrapnel': generic('flashCannon', 'Shrapnel', 'Shatters into 6 shards', {
-    shards: 6,
-    shardDamageFraction: 0.35,
-    cooldownMult: 1.3,
-    // P4f-6 build values: shard flight.
-    shardSpeed: 400,
-    shardRange: 120,
-    shardRadius: 5,
-  }),
-  'flashCannon.railgun': generic('flashCannon', 'Railgun', 'Fires where you move; infinite pierce', {
-    speedMult: 1.8,
-    damageMult: 1.3,
-  }),
-  'flashCannon.armorRounds': bond('flashCannon', 'squirtle', 2, 'hitTaken', 'Armor Rounds', 'Hit since last shot: a second round', {
-    secondRoundFraction: 0.6,
-    damageMult: 0.8,
-  }),
-  'bubble.trap': signature('bubble', 'squirtle', undefined, 'Bubble Trap', 'Traps a light enemy, then pops', {
-    floatSeconds: 1.2,
-    popRadius: 40,
-    /** P4f-5 rule-4 tuning: the pop splashes a crowd, so it deals less than the full hit. */
-    popDamageFraction: 0.8,
-    popStagger: 20,
-    cooldownMult: 1.3,
-    tier1: { pullRadius: 60, pullPx: 15 },
-    tier2: { maxTrapped: 3, leavesPuddle: true },
-  }),
-  'bubble.froth': signature('bubble', 'squirtle', undefined, 'Froth Mines', 'Shots leave hovering bubble mines', {
-    minesPerShot: 3,
-    mineSeconds: 3,
-    mineDamageFraction: 0.25, // P4f-5 rule-4 tuning (doc: 0.5, measured 1.52× Power Up I)
-    maxMines: 9,
-    damageMult: 0.7,
-    // P4f-5 build values (not in the doc): mine size, stagger ring, drift search range.
-    mineRadius: 9,
-    mineRingRadius: 30,
-    driftRange: 200,
-    tier1: { mineStagger: 10 },
-    tier2: { driftSpeed: 40 },
-  }),
+  'withdraw.spikedShell': {
+    ...generic('withdraw', 'Spiked Shell', 'A 3 s contact-damage aura', {
+      auraSeconds: 3,
+      tickInterval: 0.5,
+      /** P4f-3 rule-4 tuning: 7 ticks per cast, so each tick is a fraction of a bash. */
+      tickDamageFraction: 0.28,
+      moveSpeedMult: 0.8,
+      cooldownMult: 1.6,
+    }),
+    ranks: [{ tickDamageFraction: 0.32 }, { tickDamageFraction: 0.3, auraSeconds: 4 }],
+    rankText: ['aura ticks 0.32 (0.28)', 'ticks 0.3; ★ aura lasts 4 s (3)'],
+  },
+  'withdraw.hunkerDown': {
+    ...generic('withdraw', 'Hunker Down', '−40% damage taken for 1.5 s after a cast', {
+      buffSeconds: 1.5,
+      damageTakenMult: 0.6,
+      moveSpeedMult: 0.5,
+      damageMult: 0.8,
+      hitStagger: 0,
+    }),
+    ranks: [{ damageMult: 0.92, buffSeconds: 1.75 }, { damageMult: 1.04, buffSeconds: 2, hitStagger: 15 }],
+    rankText: ['dmg ×0.92 (0.8); buff 1.75 s (1.5)', 'dmg ×1.04; buff 2 s; ★ hits taken while hunkered stagger the attacker 15 px'],
+  },
+  'withdraw.counterShell': {
+    ...bond('withdraw', 'squirtle', 0, 'shellBlock', 'Counter Shell', 'Shell blocks reset Withdraw; stagger ×2', {
+      staggerMult: 2,
+      damageMult: 0.8,
+      resetHitMult: 1,
+    }),
+    ranks: [{ damageMult: 0.92 }, { damageMult: 1.04, resetHitMult: 1.5 }],
+    rankText: ['dmg ×0.92 (0.8)', 'dmg ×1.04; ★ the reset Withdraw hits +50%'],
+  },
+  'rapidSpin.spiralSpin': {
+    ...generic('rapidSpin', 'Spiral Spin', 'Shells spiral out from 30 to 120 px', {
+      innerRadius: 30,
+      outerRadius: 120,
+      damageMult: 0.9, // P4f-6 rule-4 tuning (doc: 0.85, 0.84x)
+    }),
+    ranks: [{ damageMult: 1.03 }, { damageMult: 1.17, outerRadius: 140 }],
+    rankText: ['dmg ×1.03 (0.9)', 'dmg ×1.17; ★ spirals out to 140 px (120)'],
+  },
+  'rapidSpin.deflector': {
+    ...generic('rapidSpin', 'Deflector', 'Shells eat enemy projectiles', {
+      secondsPerDeflect: 0.3,
+      damageMult: 0.7,
+    }),
+    ranks: [{ damageMult: 0.8 }, { damageMult: 0.91, secondsPerDeflect: 0.2 }],
+    rankText: ['dmg ×0.8 (0.7)', 'dmg ×0.91; deflect window 0.2 s (0.3)'],
+  },
+  'rapidSpin.shellSpin': {
+    ...bond('rapidSpin', 'squirtle', 0, 'shellRecharge', 'Shell Spin', 'Shell hits cut Shell recharge', {
+      rechargeCutPerHit: 0.25,
+      maxCutPerCast: 1.5,
+      damageMult: 0.8,
+    }),
+    ranks: [{ rechargeCutPerHit: 0.3, damageMult: 0.92 }, { rechargeCutPerHit: 0.35, maxCutPerCast: 2, damageMult: 1.04 }],
+    rankText: ['cut 0.3 s per hit (0.25); dmg ×0.92 (0.8)', 'cut 0.35 s; max 2 s per cast (1.5); dmg ×1.04'],
+  },
+  'waterGun.slick': {
+    ...generic('waterGun', 'Slick', 'Leaves a puddle line; light enemies slip', {
+      puddleSeconds: 3,
+      slipChancePerSec: 0.15,
+      slipStun: 0.6,
+      damageMult: 0.7,
+    }),
+    ranks: [{ damageMult: 0.8, slipChancePerSec: 0.2 }, { damageMult: 0.91, slipChancePerSec: 0.25, puddleSeconds: 4.5 }],
+    rankText: ['dmg ×0.8 (0.7); slip 0.2/s (0.15)', 'dmg ×0.91; slip 0.25/s; ★ puddles last 4.5 s (3)'],
+  },
+  'waterGun.washDown': {
+    ...generic('waterGun', 'Wash Down', 'Soaks; +20% Water damage taken', {
+      debuffSeconds: 3,
+      waterDamageTakenPct: 0.2,
+      damageMult: 0.5,
+      pushMult: 0,
+      otherDamageTakenPct: 0,
+    }),
+    ranks: [{ waterDamageTakenPct: 0.25, damageMult: 0.55 }, { waterDamageTakenPct: 0.3, damageMult: 0.55, otherDamageTakenPct: 0.1 }],
+    rankText: ['Water taken +25% (20%); dmg ×0.55 (0.5)', '+30%; dmg ×0.55; ★ also +10% from every other type'],
+  },
+  'waterGun.steadyAim': {
+    ...bond('waterGun', 'squirtle', 0, 'shellReady', 'Steady Aim', 'Shell up: longer beam, push ×2', {
+      lengthMult: 1.4,
+      pushMult: 2,
+      damageMultShellDown: 0.75,
+      shellUpDamageMult: 1,
+    }),
+    ranks: [{ lengthMult: 1.5, damageMultShellDown: 0.85, shellUpDamageMult: 1.1 }, { lengthMult: 1.6, damageMultShellDown: 0.95, shellUpDamageMult: 1.2 }],
+    rankText: ['length ×1.5 (1.4); Shell down ×0.85 (0.75); Shell up +10% damage', 'length ×1.6; Shell down ×0.95; ★ Shell up: +20% damage'],
+  },
+  'whirlpool.maelstrom': {
+    ...generic('whirlpool', 'Maelstrom', 'Pulls in, then collapses into a burst', {
+      pullSpeed: 30,
+      collapseTickMult: 1.6, // P4f-6 rule-4 tuning (doc: 3, 1.33x)
+      perEnemyPct: 0.15,
+      maxEnemies: 10,
+      cooldownMult: 1.4,
+    }),
+    ranks: [{ collapseTickMult: 1.85, cooldownMult: 1.25 }, { collapseTickMult: 2.1, cooldownMult: 1.15, pullSpeed: 45 }],
+    rankText: ['collapse ×1.85 (1.6); cooldown ×1.25 (1.4)', 'collapse ×2.1; cooldown ×1.15; ★ pull 45 px/s (30)'],
+  },
+  'whirlpool.moat': {
+    ...generic('whirlpool', 'Moat', 'A slowing ring that follows you', {
+      innerRadius: 40,
+      outerRadius: 90,
+      slow: 0.7,
+      damageMult: 0.5, // P4f-6 rule-4 tuning (doc: 0.6, 1.17x)
+      soaksCrossers: false,
+    }),
+    ranks: [{ damageMult: 0.58 }, { damageMult: 0.65, soaksCrossers: true }],
+    rankText: ['dmg ×0.58 (0.5)', 'dmg ×0.65; ★ enemies crossing the ring are Soaked'],
+  },
+  'whirlpool.eyeOfTheStorm': {
+    ...bond('whirlpool', 'squirtle', 1, 'shellBurst', 'Eye of the Storm', 'Shell Burst drops a whirlpool at your feet', {
+      sizeMult: 0.5,
+      seconds: 2,
+      cooldownMult: 1.3,
+      pullSpeed: 0,
+    }),
+    ranks: [{ sizeMult: 0.6, seconds: 2.5 }, { sizeMult: 0.7, seconds: 3, pullSpeed: 30 }],
+    rankText: ['size ×0.6 (0.5); 2.5 s (2)', 'size ×0.7; 3 s; ★ it pulls like Maelstrom (30 px/s)'],
+  },
+  'surf.rideTheWave': {
+    ...generic('surf', 'Ride the Wave', 'A wall rolling the way you move', {
+      wallLength: 250,
+      moveSpeedPct: 0.3,
+      speedSeconds: 1,
+      // P4f-6 build values: how fast and far the wall rolls, and how far it carries light enemies.
+      waveSpeed: 300,
+      travel: 220,
+      carryPx: 40,
+      wallThickness: 24,
+      waveDamageMult: 1,
+    }),
+    ranks: [{ waveDamageMult: 1.15, travel: 250 }, { waveDamageMult: 1.3, speedSeconds: 2 }],
+    rankText: ['wave dmg ×1.15; travel 250 px (220)', 'wave dmg ×1.3; ★ speed boost 2 s (1)'],
+  },
+  'surf.backwash': {
+    ...generic('surf', 'Backwash', 'The wave rolls back in and pulls', {
+      returnDamageFraction: 0.3, // P4f-6 rule-4 tuning (doc: 0.5, 1.30x)
+      pullPx: 20,
+      cooldownMult: 1.3,
+      /** P4f-6 build value: seconds until the wave rolls back in. */
+      returnDelay: 0.3,
+      returnSoaks: false,
+    }),
+    ranks: [{ returnDamageFraction: 0.5 }, { returnDamageFraction: 0.7, returnSoaks: true }],
+    rankText: ['return 50% (30%)', 'return 70%; ★ the return wave Soaks'],
+  },
+  'surf.lastWave': {
+    ...bond('surf', 'squirtle', 0, 'hpBelow', 'Last Wave', 'Below 40% HP: faster, bigger Surf', {
+      hpThreshold: 0.4,
+      cooldownMult: 0.5,
+      radiusMult: 1.3,
+      damageMultAbove: 0.8,
+    }),
+    ranks: [{ damageMultAbove: 0.9, hpThreshold: 0.5 }, { damageMultAbove: 1, hpThreshold: 0.6 }],
+    rankText: ['above-threshold dmg ×0.9 (0.8); threshold 50% HP (40%)', '×1.0; threshold 60%'],
+  },
+  'hydroPump.splitStream': {
+    ...generic('hydroPump', 'Split Stream', 'Two beams at ±30°', {
+      angleDeg: 30,
+      beamDamageFraction: 0.33, // P4f-6 rule-4 tuning (doc: 0.6; two beams cover twice the crowd, 2.09x)
+    }),
+    ranks: [{ beamDamageFraction: 0.38 }, { beamDamageFraction: 0.43 }],
+    rankText: ['38% per beam (33%)', '43% per beam'],
+  },
+  'hydroPump.pressureBuild': {
+    ...generic('hydroPump', 'Pressure Build', 'Damage ramps each tick', {
+      rampPerTick: 0.12, // P4f-6 rule-4 tuning (doc: 0.25, 1.34x)
+      durationMult: 1.5,
+      cooldownMult: 1.5,
+    }),
+    ranks: [{ rampPerTick: 0.15, cooldownMult: 1.35 }, { rampPerTick: 0.2, cooldownMult: 1.3 }],
+    rankText: ['ramp +15% per tick (12%); cooldown ×1.35 (1.5)', 'ramp +20%; ★ cooldown ×1.3'],
+  },
+  'hydroPump.rainCannon': {
+    ...bond('hydroPump', 'squirtle', 2, 'healing', 'Rain Cannon', 'Rains around you; heals per enemy hit', {
+      radius: 130,
+      healPerEnemy: 1,
+      maxHealPerSec: 4,
+      damageMult: 0.1, // P4f-6 rule-4 tuning (doc: 0.7; a 130 px rain every tick instead of one beam line, 7.3x)
+      pushMult: 0,
+      rainSoaks: false,
+    }),
+    ranks: [{ damageMult: 0.115, maxHealPerSec: 5 }, { damageMult: 0.13, maxHealPerSec: 6, rainSoaks: true }],
+    rankText: ['dmg ×0.115 (0.1); heal cap 5/s (4)', 'dmg ×0.13; cap 6/s; ★ the rain Soaks'],
+  },
+  'flashCannon.shrapnel': {
+    ...generic('flashCannon', 'Shrapnel', 'Shatters into 6 shards', {
+      shards: 6,
+      shardDamageFraction: 0.35,
+      cooldownMult: 1.3,
+      // P4f-6 build values: shard flight.
+      shardSpeed: 400,
+      shardRange: 120,
+      shardRadius: 5,
+      shardPierce: 0,
+    }),
+    ranks: [{ shardDamageFraction: 0.4, cooldownMult: 1.15 }, { shardDamageFraction: 0.45, cooldownMult: 1, shardPierce: 1 }],
+    rankText: ['shards 40% (35%); cooldown ×1.15 (1.3)', '45%; cooldown ×1.0; ★ shards pierce 1'],
+  },
+  'flashCannon.railgun': {
+    ...generic('flashCannon', 'Railgun', 'Fires where you move; infinite pierce', {
+      speedMult: 1.8,
+      damageMult: 1.3,
+    }),
+    ranks: [{ damageMult: 1.5 }, { damageMult: 1.7 }],
+    rankText: ['dmg ×1.5 (1.3)', 'dmg ×1.7'],
+  },
+  'flashCannon.armorRounds': {
+    ...bond('flashCannon', 'squirtle', 2, 'hitTaken', 'Armor Rounds', 'Hit since last shot: a second round', {
+      secondRoundFraction: 0.6,
+      damageMult: 0.8,
+    }),
+    ranks: [{ secondRoundFraction: 0.7, damageMult: 0.92 }, { secondRoundFraction: 0.8, damageMult: 1.04 }],
+    rankText: ['second round 70% (60%); dmg ×0.92 (0.8)', '80%; dmg ×1.04'],
+  },
+  'bubble.trap': {
+    ...signature('bubble', 'squirtle', undefined, 'Bubble Trap', 'Traps a light enemy, then pops', {
+      floatSeconds: 1.2,
+      popRadius: 40,
+      /** P4f-5 rule-4 tuning: the pop splashes a crowd, so it deals less than the full hit. */
+      popDamageFraction: 0.8,
+      popStagger: 20,
+      cooldownMult: 1.3,
+      tier1: { pullRadius: 60, pullPx: 15 },
+      tier2: { maxTrapped: 3, leavesPuddle: true },
+      popSoaks: false,
+    }),
+    ranks: [{ popDamageFraction: 1 }, { popDamageFraction: 1.2, popSoaks: true }],
+    rankText: ['pop 100% (80%)', 'pop 120%; ★ the pop Soaks'],
+  },
+  'bubble.froth': {
+    ...signature('bubble', 'squirtle', undefined, 'Froth Mines', 'Shots leave hovering bubble mines', {
+      minesPerShot: 3,
+      mineSeconds: 3,
+      mineDamageFraction: 0.25, // P4f-5 rule-4 tuning (doc: 0.5, measured 1.52× Power Up I)
+      maxMines: 9,
+      damageMult: 0.7,
+      // P4f-5 build values (not in the doc): mine size, stagger ring, drift search range.
+      mineRadius: 9,
+      mineRingRadius: 30,
+      driftRange: 200,
+      tier1: { mineStagger: 10 },
+      tier2: { driftSpeed: 40 },
+    }),
+    ranks: [{ mineDamageFraction: 0.33 }, { mineDamageFraction: 0.4, maxMines: 12 }],
+    rankText: ['mines 33% (25%)', '40%; ★ up to 12 mines (9)'],
+  },
   'bubble.undertow': {
     ...signature('bubble', 'squirtle', undefined, 'Undertow', 'Bubbles return to you, hitting twice', {
       damageMult: 0.65, // P4f-5 rule-4 tuning (doc: 0.75; both legs hit, 1.25×)
@@ -284,6 +394,8 @@ export const MUTATIONS = {
       tier2: { soaks: true, puddleEvery: 0.2 },
     }),
     excludesAugments: ['boomerang'],
+    ranks: [{ damageMult: 0.75 }, { damageMult: 0.88, rangeMult: 0.9 }],
+    rankText: ['dmg ×0.75 (0.65)', 'dmg ×0.88; ★ range ×0.9 (0.8)'],
   },
 
   // ── Charmander line moves ──────────────────────────────────────────────
@@ -833,4 +945,23 @@ export const REQUIREMENTS: Readonly<
 
 export function mutationDef(id: MutationId): MutationDef {
   return MUTATIONS[id];
+}
+
+/** A Mutation's values with the literal number and boolean types widened (ranks change them). */
+export type RankedValues<I extends MutationId> = Widen<(typeof MUTATIONS)[I]['values']>;
+type Widen<T> = { readonly [K in keyof T]: T[K] extends number ? number : T[K] extends boolean ? boolean : Widen<T[K]> };
+
+const rankCache = new Map<MutationId, MutationValues[]>();
+
+/** A Mutation's values at `rank` (D24): rank I, then the rank II and III overrides on top. Cached. */
+export function rankedValues<I extends MutationId>(id: I, rank: number): RankedValues<I> {
+  const def: MutationDef = MUTATIONS[id];
+  let byRank = rankCache.get(id);
+  if (!byRank) {
+    const two = def.ranks ? { ...def.values, ...def.ranks[0] } : def.values;
+    const three = def.ranks ? { ...two, ...def.ranks[1] } : def.values;
+    byRank = [def.values, def.values, two, three];
+    rankCache.set(id, byRank);
+  }
+  return byRank[Math.min(MUTATION_RANKS.max, Math.max(1, rank))] as RankedValues<I>;
 }
