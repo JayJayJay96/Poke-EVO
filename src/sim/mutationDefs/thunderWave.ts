@@ -1,63 +1,64 @@
 import { TUNING } from '../../data/content';
 import { MOVES, type ZoneMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
 import { applyNewStun, applyVuln, damageEnemy, findNearestEnemy, makeHitInfo } from '../combat';
 import { defineMutation } from '../hooks';
 import type { Enemy, World } from '../types';
-import { entitiesOf, forEachEnemyIn, spawnEntity } from './util';
+import { entitiesOf, forEachEnemyIn, ranked, spawnEntity } from './util';
 
 // Thunder Wave Mutations (docs/moveset/shared/thunder-wave.md, pikachu/README.md).
 
 const thunderWave = MOVES.thunderWave as ZoneMoveDef;
 
 /** Static Pulse (generic): a ring expands from you and paralyses everything it passes, once. */
-const pulse = MUTATIONS['thunderWave.pulse'].values;
+const pulse = ranked('thunderWave.pulse');
 defineMutation('thunderWave.pulse', {
-  stats: (s) => {
+  stats: (s, _world, slot) => {
     s.stun = 0; // the ring paralyses instead
+    s.damage *= pulse(slot).damageMult;
   },
   cast: (world, slot) => {
-    const radius = pulse.ringRadius * slot.stats.area;
+    const radius = pulse(slot).ringRadius * slot.stats.area;
     if (!findNearestEnemy(world, radius)) return false;
-    const ring = spawnEntity(world, 'thunderWave.pulse', world.player.x, world.player.y, pulse.ringSeconds);
+    const ring = spawnEntity(world, 'thunderWave.pulse', world.player.x, world.player.y, pulse(slot).ringSeconds);
     ring.x2 = radius; // full radius, for growth and drawing
     return true;
   },
   update: (world, slot, dt) => {
+    const v = pulse(slot);
     for (const ring of entitiesOf(world, 'thunderWave.pulse')) {
       ring.lifeLeft -= dt;
-      ring.radius = ring.x2 * Math.min(1, 1 - ring.lifeLeft / pulse.ringSeconds);
+      ring.radius = ring.x2 * Math.min(1, 1 - ring.lifeLeft / v.ringSeconds);
       const hit = makeHitInfo(slot.stats, slot);
       forEachEnemyIn(world, ring.x, ring.y, ring.radius, (e) => {
         if (ring.hitIds.includes(e.id)) return;
         ring.hitIds.push(e.id);
         damageEnemy(world, e, slot.stats.damage, hit);
-        if (e.hp > 0) applyNewStun(e, pulse.paralyseSeconds, 'paralysis');
+        if (e.hp > 0) applyNewStun(e, v.paralyseSeconds, 'paralysis');
       });
     }
   },
 });
 
 /** Electric Terrain (generic): a longer field that makes your Electric moves hit harder inside it; no paralysis. */
-const terrain = MUTATIONS['thunderWave.terrain'].values;
+const terrain = ranked('thunderWave.terrain');
 defineMutation('thunderWave.terrain', {
-  stats: (s) => {
+  stats: (s, _world, slot) => {
+    const v = terrain(slot);
     s.stun = 0;
-    s.zoneDurationMult *= terrain.fieldSeconds / thunderWave.duration;
-    s.damage *= terrain.fieldDamageMult;
+    s.zoneDurationMult *= v.fieldSeconds / thunderWave.duration;
+    s.damage *= v.fieldDamageMult;
   },
-  update: (world) => {
+  update: (world, slot) => {
+    const bonus = terrain(slot).electricBonus;
     for (const zone of world.zones) {
       if (zone.source !== 'thunderWave' || zone.lifeLeft <= 0) continue;
-      forEachEnemyIn(world, zone.x, zone.y, zone.radius, (e) =>
-        applyVuln(e, terrain.electricBonus, TUNING.status.burnTick, 'Electric'),
-      );
+      forEachEnemyIn(world, zone.x, zone.y, zone.radius, (e) => applyVuln(e, bonus, TUNING.status.burnTick, 'Electric'));
     }
   },
 });
 
 /** Conductor (Bond, chain jump): your signature chain prefers enemies in Thunder Wave fields and jumps further between them. */
-const conductor = MUTATIONS['thunderWave.conductor'].values;
+const conductor = ranked('thunderWave.conductor');
 
 function inField(world: World, e: Enemy): boolean {
   return world.zones.some(
@@ -66,11 +67,13 @@ function inField(world: World, e: Enemy): boolean {
 }
 
 defineMutation('thunderWave.conductor', {
-  stats: (s) => {
-    s.stun = conductor.paralyseSeconds;
+  stats: (s, _world, slot) => {
+    s.stun = conductor(slot).paralyseSeconds;
   },
-  chainBias: (world, _slot, from, to) => {
+  chainBias: (world, slot, from, to) => {
+    const v = conductor(slot);
     const toIn = inField(world, to);
-    return { preferred: toIn, rangeMult: toIn && inField(world, from) ? conductor.jumpRangeMult : 1 };
+    const between = toIn && inField(world, from);
+    return { preferred: toIn, rangeMult: between ? v.jumpRangeMult : 1, damageMult: between ? v.chainDamageMult : 1 };
   },
 });

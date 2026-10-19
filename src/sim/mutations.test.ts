@@ -106,11 +106,11 @@ describe('Mutation rank values (D24)', () => {
   });
 
   it('Mutations without their own ranks still get the placeholder damage scaling', () => {
-    const w = world('pikachu');
-    expect((MUTATIONS['thunderShock.liveWire'] as MutationDef).ranks).toBeUndefined();
-    expect(grantMutation(w, 'thunderShock.liveWire')).toBe('granted');
+    const w = world('lapras');
+    expect((MUTATIONS['iceShard.hail'] as MutationDef).ranks).toBeUndefined();
+    expect(grantMutation(w, 'iceShard.hail')).toBe('granted');
     const rankI = w.moves[0]!.stats.damage;
-    grantMutation(w, 'thunderShock.liveWire');
+    grantMutation(w, 'iceShard.hail');
     expect(w.moves[0]!.stats.damage).toBeCloseTo(rankI * MUTATION_RANKS.placeholderDamageMult[1]);
   });
 });

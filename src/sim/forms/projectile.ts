@@ -218,6 +218,7 @@ function chain(world: World, proj: Projectile, from: Enemy): void {
     // Nearest unhit enemy in range; Mutations (Conductor) can mark preferred targets with a longer reach.
     let next: Enemy | undefined;
     let nextPreferred = false;
+    let nextDamageMult = 1;
     let bestDist2 = Infinity;
     for (const enemy of world.enemies) {
       if (enemy.hp <= 0 || enemy === current || proj.hitIds.includes(enemy.id)) continue;
@@ -231,12 +232,13 @@ function chain(world: World, proj: Projectile, from: Enemy): void {
       if ((preferred && !nextPreferred) || (preferred === nextPreferred && dist2 < bestDist2)) {
         next = enemy;
         nextPreferred = preferred;
+        nextDamageMult = bias.damageMult;
         bestDist2 = dist2;
       }
     }
     if (!next) break;
     world.arcs.push({ x1: current.x, y1: current.y, x2: next.x, y2: next.y, lifeLeft: ARC_SECONDS });
-    damageEnemy(world, next, proj.damage * proj.chainFraction, proj.hit);
+    damageEnemy(world, next, proj.damage * proj.chainFraction * nextDamageMult, proj.hit);
     emit(world, 'chainJump', 1);
     if (hooks?.onChainJump) hooks.onChainJump(world, slot!, current, next);
     remember(proj, next.id);

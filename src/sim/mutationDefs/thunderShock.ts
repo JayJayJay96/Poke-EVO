@@ -1,46 +1,47 @@
 import { TUNING } from '../../data/content';
 import { MOVES, type ProjectileMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
 import { addCharge } from '../abilities';
 import { applyNewStun, damageEnemy, findNearestEnemy, makeHitInfo, procHit } from '../combat';
 import { ARC_SECONDS, castProjectile } from '../forms/projectile';
 import { chargeLevel, defineMutation } from '../hooks';
 import type { Enemy, MoveSlot, World } from '../types';
-import { dirTo, entitiesOf, forEachEnemyOnSegment, signatureTier, spawnEntity } from './util';
+import { dirTo, entitiesOf, forEachEnemyOnSegment, ranked, signatureTier, spawnEntity } from './util';
 
 // Pikachu signature Mutations: Thunder Shock → Thunderbolt (docs/moveset/pikachu §4).
 // Each has a Charge link and keeps its Thunder Shock part at Raichu (rule 10). Chain cap stays 3.
 
 // ── A. Live Wire ────────────────────────────────────────────────────────
-const wire = MUTATIONS['thunderShock.liveWire'].values;
+const wire = ranked('thunderShock.liveWire');
 
 defineMutation('thunderShock.liveWire', {
   cast: (world, slot) => {
     const before = world.projectiles.length;
     if (!castProjectile(world, slot, MOVES[slot.moveId] as ProjectileMoveDef)) return false;
-    for (const p of world.projectiles.slice(before)) p.chainFraction *= wire.jumpDamageMult;
+    for (const p of world.projectiles.slice(before)) p.chainFraction *= wire(slot).jumpDamageMult;
     return true;
   },
   // Every jump leaves a live wire between the two enemies.
   onChainJump: (world, slot, from, to) => {
     const tier = signatureTier(world, slot);
-    const charged = chargeLevel(world) > wire.chargeThreshold ? wire.chargeWireMult : 1;
-    const seconds = (tier >= 1 ? wire.tier1.wireSeconds : wire.wireSeconds) * charged;
+    const v = wire(slot);
+    const charged = chargeLevel(world) > v.chargeThreshold ? v.chargeWireMult : 1;
+    const seconds = (tier >= 1 ? v.tier1.wireSeconds : v.wireSeconds) * charged;
     const w = spawnEntity(world, 'thunderShock.liveWire', from.x, from.y, seconds);
     w.x2 = to.x;
     w.y2 = to.y;
-    w.damage = slot.stats.damage * wire.wireDamageFraction;
+    w.damage = slot.stats.damage * v.wireDamageFraction;
   },
   update: (world, slot, dt) => {
-    const paralyse = signatureTier(world, slot) >= 1 ? wire.tier1.paralyseSeconds : 0;
+    const v = wire(slot);
+    const paralyse = signatureTier(world, slot) >= 1 ? v.tier1.paralyseSeconds : 0;
     for (const w of entitiesOf(world, 'thunderShock.liveWire')) {
       w.lifeLeft -= dt;
       w.timer -= dt;
       if (w.timer > 0) continue;
-      w.timer += wire.wireTickInterval;
+      w.timer += v.wireTickInterval;
       const hit = procHit('Electric');
       // Each wire hits an enemy once, as it crosses.
-      forEachEnemyOnSegment(world, w.x, w.y, w.x2, w.y2, wire.wireWidth, (e) => {
+      forEachEnemyOnSegment(world, w.x, w.y, w.x2, w.y2, v.wireWidth, (e) => {
         if (w.hitIds.includes(e.id)) return;
         w.hitIds.push(e.id);
         damageEnemy(world, e, w.damage, hit);
@@ -51,7 +52,7 @@ defineMutation('thunderShock.liveWire', {
 });
 
 // ── B. Ball Lightning ───────────────────────────────────────────────────
-const ball = MUTATIONS['thunderShock.ballLightning'].values;
+const ball = ranked('thunderShock.ballLightning');
 
 /** Thunderbolt tier: the orb pops into the move's full chain from where it ends. */
 function chainFrom(world: World, slot: MoveSlot, x: number, y: number): void {
@@ -89,23 +90,25 @@ defineMutation('thunderShock.ballLightning', {
     const target = findNearestEnemy(world, def.range);
     if (!target) return false;
     const { x, y } = world.player;
-    const boost = 1 + ball.chargeMaxBonus * chargeLevel(world);
+    const v = ball(slot);
+    const boost = 1 + v.chargeMaxBonus * chargeLevel(world);
     const [dx, dy] = dirTo(x, y, target.x, target.y);
-    const orb = spawnEntity(world, 'thunderShock.ballLightning', x, y, ball.orbSeconds * slot.stats.duration);
-    orb.vx = dx * ball.orbSpeed * boost;
-    orb.vy = dy * ball.orbSpeed * boost;
-    orb.radius = ball.zapRadius;
-    orb.damage = slot.stats.damage * ball.zapDamageFraction;
+    const orb = spawnEntity(world, 'thunderShock.ballLightning', x, y, v.orbSeconds * slot.stats.duration);
+    orb.vx = dx * v.orbSpeed * boost;
+    orb.vy = dy * v.orbSpeed * boost;
+    orb.radius = v.zapRadius;
+    orb.damage = slot.stats.damage * v.zapDamageFraction;
     return true;
   },
   update: (world, slot, dt) => {
-    const boost = 1 + ball.chargeMaxBonus * chargeLevel(world);
+    const v = ball(slot);
+    const boost = 1 + v.chargeMaxBonus * chargeLevel(world);
     for (const orb of entitiesOf(world, 'thunderShock.ballLightning')) {
       orb.x += orb.vx * dt;
       orb.y += orb.vy * dt;
       orb.timer -= dt;
       if (orb.timer <= 0) {
-        orb.timer += ball.zapInterval / boost;
+        orb.timer += v.zapInterval / boost;
         const target = findNearestEnemy(world, orb.radius, orb.x, orb.y);
         if (target) {
           damageEnemy(world, target, orb.damage, makeHitInfo(slot.stats, slot));
@@ -113,20 +116,20 @@ defineMutation('thunderShock.ballLightning', {
         }
       }
       orb.lifeLeft -= dt;
-      if (orb.lifeLeft <= 0 && signatureTier(world, slot) >= 1 && ball.tier1.endChain) chainFrom(world, slot, orb.x, orb.y);
+      if (orb.lifeLeft <= 0 && signatureTier(world, slot) >= 1 && v.tier1.endChain) chainFrom(world, slot, orb.x, orb.y);
     }
   },
 });
 
 // ── C. Return Arc ───────────────────────────────────────────────────────
-const ret = MUTATIONS['thunderShock.returnArc'].values;
+const ret = ranked('thunderShock.returnArc');
 
 defineMutation('thunderShock.returnArc', {
-  stats: (s) => {
-    s.damage *= ret.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= ret(slot).damageMult;
   },
-  onChainJump: (world) => {
-    addCharge(world, ret.chargePerJump);
+  onChainJump: (world, slot) => {
+    addCharge(world, ret(slot).chargePerJump);
   },
   // The chain's last jump arcs back to you; at Thunderbolt it hurts everything on the way.
   onChainEnd: (world, slot, last) => {
@@ -134,8 +137,9 @@ defineMutation('thunderShock.returnArc', {
     world.arcs.push({ x1: last.x, y1: last.y, x2: player.x, y2: player.y, lifeLeft: ARC_SECONDS });
     if (signatureTier(world, slot) < 1) return;
     const hit = procHit('Electric');
-    const damage = slot.stats.damage * ret.tier1.returnLineFraction;
-    forEachEnemyOnSegment(world, last.x, last.y, player.x, player.y, ret.tier1.returnLineWidth, (e) => {
+    const v = ret(slot);
+    const damage = slot.stats.damage * v.tier1.returnLineFraction;
+    forEachEnemyOnSegment(world, last.x, last.y, player.x, player.y, v.tier1.returnLineWidth, (e) => {
       if (e !== last) damageEnemy(world, e, damage, hit);
     });
   },

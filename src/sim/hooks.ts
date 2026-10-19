@@ -103,9 +103,11 @@ export function chargeHeld(world: World): boolean {
 export interface ChainBias {
   readonly preferred: boolean;
   readonly rangeMult: number;
+  /** Damage factor for this jump (Conductor ranks II/III). */
+  readonly damageMult: number;
 }
 
-const NO_BIAS: ChainBias = { preferred: false, rangeMult: 1 };
+const NO_BIAS: ChainBias = { preferred: false, rangeMult: 1, damageMult: 1 };
 
 /** What the owned Mutations say about a chain jump from `from` to `to`. */
 export function chainBias(world: World, from: Enemy, to: Enemy): ChainBias {
@@ -114,7 +116,11 @@ export function chainBias(world: World, from: Enemy, to: Enemy): ChainBias {
     const f = hooksOf(slot)?.chainBias;
     if (!f) continue;
     const b = f(world, slot, from, to);
-    bias = { preferred: bias.preferred || b.preferred, rangeMult: Math.max(bias.rangeMult, b.rangeMult) };
+    bias = {
+      preferred: bias.preferred || b.preferred,
+      rangeMult: Math.max(bias.rangeMult, b.rangeMult),
+      damageMult: Math.max(bias.damageMult, b.damageMult),
+    };
   }
   return bias;
 }

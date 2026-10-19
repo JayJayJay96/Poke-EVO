@@ -1,7 +1,7 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **P4f done** (P4f-1 to P4f-8, 2026-10-18): all **110 of 110** Mutations built and tested; Charmander has its 8-move learnset; D19 holds on the balance bot (narrowly for Charizard); the maxed-Mutation stress builds stay far under budget. **Next:** ~~the Mutation map sites~~ **done as P4g (2026-10-18, D23)**; the owner tested sites and asked for a separate Mutation track with ranks: **D24 approved (2026-10-19)**, built as **P4h**. **P4h-1 done** (2026-10-19). **P4h-2 approved** (owner, 2026-10-19: "RANKS.md approved as written"). **P4h-3, P4h-4 and P4h-5 done** (Squirtle, Charmander and Bulbasaur ranks). **Next: P4h-6** (Pikachu ranks), then P4h-7…9 and the P4 gate playtest. Open owner questions are listed in the P4f-8 entry and the P4 gate playtest. Owner said "continue" after P4f-3 without feel-check notes; the rule-4 utility question is still open.
+- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **P4f done** (P4f-1 to P4f-8, 2026-10-18): all **110 of 110** Mutations built and tested; Charmander has its 8-move learnset; D19 holds on the balance bot (narrowly for Charizard); the maxed-Mutation stress builds stay far under budget. **Next:** ~~the Mutation map sites~~ **done as P4g (2026-10-18, D23)**; the owner tested sites and asked for a separate Mutation track with ranks: **D24 approved (2026-10-19)**, built as **P4h**. **P4h-1 done** (2026-10-19). **P4h-2 approved** (owner, 2026-10-19: "RANKS.md approved as written"). **P4h-3…P4h-6 done** (Squirtle, Charmander, Bulbasaur and Pikachu ranks). **Next: P4h-7** (Lapras ranks), then P4h-8…9 and the P4 gate playtest. Open owner questions are listed in the P4f-8 entry and the P4 gate playtest. Owner said "continue" after P4f-3 without feel-check notes; the rule-4 utility question is still open.
 
 ## P4 plan (owner-approved 2026-10-17, D13)
 **Gate:** do the starters feel truly different? Is picking a tier (3-stage / 2-stage / no evolution) a real gamble?
@@ -75,6 +75,38 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 | **Gate** | Owner playtest |
 
 ## Session log
+
+### 2026-10-19 — P4h-6: Pikachu-line Mutation ranks (D24)
+**Owner:** "Continue with P4h-6: Pikachu-line ranks."
+
+**Built (21 Mutations):** all hooks in `quickAttack`, `spark`, `electroBall`, `thunderWave`, `ironTail`, `thunder` and `thunderShock` read their values at the slot's rank.
+- Engine change: `ChainBias` gained `damageMult` (aggregated with max; `NO_BIAS` is 1). `chain()` in `forms/projectile.ts` multiplies the next jump's damage by it. This carries Conductor's rank II/III jump damage between fields.
+- New rank-I keys (twists start off): `thunderWave.pulse.damageMult`, `thunderWave.conductor.chainDamageMult`, `thunder.thunderstorm.strikeRadiusMult`, `electroBall.plasma.damageMult`.
+- Twists: Thunderstorm III widens the Discharge strike ×1.5; Static Spark III caps extra sparks at 4 (3); Ricochet III 3 bounces; Volt Tackle III dash 150 px; Static Pulse III ring 165 px.
+- `pikachuRanks.test.ts`: 6 tests (Conductor jump damage between fields only, Static Spark 4 sparks, Thunderstorm strike radius, Volt Tackle dash, Static Pulse damage, Ricochet bounces).
+- The placeholder check moved to Ice Shard Hail (Lapras), the last unranked line.
+
+**Rank tuning (provisional; target II ≈ 1.15, III ≈ 1.30):**
+- Double Hit second hit 80% / 90% (doc 75% / 90%).
+- Arc Pair dmg ×0.69 / ×0.75 (doc III 0.78).
+- Shower bolts 75% / 85%, cooldown ×1.05 / ×0.95 (new).
+- Ricochet III dmg ×0.8 (doc 0.95): the third bounce over-delivered.
+- Plasma Orb move dmg ×1.15 / ×1.27 (new): its growth alone read ≈1.05.
+- Velocity Ball dmg ×0.66 / ×0.72 (doc 0.69 / 0.78).
+- Static Pulse move dmg ×1.15 / ×1.08 (doc III 1.3) with the 165 px ring (doc 180).
+- Iron Spin III dmg ×0.9, reach ×0.85 (doc 1.04 / 0.9).
+- Storm Call strikes 92% / 105%, III radius 34 px (doc 40).
+- Live Wire wires 27% / 32%, jumps ×0.82 / ×0.93.
+- Return Arc dmg ×0.85 / ×0.95 (doc 0.92 / 1.04).
+
+RANKS.md and the card text were updated to match. Final readings: most at 1.13–1.16 / 1.27–1.33.
+- Iron Spin III 2.25: the longer reach crosses the bench's 80 px ring circle, so the bench reading jumps. In a real horde it is ≈1.3.
+- Static Pulse III 1.08 on the bench: the 165 px ring no longer crosses a circle. In a crowd it is ≈1.31.
+- Slam 1.33 / 1.33: whole-cast cooldown steps.
+- Static Spark 1.05 / 1.18, Shock Shatter 1.12 / 1.25, Terrain 1.04 / 1.22: conditions the bot only partly meets.
+- 1.00 (the bot never meets the condition): Volt Tackle, Conductor, Thunderstorm.
+
+**Checks (observed):** `npm run typecheck` clean; `npm test` **381/381 passed**; `npm run build` passed; `npm run mutations` (Pikachu moves) ran. Browser: not rechecked (the hidden pane can't draw cards).
 
 ### 2026-10-19 — P4h-5: Bulbasaur-line Mutation ranks (D24)
 **Owner:** "Continue with P4h-5: Bulbasaur-line ranks."

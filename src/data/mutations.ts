@@ -952,129 +952,217 @@ export const MUTATIONS = {
   },
 
   // ── Pikachu line moves ─────────────────────────────────────────────────
-  'quickAttack.blink': generic('quickAttack', 'Blink Strike', 'Instant strike up to 140 px away', {
-    range: 140,
-    damageMult: 0.75,
-  }),
-  'quickAttack.doubleHit': generic('quickAttack', 'Double Hit', 'Hits twice', {
-    secondHitDelay: 0.15,
-    secondHitFraction: 0.6,
-    cooldownMult: 1.3,
-  }),
-  'quickAttack.voltTackle': bond('quickAttack', 'pikachu', 0, 'chargeFull', 'Volt Tackle', 'Full Charge: a ×3 dash-strike, with recoil', {
-    dashPx: 120,
-    damageMult: 3,
-    recoilMaxHpFraction: 0.05,
-  }),
-  'spark.arcPair': generic('spark', 'Arc Pair', 'A rotating line joins the sparks', {
-    /** P4f-6 rule-4 tuning: 0.75 read 1.30. */
-    damageMult: 0.6,
-    /** P4f-6 build value: the crackling line's width. */
-    lineWidth: 10,
-  }),
-  'spark.shower': generic('spark', 'Spark Shower', 'Sparks burst into 6 bolts', {
-    bolts: 6,
-    /** P4f-6 rule-4 tuning: 0.35 read 0.81, 0.55 read 0.85 (the spin dominates; the burst adds little). */
-    boltDamageFraction: 0.65,
-    cooldownMult: 1.2,
-    // P4f-6 build values: bolt flight.
-    boltSpeed: 350,
-    boltRange: 140,
-    boltRadius: 5,
-  }),
-  'spark.staticSpark': bond('spark', 'pikachu', 0, 'staticProc', 'Static Spark', 'Static paralysis adds sparks', {
-    sparkSeconds: 2,
-    maxExtraSparks: 3,
-    cooldownMult: 1.2,
-  }),
-  'electroBall.ricochet': generic('electroBall', 'Ricochet', 'Bounces enemy to enemy (max 2)', {
-    maxBounces: 2,
-    /** P4f-6 rule-4 tuning (new value): read 2.61 on the 16 ring, 1.30 on the dense ring; the sparse ring undersells pierce 2. */
-    damageMult: 0.8,
-  }),
-  'electroBall.plasma': generic('electroBall', 'Plasma Orb', 'Grows as it rolls', {
-    maxRadiusMult: 2.5,
-    maxDamageBonus: 0.4,
-    speedMult: 0.7,
-  }),
-  'electroBall.velocityBall': bond('electroBall', 'pikachu', 0, 'moveSpeed', 'Velocity Ball', 'Damage scales with how much faster you are', {
-    bonusPerSpeedRatio: 1,
-    maxBonus: 0.8,
-    damageMult: 0.6,
-  }),
-  'thunderWave.pulse': generic('thunderWave', 'Static Pulse', 'A paralysing ring expands from you', {
-    ringRadius: 150,
-    ringSeconds: 0.5,
-    paralyseSeconds: 0.4,
-  }),
-  'thunderWave.terrain': generic('thunderWave', 'Electric Terrain', '+25% Electric damage field', {
-    fieldSeconds: 5,
-    electricBonus: 0.25,
-    /** P4f-6 rule-4 tuning (new value): the field's own ticks; the longer, boosted field read 2.90 at full damage. */
-    fieldDamageMult: 0.35,
-  }),
-  'thunderWave.conductor': bond('thunderWave', 'pikachu', 0, 'chainJump', 'Conductor', 'Your chain prefers Thunder Wave fields', {
-    jumpRangeMult: 1.6,
-    paralyseSeconds: 0.4,
-  }),
-  'ironTail.spin': generic('ironTail', 'Iron Spin', 'A 360° tail spin', {
-    reachMult: 0.8,
-    damageMult: 0.8,
-  }),
-  'ironTail.slam': generic('ironTail', 'Iron Slam', 'Telegraphed slam at the target; stuns', {
-    radius: 60,
-    telegraphSeconds: 0.3,
-    stunSeconds: 0.5,
-    /** P4f-6 rule-4 tuning: 1.3 read 1.39. */
-    cooldownMult: 1.6,
-  }),
-  'ironTail.shockShatter': bond('ironTail', 'pikachu', 0, 'targetParalysed', 'Shock Shatter', 'Shatters paralysis for ×1.8', {
-    shatterMult: 1.8,
-    leapRadius: 100,
-    /** P4f-6 build value: the leaping shock deals this fraction of the shattering hit. */
-    leapDamageFraction: 0.5,
-    damageMultNotParalysed: 0.8,
-  }),
-  'thunder.storm': generic('thunder', 'Storm Call', '3 smaller strikes', {
-    strikes: 3,
-    strikeRadius: 30,
-    /** P4f-6 rule-4 tuning: 0.5 read 0.47 (0.61 on the dense ring); 0.8 reads 0.75 here, about 0.98 on the dense ring. */
-    strikeDamageFraction: 0.8,
-    paralyseSeconds: 0.3,
-  }),
-  'thunder.afterglow': generic('thunder', 'Afterglow', 'Electrified ground after the strike', {
-    fieldSeconds: 2,
-    paralysePerTick: 0.2,
-    damageMult: 0.8,
-  }),
-  'thunder.thunderstorm': bond('thunder', 'pikachu', 1, 'discharge', 'Thunderstorm', 'Each Discharge calls a Thunder strike', {
-    cooldownMult: 1.3,
-  }),
-  'thunderShock.liveWire': signature('thunderShock', 'pikachu', 'chargeLevel', 'Live Wire', 'Chain jumps leave live wires', {
-    wireSeconds: 1,
-    wireDamageFraction: 0.2,
-    jumpDamageMult: 0.7,
-    /** P4f-5 build values: wire hit width and check interval. */
-    wireWidth: 8,
-    wireTickInterval: 0.25,
-    chargeThreshold: 0.5,
-    chargeWireMult: 2,
-    tier1: { wireSeconds: 1.5, paralyseSeconds: 0.2 },
-  }),
-  'thunderShock.ballLightning': signature('thunderShock', 'pikachu', 'chargeLevel', 'Ball Lightning', 'A slow orb that zaps nearby enemies', {
-    orbSpeed: 200,
-    orbSeconds: 1.6,
-    zapRadius: 90,
-    zapInterval: 0.3,
-    zapDamageFraction: 0.65, // P4f-5 rule-4 tuning (doc: 0.25, 0.34× vs the chaining bolt)
-    chargeMaxBonus: 0.5,
-    tier1: { endChain: true },
-  }),
-  'thunderShock.returnArc': signature('thunderShock', 'pikachu', 'chargeLevel', 'Return Arc', 'The last jump arcs back to you: +Charge', {
-    chargePerJump: 4,
-    damageMult: 0.8,
-    tier1: { returnLineFraction: 0.5, returnLineWidth: 8 },
-  }),
+  'quickAttack.blink': {
+    ...generic('quickAttack', 'Blink Strike', 'Instant strike up to 140 px away', {
+      range: 140,
+      damageMult: 0.75,
+    }),
+    ranks: [{ damageMult: 0.86, range: 160 }, { damageMult: 0.97, range: 180 }],
+    rankText: ['dmg ×0.86 (0.75); range 160 px (140)', '×0.97; 180 px'],
+  },
+  'quickAttack.doubleHit': {
+    ...generic('quickAttack', 'Double Hit', 'Hits twice', {
+      secondHitDelay: 0.15,
+      secondHitFraction: 0.6,
+      cooldownMult: 1.3,
+    }),
+    ranks: [{ secondHitFraction: 0.8 }, { secondHitFraction: 0.9, cooldownMult: 1.2 }],
+    rankText: ['second hit 80% (60%)', '90%; ★ cooldown ×1.2 (1.3)'],
+  },
+  'quickAttack.voltTackle': {
+    ...bond('quickAttack', 'pikachu', 0, 'chargeFull', 'Volt Tackle', 'Full Charge: a ×3 dash-strike, with recoil', {
+      dashPx: 120,
+      damageMult: 3,
+      recoilMaxHpFraction: 0.05,
+    }),
+    ranks: [{ damageMult: 3.45, recoilMaxHpFraction: 0.04 }, { damageMult: 3.9, recoilMaxHpFraction: 0.03, dashPx: 150 }],
+    rankText: ['×3.45 (3); recoil 4% (5%)', '×3.9; recoil 3%; ★ dash 150 px (120)'],
+  },
+  'spark.arcPair': {
+    ...generic('spark', 'Arc Pair', 'A rotating line joins the sparks', {
+      /** P4f-6 rule-4 tuning: 0.75 read 1.30. */
+      damageMult: 0.6,
+      /** P4f-6 build value: the crackling line's width. */
+      lineWidth: 10,
+    }),
+    ranks: [{ damageMult: 0.69 }, { damageMult: 0.75, lineWidth: 14 }],
+    rankText: ['dmg ×0.69 (0.6)', '×0.75; ★ line 14 px wide (10)'],
+  },
+  'spark.shower': {
+    ...generic('spark', 'Spark Shower', 'Sparks burst into 6 bolts', {
+      bolts: 6,
+      /** P4f-6 rule-4 tuning: 0.35 read 0.81, 0.55 read 0.85 (the spin dominates; the burst adds little). */
+      boltDamageFraction: 0.65,
+      cooldownMult: 1.2,
+      // P4f-6 build values: bolt flight.
+      boltSpeed: 350,
+      boltRange: 140,
+      boltRadius: 5,
+    }),
+    ranks: [{ boltDamageFraction: 0.75, cooldownMult: 1.05 }, { boltDamageFraction: 0.85, cooldownMult: 0.95 }],
+    rankText: ['bolts 75% (65%); cooldown ×1.05 (1.2)', '85%; cooldown ×0.95'],
+  },
+  'spark.staticSpark': {
+    ...bond('spark', 'pikachu', 0, 'staticProc', 'Static Spark', 'Static paralysis adds sparks', {
+      sparkSeconds: 2,
+      maxExtraSparks: 3,
+      cooldownMult: 1.2,
+    }),
+    ranks: [{ sparkSeconds: 2.5, cooldownMult: 1.1 }, { sparkSeconds: 3, cooldownMult: 1, maxExtraSparks: 4 }],
+    rankText: ['sparks last 2.5 s (2); cooldown ×1.1 (1.2)', '3 s; ×1.0; ★ up to 4 extra sparks (3)'],
+  },
+  'electroBall.ricochet': {
+    ...generic('electroBall', 'Ricochet', 'Bounces enemy to enemy (max 2)', {
+      maxBounces: 2,
+      /** P4f-6 rule-4 tuning (new value): read 2.61 on the 16 ring, 1.30 on the dense ring; the sparse ring undersells pierce 2. */
+      damageMult: 0.8,
+    }),
+    ranks: [{ damageMult: 0.92 }, { damageMult: 0.8, maxBounces: 3 }],
+    rankText: ['dmg ×0.92 (0.8)', '★ 3 bounces (2, inside the chain cap) at dmg ×0.8'],
+  },
+  'electroBall.plasma': {
+    ...generic('electroBall', 'Plasma Orb', 'Grows as it rolls', {
+      maxRadiusMult: 2.5,
+      maxDamageBonus: 0.4,
+      speedMult: 0.7,
+      damageMult: 1,
+    }),
+    ranks: [{ maxDamageBonus: 0.55, damageMult: 1.15 }, { maxDamageBonus: 0.7, speedMult: 0.8, damageMult: 1.27 }],
+    rankText: ['grows to +55% (+40%); move dmg ×1.15', '+70%; move dmg ×1.27; ★ speed ×0.8 (0.7)'],
+  },
+  'electroBall.velocityBall': {
+    ...bond('electroBall', 'pikachu', 0, 'moveSpeed', 'Velocity Ball', 'Damage scales with how much faster you are', {
+      bonusPerSpeedRatio: 1,
+      maxBonus: 0.8,
+      damageMult: 0.6,
+    }),
+    ranks: [{ damageMult: 0.66, maxBonus: 0.9 }, { damageMult: 0.72, maxBonus: 1 }],
+    rankText: ['dmg ×0.66 (0.6); cap +90% (80%)', '×0.72; cap +100%'],
+  },
+  'thunderWave.pulse': {
+    ...generic('thunderWave', 'Static Pulse', 'A paralysing ring expands from you', {
+      ringRadius: 150,
+      ringSeconds: 0.5,
+      paralyseSeconds: 0.4,
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.15, paralyseSeconds: 0.45 }, { damageMult: 1.08, paralyseSeconds: 0.5, ringRadius: 165 }],
+    rankText: ['move dmg ×1.15; paralysis 0.45 s (0.4)', 'move dmg ×1.08; 0.5 s; ★ ring 165 px (150)'],
+  },
+  'thunderWave.terrain': {
+    ...generic('thunderWave', 'Electric Terrain', '+25% Electric damage field', {
+      fieldSeconds: 5,
+      electricBonus: 0.25,
+      /** P4f-6 rule-4 tuning (new value): the field's own ticks; the longer, boosted field read 2.90 at full damage. */
+      fieldDamageMult: 0.35,
+    }),
+    ranks: [{ electricBonus: 0.3 }, { electricBonus: 0.35, fieldSeconds: 6 }],
+    rankText: ['Electric +30% (25%)', '+35%; ★ field 6 s (5)'],
+  },
+  'thunderWave.conductor': {
+    ...bond('thunderWave', 'pikachu', 0, 'chainJump', 'Conductor', 'Your chain prefers Thunder Wave fields', {
+      jumpRangeMult: 1.6,
+      paralyseSeconds: 0.4,
+      chainDamageMult: 1,
+    }),
+    ranks: [{ jumpRangeMult: 1.8, chainDamageMult: 1.15 }, { jumpRangeMult: 2, chainDamageMult: 1.3 }],
+    rankText: ['jump range ×1.8 (1.6); jumps between fields +15% dmg', '×2.0; +30%'],
+  },
+  'ironTail.spin': {
+    ...generic('ironTail', 'Iron Spin', 'A 360° tail spin', {
+      reachMult: 0.8,
+      damageMult: 0.8,
+    }),
+    ranks: [{ damageMult: 0.92 }, { damageMult: 0.9, reachMult: 0.85 }],
+    rankText: ['dmg ×0.92 (0.8)', '×0.9; ★ reach ×0.85 (0.8)'],
+  },
+  'ironTail.slam': {
+    ...generic('ironTail', 'Iron Slam', 'Telegraphed slam at the target; stuns', {
+      radius: 60,
+      telegraphSeconds: 0.3,
+      stunSeconds: 0.5,
+      /** P4f-6 rule-4 tuning: 1.3 read 1.39. */
+      cooldownMult: 1.6,
+    }),
+    ranks: [{ cooldownMult: 1.4 }, { cooldownMult: 1.25, radius: 75 }],
+    rankText: ['cooldown ×1.4 (1.6)', '×1.25; ★ radius 75 px (60)'],
+  },
+  'ironTail.shockShatter': {
+    ...bond('ironTail', 'pikachu', 0, 'targetParalysed', 'Shock Shatter', 'Shatters paralysis for ×1.8', {
+      shatterMult: 1.8,
+      leapRadius: 100,
+      /** P4f-6 build value: the leaping shock deals this fraction of the shattering hit. */
+      leapDamageFraction: 0.5,
+      damageMultNotParalysed: 0.8,
+    }),
+    ranks: [{ shatterMult: 2, damageMultNotParalysed: 0.9 }, { shatterMult: 2.2, damageMultNotParalysed: 1, leapDamageFraction: 0.75 }],
+    rankText: ['shatter ×2.0 (1.8); not paralysed ×0.9 (0.8)', '×2.2; ×1.0; ★ leap 75% (50%)'],
+  },
+  'thunder.storm': {
+    ...generic('thunder', 'Storm Call', '3 smaller strikes', {
+      strikes: 3,
+      strikeRadius: 30,
+      /** P4f-6 rule-4 tuning: 0.5 read 0.47 (0.61 on the dense ring); 0.8 reads 0.75 here, about 0.98 on the dense ring. */
+      strikeDamageFraction: 0.8,
+      paralyseSeconds: 0.3,
+    }),
+    ranks: [{ strikeDamageFraction: 0.92 }, { strikeDamageFraction: 1.05, strikeRadius: 34 }],
+    rankText: ['strikes 92% (80%)', '105%; ★ strike radius 34 px (30)'],
+  },
+  'thunder.afterglow': {
+    ...generic('thunder', 'Afterglow', 'Electrified ground after the strike', {
+      fieldSeconds: 2,
+      paralysePerTick: 0.2,
+      damageMult: 0.8,
+    }),
+    ranks: [{ damageMult: 0.92, fieldSeconds: 2.5 }, { damageMult: 1.04, fieldSeconds: 3 }],
+    rankText: ['dmg ×0.92 (0.8); field 2.5 s (2)', '×1.04; 3 s'],
+  },
+  'thunder.thunderstorm': {
+    ...bond('thunder', 'pikachu', 1, 'discharge', 'Thunderstorm', 'Each Discharge calls a Thunder strike', {
+      cooldownMult: 1.3,
+      strikeRadiusMult: 1,
+    }),
+    ranks: [{ cooldownMult: 1.15 }, { cooldownMult: 1, strikeRadiusMult: 1.5 }],
+    rankText: ['cooldown ×1.15 (1.3)', '×1.0; ★ the Discharge strike is ×1.5 wider'],
+  },
+  'thunderShock.liveWire': {
+    ...signature('thunderShock', 'pikachu', 'chargeLevel', 'Live Wire', 'Chain jumps leave live wires', {
+      wireSeconds: 1,
+      wireDamageFraction: 0.2,
+      jumpDamageMult: 0.7,
+      /** P4f-5 build values: wire hit width and check interval. */
+      wireWidth: 8,
+      wireTickInterval: 0.25,
+      chargeThreshold: 0.5,
+      chargeWireMult: 2,
+      tier1: { wireSeconds: 1.5, paralyseSeconds: 0.2 },
+    }),
+    ranks: [{ wireDamageFraction: 0.27, jumpDamageMult: 0.82 }, { wireDamageFraction: 0.32, jumpDamageMult: 0.93 }],
+    rankText: ['wires 27% (20%); jumps ×0.82 (0.7)', '32%; ×0.93'],
+  },
+  'thunderShock.ballLightning': {
+    ...signature('thunderShock', 'pikachu', 'chargeLevel', 'Ball Lightning', 'A slow orb that zaps nearby enemies', {
+      orbSpeed: 200,
+      orbSeconds: 1.6,
+      zapRadius: 90,
+      zapInterval: 0.3,
+      zapDamageFraction: 0.65, // P4f-5 rule-4 tuning (doc: 0.25, 0.34× vs the chaining bolt)
+      chargeMaxBonus: 0.5,
+      tier1: { endChain: true },
+    }),
+    ranks: [{ zapDamageFraction: 0.75 }, { zapDamageFraction: 0.85, orbSeconds: 2 }],
+    rankText: ['zaps 75% (65%)', '85%; ★ orb lasts 2 s (1.6)'],
+  },
+  'thunderShock.returnArc': {
+    ...signature('thunderShock', 'pikachu', 'chargeLevel', 'Return Arc', 'The last jump arcs back to you: +Charge', {
+      chargePerJump: 4,
+      damageMult: 0.8,
+      tier1: { returnLineFraction: 0.5, returnLineWidth: 8 },
+    }),
+    ranks: [{ damageMult: 0.85, chargePerJump: 5 }, { damageMult: 0.95, chargePerJump: 6 }],
+    rankText: ['dmg ×0.85 (0.8); +5 Charge per jump (4)', '×0.95; +6'],
+  },
 
   // ── Lapras moves ───────────────────────────────────────────────────────
   'bodySlam.bellyFlop': generic('bodySlam', 'Belly Flop', 'Hop, then a 360° slam', {
