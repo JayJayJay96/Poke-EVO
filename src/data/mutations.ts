@@ -79,17 +79,14 @@ export interface MutationDef {
   readonly ranks?: readonly [MutationValues, MutationValues];
   /** Card text for rank II and III (the RANKS.md cells); present exactly when `ranks` is. */
   readonly rankText?: readonly [string, string];
+  /** Lapras Bonds: rank II and III overrides of the Flood and Ebb values, like `ranks` (RANKS.md). */
+  readonly tideRanks?: readonly [TideOverride, TideOverride];
 }
 
-/**
- * Mutation ranks (D24): a Mutation sits in its own slot and ranks I → III at sites.
- * Until P4h-3…7 give every Mutation its own rank values, a rank scales the move's damage
- * (provisional placeholder: rank II ≈ +15%, rank III ≈ +30% over rank I).
- */
-export const MUTATION_RANKS = {
-  max: 3,
-  placeholderDamageMult: [1, 1.15, 1.3],
-} as const;
+type TideOverride = { readonly flood?: MutationValues; readonly ebb?: MutationValues };
+
+/** Mutation ranks (D24): a Mutation sits in its own slot and ranks I → III at sites (values per Mutation). */
+export const MUTATION_RANKS = { max: 3 } as const;
 
 /** Shared terrain, crowd-control guard rails and the Tide (docs/moveset/README.md). */
 export const MUTATION_TUNING = {
@@ -1165,47 +1162,69 @@ export const MUTATIONS = {
   },
 
   // ── Lapras moves ───────────────────────────────────────────────────────
-  'bodySlam.bellyFlop': generic('bodySlam', 'Belly Flop', 'Hop, then a 360° slam', {
-    radius: 90,
-    delaySeconds: 0.3,
-    /** P4f-6 rule-4 tuning: 1.25 read 1.74; 2 reads 1.16, ~1.04 at the steady cast rate (the 10 s window fits 4 slams). */
-    cooldownMult: 2,
-  }),
-  'bodySlam.shockwave': generic('bodySlam', 'Shockwave', 'A ground wave 150 px forward', {
-    waveLength: 150,
-    waveDamageFraction: 0.4,
-    /** P4f-6 rule-4 tuning: 0.85 read 1.23. */
-    damageMult: 0.75,
-    // P4f-6 build values: the wave front.
-    waveSpeed: 450,
-    waveRadius: 30,
-  }),
+  'bodySlam.bellyFlop': {
+    ...generic('bodySlam', 'Belly Flop', 'Hop, then a 360° slam', {
+      radius: 90,
+      delaySeconds: 0.3,
+      /** P4f-6 rule-4 tuning: 1.25 read 1.74; 2 reads 1.16, ~1.04 at the steady cast rate (the 10 s window fits 4 slams). */
+      cooldownMult: 2,
+    }),
+    ranks: [{ cooldownMult: 1.75 }, { cooldownMult: 1.55, radius: 105 }],
+    rankText: ['cooldown ×1.75 (2)', '×1.55; ★ radius 105 px (90)'],
+  },
+  'bodySlam.shockwave': {
+    ...generic('bodySlam', 'Shockwave', 'A ground wave 150 px forward', {
+      waveLength: 150,
+      waveDamageFraction: 0.4,
+      /** P4f-6 rule-4 tuning: 0.85 read 1.23. */
+      damageMult: 0.75,
+      // P4f-6 build values: the wave front.
+      waveSpeed: 450,
+      waveRadius: 30,
+    }),
+    ranks: [{ damageMult: 0.82, waveDamageFraction: 0.45 }, { damageMult: 0.9, waveDamageFraction: 0.5, waveLength: 200 }],
+    rankText: ['slam ×0.82 (0.75); wave 45% (40%)', '×0.9; 50%; ★ wave runs 200 px (150)'],
+  },
   'bodySlam.surge': {
     ...bond('bodySlam', 'lapras', 0, 'levelUp', 'Surging Slam', 'Level-ups empower the next slams', {
       paralyseSeconds: 0.5,
       damageMult: 0.85,
     }),
     tide: { flood: { empoweredSlams: 3 }, ebb: { empoweredSlams: 1 } },
+    ranks: [{ damageMult: 0.97 }, { damageMult: 1.08 }],
+    tideRanks: [{ flood: { empoweredSlams: 4 }, ebb: { empoweredSlams: 2 } }, { flood: { empoweredSlams: 5 } }],
+    rankText: ['dmg ×0.97 (0.85); Flood 4 slams (3), Ebb 2 (1)', '×1.08; Flood 5, Ebb 2'],
   },
-  'iceBeam.iceWall': generic('iceBeam', 'Ice Wall', 'A wall enemies must walk around', {
-    wallWidth: 80,
-    wallSeconds: 2,
-    damageMult: 0.7,
-    /** P4f-6 build values: how thick the wall is, and how many can stand at once. */
-    wallThickness: 12,
-    maxWalls: 3,
-  }),
-  'iceBeam.aurora': generic('iceBeam', 'Aurora Beam', 'Hit enemies deal −20% contact damage', {
-    contactDamageMult: 0.8,
-    debuffSeconds: 3,
-    damageMult: 0.8,
-    slow: 0.3,
-  }),
+  'iceBeam.iceWall': {
+    ...generic('iceBeam', 'Ice Wall', 'A wall enemies must walk around', {
+      wallWidth: 80,
+      wallSeconds: 2,
+      damageMult: 0.7,
+      /** P4f-6 build values: how thick the wall is, and how many can stand at once. */
+      wallThickness: 12,
+      maxWalls: 3,
+    }),
+    ranks: [{ damageMult: 0.8, wallSeconds: 2.5 }, { damageMult: 0.9, wallSeconds: 3, wallWidth: 110 }],
+    rankText: ['dmg ×0.8 (0.7); wall 2.5 s (2)', '×0.9; 3 s; ★ wall 110 px wide (80)'],
+  },
+  'iceBeam.aurora': {
+    ...generic('iceBeam', 'Aurora Beam', 'Hit enemies deal −20% contact damage', {
+      contactDamageMult: 0.8,
+      debuffSeconds: 3,
+      damageMult: 0.8,
+      slow: 0.3,
+    }),
+    ranks: [{ contactDamageMult: 0.75, damageMult: 0.92 }, { contactDamageMult: 0.7, damageMult: 1.04 }],
+    rankText: ['contact ×0.75 (0.8); dmg ×0.92 (0.8)', '×0.7; ×1.04'],
+  },
   'iceBeam.flashFreeze': {
     ...bond('iceBeam', 'lapras', 0, 'levelBelow', 'Flash Freeze', 'Before Lv 30 Ice Beam freezes', {
       damageMult: 0.8,
     }),
     tide: { flood: { freezeSeconds: 0.6 }, ebb: { slow: 0.6, widthMult: 1.2 } },
+    ranks: [{ damageMult: 0.92 }, { damageMult: 1.04 }],
+    tideRanks: [{ flood: { freezeSeconds: 0.7 }, ebb: { widthMult: 1.3 } }, { flood: { freezeSeconds: 0.8 }, ebb: { widthMult: 1.4 } }],
+    rankText: ['dmg ×0.92 (0.8); Flood freeze 0.7 s (0.6); Ebb width ×1.3 (1.2)', '×1.04; Flood 0.8 s; Ebb ×1.4'],
   },
   'surf.ferryWave': {
     ...bond('surf', 'lapras', 0, 'xpGem', 'Ferry Wave', 'Surf pulls XP gems to you', {
@@ -1215,33 +1234,52 @@ export const MUTATIONS = {
       flood: { gemRadiusMult: 1.5, moveSpeedPct: 0.3, speedSeconds: 1.5 },
       ebb: { gemRadiusMult: 1, moveSpeedPct: 0, speedSeconds: 0 },
     },
+    ranks: [{ damageMult: 0.92 }, { damageMult: 1.04 }],
+    tideRanks: [{ flood: { gemRadiusMult: 1.75 }, ebb: { gemRadiusMult: 1.2 } }, { flood: { gemRadiusMult: 2 }, ebb: { gemRadiusMult: 1.4 } }],
+    rankText: ['dmg ×0.92 (0.8); Flood gems ×1.75 (1.5), Ebb ×1.2 (1)', '×1.04; Flood ×2, Ebb ×1.4'],
   },
   'hydroPump.pressureShell': {
     ...bond('hydroPump', 'lapras', 0, 'armorAbsorb', 'Pressure Shell', 'Armor-blocked damage charges the pump', {
       cooldownMult: 1.2,
     }),
     tide: { flood: { storeCap: 60 }, ebb: { storeCap: 30 } },
+    ranks: [{ cooldownMult: 1.1 }, { cooldownMult: 1 }],
+    tideRanks: [{ flood: { storeCap: 80 }, ebb: { storeCap: 40 } }, { flood: { storeCap: 100 }, ebb: { storeCap: 50 } }],
+    rankText: ['cooldown ×1.1 (1.2); cap Flood 80 (60), Ebb 40 (30)', '×1.0; Flood 100, Ebb 50'],
   },
-  'iceShard.hail': signature('iceShard', 'lapras', undefined, 'Hail', 'Shards fall on the 2 nearest enemies', {
-    targets: 2,
-    range: 200,
-    shadowSeconds: 0.25,
-    damageFraction: 0.6,
-    /** P4f-5 build value: each shard hits this radius. */
-    impactRadius: 20,
-    tier1: { fieldSizeMult: 0.4 },
-  }),
-  'iceShard.frostLance': signature('iceShard', 'lapras', undefined, 'Frost Lance', 'A lance that pierces every enemy', {
-    slow: 0.3,
-    cooldownMult: 1.4,
-    tier1: { stripSeconds: 2, stripRadius: 30, stripPatches: 4 },
-  }),
-  'iceShard.song': signature('iceShard', 'lapras', undefined, 'Song of the Sea', 'Every 4th cast is a sleep song', {
-    everyN: 4,
-    ringRadius: 160,
-    sleepSeconds: 1,
-    tier1: { fieldRadius: 160, fieldSeconds: 3, slow: 0.3 },
-  }),
+  'iceShard.hail': {
+    ...signature('iceShard', 'lapras', undefined, 'Hail', 'Shards fall on the 2 nearest enemies', {
+      targets: 2,
+      range: 200,
+      shadowSeconds: 0.25,
+      damageFraction: 0.6,
+      /** P4f-5 build value: each shard hits this radius. */
+      impactRadius: 20,
+      tier1: { fieldSizeMult: 0.4 },
+    }),
+    ranks: [{ damageFraction: 0.7 }, { damageFraction: 0.8 }],
+    rankText: ['shards 70% (60%)', '80%'],
+  },
+  'iceShard.frostLance': {
+    ...signature('iceShard', 'lapras', undefined, 'Frost Lance', 'A lance that pierces every enemy', {
+      slow: 0.3,
+      cooldownMult: 1.4,
+      tier1: { stripSeconds: 2, stripRadius: 30, stripPatches: 4 },
+    }),
+    ranks: [{ cooldownMult: 1.2 }, { cooldownMult: 1.02, slow: 0.4 }],
+    rankText: ['cooldown ×1.2 (1.4)', '×1.02; ★ slow 40% (30%)'],
+  },
+  'iceShard.song': {
+    ...signature('iceShard', 'lapras', undefined, 'Song of the Sea', 'Every 4th cast is a sleep song', {
+      everyN: 4,
+      ringRadius: 160,
+      sleepSeconds: 1,
+      tier1: { fieldRadius: 160, fieldSeconds: 3, slow: 0.3 },
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.15, sleepSeconds: 1.2 }, { damageMult: 1.3, sleepSeconds: 1.4 }],
+    rankText: ['move dmg ×1.15; sleep 1.2 s (1)', '×1.3; 1.4 s'],
+  },
 } as const satisfies Record<string, MutationDef>;
 
 export type MutationId = keyof typeof MUTATIONS;
@@ -1276,4 +1314,23 @@ export function rankedValues<I extends MutationId>(id: I, rank: number): RankedV
     rankCache.set(id, byRank);
   }
   return byRank[Math.min(MUTATION_RANKS.max, Math.max(1, rank))] as RankedValues<I>;
+}
+
+type TideId = { [I in MutationId]: (typeof MUTATIONS)[I] extends { tide: object } ? I : never }[MutationId];
+export type RankedTide<I extends TideId> = Widen<(typeof MUTATIONS)[I]['tide']>;
+
+const tideCache = new Map<MutationId, NonNullable<MutationDef['tide']>[]>();
+
+/** A Lapras Bond's Flood and Ebb values at `rank` (D24), built like `rankedValues`. Cached. */
+export function rankedTide<I extends TideId>(id: I, rank: number): RankedTide<I> {
+  const def: MutationDef = MUTATIONS[id];
+  let byRank = tideCache.get(id);
+  if (!byRank) {
+    const one = def.tide!;
+    const up = (t: typeof one, o: TideOverride | undefined) => ({ flood: { ...t.flood, ...o?.flood }, ebb: { ...t.ebb, ...o?.ebb } });
+    const two = up(one, def.tideRanks?.[0]);
+    byRank = [one, one, two, up(two, def.tideRanks?.[1])];
+    tideCache.set(id, byRank);
+  }
+  return byRank[Math.min(MUTATION_RANKS.max, Math.max(1, rank))] as RankedTide<I>;
 }

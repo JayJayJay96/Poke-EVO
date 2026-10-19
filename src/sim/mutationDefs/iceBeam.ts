@@ -1,31 +1,33 @@
 import { MOVES, type BeamMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
+import { rankedTide } from '../../data/mutations';
 import { applyNewStun } from '../combat';
 import { beamLength } from '../forms/beam';
 import { defineMutation, tideFlood } from '../hooks';
-import { capEntities, entitiesOf, forEachEnemyOnSegment, spawnEntity } from './util';
+import type { MoveSlot } from '../types';
+import { capEntities, entitiesOf, forEachEnemyOnSegment, ranked, spawnEntity } from './util';
 
 // Ice Beam Mutations (docs/moveset/shared/ice-beam.md, lapras/README.md).
 
 const iceBeam = MOVES.iceBeam as BeamMoveDef;
 
 /** Ice Wall (generic): where the beam ends, a wall forms across it for a while; enemies slide around it. */
-const wall = MUTATIONS['iceBeam.iceWall'].values;
+const wall = ranked('iceBeam.iceWall');
 defineMutation('iceBeam.iceWall', {
-  stats: (s) => {
-    s.damage *= wall.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= wall(slot).damageMult;
   },
   onCast: (world, slot) => {
+    const v = wall(slot);
     const length = beamLength(slot, iceBeam);
     const cx = world.player.x + slot.dirX * length;
     const cy = world.player.y + slot.dirY * length;
-    const half = (wall.wallWidth * slot.stats.area) / 2;
+    const half = (v.wallWidth * slot.stats.area) / 2;
     // Across the beam: the perpendicular of its direction.
-    const w = spawnEntity(world, 'iceBeam.iceWall', cx - slot.dirY * half, cy + slot.dirX * half, wall.wallSeconds);
+    const w = spawnEntity(world, 'iceBeam.iceWall', cx - slot.dirY * half, cy + slot.dirX * half, v.wallSeconds);
     w.x2 = cx + slot.dirY * half;
     w.y2 = cy - slot.dirX * half;
-    w.radius = wall.wallThickness / 2;
-    capEntities(world, 'iceBeam.iceWall', wall.maxWalls);
+    w.radius = v.wallThickness / 2;
+    capEntities(world, 'iceBeam.iceWall', v.maxWalls);
   },
   update: (world, _slot, dt) => {
     const { player } = world;
@@ -63,35 +65,38 @@ defineMutation('iceBeam.iceWall', {
 });
 
 /** Aurora Beam (generic): enemies hit deal less contact damage for a while; weaker and a lighter slow. */
-const aurora = MUTATIONS['iceBeam.aurora'].values;
+const aurora = ranked('iceBeam.aurora');
 defineMutation('iceBeam.aurora', {
-  stats: (s) => {
-    s.damage *= aurora.damageMult;
-    s.slow = aurora.slow;
+  stats: (s, _world, slot) => {
+    s.damage *= aurora(slot).damageMult;
+    s.slow = aurora(slot).slow;
   },
-  onHit: (_world, _slot, enemy) => {
-    enemy.weakenMult = aurora.contactDamageMult;
-    enemy.weakenLeft = Math.max(enemy.weakenLeft, aurora.debuffSeconds);
+  onHit: (_world, slot, enemy) => {
+    const v = aurora(slot);
+    enemy.weakenMult = v.contactDamageMult;
+    enemy.weakenLeft = Math.max(enemy.weakenLeft, v.debuffSeconds);
   },
 });
 
 /** Flash Freeze (Bond, below the Tide level): in Flood, Ice Beam freezes instead of slowing; in Ebb it slows harder and is wider. */
-const freeze = MUTATIONS['iceBeam.flashFreeze'];
+const freeze = ranked('iceBeam.flashFreeze');
+const freezeTide = (slot: MoveSlot) => rankedTide('iceBeam.flashFreeze', slot.mutationRank);
 defineMutation('iceBeam.flashFreeze', {
-  stats: (s) => {
-    s.damage *= freeze.values.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= freeze(slot).damageMult;
   },
-  live: (s, world) => {
+  live: (s, world, slot) => {
     if (tideFlood(world)) {
       s.slow = 0;
       return;
     }
-    s.slow = freeze.tide.ebb.slow;
-    s.widthMult *= freeze.tide.ebb.widthMult;
+    const { ebb } = freezeTide(slot);
+    s.slow = ebb.slow;
+    s.widthMult *= ebb.widthMult;
   },
-  onHit: (world, _slot, enemy) => {
+  onHit: (world, slot, enemy) => {
     // One freeze per beam: later ticks don't refresh it; stun fatigue applies after.
     if (!tideFlood(world) || enemy.stunLeft > 0) return;
-    applyNewStun(enemy, freeze.tide.flood.freezeSeconds);
+    applyNewStun(enemy, freezeTide(slot).flood.freezeSeconds);
   },
 });

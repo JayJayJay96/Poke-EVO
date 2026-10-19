@@ -1,7 +1,8 @@
 import { MOVES, type MeleeMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
+import { rankedTide } from '../../data/mutations';
 import { canTrap, damageEnemy, findNearestEnemy, makeHitInfo, procHit, pushEnemy, soak } from '../combat';
 import { defineMutation, hpBelow, tideFlood } from '../hooks';
+import type { MoveSlot } from '../types';
 import { dirTo, entitiesOf, forEachEnemyIn, forEachEnemyOnSegment, ranked, spawnEntity } from './util';
 
 // Surf Mutations (docs/moveset/shared/surf.md; Bonds in squirtle/ and lapras/).
@@ -91,13 +92,14 @@ defineMutation('surf.lastWave', {
 });
 
 /** Ferry Wave (Bond, XP gems, Tide): Surf pulls the XP gems around you in; in Flood from further, with a burst of speed. */
-const ferry = MUTATIONS['surf.ferryWave'];
+const ferry = ranked('surf.ferryWave');
+const ferryTide = (slot: MoveSlot) => rankedTide('surf.ferryWave', slot.mutationRank);
 defineMutation('surf.ferryWave', {
-  stats: (s) => {
-    s.damage *= ferry.values.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= ferry(slot).damageMult;
   },
   onCast: (world, slot) => {
-    const tide = tideFlood(world) ? ferry.tide.flood : ferry.tide.ebb;
+    const tide = tideFlood(world) ? ferryTide(slot).flood : ferryTide(slot).ebb;
     const { x, y } = world.player;
     const r = surf.reach * slot.stats.area * slot.stats.reachMult * tide.gemRadiusMult;
     for (const gem of world.gems) {
@@ -108,5 +110,5 @@ defineMutation('surf.ferryWave', {
   update: (_world, slot, dt) => {
     if (slot.mutState.speedLeft) slot.mutState.speedLeft = Math.max(0, slot.mutState.speedLeft - dt);
   },
-  moveSpeedMult: (_world, slot) => (slot.mutState.speedLeft ? 1 + ferry.tide.flood.moveSpeedPct : 1),
+  moveSpeedMult: (_world, slot) => (slot.mutState.speedLeft ? 1 + ferryTide(slot).flood.moveSpeedPct : 1),
 });

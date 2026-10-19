@@ -1,23 +1,24 @@
 import { MOVES, type MeleeMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
+import { rankedTide } from '../../data/mutations';
 import { MAX_ENEMY_RADIUS, damageEnemy, findNearestEnemy, makeHitInfo, procHit } from '../combat';
 import { defineMutation, tideFlood } from '../hooks';
-import { dirTo, entitiesOf, forEachEnemyIn, spawnEntity } from './util';
+import { dirTo, entitiesOf, forEachEnemyIn, ranked, spawnEntity } from './util';
 
 // Body Slam Mutations (docs/moveset/shared/body-slam.md, lapras/README.md).
 
 const bodySlam = MOVES.bodySlam as MeleeMoveDef;
 
 /** Belly Flop (generic): a short hop, then a 360° slam on your own position. */
-const flop = MUTATIONS['bodySlam.bellyFlop'].values;
+const flop = ranked('bodySlam.bellyFlop');
 defineMutation('bodySlam.bellyFlop', {
-  stats: (s) => {
-    s.cooldown *= flop.cooldownMult;
+  stats: (s, _world, slot) => {
+    s.cooldown *= flop(slot).cooldownMult;
   },
   cast: (world, slot) => {
-    const radius = flop.radius * slot.stats.area;
+    const v = flop(slot);
+    const radius = v.radius * slot.stats.area;
     if (!findNearestEnemy(world, radius + MAX_ENEMY_RADIUS)) return false;
-    const landing = spawnEntity(world, 'bodySlam.bellyFlop', world.player.x, world.player.y, flop.delaySeconds);
+    const landing = spawnEntity(world, 'bodySlam.bellyFlop', world.player.x, world.player.y, v.delaySeconds);
     landing.radius = radius;
     return true;
   },
@@ -39,19 +40,20 @@ defineMutation('bodySlam.bellyFlop', {
 });
 
 /** Shockwave (generic): the slam also sends a ground wave forward that hits once, without paralysis. */
-const shock = MUTATIONS['bodySlam.shockwave'].values;
+const shock = ranked('bodySlam.shockwave');
 defineMutation('bodySlam.shockwave', {
-  stats: (s) => {
-    s.damage *= shock.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= shock(slot).damageMult;
   },
   onCast: (world, slot) => {
+    const v = shock(slot);
     const swing = world.swings[world.swings.length - 1];
     if (!swing) return;
-    const wave = spawnEntity(world, 'bodySlam.shockwave', swing.x, swing.y, shock.waveLength / shock.waveSpeed);
-    wave.vx = swing.dirX * shock.waveSpeed;
-    wave.vy = swing.dirY * shock.waveSpeed;
-    wave.radius = shock.waveRadius * slot.stats.area;
-    wave.damage = slot.stats.damage * shock.waveDamageFraction;
+    const wave = spawnEntity(world, 'bodySlam.shockwave', swing.x, swing.y, v.waveLength / v.waveSpeed);
+    wave.vx = swing.dirX * v.waveSpeed;
+    wave.vy = swing.dirY * v.waveSpeed;
+    wave.radius = v.waveRadius * slot.stats.area;
+    wave.damage = slot.stats.damage * v.waveDamageFraction;
   },
   update: (world, slot, dt) => {
     const hit = procHit(slot.stats.attackType);
@@ -69,20 +71,21 @@ defineMutation('bodySlam.shockwave', {
 });
 
 /** Surging Slam (Bond, level-up, Tide): each level-up empowers the next Body Slams: 360° and a longer paralysis. */
-const surge = MUTATIONS['bodySlam.surge'];
+const surge = ranked('bodySlam.surge');
 defineMutation('bodySlam.surge', {
-  stats: (s) => {
-    s.damage *= surge.values.damageMult;
+  stats: (s, _world, slot) => {
+    s.damage *= surge(slot).damageMult;
   },
   onEvent: (world, slot, event) => {
     if (event !== 'levelUp') return;
-    const tide = tideFlood(world) ? surge.tide.flood : surge.tide.ebb;
+    const t = rankedTide('bodySlam.surge', slot.mutationRank);
+    const tide = tideFlood(world) ? t.flood : t.ebb;
     slot.mutState.empowered = (slot.mutState.empowered ?? 0) + tide.empoweredSlams;
   },
   live: (s, _world, slot) => {
     if (!slot.mutState.empowered) return;
     s.arcMult *= 360 / bodySlam.arcDegrees;
-    s.stun = Math.max(s.stun, surge.values.paralyseSeconds);
+    s.stun = Math.max(s.stun, surge(slot).paralyseSeconds);
   },
   onCast: (_world, slot) => {
     if (slot.mutState.empowered) slot.mutState.empowered -= 1;

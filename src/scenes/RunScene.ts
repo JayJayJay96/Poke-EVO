@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
 import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
-import { MUTATION_RANKS, MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
+import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
@@ -1294,10 +1294,8 @@ function describeSiteCard(world: World, card: SiteCard): CardView {
   const move = MOVES[moveId].name;
   const kind = def.kind === 'generic' ? 'MUTATION' : def.kind === 'bond' ? 'BOND' : 'SIGNATURE';
   if (card.kind === 'mutationRank') {
-    // D24: the Mutation's own rank text; the placeholder damage step until its line gets ranks.
-    const mult = MUTATION_RANKS.placeholderDamageMult;
-    const gain = Math.round((mult[card.rank - 1]! / mult[card.rank - 2]! - 1) * 100);
-    const change = (def as MutationDef).rankText?.[card.rank - 2] ?? `+${gain}% damage`;
+    // D24: the Mutation's own rank text (RANKS.md).
+    const change = (def as MutationDef).rankText?.[card.rank - 2] ?? '';
     return {
       heading: `${kind} RANK UP ⬆`,
       title: `${move}: ${def.name} ${RANK_NUMERALS[card.rank - 1]}`,

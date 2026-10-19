@@ -139,15 +139,15 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | Mutation | Rank II | Rank III | Favoured |
 |---|---|---|---|
 | `bodySlam.bellyFlop` Belly Flop | cooldown ×1.75 (2) | ×1.55; ★ radius 105 px (90) | `enlarge`, `concentrated`, `knockback` |
-| `bodySlam.shockwave` Shockwave | slam ×0.85 (0.75); wave 45% (40%) | ×0.95; 50%; ★ wave runs 200 px (150) | `enlarge`, `knockback`, `powerUp` |
-| `bodySlam.surge` Surging Slam (Tide) | dmg ×0.95 (0.85); Flood 4 slams (3), Ebb 2 (1) | ×1.05; Flood 5, Ebb 2 | `enlarge`, `quickCast`, `knockback` |
+| `bodySlam.shockwave` Shockwave | slam ×0.82 (0.75); wave 45% (40%) | ×0.9; 50%; ★ wave runs 200 px (150) | `enlarge`, `knockback`, `powerUp` |
+| `bodySlam.surge` Surging Slam (Tide) | dmg ×0.97 (0.85); Flood 4 slams (3), Ebb 2 (1) | ×1.08; Flood 5, Ebb 2 | `enlarge`, `quickCast`, `knockback` |
 | `iceBeam.iceWall` Ice Wall | dmg ×0.8 (0.7); wall 2.5 s (2) | ×0.9; 3 s; ★ wall 110 px wide (80) | `extend`, `enlarge`, `quickCast` |
-| `iceBeam.aurora` Aurora Beam | contact ×0.75 (0.8); dmg ×0.9 (0.8) | ×0.7; ×1.0 | `extend`, `enlarge`, `lifesteal` |
-| `iceBeam.flashFreeze` Flash Freeze (Tide) | dmg ×0.9 (0.8); Flood freeze 0.7 s (0.6); Ebb width ×1.3 (1.2) | ×1.0; Flood 0.8 s; Ebb ×1.4 | `extend`, `enlarge`, `quickCast` |
-| `surf.ferryWave` Ferry Wave (Tide) | dmg ×0.9 (0.8); Flood gems ×1.75 (1.5), Ebb ×1.2 (1) | ×1.0; Flood ×2, Ebb ×1.4 | `enlarge`, `quickCast`, `knockback` |
+| `iceBeam.aurora` Aurora Beam | contact ×0.75 (0.8); dmg ×0.92 (0.8) | ×0.7; ×1.04 | `extend`, `enlarge`, `lifesteal` |
+| `iceBeam.flashFreeze` Flash Freeze (Tide) | dmg ×0.92 (0.8); Flood freeze 0.7 s (0.6); Ebb width ×1.3 (1.2) | ×1.04; Flood 0.8 s; Ebb ×1.4 | `extend`, `enlarge`, `quickCast` |
+| `surf.ferryWave` Ferry Wave (Tide) | dmg ×0.92 (0.8); Flood gems ×1.75 (1.5), Ebb ×1.2 (1) | ×1.04; Flood ×2, Ebb ×1.4 | `enlarge`, `quickCast`, `knockback` |
 | `hydroPump.pressureShell` Pressure Shell (Tide) | cooldown ×1.1 (1.2); cap Flood 80 (60), Ebb 40 (30) | ×1.0; Flood 100, Ebb 50 | `extend`, `concentrated`, `powerUp` |
 | `iceShard.hail` Hail (signature) | shards 70% (60%) | 80% | `wideBlast`, `keenEdge`, `quickCast` |
-| `iceShard.frostLance` Frost Lance (signature) | cooldown ×1.25 (1.4) | ×1.1; ★ slow 40% (30%) | `velocity`, `concentrated`, `keenEdge` |
+| `iceShard.frostLance` Frost Lance (signature) | cooldown ×1.2 (1.4) | ×1.02; ★ slow 40% (30%) | `velocity`, `concentrated`, `keenEdge` |
 | `iceShard.song` Song of the Sea (signature) | move dmg ×1.15; sleep 1.2 s (1) | ×1.3; 1.4 s | `enlarge`, `quickCast`, `multishot` |
 
 ## Open points for the owner

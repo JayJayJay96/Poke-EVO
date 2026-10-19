@@ -1,5 +1,5 @@
 import { MOVES, type BeamMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
+import { MUTATIONS, rankedTide } from '../../data/mutations';
 import { damageEnemy, findNearestEnemy, makeHitInfo, soak } from '../combat';
 import { defineMutation, healPlayer, tideFlood } from '../hooks';
 import { entitiesOf, forEachEnemyIn, ranked, spawnEntity } from './util';
@@ -83,14 +83,15 @@ defineMutation('hydroPump.rainCannon', {
 });
 
 /** Pressure Shell (Bond, Shell Armor absorbs, Tide): blocked damage is stored and the next Hydro Pump adds it over its ticks. */
-const shell = MUTATIONS['hydroPump.pressureShell'];
+const shell = ranked('hydroPump.pressureShell');
 defineMutation('hydroPump.pressureShell', {
-  stats: (s) => {
-    s.cooldown *= shell.values.cooldownMult;
+  stats: (s, _world, slot) => {
+    s.cooldown *= shell(slot).cooldownMult;
   },
   onEvent: (world, slot, event, amount) => {
     if (event !== 'armorAbsorb') return;
-    const cap = tideFlood(world) ? shell.tide.flood.storeCap : shell.tide.ebb.storeCap;
+    const t = rankedTide('hydroPump.pressureShell', slot.mutationRank);
+    const cap = tideFlood(world) ? t.flood.storeCap : t.ebb.storeCap;
     slot.mutState.stored = Math.min(cap, (slot.mutState.stored ?? 0) + amount);
   },
   onCast: (_world, slot) => {

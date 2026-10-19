@@ -60,9 +60,8 @@ test('Mutation rule 4: DPS vs Power Up I', { timeout: 60 * 60_000 }, () => {
       const dps = avg((seed) => dpsWith(line, move, seed, id, rank));
       return mutated > 0 ? (dps / mutated).toFixed(2) : '–';
     };
-    const own = def.ranks ? '' : ' (placeholder)';
     rows.push(
-      `| ${id} | ${def.kind} | ${line} | ${powerUp.toFixed(1)} | ${mutated.toFixed(1)} | ${ratio.toFixed(2)} | ${ok} | ${rankRatio(2)} | ${rankRatio(3)}${own} |`,
+      `| ${id} | ${def.kind} | ${line} | ${powerUp.toFixed(1)} | ${mutated.toFixed(1)} | ${ratio.toFixed(2)} | ${ok} | ${rankRatio(2)} | ${rankRatio(3)} |`,
     );
   }
   const header =

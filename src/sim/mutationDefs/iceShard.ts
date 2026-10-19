@@ -1,11 +1,10 @@
 import { MOVES, type ProjectileMoveDef } from '../../data/moves';
-import { MUTATIONS } from '../../data/mutations';
 import { applyNewStun, canTrap, findNearestEnemy } from '../combat';
 import { BLAST_SECONDS, castProjectile } from '../forms/projectile';
 import { defineMutation } from '../hooks';
 import type { MoveSlot, World } from '../types';
 import { spawnZone, strikeZone } from '../zones';
-import { dirTo, forEachEnemyIn, nearestEnemies, signatureTier } from './util';
+import { dirTo, forEachEnemyIn, nearestEnemies, ranked, signatureTier } from './util';
 
 // Lapras signature Mutations: Ice Shard → (Lv 25) Sheer Cold (docs/moveset/lapras §5).
 // A strong first tier and a modest Sheer Cold step (the opposite of the 3-stage lines).
@@ -30,11 +29,12 @@ function freezingField(world: World, slot: MoveSlot, x: number, y: number, sizeM
 }
 
 // ── A. Hail ─────────────────────────────────────────────────────────────
-const hail = MUTATIONS['iceShard.hail'].values;
+const hailAt = ranked('iceShard.hail');
 
 defineMutation('iceShard.hail', {
   // No travel: shards fall on the nearest enemies after a short shadow.
   cast: (world, slot) => {
+    const hail = hailAt(slot);
     const { x, y } = world.player;
     const targets = nearestEnemies(world, x, y, hail.range, hail.targets);
     if (targets.length === 0) return false;
@@ -54,10 +54,11 @@ defineMutation('iceShard.hail', {
 });
 
 // ── B. Frost Lance ──────────────────────────────────────────────────────
-const lance = MUTATIONS['iceShard.frostLance'].values;
+const lanceAt = ranked('iceShard.frostLance');
 
 defineMutation('iceShard.frostLance', {
-  stats: (s) => {
+  stats: (s, _world, slot) => {
+    const lance = lanceAt(slot);
     s.pierce = Number.MAX_SAFE_INTEGER; // pierces every enemy in its line
     s.slow = Math.max(s.slow, lance.slow);
     s.cooldown *= lance.cooldownMult;
@@ -65,6 +66,7 @@ defineMutation('iceShard.frostLance', {
   // Sheer Cold tier: the lance's line freezes into a strip.
   onCast: (world, slot) => {
     if (signatureTier(world, slot) < 1) return;
+    const lance = lanceAt(slot);
     const def = MOVES[slot.moveId] as ProjectileMoveDef;
     const target = findNearestEnemy(world, def.range);
     if (!target) return;
@@ -80,11 +82,16 @@ defineMutation('iceShard.frostLance', {
 });
 
 // ── C. Song of the Sea ──────────────────────────────────────────────────
-const song = MUTATIONS['iceShard.song'].values;
+const songAt = ranked('iceShard.song');
 
 defineMutation('iceShard.song', {
+  // Ranks II/III: utility with flat move damage (RANKS.md).
+  stats: (s, _world, slot) => {
+    s.damage *= songAt(slot).damageMult;
+  },
   // Every 4th cast is a song: light enemies around you fall asleep. No damage.
   cast: (world, slot) => {
+    const song = songAt(slot);
     const def = MOVES[slot.moveId] as ProjectileMoveDef;
     if (!findNearestEnemy(world, def.range)) return false;
     const cast = (slot.mutState.casts ?? 0) + 1;

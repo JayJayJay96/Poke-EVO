@@ -7,7 +7,6 @@ import { MOVES, type MoveId } from '../data/moves';
 import {
   HOOK_IDS,
   MUTATION_IDS,
-  MUTATION_RANKS,
   rankedValues,
   MUTATIONS,
   REQUIREMENT_IDS,
@@ -91,10 +90,25 @@ describe('Mutation rank values (D24)', () => {
     }
   });
 
-  it('rank card text exists exactly for the Mutations with their own ranks', () => {
+  it('every Mutation has its own rank II/III values and card text', () => {
     for (const id of MUTATION_IDS) {
       const def: MutationDef = MUTATIONS[id];
-      expect(Boolean(def.rankText), id).toBe(Boolean(def.ranks));
+      expect(def.ranks, id).toBeDefined();
+      expect(def.rankText, id).toBeDefined();
+    }
+  });
+
+  it('Tide rank overrides (Lapras Bonds) exist at rank I with the same type', () => {
+    for (const id of MUTATION_IDS) {
+      const def: MutationDef = MUTATIONS[id];
+      for (const override of def.tideRanks ?? []) {
+        expect(def.tide, id).toBeDefined();
+        for (const side of ['flood', 'ebb'] as const) {
+          for (const [key, value] of Object.entries(override[side] ?? {})) {
+            expect(typeof value, `${id}.${side}.${key}`).toBe(typeof def.tide![side][key]);
+          }
+        }
+      }
     }
   });
 
@@ -105,14 +119,6 @@ describe('Mutation rank values (D24)', () => {
     expect(rankedValues('rapidSpin.shellSpin', 3).rechargeCutPerHit).toBe(0.35);
   });
 
-  it('Mutations without their own ranks still get the placeholder damage scaling', () => {
-    const w = world('lapras');
-    expect((MUTATIONS['iceShard.hail'] as MutationDef).ranks).toBeUndefined();
-    expect(grantMutation(w, 'iceShard.hail')).toBe('granted');
-    const rankI = w.moves[0]!.stats.damage;
-    grantMutation(w, 'iceShard.hail');
-    expect(w.moves[0]!.stats.damage).toBeCloseTo(rankI * MUTATION_RANKS.placeholderDamageMult[1]);
-  });
 });
 
 describe('Mutation registry (docs/moveset/INDEX.md ↔ src/data/mutations.ts)', () => {
