@@ -19,7 +19,7 @@ export type MoveTag = PokemonType | FormTag | FlagTag;
 
 /** An evolution line, named after its first stage. */
 export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur' | 'pikachu' | 'lapras';
-export type EnemyId = 'rattata' | 'pidgey' | 'raticate' | 'spearow' | 'fearow' | 'tauros';
+export type EnemyId = 'rattata' | 'pidgey' | 'raticate' | 'spearow' | 'fearow' | 'tauros' | 'snorlax';
 export type AbilityId =
   | 'blaze'
   | 'blazePlus'
@@ -636,6 +636,21 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     xp: 22,
     berryChance: 0.4,
     weightKg: 88.4,
+  },
+  // Arena boss (D28). Hand-set base, scaled by the wave curve when the fight starts; HP is a first guess
+  // to tune toward BOSSES.md's 60–90 s fight. B1-1 is a plain chaser; its kit comes in B1-3 / B2.
+  snorlax: {
+    id: 'snorlax',
+    name: 'Snorlax',
+    types: ['Normal'],
+    maxHp: 3000,
+    speed: 55,
+    radius: 40,
+    contactDamage: 30,
+    xp: 60,
+    berryChance: 0,
+    weightKg: 460,
+    boss: true,
   },
 };
 

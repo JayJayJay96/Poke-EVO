@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
-import { ABILITIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
+import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
+import { ARENA_BOSSES, ARENA_TUNING, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
+import { chooseArenaReward } from '../sim/arena';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
@@ -35,7 +37,7 @@ import { createRandomSeed, createSeededRng } from '../sim/rng';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
-import type { AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, SiteCard, World } from '../sim/types';
+import type { AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, RewardCard, SiteCard, World } from '../sim/types';
 import { createWorld, step } from '../sim/world';
 
 // Grey-box colours until real sprites arrive in P6.
@@ -66,6 +68,11 @@ const COLORS = {
   seed: 0x4cd964,
   berry: 0x2f7ff5,
   magnet: 0xff4d4d,
+  /** Arena events (D28). */
+  entrance: 0x2a1d14,
+  entranceRim: 0xb08a5a,
+  arenaWall: 0xd9b27a,
+  bossBar: 0xff5a5a,
   exclusive: 0xff8c42,
   /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
   mutation: 0xb46cff,
@@ -100,6 +107,7 @@ const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   spearow: 0xb5764a,
   fearow: 0xd9a066,
   tauros: 0x6e4a2e,
+  snorlax: 0x2f5d6e,
 };
 /** Gems worth at least this much draw bigger and green. */
 const BIG_GEM_VALUE = 5;
@@ -391,11 +399,59 @@ export class RunScene extends Phaser.Scene {
 
     this.trackPlayerDamage(deltaMs);
     this.announceBoundSites();
+    this.announceArena();
     this.showSignatureTierUp(time);
     this.syncOverlay(time);
     this.draw();
 
     this.updatePerf(time, drawStart - simStart, performance.now() - drawStart);
+  }
+
+  /** A triangle at the screen edge pointing at an off-screen target (dx, dy from the player). */
+  private edgeArrow(dx: number, dy: number, radius: number, color: number): void {
+    const cam = this.cameras.main;
+    const halfW = cam.width / 2;
+    const halfH = cam.height / 2;
+    const dist = Math.hypot(dx, dy);
+    if (dist === 0) return;
+    if (Math.abs(dx) < halfW + radius && Math.abs(dy) < halfH + radius) return; // on screen
+    const pad = 26;
+    const s = Math.min((halfW - pad) / Math.max(Math.abs(dx), 1e-6), (halfH - pad) / Math.max(Math.abs(dy), 1e-6));
+    const ax = halfW + dx * s;
+    const ay = halfH + dy * s;
+    const ux = dx / dist;
+    const uy = dy / dist;
+    this.hudGfx.fillStyle(color, 0.95);
+    this.hudGfx.fillTriangle(ax + ux * 14, ay + uy * 14, ax - ux * 7 - uy * 9, ay - uy * 7 + ux * 9, ax - ux * 7 + uy * 9, ay - uy * 7 - ux * 9);
+  }
+
+  /** The arena line under the HUD: the entrance countdown, or the fight's state and timer (D28). */
+  private arenaHudLine(): string {
+    const { arena, entrance, time } = this.world;
+    if (arena) {
+      const boss = bossName(arena.bossId);
+      return arena.engaged ? `${boss}: ${formatTime(arena.timeLeft)} left` : `Walk to the middle: ${boss} is waiting`;
+    }
+    if (entrance) {
+      return `${ENTRANCE_NAMES[ARENA_BOSSES[entrance.bossId].entrance]} is open: ${formatTime(entrance.closesAt - time)}`;
+    }
+    return '';
+  }
+
+  /** D28: arena news (an entrance opened or closed, the fight won or lost) as a short notice. */
+  private announceArena(): void {
+    const notice = this.world.arenaNotice;
+    if (!notice) return;
+    this.world.arenaNotice = null;
+    const boss = bossName(notice.bossId);
+    const entrance = ENTRANCE_NAMES[ARENA_BOSSES[notice.bossId].entrance];
+    const message = {
+      opened: `${entrance} opened nearby! ${boss} waits inside. ${ARENA_TUNING.openSeconds} s to enter`,
+      missed: `The ${entrance.toLowerCase().replace(/^an? /, '')} closed. ${boss} is gone`,
+      won: `${boss} defeated!`,
+      lost: `Time's up! ${boss} drove you out`,
+    }[notice.kind];
+    this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
   }
 
   /** D23: stepping into a site whose roll holds a Bond or signature Mutation says so (and why it takes longer). */
@@ -498,7 +554,7 @@ export class RunScene extends Phaser.Scene {
     } else if (offer.kind === 'site') {
       if (index < offer.cards.length) this.siteNotice(chooseSiteCard(this.world, index), offer.cards[index]!);
       else skipSite(this.world);
-    }
+    } else if (offer.kind === 'arenaReward') chooseArenaReward(this.world, index);
   }
 
   /** Says what a site card did when it isn't obvious (a Mutation that couldn't be placed). */
@@ -603,6 +659,11 @@ export class RunScene extends Phaser.Scene {
         footerAction = () => skipSite(this.world);
         break;
       }
+      case 'arenaReward':
+        title = 'Boss defeated!  Pick one';
+        frame = COLORS.bond;
+        views = offer.cards.map((reward) => describeReward(world, reward));
+        break;
     }
 
     const cam = this.cameras.main;
@@ -871,6 +932,19 @@ export class RunScene extends Phaser.Scene {
     for (const patch of this.world.scorches) {
       g.fillStyle(COLORS.crater, 0.3 * Math.min(1, patch.lifeLeft / 0.5));
       g.fillCircle(patch.x, patch.y, patch.radius);
+    }
+
+    // Arena events (D28): the entrance on the map, and the arena wall during a fight.
+    const { entrance, arena } = this.world;
+    if (entrance) {
+      g.fillStyle(COLORS.entrance, 0.9);
+      g.fillCircle(entrance.x, entrance.y, entrance.radius);
+      g.lineStyle(5, COLORS.entranceRim, 1);
+      g.strokeCircle(entrance.x, entrance.y, entrance.radius);
+    }
+    if (arena) {
+      g.lineStyle(10, COLORS.arenaWall, 1);
+      g.strokeCircle(arena.x, arena.y, arena.radius);
     }
 
     // Mutation Sites (D23): the ring's colour reveals the roll once you step in (gold = Pokémon-bound);
@@ -1204,7 +1278,8 @@ export class RunScene extends Phaser.Scene {
 
     // Visible cost of "damage taken" trade-offs (D12).
     const taken = this.world.mods.damageTakenMult;
-    this.warnText.setText(taken > 1.001 ? `⚠ Glass: you take +${Math.round((taken - 1) * 100)}% damage` : '');
+    const glass = taken > 1.001 ? `⚠ Glass: you take +${Math.round((taken - 1) * 100)}% damage` : '';
+    this.warnText.setText([glass, this.arenaHudLine()].filter(Boolean).join('\n'));
 
     // XP bar across the top edge.
     const h = this.hudGfx;
@@ -1214,23 +1289,27 @@ export class RunScene extends Phaser.Scene {
     h.fillStyle(COLORS.xpFill, 1);
     h.fillRect(0, 0, (cam.width * xp) / xpToNext(level), 6);
 
-    // Arrows at the screen edge toward off-screen Mutation Sites in range (D23).
-    const halfW = cam.width / 2;
-    const halfH = cam.height / 2;
-    for (const site of this.world.sites) {
-      const dx = site.x - player.x;
-      const dy = site.y - player.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist > SITE_TUNING.arrowRange || dist === 0) continue;
-      if (Math.abs(dx) < halfW + site.radius && Math.abs(dy) < halfH + site.radius) continue; // on screen
-      const pad = 26;
-      const s = Math.min((halfW - pad) / Math.max(Math.abs(dx), 1e-6), (halfH - pad) / Math.max(Math.abs(dy), 1e-6));
-      const ax = halfW + dx * s;
-      const ay = halfH + dy * s;
-      const ux = dx / dist;
-      const uy = dy / dist;
-      h.fillStyle(siteColor(site), 0.95);
-      h.fillTriangle(ax + ux * 14, ay + uy * 14, ax - ux * 7 - uy * 9, ay - uy * 7 + ux * 9, ax - ux * 7 + uy * 9, ay - uy * 7 - ux * 9);
+    // Arrows at the screen edge toward off-screen Mutation Sites in range (D23) and an open arena entrance (D28).
+    if (!this.world.arena) {
+      for (const site of this.world.sites) {
+        if (Math.hypot(site.x - player.x, site.y - player.y) <= SITE_TUNING.arrowRange) {
+          this.edgeArrow(site.x - player.x, site.y - player.y, site.radius, siteColor(site));
+        }
+      }
+    }
+    const entrance = this.world.entrance;
+    if (entrance) this.edgeArrow(entrance.x - player.x, entrance.y - player.y, entrance.radius, COLORS.entranceRim);
+
+    // Boss HP bar under the XP bar during an arena fight (D28).
+    const fight = this.world.arena;
+    const boss = fight && this.world.enemies.find((e) => e.id === fight.bossEnemyId);
+    if (boss) {
+      const w = Math.min(420, cam.width - 40);
+      const x = (cam.width - w) / 2;
+      h.fillStyle(COLORS.xpBack, 1);
+      h.fillRect(x, 70, w, 10);
+      h.fillStyle(COLORS.bossBar, 1);
+      h.fillRect(x, 70, (w * Math.max(0, boss.hp)) / boss.maxHp, 10);
     }
 
     this.banner.setPosition(cam.width / 2, cam.height / 2);
@@ -1306,6 +1385,24 @@ function describeSurge(): CardView {
     body: `Heal ${heal} HP\n+${Math.round(damagePct * 100)}% damage for ${seconds} s`,
     color: COLORS.augment,
   };
+}
+
+const ENTRANCE_NAMES: Readonly<Record<ArenaEntranceKind, string>> = {
+  mountainHole: 'A mountain hole',
+  pool: 'A deep pool',
+  whirlwind: 'A whirlwind',
+};
+
+function bossName(id: ArenaBossId): string {
+  return ENEMIES[ARENA_BOSSES[id].enemy].name;
+}
+
+/** An arena reward card, labelled by the pool it came from (D28). */
+function describeReward(world: World, reward: RewardCard): CardView {
+  if (reward.pool === 'level') return describeCard(world, reward.card);
+  if (reward.pool === 'site') return describeSiteCard(world, reward.card);
+  const view = describeAugment(reward.card);
+  return { ...view, heading: `${MOVES[world.moves[reward.slot]!.moveId].name} · ${view.heading}` };
 }
 
 /** Ring and arrow colour: unknown until rolled, then purple (generic) or gold (Pokémon-bound). */

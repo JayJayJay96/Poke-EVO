@@ -5,7 +5,13 @@ import { CRIT_MULTIPLIER } from '../data/upgrades';
 import { blazeFaked, emit, healPlayer, hooksOf, mutationLeechBonus } from './hooks';
 import type { Enemy, Gem, HitInfo, MoveSlot, MoveStats, World } from './types';
 
-export const MAX_ENEMY_RADIUS = Math.max(...Object.values(ENEMIES).map((e) => e.radius));
+/** Largest horde radius. Bosses are left out so their size doesn't widen every query (D28). */
+export const MAX_ENEMY_RADIUS = Math.max(...Object.values(ENEMIES).filter((e) => !e.boss).map((e) => e.radius));
+/**
+ * Extra query reach while an arena boss is out. shortcut: melee targeting (reach + MAX_ENEMY_RADIUS) still
+ * ignores it, so melee reaches a boss up to this much later; widen those calls if bosses feel out of reach.
+ */
+const BOSS_QUERY_PAD = Math.max(...Object.values(ENEMIES).map((e) => e.radius)) - MAX_ENEMY_RADIUS;
 /** Enemies move after the hash is built, so queries look a little wider than needed. */
 const HASH_MARGIN = 8;
 
@@ -61,7 +67,8 @@ export function knockbackResistance(weightKg: number): number {
 
 /** Candidate enemy indices whose bodies may touch a circle at (x, y) of `radius`. */
 export function queryEnemies(world: World, x: number, y: number, radius: number, out: number[]): number[] {
-  return world.hash.query(x, y, radius + MAX_ENEMY_RADIUS + HASH_MARGIN, out);
+  const pad = world.arena ? BOSS_QUERY_PAD : 0;
+  return world.hash.query(x, y, radius + MAX_ENEMY_RADIUS + pad + HASH_MARGIN, out);
 }
 
 /** Nearest living enemy within `range` of a point (default: the player), or undefined. */

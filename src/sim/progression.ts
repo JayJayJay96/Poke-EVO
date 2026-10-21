@@ -173,6 +173,12 @@ export function chooseCard(world: World, index: number): void {
   if (offer?.kind !== 'cards') return;
   const card = offer.cards[index];
   if (!card) return;
+  applyCard(world, card);
+  completeLevelUp(world);
+}
+
+/** Applies a normal-level card (also used by arena rewards, D28). */
+export function applyCard(world: World, card: Card): void {
   switch (card.kind) {
     case 'move':
       world.moves.push(createSlot(card.moveId));
@@ -190,7 +196,6 @@ export function chooseCard(world: World, index: number): void {
       world.bigBoosts++;
       break;
   }
-  completeLevelUp(world);
 }
 
 /** Augment level, window 1: picks the move and opens its augment cards. */
@@ -253,6 +258,15 @@ export function chooseAugment(world: World, index: number): void {
     slot.sockets.push({ augmentId: card.augmentId, rank: 1 });
   }
   completeLevelUp(world);
+}
+
+/** Ranks up an owned augment or sockets a new one in a free socket; never replaces (arena rewards, D28). */
+export function applyAugmentCard(world: World, slotIndex: number, card: AugmentCard): void {
+  const slot = world.moves[slotIndex];
+  if (!slot) return;
+  const owned = slot.sockets.find((s) => s.augmentId === card.augmentId);
+  if (owned) owned.rank = card.rank;
+  else if (!needsReplace(world, slotIndex, card)) slot.sockets.push({ augmentId: card.augmentId, rank: 1 });
 }
 
 /** Replace window: the new augment takes this socket at rank I; the old one is gone. */

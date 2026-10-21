@@ -1,3 +1,4 @@
+import type { ArenaBossId } from '../data/arena';
 import type { AugmentId } from '../data/augments';
 import type { AbilityId, EnemyId, PokemonId, PokemonType } from '../data/content';
 import type { MoveId, StunKind } from '../data/moves';
@@ -458,7 +459,9 @@ export type LevelUpOffer =
     }
   /** A Mutation granted to a move whose sockets are all augments: pick the augment it replaces, or cancel. */
   /** A captured Mutation Site (D23): pick one of its cards, or skip. */
-  | { readonly kind: 'site'; readonly siteId: number; readonly cards: readonly SiteCard[] };
+  | { readonly kind: 'site'; readonly siteId: number; readonly cards: readonly SiteCard[] }
+  /** Arena boss beaten (D28): pick one card from the mixed level / augment / site pools. */
+  | { readonly kind: 'arenaReward'; readonly cards: readonly RewardCard[] };
 
 /**
  * An evolution in progress. The sim is paused throughout.
@@ -501,6 +504,55 @@ export interface MutationSite {
   bound: boolean;
 }
 
+/** One card of an arena reward (D28), with the pool it came from. */
+export type RewardCard =
+  | { readonly pool: 'level'; readonly card: Card }
+  | { readonly pool: 'augment'; readonly slot: number; readonly card: AugmentCard }
+  | { readonly pool: 'site'; readonly card: SiteCard };
+
+/** An arena event's entrance on the main map (D28), open until `closesAt`. */
+export interface ArenaEntrance {
+  readonly bossId: ArenaBossId;
+  readonly x: number;
+  readonly y: number;
+  readonly radius: number;
+  readonly closesAt: number;
+}
+
+/** A boss fight in progress (D28). The main map waits in `stored` until it ends. */
+export interface ArenaFight {
+  readonly bossId: ArenaBossId;
+  readonly bossEnemyId: number;
+  /** Arena centre and radius; the player can't leave the circle. */
+  readonly x: number;
+  readonly y: number;
+  readonly radius: number;
+  /** The boss waits until the player walks in (or a few seconds pass); the timer runs from then. */
+  engaged: boolean;
+  waitLeft: number;
+  timeLeft: number;
+  /** The boss's scaled speed, applied when the fight starts. */
+  readonly bossSpeed: number;
+  readonly stored: {
+    readonly enemies: Enemy[];
+    readonly gems: Gem[];
+    readonly berries: Berry[];
+    readonly projectiles: Projectile[];
+    readonly zones: Zone[];
+    readonly puddles: Terrain[];
+    readonly scorches: Terrain[];
+    readonly entities: MutationEntity[];
+    readonly x: number;
+    readonly y: number;
+  };
+}
+
+/** Arena news for the scene to show once (D28). */
+export interface ArenaNotice {
+  readonly kind: 'opened' | 'missed' | 'won' | 'lost';
+  readonly bossId: ArenaBossId;
+}
+
 export type RunStatus = 'running' | 'fainted' | 'survived';
 
 export interface World {
@@ -519,6 +571,16 @@ export interface World {
   scorches: Terrain[];
   /** Things Mutations spawned (mines, sprouts, orbs, wires...). */
   entities: MutationEntity[];
+  /** Run times of this run's arena events (D28), seeded by the map seed. */
+  readonly arenaSchedule: readonly number[];
+  /** Arena events opened so far (the next index into `arenaSchedule`). */
+  arenaEventsDone: number;
+  arenaBossesUsed: ArenaBossId[];
+  /** An open entrance on the map, if any. */
+  entrance: ArenaEntrance | null;
+  /** The boss fight in progress, if any. */
+  arena: ArenaFight | null;
+  arenaNotice: ArenaNotice | null;
   /** Mutation Sites generated so far (D23). */
   sites: MutationSite[];
   /** Map chunks whose site has been decided ("cx,cy"). */

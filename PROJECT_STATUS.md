@@ -76,6 +76,83 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-21 — B1-1: arena boss events (D28)
+**Owner decisions (D28):**
+- Mewtwo is the only main-map boss; other bosses are arena bosses drawn at random.
+- 4 events per run.
+- The first event avoids a boss that counters the starter.
+- The run clock keeps ticking in the arena.
+- Reward is a combine step plus a mixed pick.
+- Built in steps: B1, then B2.
+
+BOSSES.md now carries a D28 note.
+
+**B1 plan:**
+- **B1-1** (this entry): events, arena, timer, scaling, mixed reward.
+- **B1-2:** skill-combine engine and the combine-step reward.
+- **B1-3:** Snorlax phase 1 kit (ring telegraphs, Body Slam with lead aim, Gluttony berries).
+- **B2:** Rest with interrupt bar, Yawn, Belly Drum, Snore rings, Hyper Beam.
+
+**Files**
+- `src/data/arena.ts` (new): `ARENA_BOSSES` (Snorlax: mountain hole, 120 s) and `ARENA_TUNING`:
+  - event times 180 / 390 / 600 / 680 s ± 20 s
+  - open 60 s, entrance 600–900 px away
+  - arena radius 450, engage within 250 px or after 6 s
+  - 2 s invulnerability on return, 5 reward cards
+- `src/sim/arena.ts` (new):
+  - seeded `arenaSchedule`
+  - `arenaBossChoices` (no repeats; event 1 skips bosses that resist the starter's types)
+  - `updateArena`: open, close (missed) and enter the entrance; arena wall; engage; timer
+  - `resolveArena`: win gives a reward, time-out gives nothing; XP left in the arena is collected on the way out
+  - `rollRewardCards`: level, augment and site pools, ≥ 1 from each; never a socket replace
+  - `chooseArenaReward`
+- `src/sim/types.ts`: `RewardCard`, `ArenaEntrance`, `ArenaFight` (the main map is stored while you're inside), `ArenaNotice`, offer kind `arenaReward`, World arena fields.
+- `src/sim/world.ts`: `updateArena` after movement; no spawner or sites during a fight; `resolveArena` after deaths.
+- `src/sim/progression.ts`: `applyCard` and `applyAugmentCard` extracted. `src/sim/sites.ts`: `applySiteCard` extracted.
+- `src/data/content.ts`: `snorlax` enemy (boss, 3000 HP base, 55 px/s, radius 40, 30 contact, 460 kg). A plain chaser for now.
+- `src/sim/combat.ts`: `MAX_ENEMY_RADIUS` leaves bosses out; `queryEnemies` pads by the boss size only while a fight runs.
+  - Shortcut (commented): melee targeting reaches a boss up to 23 px later.
+  - Without this, the radius-40 boss slowed every step by ~30% (bench 0.85 → 1.11 ms).
+- `src/sim/balance.ts`: the bot takes a random arena reward if it ever wins one.
+- `src/scenes/RunScene.ts`:
+  - entrance (dark hole, tan rim) and arena wall
+  - edge arrow to the entrance (arrow code shared with sites)
+  - HUD line: "A mountain hole is open: 0:42", "Walk to the middle", "Snorlax: 1:52 left"
+  - boss HP bar
+  - notices for opened / missed / won / lost
+  - reward window "Boss defeated! Pick one"
+
+**Checks (observed)**
+- `npm run typecheck` clean. `npm test` **405/405 passed** (9 new in `arena.test.ts`):
+  - schedule seeded and ends before 15:00
+  - entrance opens near the player, never with spawns off
+  - missed close
+  - starter-fair pool
+  - entering stores the map and scales the boss by the wave
+  - engage, timer and wall
+  - win restores the map and gives a mixed reward that applies
+  - time-out gives no reward
+  - reward never asks for a replace
+- Found by test: with event 4 at 12:00, a late entry ran past 15:00, so it moved to 11:20.
+- `npm run build` passed. `npm run bench`: 0.84 ms mean (maxed build).
+- Browser (Charmander, 165 fps), driving the player with the dev handle:
+  - entrance opened with banner, countdown and arrow
+  - stepping in showed the arena wall, waiting Snorlax (5054 HP at 3:07), boss bar and "Walk to the middle"
+  - engaging started the 120 s timer and Snorlax chased
+  - killing it (hp set to 0) showed "Snorlax defeated!", restored the map and opened the 5-card mixed reward
+  - picking Dragon Rage added the move
+  - no console errors
+
+**Not verified / risks**
+- Snorlax's HP (3000 base × wave) is a guess; real fight length is untested in play.
+- The fight wasn't played by hand.
+- The edge arrow can sit under the HUD text in the top-left corner.
+- The entry animation is a placeholder (instant).
+- Combine step not built yet (B1-2).
+- The counter rule is only testable once a boss with resistances joins the pool.
+
+**Next:** B1-2 (skill combine). Owner checks first: whether "fully socketed" counts a Mutation socket, and what bonus the combo base gets.
+
 ### 2026-10-21 — Enemy design framework (D27, design only)
 - **Phase:** P4 (gate playtest still pending). The owner made this session the **enemy designer**. Objective: a
   design (no code) for enemy stats, status resistance and type effectiveness. **Status:** framework drafted, waiting

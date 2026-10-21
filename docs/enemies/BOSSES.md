@@ -101,6 +101,12 @@ not the global weather system that PROJECT.md §10 keeps out of MVP (owner-appro
 
 ## 4. The MVP bosses
 
+> **D28 (owner, 2026-10-21):** **Mewtwo is the only main-map boss.** Snorlax and the birds are **arena bosses**, one
+> drawn at random per arena event (4 per run). The event opens a themed entrance near the player; the fight happens
+> in a closed arena with a time limit. Snorlax's kit below still applies inside the arena: Gluttony berries drop in
+> the arena, and "the main-map horde keeps spawning" becomes arena adds. Times like "7:30" and "rift" below are
+> superseded by D28.
+
 ### Snorlax: mid-boss, 7:30, main map. "The mountain that won't move"
 | | |
 |---|---|

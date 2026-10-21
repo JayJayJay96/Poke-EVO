@@ -14,6 +14,7 @@ import {
   updateAbilities,
 } from './abilities';
 import { enemySpeedFactor, pickWanderPoint, queryEnemies, updateStatuses } from './combat';
+import { arenaSchedule, resolveArena, updateArena } from './arena';
 import { startEvolutionIfDue, upgradeSignatureByLevel } from './evolution';
 import { castBeam, updateBeam } from './forms/beam';
 import { castMelee } from './forms/melee';
@@ -93,6 +94,12 @@ export function createWorld({
     sites: [],
     siteChunks: new Set(),
     mapSeed,
+    arenaSchedule: arenaSchedule(mapSeed),
+    arenaEventsDone: 0,
+    arenaBossesUsed: [],
+    entrance: null,
+    arena: null,
+    arenaNotice: null,
     terrainTickLeft: 0,
     swings: [],
     cuts: [],
@@ -133,7 +140,9 @@ export function step(world: World, input: InputState, dt: number): void {
   world.time += dt;
   tickTimers(world, dt);
   movePlayer(world, input, dt);
-  if (world.spawnEnabled) updateSpawner(world, dt);
+  updateArena(world, dt);
+  // The arena is a closed fight: no horde spawns and no sites while it runs (D28).
+  if (world.spawnEnabled && !world.arena) updateSpawner(world, dt);
   rebuildHash(world);
   moveEnemies(world, dt);
   updateStatuses(world, dt);
@@ -147,8 +156,9 @@ export function step(world: World, input: InputState, dt: number): void {
   applyContactDamage(world);
   removeDead(world);
   if (world.status !== 'running') return;
+  resolveArena(world);
   upgradeSignatureByLevel(world);
-  updateSites(world, dt);
+  if (!world.arena) updateSites(world, dt);
   if (world.time >= TUNING.runSeconds) world.status = 'survived';
   // A captured site opens first; then evolution, whose summary card hands over to queued level-up cards.
   else if (!world.offer && !startEvolutionIfDue(world) && world.pendingLevelUps > 0) world.offer = makeOffer(world);

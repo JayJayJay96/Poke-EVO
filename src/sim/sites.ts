@@ -158,7 +158,11 @@ function closeSite(world: World): SiteCard[] | null {
 export function chooseSiteCard(world: World, index: number): GrantResult | 'item' | 'surge' | null {
   const offer = world.offer;
   if (offer?.kind !== 'site' || !offer.cards[index]) return null;
-  const card = closeSite(world)![index]!;
+  return applySiteCard(world, closeSite(world)![index]!);
+}
+
+/** Applies a site card (also used by arena rewards, D28). */
+export function applySiteCard(world: World, card: SiteCard): GrantResult | 'item' | 'surge' {
   switch (card.kind) {
     case 'mutation':
     case 'mutationRank':
