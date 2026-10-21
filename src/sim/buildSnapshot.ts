@@ -10,8 +10,8 @@ import type { World } from './types';
 // The player's build as plain JSON, so a later map level can continue it (owner, D23).
 // Only the build is kept: no position, enemies, timers or XP progress inside a level.
 
-// v2 (D24): Mutation ranks.
-export const BUILD_SNAPSHOT_VERSION = 2;
+// v2 (D24): Mutation ranks. v3 (D28): the skill combo.
+export const BUILD_SNAPSHOT_VERSION = 3;
 
 export interface BuildSnapshot {
   readonly version: typeof BUILD_SNAPSHOT_VERSION;
@@ -29,6 +29,8 @@ export interface BuildSnapshot {
   readonly items: readonly ItemId[];
   readonly bigBoosts: number;
   readonly rerollsLeft: number;
+  /** Combo member slot indices, base first. */
+  readonly combo: readonly number[];
 }
 
 export function snapshotBuild(world: World): BuildSnapshot {
@@ -49,6 +51,7 @@ export function snapshotBuild(world: World): BuildSnapshot {
     items: [...world.items],
     bigBoosts: world.bigBoosts,
     rerollsLeft: world.rerollsLeft,
+    combo: [...world.combo],
   };
 }
 
@@ -76,6 +79,7 @@ export function restoreBuild(world: World, snap: BuildSnapshot): void {
   world.items = [...snap.items];
   world.bigBoosts = snap.bigBoosts;
   world.rerollsLeft = snap.rerollsLeft;
+  world.combo = [...snap.combo];
   refreshStats(world);
   world.player.hp = world.player.maxHp;
 }

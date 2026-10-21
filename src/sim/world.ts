@@ -15,6 +15,7 @@ import {
 } from './abilities';
 import { enemySpeedFactor, pickWanderPoint, queryEnemies, updateStatuses } from './combat';
 import { arenaSchedule, resolveArena, updateArena } from './arena';
+import { comboCooldown } from './combo';
 import { startEvolutionIfDue, upgradeSignatureByLevel } from './evolution';
 import { castBeam, updateBeam } from './forms/beam';
 import { castMelee } from './forms/melee';
@@ -106,6 +107,7 @@ export function createWorld({
     blasts: [],
     arcs: [],
     moves: [createSlot(firstStage.signatureMove)],
+    combo: [],
     boosts: Object.fromEntries(BOOST_IDS.map((id) => [id, 0])) as Record<BoostId, number>,
     items: [],
     bigBoosts: 0,
@@ -398,7 +400,9 @@ function moveEnemies(world: World, dt: number): void {
 }
 
 function updateMoves(world: World, dt: number): void {
-  for (const slot of world.moves) {
+  const { combo } = world;
+  for (let i = 0; i < world.moves.length; i++) {
+    const slot = world.moves[i]!;
     const def = MOVES[slot.moveId];
     const hooks = hooksOf(slot);
     if (hooks?.live) {
@@ -406,15 +410,17 @@ function updateMoves(world: World, dt: number): void {
       hooks.live(slot.stats, world, slot);
     }
     slot.cooldownLeft = Math.max(0, slot.cooldownLeft - dt);
+    // Combo members (D28) don't fire on their own: they fire with the base on its shared cooldown.
+    const member = combo.indexOf(i) > 0;
     // A move with no valid target stays ready and fires the moment one appears.
-    if (slot.cooldownLeft <= 0) {
-      // Pikachu at full Charge: the next signature cast is a Charged shot.
-      const charged = slot === world.moves[0] ? chargedShotMult(world) : 1;
-      slot.stats.damage *= charged;
-      const cast = hooks?.cast ? hooks.cast(world, slot) : castMove(world, slot, def);
-      slot.stats.damage /= charged;
-      if (cast && charged > 1) world.player.charge = 0;
-      if (cast) {
+    if (!member && slot.cooldownLeft <= 0) {
+      if (combo[0] === i) {
+        const fired = combo.filter((j) => fire(world, world.moves[j]!));
+        if (fired.length > 0) {
+          slot.cooldownLeft = comboCooldown(world);
+          for (const j of fired) hooksOf(world.moves[j]!)?.onCast?.(world, world.moves[j]!);
+        }
+      } else if (fire(world, slot)) {
         slot.cooldownLeft = slot.stats.cooldown;
         hooks?.onCast?.(world, slot);
       }
@@ -424,6 +430,18 @@ function updateMoves(world: World, dt: number): void {
     else if (def.form === 'beam') updateBeam(world, slot, def, dt);
     hooks?.update?.(world, slot, dt);
   }
+}
+
+/** Casts one move now (its onCast hook is left to the caller); true if it found a target. */
+function fire(world: World, slot: MoveSlot): boolean {
+  const hooks = hooksOf(slot);
+  // Pikachu at full Charge: the next signature cast is a Charged shot.
+  const charged = slot === world.moves[0] ? chargedShotMult(world) : 1;
+  slot.stats.damage *= charged;
+  const cast = hooks?.cast ? hooks.cast(world, slot) : castMove(world, slot, MOVES[slot.moveId]);
+  slot.stats.damage /= charged;
+  if (cast && charged > 1) world.player.charge = 0;
+  return cast;
 }
 
 function castMove(world: World, slot: MoveSlot, def: MoveDef): boolean {

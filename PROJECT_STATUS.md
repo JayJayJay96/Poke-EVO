@@ -76,6 +76,48 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-21 — B1-2: skill combine (D28)
+**Owner decisions:**
+- A move can be combined only with all 3 augment sockets filled (Mutations are on their own track and don't count).
+- An absorbed move frees its learnset slot.
+- The combo fires on the **average** of its members' cooldowns.
+
+**Files**
+- `src/sim/combo.ts` (new): `MAX_COMBO_MOVES` (4), `learnsetSlotsUsed`, `comboCandidates`, `comboCooldown`.
+- `src/sim/world.ts`:
+  - `World.combo` holds slot indices, base first.
+  - `updateMoves`: members skip their own cooldown; when the base is ready every member fires, the base takes the average cooldown, then each fired move's `onCast` runs (same order as before).
+  - Casting moved into `fire()`.
+- `src/sim/arena.ts`:
+  - A boss win opens `combine` (pick the base, or a move to absorb; Esc skips), then the `arenaReward` pick.
+  - With no qualifying move, the reward says "no move with 3 augments to combine" (`combineMissed`).
+- `progression.ts`, `sites.ts`, `mutations.ts`: the learnset-slot checks use `learnsetSlotsUsed`, so absorbed moves free a slot.
+- `buildSnapshot.ts`: v3 stores the combo.
+- `balance.ts`: the bot handles the combine window.
+- `RunScene.ts`: combine window (COMBO BASE / ABSORB cards, footer explains the rules); ⛓ after combo moves in the HUD.
+
+**Checks (observed)**
+- `npm run typecheck` clean. `npm test` **410/410 passed** (5 new):
+  - eligibility needs 3 augments; cap of 4
+  - freed learnset slots bring new moves back to level cards
+  - members fire with the base on the averaged cooldown and never on their own
+  - win → combine (base) → reward; Esc skip → reward
+  - no qualifying move → reward flagged as missed
+- `npm run build` passed. Bench 0.90 ms mean (noise vs 0.84).
+- Browser (Charmander, dev handle gave Ember 3 augments, then moved into the event and killed the boss):
+  - combine window offered Ember as base
+  - picking it set the combo, "Ember⛓" showed in the HUD, then the 5-card reward appeared
+  - picking Haste applied it
+  - no console errors
+  - a number-key press didn't register in the pane (clicks did)
+
+**Not verified / risks**
+- Combo feel in real play.
+- A combo of very different cooldowns (e.g. a 1 s projectile with a 6 s orbit) makes the fast move slower and the slow one faster. That's the intended trade, but untested for balance.
+- A win with no qualifying move loses that combine step (nothing is banked).
+
+**Next:** B1-3: Snorlax phase 1 kit (ring telegraphs, Body Slam with lead aim, Gluttony berries in the arena).
+
 ### 2026-10-21 — B1-1: arena boss events (D28)
 **Owner decisions (D28):**
 - Mewtwo is the only main-map boss; other bosses are arena bosses drawn at random.

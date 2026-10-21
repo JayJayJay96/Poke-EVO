@@ -3,6 +3,7 @@ import { MUTATION_IDS, MUTATIONS, type MutationDef } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
 import { ITEM_IDS, MAX_ITEMS, MAX_LEARNSET_SLOTS } from '../data/upgrades';
 import { grantMutation, isBuilt, mutationOffers, mutationRankUps, requirementMet, type GrantResult } from './mutations';
+import { learnsetSlotsUsed } from './combo';
 import { healPlayer } from './hooks';
 import { createSeededRng, type Rng } from './rng';
 import { refreshStats } from './stats';
@@ -65,7 +66,7 @@ function generateAround(world: World): void {
 
 /** Mutations for learnset moves not owned yet; taking one learns the move (needs a free slot). */
 function learnableMutations(world: World): SiteCard[] {
-  if (world.moves.length - 1 >= MAX_LEARNSET_SLOTS) return [];
+  if (learnsetSlotsUsed(world) >= MAX_LEARNSET_SLOTS) return [];
   const { pokemonId, stage } = world.player;
   const cards: SiteCard[] = [];
   for (const { move, fromStage } of POKEMON[pokemonId].learnset) {

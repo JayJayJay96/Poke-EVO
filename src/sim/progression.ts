@@ -16,6 +16,7 @@ import {
   MAX_LEARNSET_SLOTS,
   POTION_HEAL,
 } from '../data/upgrades';
+import { learnsetSlotsUsed } from './combo';
 import { emit, healPlayer } from './hooks';
 import { socketsUsed } from './mutations';
 import type { Rng } from './rng';
@@ -51,7 +52,7 @@ export function resolvingLevel(world: World): number {
 /** Every normal-level card the player could be offered right now: learnset moves and boosts (D23). */
 export function buildCardPool(world: World): Card[] {
   const pool: Card[] = [];
-  const learnsetOwned = world.moves.length - 1; // slot 0 is the signature move
+  const learnsetOwned = learnsetSlotsUsed(world); // slot 0 is the signature move; combo members free theirs
   if (learnsetOwned < MAX_LEARNSET_SLOTS) {
     for (const { move, fromStage } of POKEMON[world.player.pokemonId].learnset) {
       // Stage-gated moves (Charizard's Flying moves, D11) appear only from their stage.

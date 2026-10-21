@@ -1,11 +1,12 @@
 import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, type ArenaBossId } from '../data/arena';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
+import { MAX_COMBO_MOVES, comboCandidates } from './combo';
 import { applyAugmentCard, applyCard, augmentPool, buildCardPool, gainXp, needsReplace } from './progression';
 import { createSeededRng, type Rng } from './rng';
 import { applySiteCard, rollSiteCards } from './sites';
 import { currentStage, refreshStats } from './stats';
-import type { ArenaFight, RewardCard, World } from './types';
+import type { ArenaFight, LevelUpOffer, RewardCard, World } from './types';
 import { spawnEnemy, waveAt } from './world';
 
 // Arena boss events (D28). At set times an entrance opens near the player for a while; stepping in
@@ -159,7 +160,7 @@ export function updateArena(world: World, dt: number): void {
   if (world.spawnEnabled && next !== undefined && world.time >= next) openEntrance(world);
 }
 
-/** After deaths are removed: a dead boss wins (reward pick), an empty timer loses (no reward). */
+/** After deaths are removed: a dead boss wins (combine step, then reward pick), an empty timer loses (nothing). */
 export function resolveArena(world: World): void {
   const fight = world.arena;
   if (!fight) return;
@@ -167,7 +168,29 @@ export function resolveArena(world: World): void {
   if (!won && fight.timeLeft > 0) return;
   world.arenaNotice = { kind: won ? 'won' : 'lost', bossId: fight.bossId };
   leaveArena(world);
-  if (won && !world.offer) world.offer = { kind: 'arenaReward', cards: rollRewardCards(world) };
+  if (won && !world.offer) {
+    const slots = comboCandidates(world);
+    world.offer = slots.length > 0 ? { kind: 'combine', slots } : rewardOffer(world, world.combo.length < MAX_COMBO_MOVES);
+  }
+}
+
+function rewardOffer(world: World, combineMissed: boolean): LevelUpOffer {
+  return { kind: 'arenaReward', cards: rollRewardCards(world), combineMissed };
+}
+
+/** Combine step (D28): the first pick becomes the base, later picks are absorbed into it. Then the reward pick. */
+export function chooseCombine(world: World, index: number): void {
+  const offer = world.offer;
+  if (offer?.kind !== 'combine') return;
+  const slot = offer.slots[index];
+  if (slot === undefined) return;
+  world.combo.push(slot);
+  world.offer = rewardOffer(world, false);
+}
+
+/** Skips the combine step; the reward pick still follows. */
+export function skipCombine(world: World): void {
+  if (world.offer?.kind === 'combine') world.offer = rewardOffer(world, false);
 }
 
 /** Up to `count` distinct random entries, removed from `pool`. */

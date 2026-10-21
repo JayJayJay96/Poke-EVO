@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ARENA_BOSSES, ARENA_TUNING } from '../data/arena';
 import { ENEMIES, TUNING } from '../data/content';
-import { arenaBossChoices, arenaSchedule, chooseArenaReward, resolveArena, rollRewardCards } from './arena';
+import { arenaBossChoices, arenaSchedule, chooseArenaReward, chooseCombine, resolveArena, rollRewardCards, skipCombine } from './arena';
+import { MAX_COMBO_MOVES, comboCandidates, comboCooldown, learnsetSlotsUsed } from './combo';
+import { buildCardPool } from './progression';
 import { createSeededRng } from './rng';
+import { createSlot, refreshStats } from './stats';
 import type { World } from './types';
 import { createWorld, spawnEnemy, step, waveAt } from './world';
 
@@ -150,5 +153,81 @@ describe('arena events (D28): the fight', () => {
     for (let i = 0; i < 20; i++) {
       for (const c of rollRewardCards(world)) if (c.pool === 'augment') expect(c.card.rank).toBeGreaterThan(1);
     }
+  });
+});
+
+describe('skill combine (D28)', () => {
+  const FULL = [
+    { augmentId: 'powerUp', rank: 1 },
+    { augmentId: 'quickCast', rank: 1 },
+    { augmentId: 'enlarge', rank: 1 },
+  ] as const;
+
+  function charmanderWith(...moves: ('scratch' | 'fireSpin' | 'dragonRage')[]): World {
+    const world = makeWorld();
+    for (const m of moves) world.moves.push(createSlot(m));
+    for (const slot of world.moves) slot.sockets = FULL.map((s) => ({ ...s }));
+    refreshStats(world);
+    return world;
+  }
+
+  it('only moves with all 3 augment sockets filled can join; at most 4 moves', () => {
+    const world = charmanderWith('scratch', 'fireSpin');
+    world.moves[2]!.sockets.pop();
+    expect(comboCandidates(world)).toEqual([0, 1]);
+    world.combo = [0, 1, 3, 4].slice(0, MAX_COMBO_MOVES);
+    expect(comboCandidates(world)).toEqual([]);
+  });
+
+  it('absorbed learnset moves free their slot, so new moves show up on level cards again', () => {
+    const world = charmanderWith('scratch', 'fireSpin', 'dragonRage'); // signature + 3 learnset moves
+    const before = learnsetSlotsUsed(world);
+    world.combo = [0, 1, 2];
+    expect(learnsetSlotsUsed(world)).toBe(before - 2);
+    expect(buildCardPool(world).some((c) => c.kind === 'move')).toBe(true);
+  });
+
+  it('members fire together with the base on the average of their cooldowns', () => {
+    const world = charmanderWith('fireSpin');
+    world.combo = [0, 1];
+    const target = spawnEnemy(world, 'raticate', 60, 0, 100);
+    target.speed = 0;
+    const [ember, fireSpin] = [world.moves[0]!, world.moves[1]!];
+    step(world, IDLE, DT);
+    expect(world.projectiles.length).toBeGreaterThan(0); // Ember fired
+    expect(fireSpin.activeLeft).toBeGreaterThan(0); // Fire Spin fired with it
+    const avg = (ember.stats.cooldown + fireSpin.stats.cooldown) / 2;
+    expect(comboCooldown(world)).toBeCloseTo(avg);
+    expect(ember.cooldownLeft).toBeCloseTo(avg, 1);
+    // Fire Spin never casts on its own cooldown while it's a member.
+    fireSpin.cooldownLeft = 0;
+    fireSpin.activeLeft = 0;
+    step(world, IDLE, DT);
+    expect(fireSpin.activeLeft).toBe(0);
+  });
+
+  it('a boss win offers the combine step first (base, then absorb), then the reward; Esc skips to the reward', () => {
+    const world = charmanderWith('scratch');
+    enter(world);
+    world.enemies.find((e) => e.id === world.arena!.bossEnemyId)!.hp = 0;
+    step(world, IDLE, DT);
+    expect(world.offer).toEqual({ kind: 'combine', slots: [0, 1] });
+    chooseCombine(world, 0);
+    expect(world.combo).toEqual([0]);
+    expect(world.offer?.kind).toBe('arenaReward');
+
+    world.offer = { kind: 'combine', slots: [1] };
+    skipCombine(world);
+    expect(world.combo).toEqual([0]);
+    expect(world.offer?.kind).toBe('arenaReward');
+  });
+
+  it('with no qualifying move the win still gives the reward, flagged as a missed combine', () => {
+    const world = makeWorld();
+    enter(world);
+    world.enemies.find((e) => e.id === world.arena!.bossEnemyId)!.hp = 0;
+    step(world, IDLE, DT);
+    expect(world.offer?.kind).toBe('arenaReward');
+    if (world.offer?.kind === 'arenaReward') expect(world.offer.combineMissed).toBe(true);
   });
 });

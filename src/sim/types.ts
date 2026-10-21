@@ -460,8 +460,13 @@ export type LevelUpOffer =
   /** A Mutation granted to a move whose sockets are all augments: pick the augment it replaces, or cancel. */
   /** A captured Mutation Site (D23): pick one of its cards, or skip. */
   | { readonly kind: 'site'; readonly siteId: number; readonly cards: readonly SiteCard[] }
-  /** Arena boss beaten (D28): pick one card from the mixed level / augment / site pools. */
-  | { readonly kind: 'arenaReward'; readonly cards: readonly RewardCard[] };
+  /** Arena boss beaten, step 1 (D28): pick the combo base, or a move to absorb into the combo; Esc skips. */
+  | { readonly kind: 'combine'; readonly slots: readonly number[] }
+  /**
+   * Arena boss beaten, step 2 (D28): pick one card from the mixed level / augment / site pools.
+   * `combineMissed`: no move had 3 augments, so this win gave no combine step.
+   */
+  | { readonly kind: 'arenaReward'; readonly cards: readonly RewardCard[]; readonly combineMissed: boolean };
 
 /**
  * An evolution in progress. The sim is paused throughout.
@@ -595,6 +600,8 @@ export interface World {
   arcs: Arc[];
   /** Slot 0 is the signature move; the rest are learnset moves. */
   moves: MoveSlot[];
+  /** Skill combine (D28): indices into `moves`, base first. Members fire with the base. */
+  combo: number[];
   /** Times each generic boost has been picked. */
   boosts: Record<BoostId, number>;
   items: ItemId[];

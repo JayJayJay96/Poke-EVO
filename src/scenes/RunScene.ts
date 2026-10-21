@@ -5,7 +5,7 @@ import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
 import { ARENA_BOSSES, ARENA_TUNING, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
-import { chooseArenaReward } from '../sim/arena';
+import { chooseArenaReward, chooseCombine, skipCombine } from '../sim/arena';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
@@ -367,6 +367,7 @@ export class RunScene extends Phaser.Scene {
           if (offer.kind === 'replace') backFromReplace(world);
           else if (offer.kind === 'augment') backToSkills(world);
           else if (offer.kind === 'site') skipSite(world);
+          else if (offer.kind === 'combine') skipCombine(world);
         }
       }
     } else if (JustDown(this.keys.restart) && world.status !== 'running') {
@@ -554,7 +555,8 @@ export class RunScene extends Phaser.Scene {
     } else if (offer.kind === 'site') {
       if (index < offer.cards.length) this.siteNotice(chooseSiteCard(this.world, index), offer.cards[index]!);
       else skipSite(this.world);
-    } else if (offer.kind === 'arenaReward') chooseArenaReward(this.world, index);
+    } else if (offer.kind === 'combine') chooseCombine(this.world, index);
+    else if (offer.kind === 'arenaReward') chooseArenaReward(this.world, index);
   }
 
   /** Says what a site card did when it isn't obvious (a Mutation that couldn't be placed). */
@@ -659,8 +661,20 @@ export class RunScene extends Phaser.Scene {
         footerAction = () => skipSite(this.world);
         break;
       }
+      case 'combine':
+        title = world.combo.length === 0 ? 'Combine: pick the base move' : 'Combine: absorb a move into the combo';
+        frame = COLORS.bond;
+        views = offer.slots.map((i) => ({
+          ...describeSkill(world.moves[i]!),
+          heading: world.combo.length === 0 ? 'COMBO BASE' : 'ABSORB',
+        }));
+        footer = world.combo.length === 0
+          ? 'Members fire together on the average of their cooldowns  ·  [Esc] Skip'
+          : 'Absorbed moves free their slot  ·  [Esc] Skip';
+        footerAction = () => skipCombine(this.world);
+        break;
       case 'arenaReward':
-        title = 'Boss defeated!  Pick one';
+        title = offer.combineMissed ? 'Boss defeated! (no move with 3 augments to combine)  Pick one' : 'Boss defeated!  Pick one';
         frame = COLORS.bond;
         views = offer.cards.map((reward) => describeReward(world, reward));
         break;
@@ -1257,7 +1271,8 @@ export class RunScene extends Phaser.Scene {
   private drawHud(): void {
     const { player, time, kills, status, enemies, level, xp, moves, items } = this.world;
     const name = currentStage(this.world).name;
-    const moveNames = moves.map((s) => MOVES[s.moveId].name).join(', ');
+    // ⛓ marks the skill combo (D28): those moves fire together.
+    const moveNames = moves.map((s, i) => `${MOVES[s.moveId].name}${this.world.combo.includes(i) ? '⛓' : ''}`).join(', ');
     const itemNames = items.length ? items.map((id) => ITEMS[id].name).join(', ') : '—';
     const ability = ABILITIES[player.ability];
     const abilityTag = isAbilityActive(this.world) ? `   ${ability.name.toUpperCase()}!` : '';
