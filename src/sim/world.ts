@@ -306,7 +306,8 @@ function movePlayer(world: World, input: InputState, dt: number): void {
     p.stillFor += dt;
     p.movingFor = 0;
   }
-  const speed = p.speed * mutationMoveSpeedMult(world);
+  // Snorlax's Yawn cloud slows the player (D28, B2).
+  const speed = p.speed * mutationMoveSpeedMult(world) * (1 - (world.arena?.playerSlow ?? 0));
   p.vx = mx * speed;
   p.vy = my * speed;
   p.x += p.vx * dt;

@@ -1,3 +1,4 @@
+import { SNORLAX_KIT } from '../data/arena';
 import { ABILITIES, ENEMIES, TUNING } from '../data/content';
 import { MUTATION_TUNING } from '../data/mutations';
 import { effectiveness } from '../data/typeChart';
@@ -130,9 +131,18 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const vuln =
     (enemy.vulnLeft > 0 && (enemy.vulnType === null || enemy.vulnType === hit.attackType) ? 1 + enemy.vulnPct : 1) *
     (enemy.vulnAllLeft > 0 ? 1 + enemy.vulnAllPct : 1);
+  // Rest (D28, B2): a sleeping arena boss takes extra damage, and that damage fills its wake meter.
+  const sleeping = world.arena?.rest && world.arena.bossEnemyId === enemy.id ? world.arena.rest : null;
   const amount =
-    (crit ? damage * CRIT_MULTIPLIER : damage) * abilityDamageMult(world) * (1 + missing) * typeMult * mutationMult * vuln;
+    (crit ? damage * CRIT_MULTIPLIER : damage) *
+    abilityDamageMult(world) *
+    (1 + missing) *
+    typeMult *
+    mutationMult *
+    vuln *
+    (sleeping ? SNORLAX_KIT.rest.damageTakenMult : 1);
   const dealt = Math.min(enemy.hp, amount);
+  if (sleeping) sleeping.wake += dealt;
   enemy.hp -= amount;
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
 

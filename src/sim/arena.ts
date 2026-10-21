@@ -1,5 +1,5 @@
 import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, type ArenaBossId } from '../data/arena';
-import { updateBoss } from './bosses';
+import { blockByRubble, updateBoss } from './bosses';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
 import { MAX_COMBO_MOVES, comboCandidates } from './combo';
@@ -102,6 +102,18 @@ function enterArena(world: World): void {
     // shortcut: Snorlax is the only arena boss; move these into its AI's start when a second boss lands.
     slamCooldown: SNORLAX_KIT.bodySlam.firstAfter,
     berryTimer: SNORLAX_KIT.gluttony.interval,
+    phase: 1,
+    rest: null,
+    snores: [],
+    snoreTimer: 0,
+    nextSnoreGap: 0,
+    yawn: null,
+    yawnCooldown: 0,
+    playerSlow: 0,
+    slamsQueued: 0,
+    beam: null,
+    beamCooldown: SNORLAX_KIT.hyperBeam.firstAfter,
+    rubble: [],
     stored,
   };
   world.entrance = null;
@@ -140,6 +152,7 @@ export function updateArena(world: World, dt: number): void {
       player.x = fight.x + (dx / d) * max;
       player.y = fight.y + (dy / d) * max;
     }
+    blockByRubble(world, fight);
     const boss = world.enemies.find((e) => e.id === fight.bossEnemyId);
     if (!fight.engaged) {
       fight.waitLeft -= dt;

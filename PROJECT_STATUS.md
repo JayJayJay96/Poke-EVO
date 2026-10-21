@@ -76,6 +76,60 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-21 — B2: the rest of Snorlax
+**Built (BOSSES.md §4), all numbers in `SNORLAX_KIT` (provisional):**
+- **Phases:** Rest at 66% and at 33%. Each Rest moves Snorlax to the next phase, and phases never go back. Rest's heal can't undo a phase.
+- **Rubble:** each Body Slam leaves 2 rocks on the ring's edge. They block the player (not Snorlax) for 20 s; max 6.
+- **Rest:**
+  - asleep for 5 s, healing 25% over that time
+  - takes ×1.5 damage; damage dealt fills a wake meter (10% of max HP)
+  - a full meter cancels the heal and Snorlax wakes into a quick Body Slam (0.4 s wind-up)
+  - **Snore:** every 1.5 s an expanding ring with a 70° gap that turns 75° per ring; it hits for 0.6× contact unless you're in the gap
+- **Phase 2:**
+  - **Yawn:** cone telegraph (0.6 s, 90°, 240 px), then a 4 s drowsy cloud that slows the player 40% inside it (no sleep, per README §10)
+  - Body Slams come **in pairs**
+- **Phase 3:**
+  - **Belly Drum** at the start: current HP halved, contact ×2 (so slams, snores and beams hit twice as hard)
+  - **Hyper Beam:** a line telegraph aimed where you stand (lead 0, 0.8 s), 3× contact, then a **2 s recharge** with Snorlax frozen: the biggest punish window
+
+**Files**
+- `src/data/arena.ts`: `SNORLAX_KIT` extended.
+- `src/sim/bosses.ts`:
+  - rewritten into `updateSlam`, `updateBeam`, `updateRest`, `updateSnores`, `updateYawn` plus the Snorlax picker (beam > slam > yawn)
+  - Snorlax's speed is now derived each step (0 while asleep, slamming or beaming)
+  - `blockByRubble`
+- `src/sim/types.ts`: new `ArenaFight` fields (phase, rest, snores, yawn, beam, rubble, playerSlow, slamsQueued…); notices `rest` / `woke` / `bellyDrum`.
+- `src/sim/combat.ts`: `damageEnemy` applies ×1.5 to a sleeping arena boss and fills its wake meter.
+- `src/sim/world.ts`: `movePlayer` applies the Yawn slow.
+- `src/sim/arena.ts`: new fight state; rubble push-out after the arena wall.
+- `src/scenes/RunScene.ts`:
+  - grey rocks, Snore rings with their gap, Yawn cone (red outline, then pink cloud), Hyper Beam band (thickening telegraph, then a flash)
+  - HUD "asleep, wake N%"
+  - notices for rest, woke and Belly Drum
+
+**Checks (observed)**
+- `npm run typecheck` clean. `npm test` **419/419 passed** (6 new; the B1-3 Gluttony test moved to 80% HP so it doesn't trigger Rest):
+  - rubble blocks and crumbles
+  - Rest at 66%: still, heals, snores, then phase 2
+  - ×1.5 asleep and the wake meter gives a quick slam
+  - Snore misses in the gap and hits outside it
+  - phase 2 Yawn slows and slams pair up
+  - phase 3 Belly Drum (contact ×2) and Hyper Beam with recharge
+- `npm run build` passed. Bench 0.87 ms mean.
+- Browser (Squirtle): the pane was throttled to ~1 fps, so I stepped the sim by hand from the page (dev server's `step`) and screenshotted:
+  - Rest notice, wake meter on the HUD, Snore rings with rotating gaps, rubble
+  - phase 2 Yawn cloud slowing the player (0.4)
+  - phase 3 Hyper Beam telegraph
+  - no console errors
+  - Belly Drum's notice and the beam flash weren't seen on screen (unit-tested only)
+
+**Risks**
+- The whole fight is untested in real play. Its length now includes two Rests (+25% each unless interrupted), so the 120 s limit may be tight.
+- The Hyper Beam band is drawn past the arena wall.
+- Rubble blocks only the player, not Snorlax or adds (there are no adds yet).
+
+**Next:** owner playtest of the full Snorlax fight; then the other arena bosses (birds) or tuning.
+
 ### 2026-10-21 — B1-3: Snorlax phase 1 kit
 **Built (BOSSES.md §4 phase 1):**
 - **Body Slam:**

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT } from '../data/arena';
 import { ENEMIES, TUNING } from '../data/content';
 import { arenaBossChoices, arenaSchedule, chooseArenaReward, chooseCombine, resolveArena, rollRewardCards, skipCombine } from './arena';
+import { damageEnemy } from './combat';
 import { MAX_COMBO_MOVES, comboCandidates, comboCooldown, learnsetSlotsUsed } from './combo';
 import { buildCardPool } from './progression';
 import { createSeededRng } from './rng';
@@ -226,7 +227,7 @@ describe('Snorlax phase 1 kit (B1-3)', () => {
     const f = world.arena!;
     f.slamCooldown = 99;
     f.berryTimer = 0;
-    boss.hp = boss.maxHp * 0.5;
+    boss.hp = boss.maxHp * 0.8; // above the first Rest threshold (B2)
     world.player.invulnLeft = 99;
     step(world, IDLE, DT);
     const berry = world.berries.find((b) => b.kind === 'oran')!;
@@ -235,8 +236,147 @@ describe('Snorlax phase 1 kit (B1-3)', () => {
     boss.x = berry.x;
     boss.y = berry.y;
     step(world, IDLE, DT);
-    expect(boss.hp).toBeCloseTo(boss.maxHp * (0.5 + SNORLAX_KIT.gluttony.healPct), 0);
+    expect(boss.hp).toBeCloseTo(boss.maxHp * (0.8 + SNORLAX_KIT.gluttony.healPct), 0);
     expect(world.berries.some((b) => b.id === berry.id)).toBe(false);
+  });
+
+  it('Body Slam leaves rubble that blocks the player, then crumbles', () => {
+    const { world } = fight();
+    const f = world.arena!;
+    world.player.invulnLeft = 99;
+    f.slamCooldown = 0;
+    step(world, IDLE, DT);
+    f.slam!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(f.rubble).toHaveLength(SNORLAX_KIT.bodySlam.rubble.count);
+    const rock = f.rubble[0]!;
+    world.player.x = rock.x;
+    world.player.y = rock.y;
+    step(world, IDLE, DT);
+    expect(Math.hypot(world.player.x - rock.x, world.player.y - rock.y)).toBeGreaterThanOrEqual(rock.radius + world.player.radius - 0.01);
+    for (const r of f.rubble) r.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(f.rubble).toHaveLength(0);
+  });
+});
+
+describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
+  function fight(): { world: World; boss: ReturnType<typeof spawnEnemy> } {
+    const world = makeWorld();
+    enter(world);
+    const f = world.arena!;
+    world.player.x = f.x;
+    world.player.y = f.y + 200;
+    world.player.invulnLeft = 999;
+    world.moves = []; // no auto-fire: the tests deal damage by hand
+    step(world, IDLE, DT);
+    const boss = world.enemies.find((e) => e.id === f.bossEnemyId)!;
+    f.slamCooldown = 99; // keep slams out of the way
+    return { world, boss };
+  }
+
+  it('Rest at 66%: asleep, standing still, healing, snoring, then phase 2', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    boss.hp = boss.maxHp * 0.6;
+    step(world, IDLE, DT);
+    expect(f.rest).not.toBeNull();
+    expect(world.arenaNotice?.kind).toBe('rest');
+    for (let t = 0; t < 2; t += DT) step(world, IDLE, DT);
+    expect(boss.speed).toBe(0);
+    expect(boss.hp).toBeGreaterThan(boss.maxHp * 0.6);
+    expect(f.snores.length).toBeGreaterThan(0);
+    for (let t = 0; t < SNORLAX_KIT.rest.seconds; t += DT) step(world, IDLE, DT);
+    expect(f.rest).toBeNull();
+    expect(f.phase).toBe(2);
+    expect(boss.hp).toBeCloseTo(boss.maxHp * (0.6 + SNORLAX_KIT.rest.healPct), -1);
+  });
+
+  it('asleep it takes ×1.5 damage; enough damage wakes it into a quick Body Slam (no more healing)', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    boss.hp = boss.maxHp * 0.6;
+    step(world, IDLE, DT);
+    const before = boss.hp;
+    damageEnemy(world, boss, 100);
+    expect(before - boss.hp).toBeCloseTo(150);
+    damageEnemy(world, boss, (boss.maxHp * SNORLAX_KIT.rest.wakeAtPct) / 1.5);
+    step(world, IDLE, DT);
+    expect(f.rest).toBeNull();
+    expect(f.phase).toBe(2);
+    expect(f.slam?.windup).toBe(SNORLAX_KIT.rest.wakeSlamWindup);
+  });
+
+  it('a Snore ring hits you unless you stand in its gap', () => {
+    for (const inGap of [true, false]) {
+      const { world, boss } = fight();
+      const f = world.arena!;
+      world.player.invulnLeft = 0;
+      const angle = inGap ? 0 : Math.PI;
+      f.snores.push({ x: boss.x, y: boss.y, r: 100, gapAngle: 0, hit: false });
+      world.player.x = boss.x + Math.cos(angle) * 100;
+      world.player.y = boss.y + Math.sin(angle) * 100;
+      const hp = world.player.hp;
+      step(world, IDLE, DT);
+      if (inGap) expect(world.player.hp).toBe(hp);
+      else expect(world.player.hp).toBeLessThan(hp);
+    }
+  });
+
+  it('phase 2: Yawn locks a cone, then its cloud slows the player inside; slams come in pairs', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    f.phase = 2;
+    f.yawnCooldown = 0;
+    step(world, IDLE, DT);
+    const cloud = f.yawn!;
+    expect(cloud.phase).toBe('windup');
+    cloud.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(f.yawn!.phase).toBe('cloud');
+    step(world, IDLE, DT); // the cloud covers the player (it was aimed at them)
+    expect(f.playerSlow).toBeCloseTo(SNORLAX_KIT.yawn.slow);
+    const x = world.player.x;
+    step(world, { moveX: 1, moveY: 0 }, DT);
+    expect(world.player.x - x).toBeCloseTo(world.player.speed * (1 - SNORLAX_KIT.yawn.slow) * DT, 1);
+
+    f.yawn = null;
+    f.yawnCooldown = 99;
+    f.slamCooldown = 0;
+    step(world, IDLE, DT);
+    expect(f.slamsQueued).toBe(SNORLAX_KIT.bodySlam.chainFromPhase2 - 1);
+    f.slam!.left = DT / 2;
+    step(world, IDLE, DT);
+    f.slam!.left = DT / 2; // recover ends: the second slam starts at once
+    step(world, IDLE, DT);
+    expect(f.slam?.phase).toBe('windup');
+    expect(f.slamsQueued).toBe(0);
+    expect(boss.speed).toBe(0);
+  });
+
+  it('phase 3 starts with Belly Drum (half HP, double contact) and adds Hyper Beam with a recharge', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    f.phase = 2;
+    boss.hp = boss.maxHp * 0.3;
+    step(world, IDLE, DT); // Rest at 33%
+    const contact = boss.contactDamage;
+    f.rest!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(f.phase).toBe(3);
+    expect(world.arenaNotice?.kind).toBe('bellyDrum');
+    expect(boss.contactDamage).toBeCloseTo(contact * SNORLAX_KIT.bellyDrum.contactMult);
+
+    f.beamCooldown = 0;
+    world.player.invulnLeft = 0;
+    step(world, IDLE, DT);
+    expect(f.beam?.phase).toBe('windup');
+    const hp = world.player.hp;
+    f.beam!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBeLessThan(hp); // aimed where the player stood (lead 0)
+    expect(f.beam!.phase).toBe('recharge');
+    expect(boss.speed).toBe(0);
   });
 });
 

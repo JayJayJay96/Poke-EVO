@@ -21,8 +21,13 @@ export const ARENA_BOSSES: Readonly<Record<ArenaBossId, ArenaBossDef>> = {
 };
 export const ARENA_BOSS_IDS = Object.keys(ARENA_BOSSES) as ArenaBossId[];
 
-/** Snorlax's phase 1 kit (BOSSES.md §4, B1-3). Rubble, Rest, Yawn, Belly Drum, Snore and Hyper Beam are B2. */
+/**
+ * Snorlax's kit (BOSSES.md §4): phase 1 Body Slam + Gluttony (B1-3); Rest at 66% and 33%, phase 2 Yawn and
+ * double slams, phase 3 Belly Drum and Hyper Beam (B2). Every number provisional.
+ */
 export const SNORLAX_KIT = {
+  /** HP fractions where Snorlax uses Rest; each Rest ends by moving to the next phase (phases never go back). */
+  restAt: [0.66, 0.33],
   /**
    * Leaps onto a ring telegraph. The landing point is lead-aimed: player position + velocity × windup × lead,
    * locked when the telegraph appears (BOSSES.md §2 fairness rules), kept inside the arena.
@@ -39,9 +44,26 @@ export const SNORLAX_KIT = {
     damageFactor: 2,
     /** Seconds Snorlax stays put after landing: the punish window. */
     recover: 0.7,
+    /** From phase 2 the slams come this many in a row (rhythm). */
+    chainFromPhase2: 2,
+    /** Each landing leaves rocks on the ring's edge that block the player (not Snorlax) for a while. */
+    rubble: { count: 2, radius: 26, seconds: 20, max: 6 },
   },
   /** Oran Berries drop in the arena; Snorlax walks to the nearest and eats it, unless the player grabs it first. */
   gluttony: { interval: 15, maxBerries: 3, healPct: 0.08 },
+  /**
+   * Rest: falls asleep and heals over a few seconds, taking more damage. Damage dealt while asleep fills a wake
+   * meter; filling it cancels the heal and Snorlax wakes straight into a quick Body Slam (interrupt bar).
+   */
+  rest: { seconds: 5, healPct: 0.25, damageTakenMult: 1.5, wakeAtPct: 0.1, wakeSlamWindup: 0.4 },
+  /** Snore (while asleep): expanding rings with one gap that rotates between rings; run through the gap. */
+  snore: { interval: 1.5, speed: 240, thickness: 18, gapDeg: 70, gapTurnDeg: 75, maxRadius: 480, damageFactor: 0.6 },
+  /** Yawn (phase 2+): a cone telegraph, then a drowsy cloud that slows the player inside it (no sleep, §10). */
+  yawn: { cooldown: 9, telegraph: 0.6, cloudSeconds: 4, range: 240, arcDeg: 90, slow: 0.4 },
+  /** Belly Drum (start of phase 3): halves its current HP, doubles its contact (so slams and beams too). */
+  bellyDrum: { hpMult: 0.5, contactMult: 2 },
+  /** Hyper Beam (phase 3): a line telegraph aimed where you stand (lead 0), then 2 s of recharge: the punish window. */
+  hyperBeam: { cooldown: 10, firstAfter: 3, telegraph: 0.8, width: 50, length: 900, damageFactor: 3, recharge: 2 },
 } as const;
 
 export const ARENA_TUNING = {

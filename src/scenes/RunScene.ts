@@ -4,7 +4,7 @@ import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId, type
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
-import { ARENA_BOSSES, ARENA_TUNING, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
+import { ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
 import { chooseArenaReward, chooseCombine, skipCombine } from '../sim/arena';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
@@ -75,6 +75,10 @@ const COLORS = {
   bossBar: 0xff5a5a,
   /** Boss attack telegraphs (B1-3). */
   telegraph: 0xff3b3b,
+  rubble: 0x7d7468,
+  snore: 0xb9c7ff,
+  yawn: 0xf0a0ff,
+  hyperBeam: 0xfff3c4,
   exclusive: 0xff8c42,
   /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
   mutation: 0xb46cff,
@@ -433,7 +437,10 @@ export class RunScene extends Phaser.Scene {
     const { arena, entrance, time } = this.world;
     if (arena) {
       const boss = bossName(arena.bossId);
-      return arena.engaged ? `${boss}: ${formatTime(arena.timeLeft)} left` : `Walk to the middle: ${boss} is waiting`;
+      if (!arena.engaged) return `Walk to the middle: ${boss} is waiting`;
+      const enemy = this.world.enemies.find((e) => e.id === arena.bossEnemyId);
+      const wake = arena.rest && enemy ? Math.min(100, Math.round((arena.rest.wake / (enemy.maxHp * SNORLAX_KIT.rest.wakeAtPct)) * 100)) : null;
+      return `${boss}: ${formatTime(arena.timeLeft)} left${wake === null ? '' : ` · asleep, wake ${wake}%`}`;
     }
     if (entrance) {
       return `${ENTRANCE_NAMES[ARENA_BOSSES[entrance.bossId].entrance]} is open: ${formatTime(entrance.closesAt - time)}`;
@@ -453,6 +460,9 @@ export class RunScene extends Phaser.Scene {
       missed: `The ${entrance.toLowerCase().replace(/^an? /, '')} closed. ${boss} is gone`,
       won: `${boss} defeated!`,
       lost: `Time's up! ${boss} drove you out`,
+      rest: `${boss} fell asleep and is healing! Hit it hard to wake it`,
+      woke: `${boss} woke up!`,
+      bellyDrum: `${boss} used Belly Drum! Half its HP, double its power`,
     }[notice.kind];
     this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
   }
@@ -969,6 +979,43 @@ export class RunScene extends Phaser.Scene {
         g.fillCircle(slam.x, slam.y, slam.radius * t);
         g.lineStyle(3, COLORS.telegraph, 0.9);
         g.strokeCircle(slam.x, slam.y, slam.radius);
+      }
+      // B2: rubble, Snore rings (run through the gap), the Yawn cone, Hyper Beam.
+      const { snore, yawn, hyperBeam } = SNORLAX_KIT;
+      g.fillStyle(COLORS.rubble, 1);
+      for (const rock of arena.rubble) g.fillCircle(rock.x, rock.y, rock.radius);
+      g.lineStyle(snore.thickness, COLORS.snore, 0.6);
+      for (const ring of arena.snores) {
+        const half = (snore.gapDeg * Math.PI) / 360;
+        g.beginPath();
+        g.arc(ring.x, ring.y, ring.r, ring.gapAngle + half, ring.gapAngle - half + Math.PI * 2, false);
+        g.strokePath();
+      }
+      const cloud = arena.yawn;
+      if (cloud) {
+        const half = (yawn.arcDeg * Math.PI) / 360;
+        g.beginPath();
+        g.slice(cloud.x, cloud.y, yawn.range, cloud.angle - half, cloud.angle + half, false);
+        if (cloud.phase === 'windup') {
+          g.lineStyle(3, COLORS.telegraph, 0.9);
+          g.strokePath();
+        } else {
+          g.fillStyle(COLORS.yawn, 0.3);
+          g.fillPath();
+        }
+      }
+      const beam = arena.beam;
+      if (beam) {
+        const ex = beam.x + Math.cos(beam.angle) * hyperBeam.length;
+        const ey = beam.y + Math.sin(beam.angle) * hyperBeam.length;
+        if (beam.phase === 'windup') {
+          const t = 1 - beam.left / hyperBeam.telegraph;
+          g.lineStyle(Math.max(2, hyperBeam.width * t), COLORS.telegraph, 0.45);
+          g.lineBetween(beam.x, beam.y, ex, ey);
+        } else if (beam.left > hyperBeam.recharge - 0.25) {
+          g.lineStyle(hyperBeam.width, COLORS.hyperBeam, 0.9);
+          g.lineBetween(beam.x, beam.y, ex, ey);
+        }
       }
     }
 

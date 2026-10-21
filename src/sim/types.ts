@@ -548,6 +548,27 @@ export interface ArenaFight {
   slamCooldown: number;
   /** Seconds until the next Gluttony berry drops. */
   berryTimer: number;
+  /** Snorlax's phase, 1–3; each Rest moves it on and it never goes back (B2). */
+  phase: number;
+  /** Rest in progress: seconds left and damage taken while asleep (the wake meter). */
+  rest: { left: number; wake: number } | null;
+  /** Snore rings flying out from where Snorlax sleeps; each hits at most once. */
+  snores: { readonly x: number; readonly y: number; r: number; readonly gapAngle: number; hit: boolean }[];
+  snoreTimer: number;
+  /** The gap angle of the next Snore ring (it turns between rings). */
+  nextSnoreGap: number;
+  /** Yawn: the locked cone, telegraph then drowsy cloud. */
+  yawn: { readonly x: number; readonly y: number; readonly angle: number; left: number; phase: 'windup' | 'cloud' } | null;
+  yawnCooldown: number;
+  /** Slow on the player from the Yawn cloud, set each step and applied to the next step's movement. */
+  playerSlow: number;
+  /** Body Slams still to come in the current chain (phase 2+). */
+  slamsQueued: number;
+  /** Hyper Beam: the locked line telegraph, then the recharge (punish window). */
+  beam: { readonly x: number; readonly y: number; readonly angle: number; left: number; phase: 'windup' | 'recharge' } | null;
+  beamCooldown: number;
+  /** Rocks from Body Slam that block the player for a while. */
+  rubble: { readonly x: number; readonly y: number; readonly radius: number; left: number }[];
   readonly stored: {
     readonly enemies: Enemy[];
     readonly gems: Gem[];
@@ -564,7 +585,7 @@ export interface ArenaFight {
 
 /** Arena news for the scene to show once (D28). */
 export interface ArenaNotice {
-  readonly kind: 'opened' | 'missed' | 'won' | 'lost';
+  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'rest' | 'woke' | 'bellyDrum';
   readonly bossId: ArenaBossId;
 }
 
