@@ -73,6 +73,8 @@ const COLORS = {
   entranceRim: 0xb08a5a,
   arenaWall: 0xd9b27a,
   bossBar: 0xff5a5a,
+  /** Boss attack telegraphs (B1-3). */
+  telegraph: 0xff3b3b,
   exclusive: 0xff8c42,
   /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
   mutation: 0xb46cff,
@@ -959,11 +961,20 @@ export class RunScene extends Phaser.Scene {
     if (arena) {
       g.lineStyle(10, COLORS.arenaWall, 1);
       g.strokeCircle(arena.x, arena.y, arena.radius);
+      // Body Slam telegraph (B1-3): the ring is fixed where it will land and fills until it does.
+      const slam = arena.slam;
+      if (slam?.phase === 'windup') {
+        const t = 1 - slam.left / slam.windup;
+        g.fillStyle(COLORS.telegraph, 0.25);
+        g.fillCircle(slam.x, slam.y, slam.radius * t);
+        g.lineStyle(3, COLORS.telegraph, 0.9);
+        g.strokeCircle(slam.x, slam.y, slam.radius);
+      }
     }
 
     // Mutation Sites (D23): the ring's colour reveals the roll once you step in (gold = Pokémon-bound);
-    // the outer arc fills while you capture it.
-    for (const site of this.world.sites) {
+    // the outer arc fills while you capture it. Hidden during an arena fight: they wait on the main map (D28).
+    for (const site of arena ? [] : this.world.sites) {
       const color = siteColor(site);
       g.fillStyle(color, 0.12);
       g.fillCircle(site.x, site.y, site.radius);

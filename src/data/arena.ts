@@ -21,6 +21,29 @@ export const ARENA_BOSSES: Readonly<Record<ArenaBossId, ArenaBossDef>> = {
 };
 export const ARENA_BOSS_IDS = Object.keys(ARENA_BOSSES) as ArenaBossId[];
 
+/** Snorlax's phase 1 kit (BOSSES.md §4, B1-3). Rubble, Rest, Yawn, Belly Drum, Snore and Hyper Beam are B2. */
+export const SNORLAX_KIT = {
+  /**
+   * Leaps onto a ring telegraph. The landing point is lead-aimed: player position + velocity × windup × lead,
+   * locked when the telegraph appears (BOSSES.md §2 fairness rules), kept inside the arena.
+   */
+  bodySlam: {
+    cooldown: 6,
+    /** Seconds after the fight starts before the first slam. */
+    firstAfter: 2,
+    range: 450,
+    radius: 90,
+    windup: 0.8,
+    lead: 0.5,
+    /** × contact damage. */
+    damageFactor: 2,
+    /** Seconds Snorlax stays put after landing: the punish window. */
+    recover: 0.7,
+  },
+  /** Oran Berries drop in the arena; Snorlax walks to the nearest and eats it, unless the player grabs it first. */
+  gluttony: { interval: 15, maxBerries: 3, healPct: 0.08 },
+} as const;
+
 export const ARENA_TUNING = {
   /**
    * The 4 events per run (D2, D28), before jitter. The last one opens by 11:20 so jitter, a full open

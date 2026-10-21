@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ARENA_BOSSES, ARENA_TUNING } from '../data/arena';
+import { ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT } from '../data/arena';
 import { ENEMIES, TUNING } from '../data/content';
 import { arenaBossChoices, arenaSchedule, chooseArenaReward, chooseCombine, resolveArena, rollRewardCards, skipCombine } from './arena';
 import { MAX_COMBO_MOVES, comboCandidates, comboCooldown, learnsetSlotsUsed } from './combo';
@@ -153,6 +153,90 @@ describe('arena events (D28): the fight', () => {
     for (let i = 0; i < 20; i++) {
       for (const c of rollRewardCards(world)) if (c.pool === 'augment') expect(c.card.rank).toBeGreaterThan(1);
     }
+  });
+});
+
+describe('Snorlax phase 1 kit (B1-3)', () => {
+  /** Enters the arena and starts the fight with the player standing still near the boss. */
+  function fight(): { world: World; boss: ReturnType<typeof spawnEnemy> } {
+    const world = makeWorld();
+    enter(world);
+    const f = world.arena!;
+    world.player.x = f.x;
+    world.player.y = f.y + 200;
+    step(world, IDLE, DT); // engages
+    const boss = world.enemies.find((e) => e.id === f.bossEnemyId)!;
+    return { world, boss };
+  }
+
+  it('Body Slam locks a lead-aimed ring (no lead when standing still), holds still, then lands', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    const { bodySlam } = SNORLAX_KIT;
+    world.player.invulnLeft = 99; // watch the timing, not the damage
+    f.slamCooldown = 0;
+    const right = { moveX: 1, moveY: 0 };
+    step(world, right, DT);
+    const slam = f.slam!;
+    expect(slam.phase).toBe('windup');
+    // Locked after this step's movement: where you are plus where you're heading.
+    const expectedX = world.player.x + world.player.vx * bodySlam.windup * bodySlam.lead;
+    expect(slam.x).toBeCloseTo(expectedX, 0);
+    expect(boss.speed).toBe(0);
+    const at = { x: slam.x, y: slam.y };
+    for (let t = 0; t < bodySlam.windup + DT; t += DT) step(world, right, DT);
+    expect(boss.x).toBeCloseTo(at.x);
+    expect(boss.y).toBeCloseTo(at.y);
+    expect(f.slam!.phase).toBe('recover');
+    for (let t = 0; t < bodySlam.recover + DT; t += DT) step(world, IDLE, DT);
+    expect(f.slam).toBeNull();
+    expect(boss.speed).toBeCloseTo(f.bossSpeed);
+
+    // Standing still: the ring lands right on you.
+    f.slamCooldown = 0;
+    step(world, IDLE, DT);
+    expect(f.slam!.x).toBeCloseTo(world.player.x);
+    expect(f.slam!.y).toBeCloseTo(world.player.y);
+  });
+
+  it('the landing hits for 2× contact inside the ring and nothing outside', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    world.player.invulnLeft = 0;
+    f.slamCooldown = 0;
+    step(world, IDLE, DT);
+    const hp = world.player.hp;
+    f.slam!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(hp - world.player.hp).toBeCloseTo(boss.contactDamage * SNORLAX_KIT.bodySlam.damageFactor * world.mods.damageTakenMult, 0);
+
+    world.player.invulnLeft = 0;
+    f.slam = null;
+    f.slamCooldown = 0;
+    step(world, IDLE, DT);
+    const hp2 = world.player.hp;
+    world.player.y = f.slam!.y - f.slam!.radius - 60; // step out of the ring before it lands
+    f.slam!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBe(hp2);
+  });
+
+  it('Gluttony: a berry drops in the arena, Snorlax walks to it and eats it to heal 8%', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    f.slamCooldown = 99;
+    f.berryTimer = 0;
+    boss.hp = boss.maxHp * 0.5;
+    world.player.invulnLeft = 99;
+    step(world, IDLE, DT);
+    const berry = world.berries.find((b) => b.kind === 'oran')!;
+    expect(Math.hypot(berry.x - f.x, berry.y - f.y)).toBeLessThanOrEqual(f.radius);
+    expect(f.goal).toEqual({ x: berry.x, y: berry.y });
+    boss.x = berry.x;
+    boss.y = berry.y;
+    step(world, IDLE, DT);
+    expect(boss.hp).toBeCloseTo(boss.maxHp * (0.5 + SNORLAX_KIT.gluttony.healPct), 0);
+    expect(world.berries.some((b) => b.id === berry.id)).toBe(false);
   });
 });
 

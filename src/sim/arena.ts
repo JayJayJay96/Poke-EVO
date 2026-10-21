@@ -1,4 +1,5 @@
-import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, type ArenaBossId } from '../data/arena';
+import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, type ArenaBossId } from '../data/arena';
+import { updateBoss } from './bosses';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
 import { MAX_COMBO_MOVES, comboCandidates } from './combo';
@@ -96,6 +97,11 @@ function enterArena(world: World): void {
     waitLeft: ARENA_TUNING.engageAfter,
     timeLeft: def.timeLimit,
     bossSpeed,
+    goal: null,
+    slam: null,
+    // shortcut: Snorlax is the only arena boss; move these into its AI's start when a second boss lands.
+    slamCooldown: SNORLAX_KIT.bodySlam.firstAfter,
+    berryTimer: SNORLAX_KIT.gluttony.interval,
     stored,
   };
   world.entrance = null;
@@ -134,15 +140,16 @@ export function updateArena(world: World, dt: number): void {
       player.x = fight.x + (dx / d) * max;
       player.y = fight.y + (dy / d) * max;
     }
+    const boss = world.enemies.find((e) => e.id === fight.bossEnemyId);
     if (!fight.engaged) {
       fight.waitLeft -= dt;
       if (d <= ARENA_TUNING.engageDistance || fight.waitLeft <= 0) {
         fight.engaged = true;
-        const boss = world.enemies.find((e) => e.id === fight.bossEnemyId);
         if (boss) boss.speed = fight.bossSpeed;
       }
     } else {
       fight.timeLeft = Math.max(0, fight.timeLeft - dt);
+      if (boss) updateBoss(world, fight, boss, dt);
     }
     return;
   }

@@ -39,6 +39,9 @@ export interface Player {
   /** Last movement direction (unit vector), for moves aimed with your feet. */
   faceX: number;
   faceY: number;
+  /** Actual velocity this step in px/s (0 when standing still); boss attacks lead-aim with it. */
+  vx: number;
+  vy: number;
   /** Line mechanics (docs/moveset): Shell blocks so far (Shell Burst counts them). */
   shellBlocks: number;
   /** Seconds until Flare Up can erupt again. */
@@ -538,6 +541,13 @@ export interface ArenaFight {
   timeLeft: number;
   /** The boss's scaled speed, applied when the fight starts. */
   readonly bossSpeed: number;
+  /** Where the boss walks instead of at the player (Snorlax heading for a berry); null = the player. */
+  goal: { readonly x: number; readonly y: number } | null;
+  /** A Body Slam in progress: the locked ring, then the recover window (B1-3). */
+  slam: { readonly x: number; readonly y: number; readonly radius: number; readonly windup: number; left: number; phase: 'windup' | 'recover' } | null;
+  slamCooldown: number;
+  /** Seconds until the next Gluttony berry drops. */
+  berryTimer: number;
   readonly stored: {
     readonly enemies: Enemy[];
     readonly gems: Gem[];

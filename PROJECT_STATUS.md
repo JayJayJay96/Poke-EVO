@@ -76,6 +76,49 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-21 — B1-3: Snorlax phase 1 kit
+**Built (BOSSES.md §4 phase 1):**
+- **Body Slam:**
+  - lead-aimed ring telegraph (player position + velocity × 0.8 s × 0.5, locked at start, kept inside the arena)
+  - Snorlax holds still during the 0.8 s wind-up, lands on the ring, and hits the player inside for 2× contact (Shell can block it)
+  - 0.7 s recover window, then it chases again; 6 s cooldown, first slam 2 s into the fight
+- **Gluttony:**
+  - an Oran Berry drops somewhere in the arena every 15 s (max 3)
+  - Snorlax walks to the nearest one and eats it to heal 8%; you can grab it first (normal berry heal)
+
+**Not built:** rubble from Body Slam (needs obstacles) moves to B2 with Rest, Yawn, Belly Drum, Snore and Hyper Beam.
+
+**Files**
+- `src/data/arena.ts`: `SNORLAX_KIT` (all numbers provisional).
+- `src/sim/bosses.ts` (new): `leadAim` (BOSSES.md §2 fairness rules), Snorlax's AI, `updateBoss` dispatch by boss id.
+- `src/sim/types.ts`: `Player.vx/vy` (actual velocity, 0 when still); `ArenaFight.goal / slam / slamCooldown / berryTimer`.
+- `src/sim/world.ts`:
+  - `movePlayer` stores the velocity
+  - `moveEnemies` sends the boss to `fight.goal` when one is set
+  - contact damage now goes through the new exported `hitPlayer(world, damage, enemy)` (Shell block, weaken/Blinded, damage-taken, hooks), which Body Slam reuses; same behaviour as before, all old tests pass
+- `src/sim/arena.ts`: runs `updateBoss` once the fight is engaged; sets Snorlax's opening timers. Shortcut (commented) until a second boss exists.
+- `src/scenes/RunScene.ts`: red ring telegraph that fills during the wind-up; Mutation Sites hidden during an arena fight (they had been drawn inside the arena).
+
+**Checks (observed)**
+- `npm run typecheck` clean. `npm test` **413/413 passed** (3 new):
+  - lead-aimed ring locked after movement; Snorlax still, then lands, recovers and resumes speed; standing still means no lead
+  - 2× contact inside the ring, nothing when you step out
+  - berry drops inside the arena, Snorlax targets it, eats it and heals 8%
+- `npm run build` passed. Bench 0.87 ms mean.
+- Browser (Pikachu, dev handle into the arena, standing still):
+  - ring locked on the player and filled
+  - a berry dropped
+  - Snorlax landed on the player: HP 105 → 32
+  - sites no longer drawn in the arena
+  - no console errors
+
+**Risks**
+- Slam damage is heavy for a low-level player: 2× contact = ~70 at 3:00. A real Lv ~10 player has more HP, but tuning is needed.
+- Not played by hand.
+- The jump has no travel animation yet (instant landing plus a blast).
+
+**Next:** owner playtest of the arena loop (event → fight → combine → reward), then B2.
+
 ### 2026-10-21 — B1-2: skill combine (D28)
 **Owner decisions:**
 - A move can be combined only with all 3 augment sockets filled (Mutations are on their own track and don't count).

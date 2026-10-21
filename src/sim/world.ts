@@ -75,6 +75,8 @@ export function createWorld({
       movingFor: 0,
       stillFor: 0,
       faceX: 1,
+      vx: 0,
+      vy: 0,
       faceY: 0,
       shellBlocks: 0,
       flareCooldownLeft: 0,
@@ -305,8 +307,10 @@ function movePlayer(world: World, input: InputState, dt: number): void {
     p.movingFor = 0;
   }
   const speed = p.speed * mutationMoveSpeedMult(world);
-  p.x += mx * speed * dt;
-  p.y += my * speed * dt;
+  p.vx = mx * speed;
+  p.vy = my * speed;
+  p.x += p.vx * dt;
+  p.y += p.vy * dt;
   // Pikachu's Charge fills with distance run.
   if (len2 > 0) addCharge(world, Math.min(1, len2) * speed * dt * chargePerPx(world));
 }
@@ -366,8 +370,10 @@ function moveEnemies(world: World, dt: number): void {
     // Blinded enemies lost you: they head for their own random point instead.
     const blind = enemy.blindLeft > 0;
     if (blind && Math.hypot(enemy.wanderX - enemy.x, enemy.wanderY - enemy.y) < enemy.radius) pickWanderPoint(world, enemy);
-    const dx = (blind ? enemy.wanderX : player.x) - enemy.x;
-    const dy = (blind ? enemy.wanderY : player.y) - enemy.y;
+    // An arena boss may head for something else (Snorlax going for a berry, D28).
+    const goal = world.arena?.bossEnemyId === enemy.id ? world.arena.goal : null;
+    const dx = (goal ? goal.x : blind ? enemy.wanderX : player.x) - enemy.x;
+    const dy = (goal ? goal.y : blind ? enemy.wanderY : player.y) - enemy.y;
     const dist = Math.hypot(dx, dy) || 1;
     const speed = enemy.speed * enemySpeedFactor(enemy);
     let vx = (dx / dist) * speed;
@@ -538,30 +544,41 @@ function applyContactDamage(world: World): void {
     }
     if (hurt || wasStunned || player.invulnLeft > 0) continue;
     hurt = true; // one hit per step
-    player.invulnLeft = TUNING.player.invulnSeconds;
-    if (ability.blockEvery && player.blockReadyLeft <= 0) {
-      // Shell: this hit is blocked; the shell recharges.
-      player.blockReadyLeft = ability.blockEvery;
-      onShellBlock(world);
-      emit(world, 'shellBlock', enemy.contactDamage);
-      continue;
-    }
-    const contact =
-      enemy.contactDamage *
-      (enemy.weakenLeft > 0 ? enemy.weakenMult : 1) *
-      (enemy.blindLeft > 0 ? TUNING.status.blindContactMult : 1);
-    const taken = contact * world.mods.damageTakenMult * mutationDamageTakenMult(world);
-    const hpBefore = player.hp;
-    player.hp = Math.max(0, player.hp - taken);
-    onShellHitTaken(world);
-    onLowHpHit(world, hpBefore);
-    player.hurtFlashLeft = TUNING.player.hurtFlashSeconds;
-    // Shell Armor's share of the reduction, for armorAbsorb (Lapras).
-    const armor = -(ability.damageTakenPct ?? 0);
-    if (armor > 0) emit(world, 'armorAbsorb', contact * armor);
-    emit(world, 'hitTaken', taken, enemy);
-    if (player.hp <= 0) world.status = 'fainted';
+    hitPlayer(world, enemy.contactDamage, enemy);
   }
+}
+
+/**
+ * One hit on the player from an enemy: contact, or a boss attack (D28). Starts the invulnerability window;
+ * Shell may block it; the enemy's weaken / Blinded and the player's damage-taken modifiers apply.
+ * The caller checks invulnerability first.
+ */
+export function hitPlayer(world: World, damage: number, enemy: Enemy): void {
+  const { player } = world;
+  const ability = ABILITIES[player.ability];
+  player.invulnLeft = TUNING.player.invulnSeconds;
+  if (ability.blockEvery && player.blockReadyLeft <= 0) {
+    // Shell: this hit is blocked; the shell recharges.
+    player.blockReadyLeft = ability.blockEvery;
+    onShellBlock(world);
+    emit(world, 'shellBlock', damage);
+    return;
+  }
+  const contact =
+    damage *
+    (enemy.weakenLeft > 0 ? enemy.weakenMult : 1) *
+    (enemy.blindLeft > 0 ? TUNING.status.blindContactMult : 1);
+  const taken = contact * world.mods.damageTakenMult * mutationDamageTakenMult(world);
+  const hpBefore = player.hp;
+  player.hp = Math.max(0, player.hp - taken);
+  onShellHitTaken(world);
+  onLowHpHit(world, hpBefore);
+  player.hurtFlashLeft = TUNING.player.hurtFlashSeconds;
+  // Shell Armor's share of the reduction, for armorAbsorb (Lapras).
+  const armor = -(ability.damageTakenPct ?? 0);
+  if (armor > 0) emit(world, 'armorAbsorb', contact * armor);
+  emit(world, 'hitTaken', taken, enemy);
+  if (player.hp <= 0) world.status = 'fainted';
 }
 
 /** Order-preserving in-place filter: no new array per step. */
