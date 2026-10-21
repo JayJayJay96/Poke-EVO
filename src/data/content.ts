@@ -19,7 +19,7 @@ export type MoveTag = PokemonType | FormTag | FlagTag;
 
 /** An evolution line, named after its first stage. */
 export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur' | 'pikachu' | 'lapras';
-export type EnemyId = 'rattata' | 'pidgey' | 'raticate';
+export type EnemyId = 'rattata' | 'pidgey' | 'raticate' | 'spearow' | 'fearow' | 'tauros';
 export type AbilityId =
   | 'blaze'
   | 'blazePlus'
@@ -599,6 +599,44 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     berryChance: 0.3,
     weightKg: 18.5,
   },
+  // Owner request 2026-10-20: tougher mobs that hit harder or run faster and pay more XP.
+  // Stat-only like the others; capped below player speeds even after the wave speed scale.
+  spearow: {
+    id: 'spearow',
+    name: 'Spearow',
+    types: ['Normal', 'Flying'],
+    maxHp: 22,
+    speed: 120,
+    radius: 10,
+    contactDamage: 13,
+    xp: 3,
+    berryChance: 0.01,
+    weightKg: 2,
+  },
+  fearow: {
+    id: 'fearow',
+    name: 'Fearow',
+    types: ['Normal', 'Flying'],
+    maxHp: 75,
+    speed: 120,
+    radius: 15,
+    contactDamage: 24,
+    xp: 12,
+    berryChance: 0.25,
+    weightKg: 38,
+  },
+  tauros: {
+    id: 'tauros',
+    name: 'Tauros',
+    types: ['Normal'],
+    maxHp: 180,
+    speed: 88,
+    radius: 17,
+    contactDamage: 32,
+    xp: 22,
+    berryChance: 0.4,
+    weightKg: 88.4,
+  },
 };
 
 export const TUNING = {
@@ -620,6 +658,12 @@ export const TUNING = {
     collectPadding: 4,
     /** Budget: past this, new gem value merges into the oldest gem. */
     maxGems: 400,
+    /** Uncollected gems vanish after this long, so the budget is rarely hit (owner 2026-10-20). */
+    gemLifetimeSeconds: 60,
+  },
+  /** Magnet drop (owner 2026-10-20): walking over it pulls every gem within screen range once. */
+  magnet: {
+    dropChance: 0.01,
   },
   enemy: {
     hitFlashSeconds: 0.08,
@@ -631,6 +675,10 @@ export const TUNING = {
     maxEnemies: 300,
     /** Extra distance beyond the screen corner so spawns are never visible. */
     ringPadding: 48,
+    /** Enemies farther than this × the spawn ring distance are moved ahead of the player. */
+    recycleFactor: 1.5,
+    /** Radians of spread around the facing direction when moving them (±60°). */
+    recycleSpread: (2 * Math.PI) / 3,
   },
   spatialCellSize: 64,
   /** Same-type attack bonus: moves matching one of the Pokémon's types (D11). */

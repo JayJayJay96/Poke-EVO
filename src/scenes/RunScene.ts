@@ -65,6 +65,7 @@ const COLORS = {
   notVery: 0x7a7a7a,
   seed: 0x4cd964,
   berry: 0x2f7ff5,
+  magnet: 0xff4d4d,
   exclusive: 0xff8c42,
   /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
   mutation: 0xb46cff,
@@ -96,6 +97,9 @@ const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   rattata: 0x9b6bc8,
   pidgey: 0xc8a165,
   raticate: 0x8a5a2b,
+  spearow: 0xb5764a,
+  fearow: 0xd9a066,
+  tauros: 0x6e4a2e,
 };
 /** Gems worth at least this much draw bigger and green. */
 const BIG_GEM_VALUE = 5;
@@ -887,7 +891,17 @@ export class RunScene extends Phaser.Scene {
     }
 
     // Oran Berries: blue with a white rim, so they read as "heal" (D12).
+    // Magnets: a red U so they don't read as berries.
     for (const berry of berries) {
+      if (berry.kind === 'magnet') {
+        g.lineStyle(4, COLORS.magnet, 1);
+        g.beginPath();
+        g.arc(berry.x, berry.y, 7, 0, Math.PI, false);
+        g.strokePath();
+        g.lineBetween(berry.x - 7, berry.y, berry.x - 7, berry.y - 6);
+        g.lineBetween(berry.x + 7, berry.y, berry.x + 7, berry.y - 6);
+        continue;
+      }
       g.fillStyle(COLORS.berry, 1);
       g.fillCircle(berry.x, berry.y, 7);
       g.lineStyle(2, COLORS.flash, 0.9);

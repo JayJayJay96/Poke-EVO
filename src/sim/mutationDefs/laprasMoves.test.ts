@@ -40,7 +40,7 @@ function dummy(w: World, x: number, y: number): Enemy {
 }
 
 function addGem(w: World, x: number, y: number): World['gems'][number] {
-  const gem = { id: w.nextId++, x, y, value: 1, magnetized: false, collected: false };
+  const gem = { id: w.nextId++, x, y, value: 1, magnetized: false, collected: false, expiresAt: Infinity };
   w.gems.push(gem);
   return gem;
 }

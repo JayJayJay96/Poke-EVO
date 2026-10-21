@@ -137,6 +137,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     world.kills++;
     dropGem(world, enemy.x, enemy.y, def.xp);
     maybeDropBerry(world, enemy.x, enemy.y, def.berryChance);
+    maybeDropMagnet(world, enemy.x, enemy.y);
     if (!hit.fromProc) {
       hooks?.onKill?.(world, slot!, enemy);
       emit(world, 'kill', 1, enemy);
@@ -350,7 +351,13 @@ export function updateStatuses(world: World, dt: number): void {
 export function maybeDropBerry(world: World, x: number, y: number, chance: number): void {
   if (chance <= 0 || world.berries.length >= TUNING.heal.maxBerries) return;
   if (world.rng.next() >= chance) return;
-  world.berries.push({ id: world.nextId++, x, y, collected: false });
+  world.berries.push({ id: world.nextId++, kind: 'oran', x, y, collected: false });
+}
+
+/** Rare Magnet drop; shares the berry budget. */
+export function maybeDropMagnet(world: World, x: number, y: number): void {
+  if (world.berries.length >= TUNING.heal.maxBerries || world.rng.next() >= TUNING.magnet.dropChance) return;
+  world.berries.push({ id: world.nextId++, kind: 'magnet', x, y, collected: false });
 }
 
 export function dropGem(world: World, x: number, y: number, value: number): void {
@@ -359,6 +366,7 @@ export function dropGem(world: World, x: number, y: number, value: number): void
     world.gems[0]!.value += value;
     return;
   }
-  const gem: Gem = { id: world.nextId++, x, y, value, magnetized: false, collected: false };
+  const expiresAt = world.time + TUNING.xp.gemLifetimeSeconds;
+  const gem: Gem = { id: world.nextId++, x, y, value, magnetized: false, collected: false, expiresAt };
   world.gems.push(gem);
 }

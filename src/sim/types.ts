@@ -231,8 +231,10 @@ export interface Terrain {
 }
 
 /** An Oran Berry on the ground: walk over it to heal (D12). Not magnetized. */
+/** A floor pickup: an Oran Berry (heal) or a Magnet (pulls in gems). */
 export interface Berry {
   readonly id: number;
+  readonly kind: 'oran' | 'magnet';
   readonly x: number;
   readonly y: number;
   collected: boolean;
@@ -290,6 +292,8 @@ export interface Gem {
   value: number;
   /** Once inside the pickup radius a gem keeps flying to the player. */
   magnetized: boolean;
+  /** Run time at which an uncollected gem vanishes. */
+  readonly expiresAt: number;
   collected: boolean;
 }
 

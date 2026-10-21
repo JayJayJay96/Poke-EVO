@@ -283,11 +283,75 @@ describe('waves', () => {
     expect(waveAt(last.at + 1000).spawnInterval).toBe(last.spawnInterval);
   });
 
+  it('enemies hit harder and run faster as time passes, but never outrun the slowest stage', () => {
+    const [a, b] = [WAVES[1]!, WAVES[2]!];
+    const mid = waveAt((a.at + b.at) / 2);
+    expect(mid.damageScale).toBeCloseTo((a.damageScale + b.damageScale) / 2);
+    expect(mid.speedScale).toBeCloseTo((a.speedScale + b.speedScale) / 2);
+    for (let i = 1; i < WAVES.length; i++) {
+      expect(WAVES[i]!.damageScale).toBeGreaterThanOrEqual(WAVES[i - 1]!.damageScale);
+      expect(WAVES[i]!.speedScale).toBeGreaterThanOrEqual(WAVES[i - 1]!.speedScale);
+    }
+    const slowest = Math.min(...Object.values(POKEMON).flatMap((p) => p.stages.map((s) => s.speed)));
+    const fastest = Math.max(...Object.values(ENEMIES).map((e) => e.speed));
+    expect(fastest * WAVES[WAVES.length - 1]!.speedScale).toBeLessThan(slowest);
+
+    // The spawner applies the scales.
+    const world = makeWorld({ spawnEnabled: true });
+    world.time = WAVES[WAVES.length - 1]!.at + 1;
+    world.spawnTimer = 0;
+    step(world, IDLE, DT);
+    const e = world.enemies[0]!;
+    const last = WAVES[WAVES.length - 1]!;
+    expect(e.contactDamage).toBeCloseTo(ENEMIES[e.kind].contactDamage * last.damageScale);
+    expect(e.speed).toBeCloseTo(ENEMIES[e.kind].speed * last.speedScale);
+  });
+
+  it('enemies left far behind reappear on the spawn ring ahead of the player, keeping their HP', () => {
+    const world = makeWorld({ spawnEnabled: true });
+    world.spawnTimer = 99; // no fresh spawns this step
+    world.player.faceX = 1;
+    world.player.faceY = 0;
+    const near = spawnEnemy(world, 'raticate', -300, 0);
+    const behind = spawnEnemy(world, 'raticate', -3000, 0);
+    behind.hp = 5;
+    step(world, IDLE, DT);
+    expect(near.x).toBeLessThan(0);
+    expect(Math.hypot(behind.x, behind.y)).toBeCloseTo(world.spawnRadius, -1);
+    expect(behind.x).toBeGreaterThan(world.spawnRadius * Math.cos(Math.PI / 3) - 5); // within ±60° ahead
+    expect(behind.hp).toBe(5);
+  });
+
+  it('uncollected XP gems vanish after their lifetime; pulled ones still arrive', () => {
+    const world = makeWorld();
+    dropGem(world, 900, 0, 1);
+    dropGem(world, 900, 50, 1);
+    world.gems[1]!.magnetized = true;
+    world.time = TUNING.xp.gemLifetimeSeconds + 0.1;
+    step(world, IDLE, DT);
+    expect(world.gems).toHaveLength(1);
+    expect(world.gems[0]!.magnetized).toBe(true);
+  });
+
+  it('a Magnet pulls every gem within screen range once; berries still heal', () => {
+    const world = makeWorld();
+    world.spawnRadius = 500;
+    dropGem(world, 400, 0, 1);
+    dropGem(world, 0, -450, 1);
+    dropGem(world, 900, 0, 1); // off screen: left alone
+    world.berries.push({ id: world.nextId++, kind: 'magnet', x: 0, y: 0, collected: false });
+    step(world, IDLE, DT);
+    expect(world.gems.filter((g) => g.magnetized)).toHaveLength(2);
+    expect(world.gems.find((g) => g.x === 900)!.magnetized).toBe(false);
+    run(world, 2);
+    expect(world.gems.map((g) => g.x)).toEqual([900]);
+  });
+
   it('picks enemy kinds by weight', () => {
     const rng = createSeededRng(7);
     for (let i = 0; i < 200; i++) expect(pickEnemyKind({ rattata: 1 }, rng)).toBe('rattata');
 
-    const counts: Record<EnemyId, number> = { rattata: 0, pidgey: 0, raticate: 0 };
+    const counts = Object.fromEntries(Object.keys(ENEMIES).map((id) => [id, 0])) as Record<EnemyId, number>;
     const draws = 8000;
     for (let i = 0; i < draws; i++) counts[pickEnemyKind({ rattata: 3, pidgey: 1 }, rng)]++;
     expect(counts.raticate).toBe(0);

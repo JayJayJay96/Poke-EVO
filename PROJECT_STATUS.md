@@ -76,6 +76,28 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-20 — XP gem expiry, Magnet drop, difficulty over time (D26)
+**Owner requests:** XP seemed to stop dropping; add a 3-min gem timer; a Magnet drop (cheapest option); stronger mobs with better XP and/or difficulty scaling over time.
+**Cause found:** with 400 gems on the floor, `dropGem` folded new XP into the oldest gem (usually far away), so kills looked like they dropped nothing.
+
+**Files**
+- `src/data/content.ts`: `TUNING.xp.gemLifetimeSeconds = 60` (owner: 3 min → 1 min), `TUNING.magnet.dropChance = 0.01` (was 0.003; owner saw no Magnet in a test, ~1 per 330 kills was too rare); enemies Spearow (22 HP, 120 px/s, 13 dmg, 3 XP), Fearow (75 HP, 120 px/s, 24 dmg, 12 XP), Tauros (180 HP, 88 px/s, 32 dmg, 22 XP), all stat-only.
+- `src/data/waves.ts`: keyframes gain `damageScale` (1 → 2) and `speedScale` (1 → 1.15); Spearow from 3:00, Fearow + Tauros from 10:00. **Fodder phases out** (owner left the timing to me): Rattata stops at 10:00, Pidgey at 13:00 (final mix Raticate 2 · Spearow 2.5 · Fearow 1.5 · Tauros 1).
+- **Straggler recycling** (owner OK 2026-10-21): with spawns on, an enemy farther than 1.5× the spawn ring distance is moved onto the ring ahead of the player (facing ±60°), keeping HP and statuses (`recycleStragglers` in `world.ts`, `TUNING.spawn.recycleFactor / recycleSpread`). 1 new test; suite **396/396**, build passed.
+- `src/sim/world.ts`: `waveAt` interpolates the new scales; the spawner applies them; gems expire unless already pulled; `pullGems`; berry pickup runs the Magnet. `src/sim/combat.ts`: `maybeDropMagnet` on every kill, gem `expiresAt`. `src/sim/types.ts`: `Gem.expiresAt`, `Berry.kind` ('oran' | 'magnet').
+- `src/scenes/RunScene.ts`: Magnet drawn as a red U; colours for the 3 mobs.
+- Tests: 3 new in `world.test.ts` (scales interpolate, rise and stay below the slowest stage, spawner applies them; gem expiry keeps pulled gems; Magnet pulls on-screen gems only), weight-count test made enemy-list-proof, 2 Lapras test gem literals gained `expiresAt`.
+
+**Checks (observed)**
+- `npm run typecheck` clean; `npm test` **395/395 passed**; `npm run build` passed.
+- Browser (port 5181, own server): gems and a Magnet render (diamonds, red U). **Not verified live:** the pane ran at ~2 fps (app window not in view), so picking up the Magnet, the new mobs and the late-game difficulty weren't watched in play.
+
+**Risks**
+- More XP per kill late (new mobs) means faster levelling; damage ×2 by 13:00 makes the end harder. `npm run balance` (bot is invulnerable) won't show survivability; owner playtest needed. D19 DPS ordering untouched but not re-run.
+- Magnet uses the gameplay RNG on every kill, so seeded runs differ from before (no test needed changing for it).
+
+**Next:** owner playtest of the late game (10:00+), then the P4 gate playtest.
+
 ### 2026-10-19 — P4h-9: balance with the site-taking bot, rank-III stress, browser FPS (D25)
 **Owner:** "Continue with P4h-9: balance and stress."
 

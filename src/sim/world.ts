@@ -157,6 +157,8 @@ export function step(world: World, input: InputState, dt: number): void {
 export interface WaveState {
   spawnInterval: number;
   hpScale: number;
+  damageScale: number;
+  speedScale: number;
   weights: WaveKeyframe['weights'];
 }
 
@@ -166,11 +168,16 @@ export function waveAt(time: number): WaveState {
   while (i + 1 < WAVES.length && WAVES[i + 1]!.at <= time) i++;
   const a = WAVES[i]!;
   const b = WAVES[i + 1];
-  if (!b) return { spawnInterval: a.spawnInterval, hpScale: a.hpScale, weights: a.weights };
+  if (!b) {
+    const { spawnInterval, hpScale, damageScale, speedScale, weights } = a;
+    return { spawnInterval, hpScale, damageScale, speedScale, weights };
+  }
   const t = (time - a.at) / (b.at - a.at);
   return {
     spawnInterval: lerp(a.spawnInterval, b.spawnInterval, t),
     hpScale: lerp(a.hpScale, b.hpScale, t),
+    damageScale: lerp(a.damageScale, b.damageScale, t),
+    speedScale: lerp(a.speedScale, b.speedScale, t),
     weights: a.weights,
   };
 }
@@ -292,20 +299,43 @@ function movePlayer(world: World, input: InputState, dt: number): void {
   if (len2 > 0) addCharge(world, Math.min(1, len2) * speed * dt * chargePerPx(world));
 }
 
+/**
+ * Enemies left far behind reappear on the spawn ring ahead of the player, keeping HP and statuses,
+ * so they don't sit out of play and fill the enemy cap (owner 2026-10-21).
+ */
+function recycleStragglers(world: World): void {
+  const { player } = world;
+  const limit = world.spawnRadius * TUNING.spawn.recycleFactor;
+  const facing = Math.atan2(player.faceY, player.faceX);
+  for (const enemy of world.enemies) {
+    const dx = enemy.x - player.x;
+    const dy = enemy.y - player.y;
+    if (dx * dx + dy * dy <= limit * limit) continue;
+    const angle = facing + (world.rng.next() - 0.5) * TUNING.spawn.recycleSpread;
+    enemy.x = player.x + Math.cos(angle) * world.spawnRadius;
+    enemy.y = player.y + Math.sin(angle) * world.spawnRadius;
+    enemy.kbX = 0;
+    enemy.kbY = 0;
+  }
+}
+
 function updateSpawner(world: World, dt: number): void {
+  recycleStragglers(world);
   world.spawnTimer -= dt;
   while (world.spawnTimer <= 0) {
     const wave = waveAt(world.time);
     world.spawnTimer += wave.spawnInterval;
     if (world.enemies.length >= TUNING.spawn.maxEnemies) continue;
     const angle = world.rng.next() * Math.PI * 2;
-    spawnEnemy(
+    const enemy = spawnEnemy(
       world,
       pickEnemyKind(wave.weights, world.rng),
       world.player.x + Math.cos(angle) * world.spawnRadius,
       world.player.y + Math.sin(angle) * world.spawnRadius,
       wave.hpScale,
     );
+    enemy.contactDamage *= wave.damageScale;
+    enemy.speed *= wave.speedScale;
   }
 }
 
@@ -408,6 +438,10 @@ function updateGems(world: World, dt: number): void {
   const pull = TUNING.xp.gemPullSpeed * dt;
   for (const gem of world.gems) {
     if (gem.collected) continue;
+    if (!gem.magnetized && world.time >= gem.expiresAt) {
+      gem.collected = true; // expired: removed without XP
+      continue;
+    }
     const dx = player.x - gem.x;
     const dy = player.y - gem.y;
     const dist2 = dx * dx + dy * dy;
@@ -424,7 +458,17 @@ function updateGems(world: World, dt: number): void {
   }
 }
 
-/** Oran Berries heal when the player walks over them (D12). */
+/** Magnet: every gem within `radius` (about the screen) flies to the player. */
+export function pullGems(world: World, radius: number): void {
+  const r2 = radius * radius;
+  for (const gem of world.gems) {
+    const dx = gem.x - world.player.x;
+    const dy = gem.y - world.player.y;
+    if (dx * dx + dy * dy <= r2) gem.magnetized = true;
+  }
+}
+
+/** Oran Berries heal when the player walks over them (D12); Magnets pull in gems. */
 function pickUpBerries(world: World): void {
   const p = world.player;
   const reach = p.radius + TUNING.heal.pickupPadding;
@@ -434,7 +478,8 @@ function pickUpBerries(world: World): void {
     const dy = berry.y - p.y;
     if (dx * dx + dy * dy > reach * reach) continue;
     berry.collected = true;
-    healPlayer(world, TUNING.heal.berryHeal);
+    if (berry.kind === 'oran') healPlayer(world, TUNING.heal.berryHeal);
+    else pullGems(world, world.spawnRadius);
   }
 }
 

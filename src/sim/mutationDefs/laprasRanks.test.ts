@@ -81,7 +81,7 @@ describe('Lapras ranks (P4h-7)', () => {
     const { w, slot } = withRank('surf', 'surf.ferryWave', 3);
     dummy(w, 50, 0);
     const reach = MOVES.surf.form === 'melee' ? MOVES.surf.reach * slot.stats.area * slot.stats.reachMult : 0;
-    const gem = { id: w.nextId++, x: 0, y: reach * 2 - 5, value: 1, magnetized: false, collected: false };
+    const gem = { id: w.nextId++, x: 0, y: reach * 2 - 5, value: 1, magnetized: false, collected: false, expiresAt: Infinity };
     w.gems.push(gem);
     run(w, DT);
     expect(gem.magnetized || gem.collected).toBe(true);
