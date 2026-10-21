@@ -144,6 +144,24 @@ describe('arena events (D28): the fight', () => {
     expect(world.arenaNotice?.kind).toBe('lost');
   });
 
+  it('being knocked out in the arena throws you back to the map at 25% HP instead of ending the run', () => {
+    const world = makeWorld();
+    enter(world);
+    const f = world.arena!;
+    const boss = world.enemies.find((e) => e.id === f.bossEnemyId)!;
+    world.player.hp = 1;
+    world.player.invulnLeft = 0;
+    world.player.x = boss.x;
+    world.player.y = boss.y; // touching Snorlax
+    step(world, IDLE, DT);
+    expect(world.status).toBe('running');
+    expect(world.arena).toBeNull();
+    expect(world.offer).toBeNull();
+    expect(world.arenaNotice?.kind).toBe('knockedOut');
+    expect(world.player.hp).toBeCloseTo(world.player.maxHp * ARENA_TUNING.knockoutHpPct);
+    expect(world.player.invulnLeft).toBeGreaterThan(0);
+  });
+
   it('reward cards never ask to replace a full socket', () => {
     const world = makeWorld();
     world.moves[0]!.sockets = [

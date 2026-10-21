@@ -105,5 +105,7 @@ export const ARENA_TUNING = {
   engageAfter: 6,
   /** Invulnerability on returning to the map. */
   returnInvulnSeconds: 2,
+  /** Knocked out in the arena: back on the map with this share of max HP, no reward (owner 2026-10-21). */
+  knockoutHpPct: 0.25,
   rewardCards: 5,
 } as const;

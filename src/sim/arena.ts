@@ -116,6 +116,7 @@ function enterArena(world: World): void {
     beam: null,
     beamCooldown: SNORLAX_KIT.hyperBeam.firstAfter,
     rubble: [],
+    knockedOut: false,
     stored,
   };
   world.entrance = null;
@@ -187,9 +188,11 @@ export function resolveArena(world: World): void {
   const fight = world.arena;
   if (!fight) return;
   const won = !world.enemies.some((e) => e.id === fight.bossEnemyId);
-  if (!won && fight.timeLeft > 0) return;
-  world.arenaNotice = { kind: won ? 'won' : 'lost', bossId: fight.bossId };
+  if (!won && fight.timeLeft > 0 && !fight.knockedOut) return;
+  world.arenaNotice = { kind: won ? 'won' : fight.knockedOut ? 'knockedOut' : 'lost', bossId: fight.bossId };
   leaveArena(world);
+  // Knocked out: back on the map with some HP instead of fainting (owner 2026-10-21).
+  if (world.player.hp <= 0) world.player.hp = world.player.maxHp * ARENA_TUNING.knockoutHpPct;
   if (won && !world.offer) {
     const slots = comboCandidates(world);
     world.offer = slots.length > 0 ? { kind: 'combine', slots } : rewardOffer(world, world.combo.length < MAX_COMBO_MOVES);

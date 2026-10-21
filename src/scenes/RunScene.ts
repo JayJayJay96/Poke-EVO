@@ -461,6 +461,7 @@ export class RunScene extends Phaser.Scene {
       missed: `The ${entrance.toLowerCase().replace(/^an? /, '')} closed. ${boss} is gone`,
       won: `${boss} defeated!`,
       lost: `Time's up! ${boss} drove you out`,
+      knockedOut: `${boss} knocked you out of the arena!`,
       rest: `${boss} fell asleep and is healing! Hit it hard to wake it`,
       woke: `${boss} woke up!`,
       bellyDrum: `${boss} used Belly Drum! Half its HP, double its power`,

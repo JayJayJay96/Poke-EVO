@@ -571,6 +571,8 @@ export interface ArenaFight {
   /** Hyper Beam: the locked line telegraph, then the recharge (punish window). */
   beam: { readonly x: number; readonly y: number; readonly angle: number; left: number; phase: 'windup' | 'recharge' } | null;
   beamCooldown: number;
+  /** The player dropped to 0 HP in here: they're thrown back to the map, not out of the run (owner 2026-10-21). */
+  knockedOut: boolean;
   /** Rocks from Body Slam that block the player for a while. */
   rubble: { readonly x: number; readonly y: number; readonly radius: number; left: number }[];
   readonly stored: {
@@ -589,7 +591,7 @@ export interface ArenaFight {
 
 /** Arena news for the scene to show once (D28). */
 export interface ArenaNotice {
-  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'rest' | 'woke' | 'bellyDrum';
+  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'knockedOut' | 'rest' | 'woke' | 'bellyDrum';
   readonly bossId: ArenaBossId;
 }
 

@@ -115,6 +115,12 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
   - Browser (stepped by hand): the inner ring is visibly open behind both rocks, and the outer ring shows narrower shadows. No console errors.
   - The leap wasn't seen on screen (unit-tested only).
 
+**Third follow-up (owner, same day):** "the boss is intense enough… it should kick the user out of the area instead of ending the game".
+- `hitPlayer`: reaching 0 HP inside an arena flags `knockedOut` instead of fainting.
+- `resolveArena` treats a knockout like a time-out (no reward), with the notice "Snorlax knocked you out of the arena!", and puts the player back on the map at **25% max HP** (`ARENA_TUNING.knockoutHpPct`) with the usual 2 s invulnerability.
+- Dying on the main map still ends the run.
+- PROJECT.md D28 updated. 1 new test; suite **423/423**, build passed.
+
 **Next:** owner re-playtests Snorlax.
 
 ### 2026-10-21 — B2: the rest of Snorlax

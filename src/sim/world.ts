@@ -579,7 +579,11 @@ export function hitPlayer(world: World, damage: number, enemy: Enemy): void {
   const armor = -(ability.damageTakenPct ?? 0);
   if (armor > 0) emit(world, 'armorAbsorb', contact * armor);
   emit(world, 'hitTaken', taken, enemy);
-  if (player.hp <= 0) world.status = 'fainted';
+  if (player.hp <= 0) {
+    // In an arena a knockout throws you back to the map instead of ending the run (owner 2026-10-21).
+    if (world.arena) world.arena.knockedOut = true;
+    else world.status = 'fainted';
+  }
 }
 
 /** Order-preserving in-place filter: no new array per step. */
