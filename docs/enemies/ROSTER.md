@@ -4,8 +4,8 @@ Species sheets that follow the rules in [`README.md`](README.md). Every number i
 tuned with `npm run balance`). **(now)** = today's value in `src/data/content.ts`, for comparison.
 
 Covered so far: the 6 enemies in the game today, plus **batch 2** (10 new species, 2026-10-21): Caterpie, Weedle,
-Zubat, Oddish, Psyduck, Geodude, Gastly, Abra, Voltorb, Chansey. Still to do: bosses (Snorlax, the three birds,
-Mewtwo) and more species.
+Zubat, Oddish, Psyduck, Geodude, Gastly, Abra, Voltorb, Chansey. Bosses (Snorlax, the three birds,
+Mewtwo) live in [`BOSSES.md`](BOSSES.md).
 
 ---
 

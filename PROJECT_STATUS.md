@@ -107,6 +107,12 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
   designer (owner idea: random species per run, same difficulty curve). **Owner approved all of it** (README §12
   Q5–Q9): the Ambusher is kept, spawn variety is the gist, the batch 2 abilities and threat scores are OK, healers stay
   out of horde events. Committed on `enemy-design-d27`.
+- **Bosses (uncommitted):** new `docs/enemies/BOSSES.md`: design levers, anti-speed tools (lead aim from the owner's
+  预判 idea, bracket, past aim, cover, interrupt bar, tether, rhythm), the scripted boss framework with a cost table,
+  Snorlax / Articuno / Zapdos / Moltres / Mewtwo with phases, and 7 future candidates. **Owner answered §7:**
+  arena-only weather OK, Snorlax Gluttony, Mewtwo Pressure, bird adds OK. Owner added the **projectile layer**
+  (BOSSES §2b plus a Projectiles row per boss). Committed on `enemy-design-d27`.
+- **Next task:** the owner decides on the merge to main and the next enemy work (more species, or a P5 build plan).
 - **Next task:** owner answers; then bosses (Snorlax, Articuno/Zapdos/Moltres, Mewtwo). New `docs/enemies/ROSTER.md` covers the 6 current species. **Pending:**
   README §9: the Elite multipliers,
   Raticate's role (tank vs bruiser), and a go-ahead for the full roster.
