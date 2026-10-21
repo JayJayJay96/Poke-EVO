@@ -98,6 +98,11 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - `npm run build` passed.
 - Browser (stepped by hand; the pane was throttled): during the shake the berry appeared and Snorlax stood still; a second later it had rushed and eaten the berry. No console errors. The camera shake itself wasn't seen (static screenshots).
 
+**Follow-up (owner OK, same day):** kiting now matters.
+- Body Slam only starts when the player is within **350 px** (was 450, the whole arena); farther away, Snorlax walks closer first.
+- Yawn only starts within its **240 px** cloud reach, so it isn't wasted on a far-off player.
+- Snorlax never commits to a move before it's in range, so it can't get stuck. 1 new test; suite **420/420**, build passed.
+
 **Next:** owner re-playtests Snorlax.
 
 ### 2026-10-21 — B2: the rest of Snorlax

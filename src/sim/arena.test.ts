@@ -368,6 +368,24 @@ describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
     expect(boss.speed).toBe(0);
   });
 
+  it('kiting delays close moves: no Yawn or Body Slam while you stay out of their range', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    f.phase = 2;
+    f.yawnCooldown = 0;
+    f.slamCooldown = 0;
+    world.player.x = boss.x + SNORLAX_KIT.bodySlam.range + 40;
+    world.player.y = boss.y;
+    boss.speed = 0;
+    step(world, IDLE, DT);
+    expect(f.yawn).toBeNull();
+    expect(f.slam).toBeNull();
+    expect(boss.speed).toBeGreaterThan(0); // walks closer instead
+    world.player.x = boss.x + SNORLAX_KIT.yawn.range - 20;
+    step(world, IDLE, DT);
+    expect(f.slam).not.toBeNull(); // in range: the slam (higher priority) starts
+  });
+
   it('phase 3 starts with Belly Drum (half HP, double contact) and adds Hyper Beam with a recharge', () => {
     const { world, boss } = fight();
     const f = world.arena!;

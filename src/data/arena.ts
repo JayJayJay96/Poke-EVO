@@ -36,7 +36,8 @@ export const SNORLAX_KIT = {
     cooldown: 6,
     /** Seconds after the fight starts before the first slam. */
     firstAfter: 2,
-    range: 450,
+    /** Max leap distance: farther away, Snorlax walks closer first, so kiting delays slams (owner 2026-10-21). */
+    range: 350,
     radius: 90,
     windup: 1.1, // owner 2026-10-21: longer telegraphs (was 0.8)
     lead: 0.5,

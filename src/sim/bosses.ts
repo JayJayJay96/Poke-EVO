@@ -223,6 +223,7 @@ function snorlax(world: World, fight: ArenaFight, boss: Enemy, dt: number): void
       boss.hp = Math.min(boss.maxHp, boss.hp + boss.maxHp * gluttony.healPct);
     }
     const toPlayer = Math.atan2(player.y - boss.y, player.x - boss.x);
+    const distance = Math.hypot(player.x - boss.x, player.y - boss.y);
     if (nearest) {
       // Hangry: while a berry is down it only goes for the berry.
     } else if (fight.berryTimer <= 0 && berries.length < gluttony.maxBerries) {
@@ -230,10 +231,11 @@ function snorlax(world: World, fight: ArenaFight, boss: Enemy, dt: number): void
       fight.berryDropped = false;
     } else if (fight.phase >= 3 && fight.beamCooldown <= 0) {
       fight.beam = { x: boss.x, y: boss.y, angle: toPlayer, left: hyperBeam.telegraph, phase: 'windup' };
-    } else if (fight.slamCooldown <= 0 && Math.hypot(player.x - boss.x, player.y - boss.y) <= bodySlam.range) {
+    } else if (fight.slamCooldown <= 0 && distance <= bodySlam.range) {
       if (fight.phase >= 2) fight.slamsQueued = bodySlam.chainFromPhase2 - 1;
       startSlam(world, fight, boss, bodySlam.windup);
-    } else if (fight.phase >= 2 && !fight.yawn && fight.yawnCooldown <= 0) {
+    } else if (fight.phase >= 2 && !fight.yawn && fight.yawnCooldown <= 0 && distance <= yawn.range) {
+      // Only within the cloud's reach, so it isn't wasted on a player kiting far away (owner 2026-10-21).
       fight.yawn = { x: boss.x, y: boss.y, angle: toPlayer, left: yawn.telegraph, phase: 'windup' };
     }
   }
