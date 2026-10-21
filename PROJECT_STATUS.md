@@ -76,6 +76,35 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-21 — Enemy design framework (D27, design only)
+- **Phase:** P4 (gate playtest still pending). The owner made this session the **enemy designer**. Objective: a
+  design (no code) for enemy stats, status resistance and type effectiveness. **Status:** framework drafted, waiting
+  for the owner's answers.
+- **Files:** `docs/enemies/README.md` (new framework: resistance tiers, a type-derived status table, a lore flavour
+  table, Flying ignoring ground effects, existing + future lore statuses, elite/boss abilities, base-stat formulas,
+  the current 6 enemies worked out); `PROJECT.md` §13 **D27** (the owner's 8 answers).
+- **Commands:** none on the game. No code changed, so the build is unaffected (not re-run). Also added the caveman
+  status-line badge to the user's global `~/.claude/settings.json` (owner request).
+- **Decisions obtained:** D27 (1)–(8). **Pending:** `docs/enemies/README.md` §8: tier numbers, the flavour table +
+  Flying rule, the boss rule, Speed ordering reversing today's fast enemies, and Raticate/Fearow/Tauros abilities.
+- **Risks:** following official Speed makes Pidgey/Spearow slower and Raticate/Tauros faster, and Tauros much less
+  tanky. Enemies are all Normal or Normal/Flying today, so the type chart barely matters until typed enemies arrive.
+  The roster (P5 archetypes) is future-phase content: design only for now.
+- **Follow-up (same day):** the owner approved §8 Q1–3. Speed now comes from **role bands** (README §6.2). Every
+  species has an **ability, active only on its Elite/Boss variant**, and Elite is a variant of any species (README
+  §7). There's a **horde-ready data block** for the owner's planned "Elite leads its horde" event (README §8; the event
+  logic belongs to the game logic designer). Owner: a horde is the leader's **own species line** (Elite Raticate →
+  Raticate + Rattata). **Approved:** the Elite multipliers (README §7) and Raticate = tank. **Owner raised:** the
+  speed cap makes Agility pointless; enemy attack styles; statuses on the player. **Approved: two speed tiers**
+  (README §6.2; flankers 115–145, replacing D26's invariant; the D26 unit test must change when this is built).
+  **Written on owner request:** attack styles + telegraphs (README §9) and player statuses (README §10).
+  ROSTER: flanker speeds updated (Pidgey 123, Spearow 127, Fearow 133) and an Attack row on every sheet.
+  **Pending:** README §11 (the full roster go-ahead; the Ambusher veto). New `docs/enemies/ROSTER.md` covers the 6 current species. **Pending:**
+  README §9: the Elite multipliers,
+  Raticate's role (tank vs bruiser), and a go-ahead for the full roster.
+- **Next task (superseded):** owner answers §8, then the roster task (`docs/enemies/ROSTER.md`: the 18-type chart, a sheet for
+  every enemy, a counter for each starter element in every wave window).
+
 ### 2026-10-20 — XP gem expiry, Magnet drop, difficulty over time (D26)
 **Owner requests:** XP seemed to stop dropping; add a 3-min gem timer; a Magnet drop (cheapest option); stronger mobs with better XP and/or difficulty scaling over time.
 **Cause found:** with 400 gems on the floor, `dropGem` folded new XP into the oldest gem (usually far away), so kills looked like they dropped nothing.
