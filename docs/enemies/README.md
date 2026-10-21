@@ -186,6 +186,9 @@ game logic and not designed here. Each species sheet in `ROSTER.md` gives a **Ho
 | `hordeSpeed` | Speed the horde can share so it stays together | The slowest member's role speed |
 | `leaderAbility` | The ability that is on for the leader | From the sheet |
 
+**Healer-role species (Chansey) never take part in horde events**, as leader or follower (owner, 2026-10-21). A
+self-healing horde is too much.
+
 Left to the game logic designer: horde size X, spawn timing, what happens when the leader dies (scatter, buff,
 loot), chest drops, warnings and telegraphs.
 
@@ -219,7 +222,7 @@ proc anything (no proc-from-proc).
 | **Phaser** | fodder | Drifts **through** other enemies; flickers; its Lick paralyses you (§10) | none, but its contact hit applies a status | Gastly, Haunter |
 | **Diver** | fast | Marks a circle on you, flies off-screen, dives onto the circle (a burst) | Ring, 0.8 s | Fearow (Drill Peck), Dodrio |
 | **Web layer** | fodder | Leaves sticky String Shot patches that **slow you** (§10) | the patch is visible | Caterpie, Weedle, Venonat |
-| **Ambusher** *(optional, owner may veto)* | 0 until triggered | A Voltorb **disguised as an item ball**, like the Power Plant. Walk near and it wakes and fuses | It wobbles slightly as a tell; then the exploder ring | Voltorb, Electrode |
+| **Ambusher** (owner: keep) | 0 until triggered | A Voltorb **disguised as an item ball**, like the Power Plant. Walk near and it wakes and fuses | It wobbles slightly as a tell; then the exploder ring | Voltorb, Electrode |
 
 ### 9.3 Budget and data
 - Enemy projectiles get their **own pool, about 150**, separate from the player's 500. When it's full, new shots are
@@ -261,11 +264,36 @@ The current stage's types decide. Slows from **Ice** attacks use the Ice row.
 
 This makes the starter pick matter against certain enemies (pillar 1, "kit over stats").
 
-## 11. Open questions for the owner
+## 11. Spawn variety (owner idea 2026-10-21; a proposal for the game logic designer)
+Owner: no fixed Rattata → Pidgey → Raticate queue every run. The enemies should vary from run to run while the
+difficulty ramps the same way. The gist: **fix the difficulty curve, randomise who fills it.**
+
+1. **Threat budget:** the wave keyframes give **threat points per second** instead of a fixed spawn interval. This
+   curve is the same in every run, so difficulty is the same.
+2. **Tiers, not species:** keyframes open **tiers** (ROSTER "Spawn data"), e.g. tier 1 at 0:00, tiers 1–2 from 3:00,
+   tiers 2–3 from 10:00.
+3. **Run roster:** at the start of a run (seeded RNG), each tier picks a few species to be **in season**, e.g. 3 of
+   the 5 tier-1 species. One run is Caterpie/Zubat/Rattata, the next Weedle/Pidgey/Zubat.
+4. **Rotation:** every ~2–3 min, one in-season species leaves and another from the same tier comes in, so a run
+   changes as it goes.
+5. **Fair swaps:** spawn count = budget ÷ the species' threat. Weak species come in bigger crowds, strong ones in
+   fewer, and the total threat stays the same.
+6. **Counter guarantee:** the in-season set always includes at least one species that resists the player's current
+   starter type (ROSTER counter table), and counters are never the majority. This is the owner's "one-sided builds
+   get countered" goal, guaranteed rather than left to luck.
+7. **Elites and horde events** pick their species from the in-season set.
+
+The enemy-side data it needs (tier and threat per species) is in ROSTER. Everything else (budget numbers, rotation
+timing, the counter rule's code) belongs to the game logic designer.
+
+## 12. Open questions for the owner
 1. ~~"Same type enemy" in the horde event~~ **Answered (owner, 2026-10-21): the same species line** (§8).
 2. ~~Elite multipliers~~ **Approved (owner, 2026-10-21)** as in §7.
 3. ~~Raticate's role~~ **Approved (owner, 2026-10-21): tank.**
 4. ~~Speed cap~~ **Approved (owner, 2026-10-21): two speed tiers** (§6.2).
-5. **The Ambusher** (§9.2, a Voltorb disguised as an item ball): keep or veto?
-6. **Next:** write the full roster (the 18-type chart plus sheets for every §7/§9 enemy and boss, each with its
-   attack style and any player status)?
+5. ~~The Ambusher~~ **Kept (owner, 2026-10-21).**
+6. ~~Next roster~~ **Batch 2 written (2026-10-21):** 10 species in ROSTER. Bosses are still to do.
+7. ~~Spawn variety~~ **Approved as the gist (owner, 2026-10-21)** (§11).
+8. ~~Batch 2 elite abilities~~ **Approved (owner, 2026-10-21).** The threat scores are approved as a starting point;
+   the balance pass fine-tunes them.
+9. ~~Healers in horde events~~ **Owner, 2026-10-21: healers never join horde events** (§8).

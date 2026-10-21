@@ -99,7 +99,15 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
   (README §6.2; flankers 115–145, replacing D26's invariant; the D26 unit test must change when this is built).
   **Written on owner request:** attack styles + telegraphs (README §9) and player statuses (README §10).
   ROSTER: flanker speeds updated (Pidgey 123, Spearow 127, Fearow 133) and an Attack row on every sheet.
-  **Pending:** README §11 (the full roster go-ahead; the Ambusher veto). New `docs/enemies/ROSTER.md` covers the 6 current species. **Pending:**
+  **Pending:** README §12 (the full roster go-ahead; the Ambusher veto).
+- **Committed** on branch `enemy-design-d27` (`76e2a44`). Not merged to main.
+- **Batch 2 (uncommitted):** ROSTER has 10 new species (Caterpie, Weedle, Zubat, Oddish, Psyduck, Geodude, Gastly,
+  Abra, Voltorb, Chansey), type-chart rows for Bug/Rock/Ground/Ghost/Psychic defenders, a starter-element counter
+  table, and spawn data (tier + rough threat). README §11 is the **spawn variety** proposal for the game logic
+  designer (owner idea: random species per run, same difficulty curve). **Owner approved all of it** (README §12
+  Q5–Q9): the Ambusher is kept, spawn variety is the gist, the batch 2 abilities and threat scores are OK, healers stay
+  out of horde events. Committed on `enemy-design-d27`.
+- **Next task:** owner answers; then bosses (Snorlax, Articuno/Zapdos/Moltres, Mewtwo). New `docs/enemies/ROSTER.md` covers the 6 current species. **Pending:**
   README §9: the Elite multipliers,
   Raticate's role (tank vs bruiser), and a go-ahead for the full roster.
 - **Next task (superseded):** owner answers §8, then the roster task (`docs/enemies/ROSTER.md`: the 18-type chart, a sheet for
