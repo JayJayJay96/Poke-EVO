@@ -103,6 +103,18 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - Yawn only starts within its **240 px** cloud reach, so it isn't wasted on a far-off player.
 - Snorlax never commits to a move before it's in range, so it can't get stuck. 1 new test; suite **420/420**, build passed.
 
+**Second follow-up (owner playtest, same day):** "the snore rings move very fast and kinda impossible to move to the safe area"; also wants a rare surprise berry leap.
+- **Rubble shelters you from Snore:** a rock shadows the area behind it, seen from Snorlax.
+  - `snoreOpenings()` (the gap plus rock shadows) is shared by the hit test and the drawing.
+  - Rings are drawn in short arcs that skip every opening, so safe spots are visible.
+  - I picked this over "a second hole" because it uses the rubble already in the fight.
+- **Snore rings slower:** 240 → **170 px/s**.
+- **Rare berry leap:** when the shake ends there's a **20%** chance Snorlax Body Slams onto the new berry with the normal 1.1 s ring (it eats the berry after recovering), instead of running.
+- Checks:
+  - 2 new tests: rock shelter on vs off, and the leap happens sometimes but under 45% of 40 seeded runs, landing on the berry. Suite **422/422**, build passed.
+  - Browser (stepped by hand): the inner ring is visibly open behind both rocks, and the outer ring shows narrower shadows. No console errors.
+  - The leap wasn't seen on screen (unit-tested only).
+
 **Next:** owner re-playtests Snorlax.
 
 ### 2026-10-21 — B2: the rest of Snorlax

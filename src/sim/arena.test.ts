@@ -337,6 +337,49 @@ describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
     }
   });
 
+  it('a rubble rock shelters you from a Snore ring when it is between you and Snorlax', () => {
+    for (const rockThere of [true, false]) {
+      const { world, boss } = fight();
+      const f = world.arena!;
+      world.player.invulnLeft = 0;
+      const away = Math.PI; // the ring's real gap is on the other side
+      f.snores.push({ x: boss.x, y: boss.y, r: 160, gapAngle: 0, hit: false });
+      if (rockThere) f.rubble.push({ x: boss.x + Math.cos(away) * 100, y: boss.y, radius: 26, left: 20 });
+      world.player.x = boss.x + Math.cos(away) * 160;
+      world.player.y = boss.y;
+      const hp = world.player.hp;
+      step(world, IDLE, DT);
+      if (rockThere) expect(world.player.hp).toBe(hp);
+      else expect(world.player.hp).toBeLessThan(hp);
+    }
+  });
+
+  it('now and then Snorlax Body Slams onto the new berry instead of running to it', () => {
+    let leaps = 0;
+    const runs = 40;
+    for (let seed = 1; seed <= runs; seed++) {
+      const world = createWorld({ rng: createSeededRng(seed), spawnEnabled: true, mapSeed: seed });
+      world.spawnTimer = 1e9;
+      enter(world);
+      const f = world.arena!;
+      world.player.x = f.x;
+      world.player.y = f.y + 200;
+      world.player.invulnLeft = 999;
+      world.moves = [];
+      step(world, IDLE, DT);
+      f.slamCooldown = 99;
+      f.berryTimer = 0;
+      for (let t = 0; t < SNORLAX_KIT.gluttony.shakeSeconds + 0.1; t += DT) step(world, IDLE, DT);
+      const berry = world.berries.find((b) => b.kind === 'oran');
+      if (f.slam && berry) {
+        leaps++;
+        expect([f.slam.x, f.slam.y]).toEqual([berry.x, berry.y]);
+      }
+    }
+    expect(leaps).toBeGreaterThan(0);
+    expect(leaps / runs).toBeLessThan(0.45); // rare
+  });
+
   it('phase 2: Yawn locks a cone, then its cloud slows the player inside; slams come in pairs', () => {
     const { world, boss } = fight();
     const f = world.arena!;

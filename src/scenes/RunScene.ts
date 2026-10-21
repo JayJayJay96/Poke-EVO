@@ -6,6 +6,7 @@ import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '.
 import { SITE_TUNING } from '../data/sites';
 import { ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
 import { chooseArenaReward, chooseCombine, skipCombine } from '../sim/arena';
+import { angleGap, snoreOpenings } from '../sim/bosses';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
@@ -987,11 +988,22 @@ export class RunScene extends Phaser.Scene {
       g.fillStyle(COLORS.rubble, 1);
       for (const rock of arena.rubble) g.fillCircle(rock.x, rock.y, rock.radius);
       g.lineStyle(snore.thickness, COLORS.snore, 0.6);
+      // Drawn in short arcs, skipping its openings (the gap and rock shadows), so safe spots are visible.
+      const STEP = Math.PI / 60;
       for (const ring of arena.snores) {
-        const half = (snore.gapDeg * Math.PI) / 360;
-        g.beginPath();
-        g.arc(ring.x, ring.y, ring.r, ring.gapAngle + half, ring.gapAngle - half + Math.PI * 2, false);
-        g.strokePath();
+        const openings = snoreOpenings(arena, ring);
+        let start: number | null = null;
+        for (let i = 0; i <= 120; i++) {
+          const a = i * STEP;
+          const closed = i < 120 && !openings.some((o) => angleGap(a + STEP / 2, o.angle) <= o.half);
+          if (closed && start === null) start = a;
+          if (!closed && start !== null) {
+            g.beginPath();
+            g.arc(ring.x, ring.y, ring.r, start, a, false);
+            g.strokePath();
+            start = null;
+          }
+        }
       }
       const cloud = arena.yawn;
       if (cloud) {

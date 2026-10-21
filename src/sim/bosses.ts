@@ -28,7 +28,7 @@ export function leadAim(world: World, fight: ArenaFight, windup: number, lead: n
 }
 
 /** Smallest absolute difference between two angles, in radians. */
-function angleGap(a: number, b: number): number {
+export function angleGap(a: number, b: number): number {
   const d = Math.abs(a - b) % (Math.PI * 2);
   return d > Math.PI ? Math.PI * 2 - d : d;
 }
@@ -133,12 +133,26 @@ function updateSnores(world: World, fight: ArenaFight, boss: Enemy, dt: number):
     if (ring.hit) continue;
     const d = Math.hypot(player.x - ring.x, player.y - ring.y);
     if (Math.abs(d - ring.r) > snore.thickness / 2 + player.radius) continue;
-    const inGap = angleGap(Math.atan2(player.y - ring.y, player.x - ring.x), ring.gapAngle) <= (snore.gapDeg * DEG) / 2;
-    if (inGap) continue;
+    const a = Math.atan2(player.y - ring.y, player.x - ring.x);
+    if (snoreOpenings(fight, ring).some((o) => angleGap(a, o.angle) <= o.half)) continue;
     ring.hit = true;
     strike(world, boss, snore.damageFactor);
   }
   fight.snores = fight.snores.filter((ring) => ring.r <= snore.maxRadius);
+}
+
+/**
+ * Where a Snore ring is open: its gap, plus the shadow of every rock it has already passed, seen from where
+ * Snorlax sleeps (owner 2026-10-21). Shared by the hit test and the drawing, so what looks safe is safe.
+ */
+export function snoreOpenings(fight: ArenaFight, ring: ArenaFight['snores'][number]): { angle: number; half: number }[] {
+  const open = [{ angle: ring.gapAngle, half: (SNORLAX_KIT.snore.gapDeg * DEG) / 2 }];
+  for (const rock of fight.rubble) {
+    const d = Math.hypot(rock.x - ring.x, rock.y - ring.y);
+    if (d >= ring.r || d <= rock.radius) continue;
+    open.push({ angle: Math.atan2(rock.y - ring.y, rock.x - ring.x), half: Math.asin(rock.radius / d) });
+  }
+  return open;
 }
 
 /** Yawn: cone telegraph, then a drowsy cloud that slows the player standing in it. */
@@ -201,7 +215,19 @@ function snorlax(world: World, fight: ArenaFight, boss: Enemy, dt: number): void
         collected: false,
       });
     }
-    if (fight.shakeLeft <= 0) fight.berryTimer = gluttony.interval;
+    if (fight.shakeLeft <= 0) {
+      fight.berryTimer = gluttony.interval;
+      // Rare surprise (owner 2026-10-21): Body Slam straight onto the new berry instead of running to it.
+      let berry = null;
+      for (let i = world.berries.length - 1; i >= 0 && !berry; i--) {
+        const b = world.berries[i]!;
+        if (b.kind === 'oran' && !b.collected) berry = b;
+      }
+      if (berry && world.rng.next() < gluttony.leapChance) {
+        const { radius, windup } = SNORLAX_KIT.bodySlam;
+        fight.slam = { x: berry.x, y: berry.y, radius, windup, left: windup, phase: 'windup' };
+      }
+    }
   }
   else if (fight.phase <= restAt.length && boss.hp <= boss.maxHp * restAt[fight.phase - 1]!) {
     // Rest at each HP threshold; a Yawn in progress is dropped.

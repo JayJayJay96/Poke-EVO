@@ -56,14 +56,26 @@ export const SNORLAX_KIT = {
    * berry pops up `dropAt` s in, so the player always sees it first, then Snorlax rushes it at `rushMult` speed
    * (hangry). Owner 2026-10-21.
    */
-  gluttony: { interval: 15, maxBerries: 3, healPct: 0.08, shakeSeconds: 3, dropAt: 2, rushMult: 2.2 },
+  gluttony: {
+    interval: 15,
+    maxBerries: 3,
+    healPct: 0.08,
+    shakeSeconds: 3,
+    dropAt: 2,
+    rushMult: 2.2,
+    /** Rare surprise (owner 2026-10-21): instead of running, it Body Slams onto the berry (normal telegraph). */
+    leapChance: 0.2,
+  },
   /**
    * Rest: falls asleep and heals over a few seconds, taking more damage. Damage dealt while asleep fills a wake
    * meter; filling it cancels the heal and Snorlax wakes straight into a quick Body Slam (interrupt bar).
    */
   rest: { seconds: 5, healPct: 0.25, damageTakenMult: 1.5, wakeAtPct: 0.1, wakeSlamWindup: 0.6 },
-  /** Snore (while asleep): expanding rings with one gap that rotates between rings; run through the gap. */
-  snore: { interval: 1.5, speed: 240, thickness: 18, gapDeg: 70, gapTurnDeg: 75, maxRadius: 480, damageFactor: 0.6 },
+  /**
+   * Snore (while asleep): expanding rings with one gap that rotates between rings; run through the gap, or hide
+   * behind a rubble rock, which shelters its "shadow" seen from Snorlax (owner 2026-10-21; speed 240 → 170).
+   */
+  snore: { interval: 1.5, speed: 170, thickness: 18, gapDeg: 70, gapTurnDeg: 75, maxRadius: 480, damageFactor: 0.6 },
   /** Yawn (phase 2+): a cone telegraph, then a drowsy cloud that slows the player inside it (no sleep, §10). */
   yawn: { cooldown: 9, telegraph: 0.9, cloudSeconds: 4, range: 240, arcDeg: 90, slow: 0.4 },
   /** Belly Drum (start of phase 3): halves its current HP, doubles its contact (so slams and beams too). */
