@@ -916,6 +916,8 @@ export class RunScene extends Phaser.Scene {
     const { player, enemies, projectiles, gems, swings, moves, zones, blasts, berries } = this.world;
     const cam = this.cameras.main;
     cam.centerOn(player.x, player.y);
+    // Snorlax shaking the ground before a berry pops up (owner 2026-10-21); a running shake isn't restarted.
+    if (this.world.arena && this.world.arena.shakeLeft > 0) cam.shake(150, 0.006);
 
     const g = this.gfx;
     g.clear();

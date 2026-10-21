@@ -222,21 +222,35 @@ describe('Snorlax phase 1 kit (B1-3)', () => {
     expect(world.player.hp).toBe(hp2);
   });
 
-  it('Gluttony: a berry drops in the arena, Snorlax walks to it and eats it to heal 8%', () => {
+  it('Gluttony: Snorlax shakes 3 s, the berry pops up at 2 s, then it rushes it (hangry) and eats it for 8%', () => {
     const { world, boss } = fight();
     const f = world.arena!;
+    const { gluttony } = SNORLAX_KIT;
     f.slamCooldown = 99;
     f.berryTimer = 0;
     boss.hp = boss.maxHp * 0.8; // above the first Rest threshold (B2)
     world.player.invulnLeft = 99;
+    world.moves = []; // no auto-fire chipping the boss during the check
+    step(world, IDLE, DT);
+    expect(f.shakeLeft).toBeCloseTo(gluttony.shakeSeconds);
+    expect(boss.speed).toBe(0);
+    const stepsTo = (t: number) => Math.round(t / DT);
+    for (let i = 0; i < stepsTo(gluttony.dropAt) - 1; i++) step(world, IDLE, DT);
+    expect(world.berries.some((b) => b.kind === 'oran')).toBe(false); // not yet
+    step(world, IDLE, DT);
     step(world, IDLE, DT);
     const berry = world.berries.find((b) => b.kind === 'oran')!;
     expect(Math.hypot(berry.x - f.x, berry.y - f.y)).toBeLessThanOrEqual(f.radius);
+    expect(f.goal).toBeNull(); // still shaking: the player gets a head start
+    for (let i = 0; i < stepsTo(gluttony.shakeSeconds - gluttony.dropAt) + 1; i++) step(world, IDLE, DT);
+    expect(f.shakeLeft).toBeLessThanOrEqual(0);
     expect(f.goal).toEqual({ x: berry.x, y: berry.y });
+    expect(boss.speed).toBeCloseTo(f.bossSpeed * gluttony.rushMult);
     boss.x = berry.x;
     boss.y = berry.y;
+    const hpBefore = boss.hp;
     step(world, IDLE, DT);
-    expect(boss.hp).toBeCloseTo(boss.maxHp * (0.8 + SNORLAX_KIT.gluttony.healPct), 0);
+    expect(boss.hp).toBeCloseTo(hpBefore + boss.maxHp * gluttony.healPct, 0);
     expect(world.berries.some((b) => b.id === berry.id)).toBe(false);
   });
 

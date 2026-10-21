@@ -548,6 +548,10 @@ export interface ArenaFight {
   slamCooldown: number;
   /** Seconds until the next Gluttony berry drops. */
   berryTimer: number;
+  /** Seconds left of the ground-shake before a berry (owner 2026-10-21); 0 when not shaking. */
+  shakeLeft: number;
+  /** Whether this shake's berry has popped up yet. */
+  berryDropped: boolean;
   /** Snorlax's phase, 1–3; each Rest moves it on and it never goes back (B2). */
   phase: number;
   /** Rest in progress: seconds left and damage taken while asleep (the wake meter). */

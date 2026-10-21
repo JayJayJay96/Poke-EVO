@@ -644,7 +644,7 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     name: 'Snorlax',
     types: ['Normal'],
     maxHp: 3000,
-    speed: 55,
+    speed: 75, // owner 2026-10-21: a little faster (was 55)
     radius: 40,
     contactDamage: 30,
     xp: 60,

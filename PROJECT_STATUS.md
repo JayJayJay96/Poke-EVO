@@ -76,6 +76,30 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-21 — Snorlax playtest tuning (owner)
+**Owner feedback (first Snorlax playtest):**
+- Snorlax should move a little faster, with longer telegraphs: "pressure to fight it but not impossible to evade".
+- Before a berry: a 3 s no-damage shake animation, the berry popping up at the 2 s mark so the player always sees it first, then Snorlax rushes it ("hangry").
+- Boss HP felt hard to bring down with the current build, but the owner wants it **unchanged** for now and will re-test after these two changes.
+
+**Changes (provisional values)**
+- `src/data/content.ts`: Snorlax speed 55 → **75**.
+- `src/data/arena.ts` (`SNORLAX_KIT`):
+  - telegraph times: Body Slam 0.8 → **1.1 s**, wake-up slam 0.4 → **0.6 s**, Yawn 0.6 → **0.9 s**, Hyper Beam 0.8 → **1.1 s**
+  - Gluttony gains `shakeSeconds: 3`, `dropAt: 2`, `rushMult: 2.2`
+- `src/sim/bosses.ts`:
+  - Gluttony is now an action: once Snorlax is free and the timer is up (and fewer than 3 berries are down), it stands still and shakes for 3 s, and the berry pops up at 2 s
+  - after that it rushes the nearest berry at ×2.2 speed and **doesn't attack while a berry is down** (hangry); the 15 s timer restarts after the shake
+- `src/sim/types.ts`, `src/sim/arena.ts`: `shakeLeft`, `berryDropped`.
+- `src/scenes/RunScene.ts`: camera shake while Snorlax shakes the ground.
+
+**Checks (observed)**
+- `npm run typecheck` clean. `npm test` **419/419 passed** (the Gluttony test was rewritten: still for the shake, no berry before 2 s, berry at 2 s with no rush yet, then rush at ×2.2 and +8% on eating).
+- `npm run build` passed.
+- Browser (stepped by hand; the pane was throttled): during the shake the berry appeared and Snorlax stood still; a second later it had rushed and eaten the berry. No console errors. The camera shake itself wasn't seen (static screenshots).
+
+**Next:** owner re-playtests Snorlax.
+
 ### 2026-10-21 — B2: the rest of Snorlax
 **Built (BOSSES.md §4), all numbers in `SNORLAX_KIT` (provisional):**
 - **Phases:** Rest at 66% and at 33%. Each Rest moves Snorlax to the next phase, and phases never go back. Rest's heal can't undo a phase.

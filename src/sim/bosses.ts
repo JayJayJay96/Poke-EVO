@@ -179,29 +179,30 @@ function snorlax(world: World, fight: ArenaFight, boss: Enemy, dt: number): void
   updateSnores(world, fight, boss, dt);
   if (fight.yawn) updateYawn(world, fight, dt);
 
-  // Gluttony: an Oran Berry drops somewhere in the arena every so often.
   const berries = world.berries.filter((b) => b.kind === 'oran' && !b.collected);
-  if (fight.berryTimer <= 0) {
-    fight.berryTimer = gluttony.interval;
-    if (berries.length < gluttony.maxBerries) {
-      const angle = world.rng.next() * Math.PI * 2;
-      const dist = Math.sqrt(world.rng.next()) * fight.radius * 0.8;
-      const berry = {
-        id: world.nextId++,
-        kind: 'oran' as const,
-        x: fight.x + Math.cos(angle) * dist,
-        y: fight.y + Math.sin(angle) * dist,
-        collected: false,
-      };
-      world.berries.push(berry);
-      berries.push(berry);
-    }
-  }
 
   fight.goal = null;
   if (fight.rest) updateRest(world, fight, boss, dt);
   else if (fight.slam) updateSlam(world, fight, boss, dt);
   else if (fight.beam) updateBeam(world, fight, boss, dt);
+  else if (fight.shakeLeft > 0) {
+    // Gluttony (owner 2026-10-21): Snorlax shakes the ground; the berry pops up partway through, so the
+    // player sees it before Snorlax moves.
+    fight.shakeLeft -= dt;
+    if (!fight.berryDropped && gluttony.shakeSeconds - fight.shakeLeft >= gluttony.dropAt) {
+      fight.berryDropped = true;
+      const angle = world.rng.next() * Math.PI * 2;
+      const dist = Math.sqrt(world.rng.next()) * fight.radius * 0.8;
+      world.berries.push({
+        id: world.nextId++,
+        kind: 'oran',
+        x: fight.x + Math.cos(angle) * dist,
+        y: fight.y + Math.sin(angle) * dist,
+        collected: false,
+      });
+    }
+    if (fight.shakeLeft <= 0) fight.berryTimer = gluttony.interval;
+  }
   else if (fight.phase <= restAt.length && boss.hp <= boss.maxHp * restAt[fight.phase - 1]!) {
     // Rest at each HP threshold; a Yawn in progress is dropped.
     fight.rest = { left: rest.seconds, wake: 0 };
@@ -222,7 +223,12 @@ function snorlax(world: World, fight: ArenaFight, boss: Enemy, dt: number): void
       boss.hp = Math.min(boss.maxHp, boss.hp + boss.maxHp * gluttony.healPct);
     }
     const toPlayer = Math.atan2(player.y - boss.y, player.x - boss.x);
-    if (fight.phase >= 3 && fight.beamCooldown <= 0) {
+    if (nearest) {
+      // Hangry: while a berry is down it only goes for the berry.
+    } else if (fight.berryTimer <= 0 && berries.length < gluttony.maxBerries) {
+      fight.shakeLeft = gluttony.shakeSeconds;
+      fight.berryDropped = false;
+    } else if (fight.phase >= 3 && fight.beamCooldown <= 0) {
       fight.beam = { x: boss.x, y: boss.y, angle: toPlayer, left: hyperBeam.telegraph, phase: 'windup' };
     } else if (fight.slamCooldown <= 0 && Math.hypot(player.x - boss.x, player.y - boss.y) <= bodySlam.range) {
       if (fight.phase >= 2) fight.slamsQueued = bodySlam.chainFromPhase2 - 1;
@@ -232,8 +238,9 @@ function snorlax(world: World, fight: ArenaFight, boss: Enemy, dt: number): void
     }
   }
 
-  // Snorlax stands still while asleep, slamming or beaming; otherwise it walks.
-  boss.speed = fight.rest || fight.slam || fight.beam ? 0 : fight.bossSpeed;
+  // Snorlax stands still while asleep, slamming, beaming or shaking; it rushes a berry (hangry), else walks.
+  const busy = fight.rest || fight.slam || fight.beam || fight.shakeLeft > 0;
+  boss.speed = busy ? 0 : fight.bossSpeed * (fight.goal ? gluttony.rushMult : 1);
 }
 
 const BOSS_AI: Readonly<Record<ArenaBossId, BossAi>> = { snorlax };

@@ -102,6 +102,8 @@ function enterArena(world: World): void {
     // shortcut: Snorlax is the only arena boss; move these into its AI's start when a second boss lands.
     slamCooldown: SNORLAX_KIT.bodySlam.firstAfter,
     berryTimer: SNORLAX_KIT.gluttony.interval,
+    shakeLeft: 0,
+    berryDropped: false,
     phase: 1,
     rest: null,
     snores: [],

@@ -38,7 +38,7 @@ export const SNORLAX_KIT = {
     firstAfter: 2,
     range: 450,
     radius: 90,
-    windup: 0.8,
+    windup: 1.1, // owner 2026-10-21: longer telegraphs (was 0.8)
     lead: 0.5,
     /** × contact damage. */
     damageFactor: 2,
@@ -49,21 +49,26 @@ export const SNORLAX_KIT = {
     /** Each landing leaves rocks on the ring's edge that block the player (not Snorlax) for a while. */
     rubble: { count: 2, radius: 26, seconds: 20, max: 6 },
   },
-  /** Oran Berries drop in the arena; Snorlax walks to the nearest and eats it, unless the player grabs it first. */
-  gluttony: { interval: 15, maxBerries: 3, healPct: 0.08 },
+  /**
+   * Gluttony: Oran Berries drop in the arena; Snorlax eats the nearest unless the player grabs it first.
+   * Every `interval` s (once Snorlax is free) it stops and shakes the ground for `shakeSeconds` (no damage); the
+   * berry pops up `dropAt` s in, so the player always sees it first, then Snorlax rushes it at `rushMult` speed
+   * (hangry). Owner 2026-10-21.
+   */
+  gluttony: { interval: 15, maxBerries: 3, healPct: 0.08, shakeSeconds: 3, dropAt: 2, rushMult: 2.2 },
   /**
    * Rest: falls asleep and heals over a few seconds, taking more damage. Damage dealt while asleep fills a wake
    * meter; filling it cancels the heal and Snorlax wakes straight into a quick Body Slam (interrupt bar).
    */
-  rest: { seconds: 5, healPct: 0.25, damageTakenMult: 1.5, wakeAtPct: 0.1, wakeSlamWindup: 0.4 },
+  rest: { seconds: 5, healPct: 0.25, damageTakenMult: 1.5, wakeAtPct: 0.1, wakeSlamWindup: 0.6 },
   /** Snore (while asleep): expanding rings with one gap that rotates between rings; run through the gap. */
   snore: { interval: 1.5, speed: 240, thickness: 18, gapDeg: 70, gapTurnDeg: 75, maxRadius: 480, damageFactor: 0.6 },
   /** Yawn (phase 2+): a cone telegraph, then a drowsy cloud that slows the player inside it (no sleep, §10). */
-  yawn: { cooldown: 9, telegraph: 0.6, cloudSeconds: 4, range: 240, arcDeg: 90, slow: 0.4 },
+  yawn: { cooldown: 9, telegraph: 0.9, cloudSeconds: 4, range: 240, arcDeg: 90, slow: 0.4 },
   /** Belly Drum (start of phase 3): halves its current HP, doubles its contact (so slams and beams too). */
   bellyDrum: { hpMult: 0.5, contactMult: 2 },
   /** Hyper Beam (phase 3): a line telegraph aimed where you stand (lead 0), then 2 s of recharge: the punish window. */
-  hyperBeam: { cooldown: 10, firstAfter: 3, telegraph: 0.8, width: 50, length: 900, damageFactor: 3, recharge: 2 },
+  hyperBeam: { cooldown: 10, firstAfter: 3, telegraph: 1.1, width: 50, length: 900, damageFactor: 3, recharge: 2 },
 } as const;
 
 export const ARENA_TUNING = {
