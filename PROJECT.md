@@ -183,7 +183,7 @@ Lv 1  2  [3]  4  5  [6]  7  8  [9] ...
 ### 8.6 Rules (owner approved 2026-10-17)
 - **Evolution only adds tags, never removes them.** Socketed augments on the signature move stay valid forever. New tags open new augment pools.
 - **Learnset moves never change.** A move you keep stays that move, with its augments.
-- **Combined skill (rift reward):** the 4 moves' behaviours fire together on **one shared cooldown** (the longest of the 4). It inherits all 12 augments and gets no new sockets.
+- **Combined skill (arena reward, D28):** the 4 moves' behaviours fire together on **one shared cooldown, the average of their cooldowns** (D28; was "the longest"). It inherits all 12 augments and gets no new sockets. Each absorbed learnset move frees its learnset slot.
   - Optional cross-type bonus from the tag union, e.g. Fire + Grass → "Wildfire". *(proposal)*
 - **Projectiles-per-second budget:** every augment that adds projectiles is paid for with cooldown and/or damage per projectile, so projectiles/sec stays roughly flat.
 - **No proc-from-proc:** an effect triggered by another effect can't trigger further effects.

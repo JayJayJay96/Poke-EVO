@@ -116,7 +116,8 @@ Any Fire Mutation may create or use these, so every Fire line shares them.
 ## Is it buildable? (engine notes)
 Yes, and it fits the current data shape:
 - Mutations are their own `MutationDef` in `src/data/mutations.ts` (shape in `INDEX.md` → "For the implementer"), not an
-  `AugmentDef` kind. A socket holds either a ranked augment or one Mutation.
+  `AugmentDef` kind. A Mutation sits in **its own slot** next to the 3 augment sockets (D24); it never takes an
+  augment socket.
 - A one-Mutation-per-move check, like the existing "no duplicate augment" check.
 - A small **ability event list** in the sim, using the `HookId` names in `INDEX.md` (`shellReady`, `shellBlock`, `hitTaken`,
   `shellBurst`, `hpBelow`…), that Bond hooks read. Abilities already live in the sim (`blockReadyLeft`), so this adds read access, not a rewrite.
