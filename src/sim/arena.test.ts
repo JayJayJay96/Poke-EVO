@@ -175,6 +175,14 @@ describe('arena events (D28): the fight', () => {
   });
 });
 
+/** Puts every Snorlax move on a long cooldown, so a test can open just the one it checks. */
+function quiet(f: NonNullable<World['arena']>): void {
+  f.slamCooldown = 99;
+  f.yawnCooldown = 99;
+  f.beamCooldown = 99;
+  for (const id of Object.keys(f.cooldowns) as (keyof typeof f.cooldowns)[]) f.cooldowns[id] = 99;
+}
+
 describe('Snorlax phase 1 kit (B1-3)', () => {
   /** Enters the arena and starts the fight with the player standing still near the boss. */
   function fight(): { world: World; boss: ReturnType<typeof spawnEnemy> } {
@@ -185,6 +193,7 @@ describe('Snorlax phase 1 kit (B1-3)', () => {
     world.player.y = f.y + 200;
     step(world, IDLE, DT); // engages
     const boss = world.enemies.find((e) => e.id === f.bossEnemyId)!;
+    quiet(f);
     return { world, boss };
   }
 
@@ -213,6 +222,7 @@ describe('Snorlax phase 1 kit (B1-3)', () => {
 
     // Standing still: the ring lands right on you.
     f.slamCooldown = 0;
+    f.moveGap = 0;
     step(world, IDLE, DT);
     expect(f.slam!.x).toBeCloseTo(world.player.x);
     expect(f.slam!.y).toBeCloseTo(world.player.y);
@@ -232,6 +242,7 @@ describe('Snorlax phase 1 kit (B1-3)', () => {
     world.player.invulnLeft = 0;
     f.slam = null;
     f.slamCooldown = 0;
+    f.moveGap = 0;
     step(world, IDLE, DT);
     const hp2 = world.player.hp;
     world.player.y = f.slam!.y - f.slam!.radius - 60; // step out of the ring before it lands
@@ -303,7 +314,7 @@ describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
     world.moves = []; // no auto-fire: the tests deal damage by hand
     step(world, IDLE, DT);
     const boss = world.enemies.find((e) => e.id === f.bossEnemyId)!;
-    f.slamCooldown = 99; // keep slams out of the way
+    quiet(f); // each test opens the move it checks
     return { world, boss };
   }
 
@@ -418,6 +429,7 @@ describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
     f.yawn = null;
     f.yawnCooldown = 99;
     f.slamCooldown = 0;
+    f.moveGap = 0;
     step(world, IDLE, DT);
     expect(f.slamsQueued).toBe(SNORLAX_KIT.bodySlam.chainFromPhase2 - 1);
     f.slam!.left = DT / 2;
@@ -444,7 +456,7 @@ describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
     expect(boss.speed).toBeGreaterThan(0); // walks closer instead
     world.player.x = boss.x + SNORLAX_KIT.yawn.range - 20;
     step(world, IDLE, DT);
-    expect(f.slam).not.toBeNull(); // in range: the slam (higher priority) starts
+    expect(f.slam ?? f.yawn).not.toBeNull(); // in range: one of them starts (weighted pick)
   });
 
   it('phase 3 starts with Belly Drum (half HP, double contact) and adds Hyper Beam with a recharge', () => {
@@ -459,6 +471,8 @@ describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
     expect(f.phase).toBe(3);
     expect(world.arenaNotice?.kind).toBe('bellyDrum');
     expect(boss.contactDamage).toBeCloseTo(contact * SNORLAX_KIT.bellyDrum.contactMult);
+    expect(f.drumLeft).toBeGreaterThan(0); // drumming (immune) first
+    for (let t = 0; t < SNORLAX_KIT.bellyDrum.seconds + SNORLAX_KIT.moveGap + DT; t += DT) step(world, IDLE, DT);
 
     f.beamCooldown = 0;
     world.player.invulnLeft = 0;
@@ -470,6 +484,215 @@ describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
     expect(world.player.hp).toBeLessThan(hp); // aimed where the player stood (lead 0)
     expect(f.beam!.phase).toBe('recharge');
     expect(boss.speed).toBe(0);
+  });
+});
+
+describe('Snorlax variety and immunity (owner 2026-10-22)', () => {
+  function fight(phase = 1): { world: World; boss: ReturnType<typeof spawnEnemy> } {
+    const world = makeWorld();
+    enter(world);
+    const f = world.arena!;
+    world.player.x = f.x;
+    world.player.y = f.y + 200;
+    world.player.invulnLeft = 999;
+    world.moves = [];
+    step(world, IDLE, DT);
+    const boss = world.enemies.find((e) => e.id === f.bossEnemyId)!;
+    quiet(f);
+    f.berryTimer = 99;
+    f.phase = phase;
+    return { world, boss };
+  }
+  const run = (world: World, seconds: number, input = IDLE) => {
+    for (let t = 0; t < seconds; t += DT) step(world, input, DT);
+  };
+
+  it('is immune during the berry shake, Belly Drum and Heavy Slam in the air, but not while resting', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    const hp = boss.hp;
+    f.shakeLeft = 1;
+    expect(damageEnemy(world, boss, 500)).toBe(0);
+    f.shakeLeft = 0;
+    f.drumLeft = 1;
+    expect(damageEnemy(world, boss, 500)).toBe(0);
+    f.drumLeft = 0;
+    f.heavySlam = { x: boss.x, y: boss.y, left: 1, phase: 'air' };
+    expect(damageEnemy(world, boss, 500)).toBe(0);
+    expect(boss.hp).toBe(hp);
+    f.heavySlam = null;
+    f.rest = { left: 5, wake: 0 };
+    expect(damageEnemy(world, boss, 100)).toBeGreaterThan(0);
+  });
+
+  it('phase gate: a burst cannot skip a Rest; HP holds at the threshold and Rest starts', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    boss.hp = boss.maxHp * 0.7;
+    damageEnemy(world, boss, boss.maxHp);
+    expect(boss.hp).toBeCloseTo(boss.maxHp * SNORLAX_KIT.restAt[0]);
+    step(world, IDLE, DT);
+    expect(f.rest).not.toBeNull();
+    // While resting in phase 1 the next gate (33%) holds.
+    damageEnemy(world, boss, boss.maxHp);
+    expect(boss.hp).toBeCloseTo(boss.maxHp * SNORLAX_KIT.restAt[1]);
+    // Phase 3 has no gate: it can die.
+    f.rest = null;
+    f.phase = 3;
+    damageEnemy(world, boss, boss.maxHp);
+    expect(boss.hp).toBeLessThanOrEqual(0);
+  });
+
+  it('Crunch bites the cone in front when you hug it, and misses behind', () => {
+    for (const behind of [false, true]) {
+      const { world, boss } = fight();
+      const f = world.arena!;
+      world.player.invulnLeft = 0;
+      world.player.x = boss.x;
+      world.player.y = boss.y + boss.radius + 40;
+      f.cooldowns.crunch = 0;
+      step(world, IDLE, DT);
+      expect(f.crunch?.phase).toBe('windup');
+      if (behind) world.player.y = boss.y - boss.radius - 40;
+      const hp = world.player.hp;
+      f.crunch!.left = DT / 2;
+      step(world, IDLE, DT);
+      if (behind) expect(world.player.hp).toBe(hp);
+      else expect(world.player.hp).toBeLessThan(hp);
+    }
+  });
+
+  it('Rock Slide drops rocks on you and around you; one stays as rubble', () => {
+    const { world } = fight();
+    const f = world.arena!;
+    world.player.invulnLeft = 0;
+    f.cooldowns.rockSlide = 0;
+    step(world, IDLE, DT);
+    expect(f.rocks).toHaveLength(SNORLAX_KIT.rockSlide.rocks);
+    expect(f.rocks[0]!.x).toBeCloseTo(world.player.x);
+    const hp = world.player.hp;
+    run(world, SNORLAX_KIT.rockSlide.cast + SNORLAX_KIT.rockSlide.telegraph + DT);
+    expect(world.player.hp).toBeLessThan(hp);
+    expect(f.rocks).toHaveLength(0);
+    expect(f.rubble.length).toBe(SNORLAX_KIT.rockSlide.keep);
+  });
+
+  it('Fling throws the nearest rubble rock (the cover goes) and it bursts into shards at the wall', () => {
+    const { world, boss } = fight(2);
+    const f = world.arena!;
+    f.rubble.push({ x: boss.x + 60, y: boss.y, radius: 26, left: 20 });
+    f.cooldowns.fling = 0;
+    step(world, IDLE, DT);
+    expect(f.fling).not.toBeNull();
+    expect(f.rubble).toHaveLength(0);
+    world.player.x = f.x - f.radius + 30; // out of the throw's path
+    world.player.y = f.y - 300;
+    f.fling!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(f.shots.some((s) => s.kind === 'rock')).toBe(true);
+    run(world, 2.5);
+    expect(f.shots.some((s) => s.kind === 'rock')).toBe(false);
+  });
+
+  it('Heavy Slam: crouch, leap (untouchable) while the shadow chases you slowly, lock, land on the shadow', () => {
+    const { world, boss } = fight(2);
+    const f = world.arena!;
+    const { heavySlam } = SNORLAX_KIT;
+    f.cooldowns.heavySlam = 0;
+    world.player.x = boss.x + 250;
+    world.player.y = boss.y;
+    step(world, IDLE, DT);
+    expect(f.heavySlam?.phase).toBe('crouch');
+    run(world, heavySlam.crouch + DT);
+    expect(f.heavySlam?.phase).toBe('air');
+    const start = { x: f.heavySlam!.x, y: f.heavySlam!.y };
+    run(world, 0.5);
+    const moved = Math.hypot(f.heavySlam!.x - start.x, f.heavySlam!.y - start.y);
+    expect(moved).toBeGreaterThan(0);
+    expect(moved).toBeLessThanOrEqual(heavySlam.shadowSpeed * (0.5 + 2 * DT)); // slower than any player
+    // Standing on it: no contact hit while it's in the air.
+    world.player.invulnLeft = 0;
+    world.player.x = boss.x;
+    world.player.y = boss.y;
+    const hp = world.player.hp;
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBe(hp);
+    world.player.invulnLeft = 999;
+    run(world, heavySlam.air + heavySlam.lock);
+    expect(f.heavySlam?.phase).toBe('recover');
+    expect(f.rubble.length).toBe(heavySlam.rubble);
+  });
+
+  it('Block: when you kite far, a chain holds you within the leash', () => {
+    const { world, boss } = fight(2);
+    const f = world.arena!;
+    const { block } = SNORLAX_KIT;
+    f.cooldowns.block = 0;
+    world.player.x = boss.x + block.minDistance + 50;
+    world.player.y = boss.y;
+    step(world, IDLE, DT);
+    expect(f.block?.phase).toBe('windup');
+    run(world, block.telegraph + DT);
+    expect(f.block?.phase).toBe('hold');
+    run(world, 1, { moveX: 1, moveY: 0 });
+    expect(Math.hypot(world.player.x - boss.x, world.player.y - boss.y)).toBeLessThanOrEqual(block.leash + 0.01);
+  });
+
+  it('Belch comes right after Snorlax eats a berry: a cone of gas puffs', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    world.berries.push({ id: world.nextId++, kind: 'oran', x: boss.x, y: boss.y, collected: false });
+    step(world, IDLE, DT); // eats it
+    expect(f.belchReady).toBe(true);
+    f.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(f.belch?.phase).toBe('windup');
+    f.belch!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(f.shots.filter((s) => s.kind === 'gas')).toHaveLength(SNORLAX_KIT.belch.puffs);
+  });
+
+  it('Earthquake hits the inner and outer bands, then the middle one', () => {
+    const { world, boss } = fight(3);
+    const f = world.arena!;
+    const { earthquake } = SNORLAX_KIT;
+    f.cooldowns.earthquake = 0;
+    world.player.x = boss.x + (earthquake.bands[0] + earthquake.bands[1]) / 2; // middle band
+    world.player.y = boss.y;
+    step(world, IDLE, DT);
+    expect(f.quake?.step).toBe(1);
+    world.player.invulnLeft = 0;
+    const hp = world.player.hp;
+    f.quake!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBe(hp); // the middle is safe on the first beat
+    expect(f.quake?.step).toBe(2);
+    f.quake!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBeLessThan(hp); // ...and hit on the second
+  });
+
+  it('the picker uses at least 10 different moves over a fight', () => {
+    const seen = new Set<string>();
+    for (const phase of [1, 2, 3]) {
+      const { world, boss } = fight(phase);
+      const f = world.arena!;
+      for (const id of Object.keys(f.cooldowns) as (keyof typeof f.cooldowns)[]) f.cooldowns[id] = 0;
+      f.slamCooldown = f.yawnCooldown = f.beamCooldown = 0;
+      let last: string | null = null;
+      for (let t = 0; t < 90; t += DT) {
+        boss.hp = boss.maxHp; // stay in this phase
+        if (t % 20 < DT) world.berries.push({ id: world.nextId++, kind: 'oran', x: boss.x, y: boss.y, collected: false });
+        // Walk in and out so close and far moves both come up.
+        const out = Math.floor(t / 4) % 2 === 0;
+        step(world, { moveX: out ? 1 : -1, moveY: 0 }, DT);
+        if (f.lastMove && f.lastMove !== last) {
+          seen.add(f.lastMove);
+          last = f.lastMove;
+        }
+      }
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(10);
   });
 });
 

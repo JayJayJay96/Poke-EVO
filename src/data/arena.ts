@@ -78,10 +78,58 @@ export const SNORLAX_KIT = {
   snore: { interval: 1.5, speed: 170, thickness: 18, gapDeg: 70, gapTurnDeg: 75, maxRadius: 480, damageFactor: 0.6 },
   /** Yawn (phase 2+): a cone telegraph, then a drowsy cloud that slows the player inside it (no sleep, §10). */
   yawn: { cooldown: 9, telegraph: 0.9, cloudSeconds: 4, range: 240, arcDeg: 90, slow: 0.4 },
-  /** Belly Drum (start of phase 3): halves its current HP, doubles its contact (so slams and beams too). */
-  bellyDrum: { hpMult: 0.5, contactMult: 2 },
+  /**
+   * Belly Drum (start of phase 3): halves its current HP, doubles its contact (so slams and beams too), then drums
+   * its belly for `seconds`, immune (owner 2026-10-22: special animations can't be burst through).
+   */
+  bellyDrum: { hpMult: 0.5, contactMult: 2, seconds: 1.5 },
   /** Hyper Beam (phase 3): a line telegraph aimed where you stand (lead 0), then 2 s of recharge: the punish window. */
   hyperBeam: { cooldown: 10, firstAfter: 3, telegraph: 1.1, width: 50, length: 900, damageFactor: 3, recharge: 2 },
+
+  // Variety (owner 2026-10-22: at least 10 kinds of attack). The picker draws by weight among the moves that are
+  // ready, in range and unlocked for the phase, never the same move twice in a row, with `moveGap` s between moves.
+  moveGap: 0.5,
+  /** Relative odds of each move when several are ready. */
+  weights: { bodySlam: 3, crunch: 4, rockSlide: 2, yawn: 2, fling: 2, heavySlam: 2, block: 2, hyperBeam: 3, earthquake: 2 },
+  /** Crunch (phase 1+): a quick bite cone when you hug it. `range` is measured from its edge. */
+  crunch: { cooldown: 5, firstAfter: 3, range: 110, reach: 160, arcDeg: 100, telegraph: 0.6, damageFactor: 1.5, recover: 0.5 },
+  /**
+   * Rock Slide (phase 1+): a short roar, then rocks fall on ring telegraphs: one where you are, one lead-aimed, the
+   * rest scattered near you. `keep` of them stay as rubble (more Snore cover, more Fling ammo).
+   */
+  rockSlide: { cooldown: 9, firstAfter: 5, cast: 0.5, rocks: 5, scatter: 160, radius: 42, telegraph: 1, damageFactor: 1, keep: 1 },
+  /**
+   * Fling (phase 2+, needs rubble): picks up the rock nearest to it and throws it at your lead-aimed spot (line
+   * telegraph). The rock is used up, so your Snore cover goes; at the wall it bursts into shards flying back in.
+   */
+  fling: {
+    cooldown: 7,
+    firstAfter: 0,
+    telegraph: 0.7,
+    lead: 0.5,
+    speed: 420,
+    radius: 24,
+    damageFactor: 1.5,
+    shards: 3,
+    shardSpreadDeg: 25,
+    shardSpeed: 300,
+    shardRadius: 10,
+    shardFactor: 0.5,
+  },
+  /**
+   * Heavy Slam (phase 2+): crouches, leaps out of reach (immune) while its shadow chases you slower than any
+   * player can run, locks the shadow (red) and lands: big ring, rubble. Answers kiting from far away.
+   */
+  heavySlam: { cooldown: 14, firstAfter: 0, crouch: 0.4, air: 1.2, lock: 0.6, shadowSpeed: 120, radius: 120, damageFactor: 2.5, recover: 1, rubble: 3 },
+  /** Block (phase 2+): when you're far, a chain holds you within `leash` px of Snorlax for `seconds`. */
+  block: { cooldown: 16, firstAfter: 0, minDistance: 300, telegraph: 0.6, seconds: 5, leash: 260 },
+  /** Belch (any phase, only as the next move after eating a berry): a cone of gas puffs at mixed speeds. */
+  belch: { telegraph: 0.6, arcDeg: 70, puffs: 7, speedMin: 140, speedMax: 260, radius: 14, life: 2.2, damageFactor: 0.8, recover: 0.4 },
+  /**
+   * Earthquake (phase 3): stomps; the inner and outer bands around the stomp hit, then the band between them
+   * (`bands` are the band edges in px). Move between bands in rhythm.
+   */
+  earthquake: { cooldown: 13, firstAfter: 3, bands: [150, 300], telegraph: 0.9, damageFactor: 1.2, recover: 0.6 },
 } as const;
 
 export const ARENA_TUNING = {

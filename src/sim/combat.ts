@@ -129,12 +129,38 @@ export function abilityDamageMult(world: World): number {
 }
 
 /**
+ * The arena boss in a special animation (berry shake, Belly Drum, airborne Heavy Slam) takes no damage, so it can't
+ * be burst through them (owner 2026-10-22). Rest is not one: it's the interrupt window (BOSSES.md §4).
+ */
+export function bossImmune(world: World, enemy: Enemy): boolean {
+  const f = world.arena;
+  if (!f || f.bossEnemyId !== enemy.id) return false;
+  const airborne = f.heavySlam?.phase === 'air' || f.heavySlam?.phase === 'lock';
+  return f.shakeLeft > 0 || f.drumLeft > 0 || airborne;
+}
+
+/** The lowest HP damage can take the arena boss to: its next Rest threshold, until that Rest has started. */
+export function bossHpFloor(world: World, enemy: Enemy): number {
+  const f = world.arena;
+  if (!f || f.bossEnemyId !== enemy.id) return 0;
+  // While resting in phase p the gate is the next threshold; otherwise the current phase's own.
+  const gate = SNORLAX_KIT.restAt[f.rest ? f.phase : f.phase - 1];
+  return gate === undefined ? 0 : enemy.maxHp * gate;
+}
+
+/**
  * Applies a hit and its on-hit effects (§8.8 onHit): crit roll, live multipliers
  * (ability, Blaze Core's missing-HP bonus), lifesteal, burn, knockback.
  * A killing hit counts the KO and drops the gem. Returns the damage actually dealt.
  */
 export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Readonly<HitInfo> = NO_HIT): number {
   if (enemy.hp <= 0) return 0;
+  if (bossImmune(world, enemy)) {
+    // A grey flash ("not effective") shows the hit did nothing.
+    enemy.lastEffectiveness = 0;
+    enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
+    return 0;
+  }
   // Mutation hooks see only the move's own hits, never proc hits (no proc-from-proc).
   const slot = hit.fromProc ? null : hit.slot;
   const hooks = slot ? hooksOf(slot) : undefined;
@@ -164,9 +190,11 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     // The move's own hits only (procs carry no slot): Volatility's roll and Predatory's bonus below half HP.
     (slot ? slot.volatileMult : 1) *
     (slot && slot.stats.executePct > 0 && enemy.hp < enemy.maxHp * 0.5 ? 1 + slot.stats.executePct : 1);
-  const dealt = Math.min(enemy.hp, amount);
+  // Phase gate (owner 2026-10-22): a boss can't be burst past its next Rest, so every phase plays.
+  const floor = bossHpFloor(world, enemy);
+  const dealt = Math.max(0, Math.min(enemy.hp - floor, amount));
   if (sleeping) sleeping.wake += dealt;
-  enemy.hp -= amount;
+  enemy.hp = floor > 0 ? enemy.hp - dealt : enemy.hp - amount;
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
 
   const lifesteal = hit.fromProc ? hit.lifesteal : hit.lifesteal + mutationLeechBonus(world, enemy);

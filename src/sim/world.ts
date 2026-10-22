@@ -538,6 +538,9 @@ function applyContactDamage(world: World): void {
     const dy = enemy.y - player.y;
     const reach = enemy.radius + player.radius;
     if (dx * dx + dy * dy > reach * reach) continue;
+    // Snorlax in the air (Heavy Slam) can't be touched either way.
+    const hs = world.arena?.bossEnemyId === enemy.id ? world.arena.heavySlam : null;
+    if (hs && (hs.phase === 'air' || hs.phase === 'lock')) continue;
     const wasStunned = enemy.stunLeft > 0;
     if (ability.contactStun) {
       enemy.stunLeft = Math.max(enemy.stunLeft, ability.contactStun);

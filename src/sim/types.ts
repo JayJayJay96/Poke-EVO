@@ -536,6 +536,19 @@ export interface ArenaEntrance {
 }
 
 /** A boss fight in progress (D28). The main map waits in `stored` until it ends. */
+/** Moves Snorlax's picker can start (owner 2026-10-22: at least 10 kinds). */
+export type SnorlaxMove =
+  | 'bodySlam'
+  | 'yawn'
+  | 'hyperBeam'
+  | 'crunch'
+  | 'rockSlide'
+  | 'fling'
+  | 'heavySlam'
+  | 'block'
+  | 'belch'
+  | 'earthquake';
+
 export interface ArenaFight {
   readonly bossId: ArenaBossId;
   readonly bossEnemyId: number;
@@ -581,6 +594,34 @@ export interface ArenaFight {
   beamCooldown: number;
   /** The player dropped to 0 HP in here: they're thrown back to the map, not out of the run (owner 2026-10-21). */
   knockedOut: boolean;
+  /** Seconds before the boss may start its next move (pacing between moves, owner 2026-10-22). */
+  moveGap: number;
+  /** The last move the picker started; it never picks the same one twice in a row. */
+  lastMove: SnorlaxMove | null;
+  /** Cooldowns of the moves added for variety (owner 2026-10-22). */
+  cooldowns: Record<'crunch' | 'rockSlide' | 'fling' | 'heavySlam' | 'block' | 'earthquake', number>;
+  /** Belly Drum's drumming animation (immune while > 0). */
+  drumLeft: number;
+  /** Crunch: a locked bite cone in front of Snorlax, then a short recover. */
+  crunch: { readonly angle: number; left: number; phase: 'windup' | 'recover' } | null;
+  /** Rock Slide: Snorlax's roar (it stands still), while the rocks fall on their own. */
+  rockSlideLeft: number;
+  /** Rock Slide rocks: a ring telegraph each, then they land; `keep` ones stay as rubble. */
+  rocks: { readonly x: number; readonly y: number; left: number; readonly keep: boolean }[];
+  /** Fling: a line from a picked-up rubble rock to the locked target, then the throw. */
+  fling: { readonly x: number; readonly y: number; readonly tx: number; readonly ty: number; left: number } | null;
+  /** Boss projectiles: Flung rocks (they split into shards at the wall) and Belch gas puffs. */
+  shots: { x: number; y: number; vx: number; vy: number; readonly radius: number; left: number; readonly factor: number; readonly kind: 'rock' | 'shard' | 'gas' }[];
+  /** Heavy Slam: crouch, then airborne (immune, its shadow chases you), lock, land, recover. x/y = the shadow. */
+  heavySlam: { x: number; y: number; left: number; phase: 'crouch' | 'air' | 'lock' | 'recover' } | null;
+  /** Block: you can't get farther than the leash from Snorlax for a while. */
+  block: { left: number; phase: 'windup' | 'hold' } | null;
+  /** Belch (only right after eating a berry): a cone of gas puffs. */
+  belch: { readonly angle: number; left: number; phase: 'windup' | 'recover' } | null;
+  /** True after Snorlax eats a berry: its next move is Belch (lore: Belch needs a berry eaten). */
+  belchReady: boolean;
+  /** Earthquake: two bands of ground around where it stomped hit, then the band between them. */
+  quake: { readonly x: number; readonly y: number; left: number; step: 1 | 2; phase: 'windup' | 'recover' } | null;
   /** Rocks from Body Slam that block the player for a while. */
   rubble: { readonly x: number; readonly y: number; readonly radius: number; left: number }[];
   readonly stored: {

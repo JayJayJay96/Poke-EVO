@@ -125,6 +125,33 @@ not the global weather system that PROJECT.md §10 keeps out of MVP (owner-appro
 | **Projectiles** | **Snore** (while asleep): expanding **rings with a gap** that rotates. **Hyper Beam** (phase 3, with Belly Drum): a line beam (lead 0), then **2 s of recharge**, as in the games. The biggest punish window of the fight |
 | **Adds** | The main-map horde keeps spawning; rubble funnels it |
 
+**Variety and immunity (owner 2026-10-22, D31; built).** Owner: "a boss should have at least 10 kinds of attack";
+special animations must not be burst through. All numbers are in `SNORLAX_KIT` (provisional).
+
+| Move | Phase | What it does |
+|---|---|---|
+| Body Slam | 1+ (pairs from 2) | Lead-aimed ring leap, rubble |
+| **Crunch** | 1+ | A bite cone when you hug it (0.6 s cone telegraph) |
+| **Rock Slide** | 1+ | 5 rocks on rings: one on you, one where you're heading, three scattered; one stays as rubble |
+| Gluttony (+ rare berry leap) | 1+ | The 3 s berry shake, then a hangry rush (or a slam onto the berry) |
+| **Belch** | any, only right after eating a berry | A cone of 7 gas puffs at mixed speeds (lore: Belch needs a berry eaten) |
+| Rest + Snore | at 66% / 33% | Unchanged: the interrupt window (it stays hittable) |
+| Yawn | 2+ | Unchanged |
+| **Fling** | 2+, needs rubble | Picks up the nearest rock (your Snore cover goes), throws it at your lead-aimed spot; it bursts into 3 shards that fly back in from the wall |
+| **Heavy Slam** | 2+ | Crouch, leap out of reach while its **shadow chases you** slower than any player can run, lock (red ring), land: big ring, 3 rubble. Answers far kiting |
+| **Block** | 2+, when you're 300+ px away | A chain holds you within 260 px for 5 s while it keeps attacking (tether, §2) |
+| Belly Drum | start of 3 | Now a 1.5 s drumming animation |
+| Hyper Beam | 3 | Unchanged |
+| **Earthquake** | 3 | Stomp: the inner and outer bands hit, then the middle band (rhythm, safe-zone shift) |
+
+- **Picker:** a weighted draw among the moves that are ready, in range and unlocked for the phase, never the same move
+  twice in a row, with a 0.5 s pause between moves. Belch always comes first after Snorlax eats a berry.
+- **Immune** (white shield ring, grey hit flash) during the **berry shake**, **Belly Drum** and **Heavy Slam in the
+  air** (also untouchable then: no contact damage either way). **Rest is not immune**: it's the approved interrupt
+  window.
+- **Phase gate:** damage can't take Snorlax below its next Rest threshold until that Rest has started, so a burst
+  can't skip a phase. Phase 3 has no gate.
+
 ### Articuno: rift. "Cover that your own fire melts"
 | | |
 |---|---|

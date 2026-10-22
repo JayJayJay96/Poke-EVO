@@ -76,6 +76,65 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-22 — Snorlax: variety and immunity (D31)
+**Owner requests:**
+- Special animations should make the boss invulnerable, so it can't be burst down (e.g. the berry phase).
+- At least 10 kinds of moves or attacks, with phases left to the enemy designer.
+
+**Built (numbers in `SNORLAX_KIT`, provisional):**
+- **Immunity** during the berry shake, Belly Drum (now a 1.5 s drumming animation, effects applied at its start) and Heavy Slam in the air (no contact damage either way). Rest stays hittable: it's the approved interrupt window.
+- **Phase gate:** damage can't take Snorlax below its next Rest threshold until that Rest starts.
+- **7 new moves:**
+
+  | Move | Phase |
+  |---|---|
+  | Crunch | 1+ |
+  | Rock Slide | 1+ |
+  | Belch | right after eating a berry |
+  | Fling | 2+, needs rubble |
+  | Heavy Slam | 2+ |
+  | Block | 2+, when you're far |
+  | Earthquake | 3 |
+
+  With the existing ones, that's **12 kinds of attack** plus Rest, Belly Drum and Gluttony.
+- **Picker:** a weighted draw among ready, in-range moves; no repeats; 0.5 s between moves (it used to be a fixed priority).
+
+**Files**
+- `src/data/arena.ts`: new kit entries, `moveGap`, `weights`, `bellyDrum.seconds`.
+- `src/sim/types.ts`: `SnorlaxMove` and new `ArenaFight` fields.
+- `src/sim/arena.ts`: fight init; Block leash after movement.
+- `src/sim/bosses.ts`: the new moves, `pickMove`, boss shots, and an `insideArena` helper.
+- `src/sim/combat.ts`: `bossImmune`, `bossHpFloor` in `damageEnemy`.
+- `src/sim/world.ts`: no contact while Snorlax is in the air.
+- `src/scenes/RunScene.ts`:
+  - cones, rock rings, the Fling line, shots, the Heavy Slam shadow and lock ring
+  - Block chain and leash, Earthquake bands (triangles; thick strokes left seams)
+  - the white immune ring; the boss is hidden while in the air
+- `src/sim/arena.test.ts`: a `quiet()` helper, and old tests adjusted for the move gap and the drum.
+
+**Checks (observed)**
+- `npm run typecheck` clean.
+- `npm test`: **436 passed, 2 failed**. The 2 failures are the Mutation-registry tests (`docs/moveset/INDEX.md` ↔ `mutations.ts`), which **already fail on HEAD** (checked with a stash) after the D30 docs-only change. They're unrelated.
+- 10 new tests:
+  - immunity on and off, plus the phase gate
+  - Crunch front and behind, Rock Slide, Fling and its shards
+  - Heavy Slam shadow speed, no contact, landing
+  - Block leash, Belch after a berry, Earthquake beats
+  - the picker uses ≥ 10 different moves
+- `npm run build` passed.
+- Browser (Charmander; the pane is throttled, so the sim was stepped from the page with the RAF frozen between frames). Seen on screen:
+  - Rock Slide rings
+  - Heavy Slam shadow (boss hidden, immune) and its red lock ring
+  - the Fling line from a rock
+  - Block chain and leash (player held at 242 px)
+  - Earthquake bands with the safe middle ring
+  - the white shield during the berry shake
+- No console errors.
+
+**Not verified:** real play feel and difficulty with all 12 attacks, the 120 s timer with the phase gate, and the Crunch and Belch visuals (unit-tested only).
+
+**Next:** the owner playtests the Snorlax fight.
+
 ### 2026-10-22 — Skill design: Bulbasaur signature redesign (D30, no code yet)
 - **Why:** owner playtest: Power Whip / Frenzy Plant are 360° sweeps, "plain and easy", and Long Lash made Ivysaur/Venusaur "basically invincible". In code, Long Lash turns into a full circle from Power Whip on (`vineWhip.ts` `halfArc = π` at tier ≥ 1) at ×1.8 reach with tip crits up to ×1.9. `balance-report.md` (8 seeds): Bulbasaur leads every checkpoint (5 min 269 DPS vs Lapras 147; 9 min site DPS 1048 vs ≤ 410).
 - **Proposal** (`docs/moveset/bulbasaur/README.md` §4, signature only; Bulb, Leech tiers and learnset Bonds unchanged): the signature becomes a **narrow directional lash** (30°, reach 120 → 130 → 140) with a strong **tip** (+30%); Power Whip's tip cracks into a 45 px burst (Area); Frenzy Plant leaves 3 root patches along the lash (Zone). **Long Lash retired → new `vineWhip.snare`** (tip binds; bound enemies take +25% from Grass moves; ranks to 1.2 s / +35% / binds 2). Thorn Garden and Sap Lash unchanged.

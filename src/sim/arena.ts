@@ -1,5 +1,5 @@
 import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, type ArenaBossId } from '../data/arena';
-import { blockByRubble, updateBoss } from './bosses';
+import { blockByRubble, holdByBlock, updateBoss } from './bosses';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
 import { MAX_COMBO_MOVES, comboCandidates } from './combo';
@@ -117,6 +117,27 @@ function enterArena(world: World): void {
     beamCooldown: SNORLAX_KIT.hyperBeam.firstAfter,
     rubble: [],
     knockedOut: false,
+    moveGap: 0,
+    lastMove: null,
+    cooldowns: {
+      crunch: SNORLAX_KIT.crunch.firstAfter,
+      rockSlide: SNORLAX_KIT.rockSlide.firstAfter,
+      fling: SNORLAX_KIT.fling.firstAfter,
+      heavySlam: SNORLAX_KIT.heavySlam.firstAfter,
+      block: SNORLAX_KIT.block.firstAfter,
+      earthquake: SNORLAX_KIT.earthquake.firstAfter,
+    },
+    drumLeft: 0,
+    crunch: null,
+    rockSlideLeft: 0,
+    rocks: [],
+    fling: null,
+    shots: [],
+    heavySlam: null,
+    block: null,
+    belch: null,
+    belchReady: false,
+    quake: null,
     stored,
   };
   world.entrance = null;
@@ -157,6 +178,7 @@ export function updateArena(world: World, dt: number): void {
     }
     blockByRubble(world, fight);
     const boss = world.enemies.find((e) => e.id === fight.bossEnemyId);
+    if (boss) holdByBlock(world, fight, boss);
     if (!fight.engaged) {
       fight.waitLeft -= dt;
       if (d <= ARENA_TUNING.engageDistance || fight.waitLeft <= 0) {

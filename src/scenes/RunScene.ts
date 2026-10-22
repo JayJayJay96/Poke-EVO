@@ -10,7 +10,7 @@ import { angleGap, snoreOpenings } from '../sim/bosses';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
 import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
-import { isAbilityActive } from '../sim/combat';
+import { bossImmune, isAbilityActive } from '../sim/combat';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
 import { beamLength } from '../sim/forms/beam';
 import { ARC_SECONDS, BLAST_SECONDS } from '../sim/forms/projectile';
@@ -38,7 +38,7 @@ import { createRandomSeed, createSeededRng } from '../sim/rng';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
-import type { AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, RewardCard, SiteCard, World } from '../sim/types';
+import type { ArenaFight, AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, RewardCard, SiteCard, World } from '../sim/types';
 import { createWorld, step } from '../sim/world';
 
 // Grey-box colours until real sprites arrive in P6.
@@ -80,6 +80,9 @@ const COLORS = {
   snore: 0xb9c7ff,
   yawn: 0xf0a0ff,
   hyperBeam: 0xfff3c4,
+  gas: 0x9be36b,
+  chain: 0xb8b8c8,
+  shield: 0xffffff,
   exclusive: 0xff8c42,
   /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
   mutation: 0xb46cff,
@@ -1032,6 +1035,7 @@ export class RunScene extends Phaser.Scene {
           g.lineBetween(beam.x, beam.y, ex, ey);
         }
       }
+      drawSnorlaxExtras(g, this.world, arena);
     }
 
     // Mutation Sites (D23): the ring's colour reveals the roll once you step in (gold = Pokémon-bound);
@@ -1118,12 +1122,21 @@ export class RunScene extends Phaser.Scene {
       g.fillCircle(blast.x, blast.y, blast.radius * (0.7 + 0.3 * t));
     }
 
+    const fight = this.world.arena;
     for (const e of enemies) {
+      const isBoss = fight?.bossEnemyId === e.id;
+      // Snorlax in the air (Heavy Slam) is off the ground: only its shadow is drawn.
+      if (isBoss && (fight.heavySlam?.phase === 'air' || fight.heavySlam?.phase === 'lock')) continue;
       // Hit flash colour shows type effectiveness (D14): yellow super, grey not very, white neutral.
       const flash =
         e.lastEffectiveness > 1 ? COLORS.superEffective : e.lastEffectiveness < 1 ? COLORS.notVery : COLORS.flash;
       g.fillStyle(e.hitFlashLeft > 0 ? flash : ENEMY_COLORS[e.kind], 1);
       g.fillCircle(e.x, e.y, e.radius);
+      // Immune during a special animation (owner 2026-10-22): a white shield ring.
+      if (isBoss && bossImmune(this.world, e)) {
+        g.lineStyle(4, COLORS.shield, 0.9);
+        g.strokeCircle(e.x, e.y, e.radius + 6);
+      }
     }
     // Status rings: burn orange, poison purple, slow light blue, stun yellow.
     for (const e of enemies) {
@@ -1480,6 +1493,97 @@ const ENTRANCE_NAMES: Readonly<Record<ArenaEntranceKind, string>> = {
   pool: 'A deep pool',
   whirlwind: 'A whirlwind',
 };
+
+/**
+ * Snorlax's variety moves (owner 2026-10-22): Crunch and Belch cones, Rock Slide rings, the Fling line, boss shots,
+ * Heavy Slam's shadow and landing ring, Block's chain and leash, Earthquake's bands.
+ */
+function drawSnorlaxExtras(g: Phaser.GameObjects.Graphics, world: World, arena: ArenaFight): void {
+  const { crunch, rockSlide, fling, heavySlam, block, belch, earthquake } = SNORLAX_KIT;
+  const boss = world.enemies.find((e) => e.id === arena.bossEnemyId);
+  const cone = (x: number, y: number, angle: number, reach: number, arcDeg: number): void => {
+    const half = (arcDeg * Math.PI) / 360;
+    g.beginPath();
+    g.slice(x, y, reach, angle - half, angle + half, false);
+  };
+  if (boss && arena.crunch) {
+    cone(boss.x, boss.y, arena.crunch.angle, crunch.reach, crunch.arcDeg);
+    if (arena.crunch.phase === 'windup') {
+      g.lineStyle(3, COLORS.telegraph, 0.9);
+      g.strokePath();
+    } else {
+      g.fillStyle(COLORS.telegraph, 0.35);
+      g.fillPath();
+    }
+  }
+  if (boss && arena.belch?.phase === 'windup') {
+    cone(boss.x, boss.y, arena.belch.angle, 260, belch.arcDeg);
+    g.lineStyle(3, COLORS.gas, 0.9);
+    g.strokePath();
+  }
+  // Rock Slide: a ring per rock that fills until it lands.
+  const fall = rockSlide.cast + rockSlide.telegraph;
+  for (const rock of arena.rocks) {
+    g.fillStyle(COLORS.telegraph, 0.25);
+    g.fillCircle(rock.x, rock.y, rockSlide.radius * (1 - rock.left / fall));
+    g.lineStyle(2, COLORS.telegraph, 0.9);
+    g.strokeCircle(rock.x, rock.y, rockSlide.radius);
+  }
+  if (arena.fling) {
+    const t = 1 - arena.fling.left / fling.telegraph;
+    g.lineStyle(Math.max(2, fling.radius * 2 * t), COLORS.telegraph, 0.45);
+    g.lineBetween(arena.fling.x, arena.fling.y, arena.fling.tx, arena.fling.ty);
+    g.fillStyle(COLORS.rubble, 1);
+    g.fillCircle(arena.fling.x, arena.fling.y, fling.radius);
+  }
+  for (const shot of arena.shots) {
+    g.fillStyle(shot.kind === 'gas' ? COLORS.gas : COLORS.rubble, shot.kind === 'gas' ? 0.75 : 1);
+    g.fillCircle(shot.x, shot.y, shot.radius);
+  }
+  const hs = arena.heavySlam;
+  if (hs && boss && (hs.phase === 'air' || hs.phase === 'lock')) {
+    // The shadow grows as it falls; locked, the landing ring turns red and fills.
+    const t = hs.phase === 'air' ? 1 - hs.left / heavySlam.air : 1;
+    g.fillStyle(0x000000, 0.25 + 0.2 * t);
+    g.fillCircle(hs.x, hs.y, boss.radius * (0.5 + 0.5 * t));
+    if (hs.phase === 'lock') {
+      g.fillStyle(COLORS.telegraph, 0.25);
+      g.fillCircle(hs.x, hs.y, heavySlam.radius * (1 - hs.left / heavySlam.lock));
+      g.lineStyle(3, COLORS.telegraph, 0.9);
+      g.strokeCircle(hs.x, hs.y, heavySlam.radius);
+    }
+  }
+  if (boss && arena.block) {
+    const hold = arena.block.phase === 'hold';
+    g.lineStyle(hold ? 4 : 2, COLORS.chain, hold ? 0.9 : 0.5);
+    g.lineBetween(boss.x, boss.y, world.player.x, world.player.y);
+    g.strokeCircle(boss.x, boss.y, block.leash);
+  }
+  if (arena.quake?.phase === 'windup') {
+    const [inner, outer] = earthquake.bands;
+    const { x, y, step } = arena.quake;
+    g.fillStyle(COLORS.telegraph, 0.15 + 0.25 * (1 - arena.quake.left / earthquake.telegraph));
+    if (step === 1) {
+      g.fillCircle(x, y, inner);
+      // The outer band reaches the far side of the arena wall.
+      fillBand(g, x, y, outer, Math.hypot(x - arena.x, y - arena.y) + arena.radius);
+    } else {
+      fillBand(g, x, y, inner, outer);
+    }
+  }
+}
+
+/** A filled ring between two radii, in triangles (thick strokes leave seams). */
+function fillBand(g: Phaser.GameObjects.Graphics, x: number, y: number, r0: number, r1: number): void {
+  const n = 72;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const b = ((i + 1) / n) * Math.PI * 2;
+    const [ca, sa, cb, sb] = [Math.cos(a), Math.sin(a), Math.cos(b), Math.sin(b)];
+    g.fillTriangle(x + ca * r0, y + sa * r0, x + ca * r1, y + sa * r1, x + cb * r1, y + sb * r1);
+    g.fillTriangle(x + ca * r0, y + sa * r0, x + cb * r1, y + sb * r1, x + cb * r0, y + sb * r0);
+  }
+}
 
 function bossName(id: ArenaBossId): string {
   return ENEMIES[ARENA_BOSSES[id].enemy].name;
