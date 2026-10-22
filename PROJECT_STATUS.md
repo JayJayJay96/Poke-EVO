@@ -76,6 +76,50 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-22 — Reference-pack review (D29)
+**What happened**
+- Two agents read `docs/references/`: the skill-architect pack (21 files) and the progression-architect pack (16 files).
+- Three agents then audited every per-line Mutation doc: 36 docs, 110 Mutations.
+- Fresh `npm run mutations` run: 53 inside ±15%, 57 outside (most below by design).
+- The owner approved my picks ("go with your picks"), recorded as **D29** in PROJECT.md.
+
+**Changes** (commit `1ebd86e`, which also committed the owner's `docs/references/` packs)
+- **Rules** (moveset README rule 5 reworded, new rule 5a):
+  - ability events may trigger moves; anything a Mutation spawns triggers nothing
+  - Return Arc's Charge is the one recorded exception
+  - Mutations may change a move's delivery and type; evolution still only adds tags
+- **New augments** (`src/data/augments.ts`; §8.5 examples updated):
+  - **Predatory**: Projectile, Beam and Zone moves aim at the lowest-HP % enemy in range (`findTarget` in `combat.ts`); ranks II/III add +10% / +20% damage below half HP, on the move's own hits only.
+  - **Volatility**: a trade-off; each cast rolls ×0.5–1.7 / 1.9 / 2.1, averaging 1.1 / 1.2 / 1.3; rolled in `fire()`. Shortcut (commented): projectiles already in flight use the new roll.
+- **Bosses smash through Ice Wall** (`iceBeam.ts`).
+- **Bugs found by the audit and fixed** (D21 guard rails):
+  - **Drowsy Haze** could hold any enemy, bosses included, asleep forever. It now uses the new-stun path: bosses immune, sleep only when awake, stun fatigue.
+  - **Surging Slam**'s paralysis now goes through the same path (an `onHit` hook).
+  - **Deflector** was offered at sites with only its cost (nothing to deflect before P5). It's no longer registered, so sites never roll it; it needs a cap when built.
+- **Docs synced to code** (agent):
+  - 34 moveset files: number drift fixed (e.g. Iron Slam cd ×1.6, Belly Flop ×2, Spark Shower 65%, Split Stream 33%)
+  - stun, boss and standing-still notes added; RANKS.md Ricochet III contradiction fixed
+  - Fan the Flames' cap stated (×1.5 Scorch radius)
+  - stale "NEW, not in the code yet" headers removed
+- **Not changed:** Ricochet 2.09× and Drowsy 1.74× stay as they are until a playtest (D29).
+
+**Checks (observed)**
+- `npm run typecheck` clean. `npm test` **428/428 passed**. 5 new tests in `referencePicks.test.ts`:
+  - Predatory aiming and range
+  - Predatory II/III bonus below half HP only, not on procs
+  - Volatility roll range and mean over 400 casts
+  - no roll without it
+  - Ice Wall holds a Raticate but a Snorlax breaks it
+
+  The Deflector test changed to "not built". The RANKS doc test passes.
+- `npm run build` passed.
+- Not browser-checked: the new augment cards. Their text comes from data through the existing card view.
+
+**Open (audit notes, not acted on)**
+- Flash Freeze in Flood has no control effect on bosses (freeze-immune, slow set to 0).
+- Ferry Wave's speed hook reads Flood values only (harmless today).
+- Melee targeting still ignores the boss query pad (B1-1 shortcut).
+
 ### 2026-10-21 — Snorlax playtest tuning (owner)
 **Owner feedback (first Snorlax playtest):**
 - Snorlax should move a little faster, with longer telegraphs: "pressure to fight it but not impossible to evade".
