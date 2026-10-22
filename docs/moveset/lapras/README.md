@@ -58,8 +58,8 @@ Pick one; it upgrades **once**, at Lv 25. Strong first tier, modest second step 
 | Mutation | Ice Shard (Lv 1) | + Sheer Cold (Lv 25) | Cost |
 |---|---|---|---|
 | **A. Hail** `iceShard.hail` — can't miss | No travel: shards fall on the **2 nearest enemies within 200 px** after a 0.25 s shadow, 60% damage each | Each impact leaves a small freezing field (40% of the Sheer Cold field) | Range 320 → 200 px |
-| **B. Frost Lance** `iceShard.frostLance` — lines | A heavy lance that **pierces every enemy** in a line and slows 30% | The line freezes into a 2 s freezing strip along the lance's path | Cooldown ×1.4 |
-| **C. Song of the Sea** `iceShard.song` — safety | Every 4th cast is a **song wave** instead of a shard: a 160 px ring that puts light enemies to sleep for 1 s (stun fatigue applies). No damage | The song also leaves a calm-sea field (160 px, 3 s) that slows 30% | That 4th cast deals no damage (−25% signature damage) |
+| **B. Frost Lance** `iceShard.frostLance` — lines | A heavy lance that **pierces every enemy** in a line and slows 30% | The line freezes into a 2 s freezing strip along the lance's path (4 small Sheer Cold patches: slow 50% and light damage, no stun) | Cooldown ×1.4 |
+| **C. Song of the Sea** `iceShard.song` — safety | Every 4th cast is a **song wave** instead of a shard: a 160 px ring that puts light enemies to sleep for 1 s (stun fatigue applies; bosses and enemies ≥ 40 kg are immune). No damage | The song also leaves a calm-sea field (160 px, 3 s) that slows 30% | That 4th cast deals no damage (−25% signature damage) |
 
 - **A** = reliable early damage while you learn the run; nothing escapes.
 - **B** = clears corridors through the early crowds so you can collect XP safely.
@@ -87,8 +87,8 @@ Hydro Pump ───┬─ Split Stream     `hydroPump.splitStream`     (shared 
 ### Bond details (Flood = before Lv 30 · Ebb = Lv 30+)
 | Bond | Move | What changes — **Flood** | **Ebb** | Cost |
 |---|---|---|---|---|
-| **Surging Slam** `bodySlam.surge` | Body Slam | Each level-up empowers the next **3** Body Slams: 360°, paralysis 0.5 s. | Next **1** Body Slam only. | −15% damage. |
-| **Flash Freeze** `iceBeam.flashFreeze` | Ice Beam | Ice Beam **freezes** (stun 0.6 s, stun fatigue applies) instead of slowing. | Back to slowing (60% instead of 50%), beam +20% wider. | −20% damage. |
+| **Surging Slam** `bodySlam.surge` | Body Slam | Each level-up empowers the next **3** Body Slams: 360°, paralysis 0.5 s (a new effect, fixed D29: bosses are immune and stun fatigue applies). | Next **1** Body Slam only. | −15% damage. |
+| **Flash Freeze** `iceBeam.flashFreeze` | Ice Beam | Ice Beam **freezes** (stun 0.6 s, once per beam, stun fatigue applies) instead of slowing. Bosses are immune to the freeze, and the beam doesn't slow them either. | Back to slowing (60% instead of 50%), beam +20% wider. | −20% damage. |
 | **Ferry Wave** `surf.ferryWave` | Surf | Lapras carries you: Surf pulls every XP gem in its radius ×1.5 to you and gives +30% move speed for 1.5 s. Level fast. | Pulls gems in its normal radius; no speed. | −20% damage. |
 | **Pressure Shell** `hydroPump.pressureShell` | Hydro Pump | Damage Shell Armor prevents is stored (cap **60**); the next Hydro Pump adds it as bonus damage spread over its ticks. | Cap **30**. | Hydro Pump cooldown ×1.2. |
 

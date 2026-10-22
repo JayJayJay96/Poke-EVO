@@ -7,7 +7,7 @@ cooldown 4.5 s · 22 dmg/tick (0.2 s) · 380 px long · 26 px wide · 0.8 s. Dat
 ## Generic Mutations
 | Mutation | What changes | Cost |
 |---|---|---|
-| **Full Charge** `solarBeam.fullCharge` | Like the real move: 1 s charge (a telegraphed line), then the beam fires with width ×2 and +60% damage. | Cooldown ×1.25. |
+| **Full Charge** `solarBeam.fullCharge` | Like the real move: 1 s charge (a telegraphed line), then the beam fires with width ×1.5 and +20% damage. | Cooldown ×1.25. |
 | **Prism** `solarBeam.prism` | The beam splits at the first enemy into 3 thinner beams fanning 30° behind it, 40% damage each. | −15% damage on the main beam. |
 
 ## Bonds

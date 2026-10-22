@@ -1,3 +1,4 @@
+import { ENEMIES } from '../../data/content';
 import { MOVES, type BeamMoveDef } from '../../data/moves';
 import { rankedTide } from '../../data/mutations';
 import { applyNewStun } from '../combat';
@@ -39,6 +40,11 @@ defineMutation('iceBeam.iceWall', {
       const len2 = sx * sx + sy * sy || 1;
       // Enemies inside the wall are pushed back out along its normal, so they slide along it.
       forEachEnemyOnSegment(world, w.x, w.y, w.x2, w.y2, w.radius * 2, (e) => {
+        // Bosses smash through the wall instead of being held (owner 2026-10-22).
+        if (ENEMIES[e.kind].boss) {
+          w.lifeLeft = 0;
+          return;
+        }
         const t = Math.min(1, Math.max(0, ((e.x - w.x) * sx + (e.y - w.y) * sy) / len2));
         const px = w.x + sx * t;
         const py = w.y + sy * t;

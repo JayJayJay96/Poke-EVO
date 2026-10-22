@@ -1,4 +1,4 @@
-# Slash — shared move (NEW, not in the code yet)
+# Slash — shared move
 
 **Base (proposed):** `[Normal, Area, Slicing]` · an instant X-shaped cut **on** the nearest enemy within 220 px
 (no travel time), 60 px across. Innate +25% crit chance.
@@ -11,7 +11,7 @@ gated to Charmeleon (owner decision D15, 2026-10-18).
 | Mutation | What changes | Cost |
 |---|---|---|
 | **Afterimage** `slash.afterimage` | The X stays on the ground for 0.6 s as a cutting mark; enemies walking into it are cut again for 50%. | Innate crit +25% → +15%. |
-| **Flurry** `slash.flurry` | Instead of one X, three smaller single cuts on the 3 nearest enemies in range, 50% damage each. Crowd over single target. | One target only gets 50%. |
+| **Flurry** `slash.flurry` | Instead of one X, three smaller single cuts on the 3 nearest enemies in range, 100% damage each. Crowd over single target. | Each cut hits only its own enemy: the X's area is gone. |
 
 ## Bonds
 | Line | Bond |

@@ -23,7 +23,9 @@ export type AugmentId =
   | 'boomerang'
   | 'knockback'
   | 'burn'
-  | 'lifesteal';
+  | 'lifesteal'
+  | 'predatory'
+  | 'volatility';
 
 /** Values are the totals at that rank, not increments. Percentages are fractions. */
 export interface AugmentEffect {
@@ -56,6 +58,12 @@ export interface AugmentEffect {
   readonly burnPct?: number;
   /** Heal as a fraction of damage dealt. */
   readonly lifestealPct?: number;
+  /** Aims at the enemy in range with the lowest HP % instead of the nearest (Predatory). */
+  readonly predatory?: boolean;
+  /** Extra damage against enemies below half HP. */
+  readonly executePct?: number;
+  /** Each cast rolls a damage multiplier between these two values (Volatility). */
+  readonly volatile?: readonly [number, number];
 }
 
 export interface AugmentRank {
@@ -314,6 +322,31 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
       { effect: { lifestealPct: 0.02 }, text: 'Heal 2% of damage dealt' },
       { effect: { lifestealPct: 0.04 }, text: 'Heal 4% of damage dealt' },
       { effect: { lifestealPct: 0.06 }, text: 'Heal 6% of damage dealt' },
+    ],
+  },
+  // From the reference packs (owner 2026-10-22): the two proposed augments no Mutation already covers.
+  predatory: {
+    id: 'predatory',
+    name: 'Predatory',
+    kind: 'behaviour',
+    // Aimed forms only: melee swings at whatever is close.
+    requiresAny: ['Projectile', 'Beam', 'Zone'],
+    ranks: [
+      { effect: { predatory: true }, text: 'Aims at the weakest enemy in range (lowest HP %)' },
+      { effect: { predatory: true, executePct: 0.1 }, text: 'Aims at the weakest enemy; +10% damage to enemies below half HP' },
+      { effect: { predatory: true, executePct: 0.2 }, text: 'Aims at the weakest enemy; +20% damage to enemies below half HP' },
+    ],
+  },
+  volatility: {
+    id: 'volatility',
+    name: 'Volatility',
+    kind: 'tradeoff',
+    requiresAny: [],
+    // Averages track Power Up's ranks a little lower; the swing is the risk.
+    ranks: [
+      { effect: { volatile: [0.5, 1.7] }, text: 'Each cast deals ×0.5–1.7 damage (average ×1.1)' },
+      { effect: { volatile: [0.5, 1.9] }, text: 'Each cast deals ×0.5–1.9 damage (average ×1.2)' },
+      { effect: { volatile: [0.5, 2.1] }, text: 'Each cast deals ×0.5–2.1 damage (average ×1.3)' },
     ],
   },
 };

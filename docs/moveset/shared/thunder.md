@@ -7,8 +7,8 @@ cooldown 3.5 s · 30 dmg · radius 45 px. Data: `src/data/moves.ts` `thunder`.
 ## Generic Mutations
 | Mutation | What changes | Cost |
 |---|---|---|
-| **Storm Call** `thunder.storm` | Calls 3 smaller strikes (30 px) on 3 random enemies in range, 50% damage each. | Paralysis 0.5 s → 0.3 s. |
-| **Afterglow** `thunder.afterglow` | The strike point stays electrified for 2 s: enemies walking in are paralysed 0.2 s per tick (stun fatigue applies). | −20% strike damage. |
+| **Storm Call** `thunder.storm` | Calls 3 smaller strikes (30 px) on 3 random enemies in range, 80% damage each. | Paralysis 0.5 s → 0.3 s. |
+| **Afterglow** `thunder.afterglow` | The strike point stays electrified for 2 s: enemies walking in are paralysed 0.2 s per tick (stun fatigue applies, bosses are immune). | −20% strike damage. |
 
 ## Bonds
 | Line | Bond |

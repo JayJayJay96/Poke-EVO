@@ -7,8 +7,8 @@ cooldown 3.5 s · 22 dmg · reach 110 px. Data: `src/data/moves.ts` `surf`.
 ## Generic Mutations
 | Mutation | What changes | Cost |
 |---|---|---|
-| **Ride the Wave** `surf.rideTheWave` | Surf becomes a 250 px wall rolling in your **movement direction**, carrying light enemies with it; you get +30% move speed for 1 s. | It only hits in one direction. |
-| **Backwash** `surf.backwash` | After the wave reaches its edge it rolls back in, hitting again for 50% and pulling enemies 20 px toward you. | Cooldown ×1.3. |
+| **Ride the Wave** `surf.rideTheWave` | Surf becomes a 250 px wall rolling 220 px in your **movement direction**, carrying light enemies with it; you get +30% move speed for 1 s. Standing still, it rolls the way you last moved (right at the start of a run). | It only hits in one direction. |
+| **Backwash** `surf.backwash` | After the wave reaches its edge it rolls back in, hitting again for 30% and pulling light enemies 20 px toward you. | Cooldown ×1.3. |
 
 ## Bonds
 | Line | Bond |

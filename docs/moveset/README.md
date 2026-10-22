@@ -79,8 +79,16 @@ change how it behaves), Hades' duo/legendary boons (capstones that reward commit
 4. **Rank I is power-neutral on the dummy.** With the balance bot, a mutated move at rank I must land within ±15% DPS
    of the same move with Power Up I instead (ranks II and III add power on top, rule 2). Bonds are measured with their condition true about half the time.
    A Mutation earns its socket through what it *does*, not raw damage.
-5. **No proc-from-proc.** Anything a Mutation spawns (puddles, pops, waves, copies) does plain damage and its own listed
-   status only. It never triggers augments, Lifesteal, Mutations or ability counters.
+5. **No proc-from-proc (reworded D29).** **Ability events may trigger moves**: a Bond keyed on an ability event may
+   fire, reset or empower its move (Counter Shell, Eye of the Storm, Petal Blizzard, Cornered Dragon, Volt Tackle's
+   Discharge…), always with its own cap. **Anything a Mutation spawns** (puddles, pops, waves, copies, arcs, sprouts)
+   does plain damage and its own listed status only, and **never triggers anything**: no augments, Lifesteal,
+   Mutations, ability counters or kill hooks (the code only counts direct kills, so Scorch or burn kills don't feed
+   Inferno Storm). **One recorded exception:** Return Arc's arcs add Charge (Pikachu's identity, owner D29).
+5a. **A Mutation may change how its move is delivered, and even its type** (D29): Hydro Pump raining around you, Ember
+   as a cone or wisps, Electro Ball trading pierce for bounces, Blaze Claws turning Fire. That is what "changes the
+   verb" means. **Evolution still only adds tags** (§8.6). Where a delivery change makes an augment meaningless, the
+   Mutation lists it in `excludesAugments` (e.g. Undertow excludes Return).
 6. **Mutations never appear on augment-level cards** (D16): they come only from map sites. The D11 guaranteed card stays for behaviour augments and signature exclusives.
 
 ### Rules (Bond only)

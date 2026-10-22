@@ -1,5 +1,5 @@
 import type { ZoneMoveDef } from '../../data/moves';
-import { damageEnemy, findNearestEnemy, makeHitInfo, queryEnemies } from '../combat';
+import { damageEnemy, findTarget, makeHitInfo, queryEnemies } from '../combat';
 import type { MoveSlot, World } from '../types';
 import { spawnZone } from '../zones';
 
@@ -14,7 +14,7 @@ const neighbours: number[] = [];
  * Each tick deals the move's damage plus its innate statuses (P4a).
  */
 export function castZone(world: World, slot: MoveSlot, def: ZoneMoveDef): boolean {
-  const target = findNearestEnemy(world, def.range);
+  const target = findTarget(world, slot, def.range);
   if (!target) return false;
   const s = slot.stats;
   const { x, y } = def.target === 'self' ? world.player : target;

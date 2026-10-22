@@ -338,6 +338,12 @@ export interface MoveStats {
   /** Burn damage per second as a fraction of the hit. */
   burnPct: number;
   lifesteal: number;
+  /** Predatory: aim at the lowest-HP % enemy in range; executePct = extra damage below half HP. */
+  predatory: boolean;
+  executePct: number;
+  /** Volatility: each cast's damage multiplier is rolled between these (1, 1 = off). */
+  volatileMin: number;
+  volatileMax: number;
   /** Innate statuses from the move (P4a). */
   slow: number;
   stun: number;
@@ -396,6 +402,8 @@ export interface MoveSlot {
   stats: MoveStats;
   /** Stats before per-step `live` Mutation adjustments. */
   baseStats: MoveStats;
+  /** Volatility's roll for the latest cast; applies to this move's hits (1 without Volatility). */
+  volatileMult: number;
 }
 
 /** A melee swipe kept around briefly so it can be drawn. */

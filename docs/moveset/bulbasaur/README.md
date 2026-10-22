@@ -111,7 +111,7 @@ Solar Beam ───┬─ Full Charge      `solarBeam.fullCharge`      1 s char
 | Bond | Move | Offered from | What changes | Cost |
 |---|---|---|---|---|
 | **Bulb Bash** `tackle.bulbBash` | Tackle | Ivysaur | Tackle hits with the bulb: up to +80% damage, scaling with how full the Bulb is. | −20% damage at an empty Bulb. |
-| **Healthy Growth** `razorLeaf.healthyGrowth` | Razor Leaf | Bulbasaur | While you're at **full HP**: +1 leaf and the leaves pierce 1 enemy. | −20% damage when you're not at full HP. |
+| **Healthy Growth** `razorLeaf.healthyGrowth` | Razor Leaf | Bulbasaur | While you're at **full HP**: +1 leaf and the leaves pierce 1 enemy. | −40% damage when you're not at full HP. |
 | **Seed Network** `leechSeed.seedNetwork` | Leech Seed | Bulbasaur | The move feeds the ability: every Seeded enemy alive adds +0.5% to Leech (max +3%, doubling it). | Seed damage −30%. |
 | **Spore Sac** `poisonPowder.sporeSac` | Poison Powder | Bulbasaur | Each hit you take puffs a small Poison Powder cloud at your feet (half size, 1.5 s; at most once per 2 s). Touching Bulbasaur hurts. | Poison Powder's own cooldown ×1.3. |
 | **Sweet Dreams** `sleepPowder.sweetDreams` | Sleep Powder | Bulbasaur | Damage you deal to **sleeping** enemies heals through Leech at ×3 (9%). Like Dream Eater. | Sleep duration −25%. |

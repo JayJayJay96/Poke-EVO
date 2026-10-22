@@ -1,6 +1,6 @@
 import { MOVES, type MeleeMoveDef } from '../../data/moves';
 import { rankedTide } from '../../data/mutations';
-import { MAX_ENEMY_RADIUS, damageEnemy, findNearestEnemy, makeHitInfo, procHit } from '../combat';
+import { MAX_ENEMY_RADIUS, applyNewStun, damageEnemy, findNearestEnemy, makeHitInfo, procHit } from '../combat';
 import { defineMutation, tideFlood } from '../hooks';
 import { dirTo, entitiesOf, forEachEnemyIn, ranked, spawnEntity } from './util';
 
@@ -85,7 +85,10 @@ defineMutation('bodySlam.surge', {
   live: (s, _world, slot) => {
     if (!slot.mutState.empowered) return;
     s.arcMult *= 360 / bodySlam.arcDegrees;
-    s.stun = Math.max(s.stun, surge(slot).paralyseSeconds);
+  },
+  // The paralysis is a new effect (D21 guard rails): bosses are immune and stun fatigue applies.
+  onHit: (_world, slot, enemy) => {
+    if (slot.mutState.empowered) applyNewStun(enemy, surge(slot).paralyseSeconds, 'paralysis');
   },
   onCast: (_world, slot) => {
     if (slot.mutState.empowered) slot.mutState.empowered -= 1;

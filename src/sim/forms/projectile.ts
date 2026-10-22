@@ -1,6 +1,6 @@
 import { TUNING } from '../../data/content';
 import type { ProjectileMoveDef } from '../../data/moves';
-import { NO_HIT, damageEnemy, findNearestEnemy, queryEnemies } from '../combat';
+import { NO_HIT, damageEnemy, findNearestEnemy, findTarget, queryEnemies } from '../combat';
 import { chainBias, emit, hooksOf } from '../hooks';
 import type { Enemy, MoveSlot, Projectile, World } from '../types';
 import { spawnZone } from '../zones';
@@ -54,7 +54,7 @@ export function createProjectile(): Projectile {
 }
 
 export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMoveDef): boolean {
-  const target = findNearestEnemy(world, def.range);
+  const target = findTarget(world, slot, def.range);
   if (!target) return false; // stays ready and fires the moment something is in range
   const { player } = world;
   const s = slot.stats;

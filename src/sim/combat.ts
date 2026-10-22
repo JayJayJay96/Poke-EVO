@@ -94,6 +94,26 @@ export function findNearestEnemy(
   return best;
 }
 
+/** The enemy a move aims at: the nearest in range, or with Predatory the one with the lowest HP % (2026-10-22). */
+export function findTarget(world: World, slot: MoveSlot, range: number): Enemy | undefined {
+  if (!slot.stats.predatory) return findNearestEnemy(world, range);
+  const { x, y } = world.player;
+  let best: Enemy | undefined;
+  let bestFrac = Infinity;
+  for (const enemy of world.enemies) {
+    if (enemy.hp <= 0) continue;
+    const dx = enemy.x - x;
+    const dy = enemy.y - y;
+    if (dx * dx + dy * dy > range * range) continue;
+    const frac = enemy.hp / enemy.maxHp;
+    if (frac < bestFrac) {
+      best = enemy;
+      bestFrac = frac;
+    }
+  }
+  return best;
+}
+
 /** True while the player's trait is in its low-HP state (Blaze, Blaze+). */
 export function isAbilityActive(world: World): boolean {
   const { lowHpThreshold } = ABILITIES[world.player.ability];
@@ -140,7 +160,10 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     typeMult *
     mutationMult *
     vuln *
-    (sleeping ? SNORLAX_KIT.rest.damageTakenMult : 1);
+    (sleeping ? SNORLAX_KIT.rest.damageTakenMult : 1) *
+    // The move's own hits only (procs carry no slot): Volatility's roll and Predatory's bonus below half HP.
+    (slot ? slot.volatileMult : 1) *
+    (slot && slot.stats.executePct > 0 && enemy.hp < enemy.maxHp * 0.5 ? 1 + slot.stats.executePct : 1);
   const dealt = Math.min(enemy.hp, amount);
   if (sleeping) sleeping.wake += dealt;
   enemy.hp -= amount;

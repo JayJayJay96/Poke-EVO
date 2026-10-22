@@ -1,4 +1,4 @@
-# Smokescreen — shared move (NEW, not in the code yet)
+# Smokescreen — shared move
 
 **Base (proposed):** `[Normal, Zone]` · drops a smoke cloud on your position. No damage.
 cooldown 8 s · radius 90 px · 4 s. Enemies inside are **Blinded** (approved, D20): they lose track of you and wander toward a random

@@ -7,7 +7,7 @@ cooldown 6 s · 8 dmg · orbit 70 px · hit every 0.5 s per enemy. Data: `src/da
 ## Generic Mutations
 | Mutation | What changes | Cost |
 |---|---|---|
-| **Vortex** `fireSpin.vortex` | At the end of the spin the flames collapse onto you, then blast outward: a 110 px burst for 2× damage, once. | Cooldown ×1.2. |
+| **Vortex** `fireSpin.vortex` | At the end of the spin the flames collapse onto you, then blast outward: a 110 px burst for 1.6× damage, once. | Cooldown ×1.2. |
 | **Flame Trail** `fireSpin.flameTrail` | Each flame drops a Scorch patch every 0.6 s along its path (shared Fire terrain, cap 6). | −30% damage. |
 
 ## Bonds

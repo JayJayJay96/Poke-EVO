@@ -5,7 +5,7 @@ import { MUTATIONS, type MutationId } from '../../data/mutations';
 import { damageEnemy, makeHitInfo } from '../combat';
 import { orbitBalls } from '../forms/orbit';
 import { emit, mutationDamageTakenMult, mutationMoveSpeedMult } from '../hooks';
-import { grantMutation } from '../mutations';
+import { grantMutation, isBuilt } from '../mutations';
 import { createSeededRng } from '../rng';
 import { createSlot, refreshStats } from '../stats';
 import type { Enemy, InputState, MoveSlot, World } from '../types';
@@ -74,9 +74,8 @@ describe('Rapid Spin', () => {
     expect(ballDistance(w, slot)).toBeGreaterThan(v.outerRadius - 10);
   });
 
-  it('Deflector: only its cost until ranged enemies exist (P5)', () => {
-    const { slot } = withMove('rapidSpin', 'rapidSpin.deflector');
-    expect(slot.stats.damage).toBeCloseTo(plainDamage('rapidSpin') * MUTATIONS['rapidSpin.deflector'].values.damageMult);
+  it('Deflector: not built, so never offered, until ranged enemies exist (P5)', () => {
+    expect(isBuilt('rapidSpin.deflector')).toBe(false);
   });
 
   it('Shell Spin: each enemy hit cuts Shell recharge by 0.25 s, at most 1.5 s per spin', () => {

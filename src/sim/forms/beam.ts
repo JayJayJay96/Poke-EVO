@@ -1,5 +1,5 @@
 import type { BeamMoveDef } from '../../data/moves';
-import { damageEnemy, findNearestEnemy, makeHitInfo, queryEnemies } from '../combat';
+import { damageEnemy, findTarget, makeHitInfo, queryEnemies } from '../combat';
 import { hooksOf } from '../hooks';
 import type { MoveSlot, World } from '../types';
 
@@ -7,7 +7,7 @@ const neighbours: number[] = [];
 
 /** Locks a direction toward the nearest enemy; the beam then follows the player for its duration. */
 export function castBeam(world: World, slot: MoveSlot, def: BeamMoveDef): boolean {
-  const target = findNearestEnemy(world, def.range);
+  const target = findTarget(world, slot, def.range);
   if (!target) return false;
   const dx = target.x - world.player.x;
   const dy = target.y - world.player.y;

@@ -1,0 +1,16 @@
+# NEW BEHAVIORAL AUGMENT
+- Name / family / version:
+- Semantic promise (one sentence):
+- Player movement, targeting or drafting decision created:
+- Required affordances and applicable tags (not the same thing):
+- Modifiable hook/stage and output effect:
+- Base move demonstration:
+- Adaptation for evolution A, B, optional signature:
+- What happens if an evolution removes the required affordance:
+- Supported status, passive and weather interactions:
+- Additive combinations / named pair merges / replacement or conflict:
+- Event owner, generated-event propagation, max chain depth, cooldown and spawned caps:
+- Tradeoff / counter-build / horde-boss-mobile comparison:
+- Player-facing preview, icon, telegraph:
+- Numerical tuning placeholders / tests:
+- Design score (agency, novelty, clarity, reuse, balance, feasibility each /5):

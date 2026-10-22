@@ -7,8 +7,8 @@ cooldown 3 s · 6 dmg/tick (0.2 s, 0.6 s → 3 ticks) · 260 px long · 14 px wi
 ## Generic Mutations
 | Mutation | What changes | Cost |
 |---|---|---|
-| **Fixed Rage** `dragonRage.fixedRage` | Like the real move: every tick deals **fixed damage** (10, +1 per 4 player levels) that ignores the type chart and enemy resistances. Great vs bulky and resisting enemies. | **Ignores all damage augments** on this move (Power Up, Glass, Concentrated…) and the global damage boost. |
-| **Dragon Breath** `dragonRage.dragonBreath` | The beam becomes a 60° cone, 140 px long. Each tick has a 10% chance to paralyse (stun 0.5 s; stun fatigue applies). | Range −45%. |
+| **Fixed Rage** `dragonRage.fixedRage` | Like the real move: every tick deals **fixed damage** (7, +1 per 4 player levels) that ignores the type chart and enemy resistances. Great vs bulky and resisting enemies. | **Ignores all damage augments** on this move (Power Up, Glass, Concentrated…) and the global damage boost. |
+| **Dragon Breath** `dragonRage.dragonBreath` | The beam becomes a 60° cone, 140 px long. Each tick has a 10% chance to paralyse (stun 0.5 s; stun fatigue applies, bosses are immune). | Range −45%; −40% damage. |
 
 ## Bonds
 | Line | Bond |

@@ -1,6 +1,6 @@
 import { ABILITIES } from '../../data/content';
 import { MOVES, type ZoneMoveDef } from '../../data/moves';
-import { applyStatuses, applyVuln } from '../combat';
+import { applyNewStun, applyVuln } from '../combat';
 import { defineMutation, targetAsleep } from '../hooks';
 import type { MoveSlot } from '../types';
 import { forEachEnemyIn, ranked } from './util';
@@ -35,7 +35,8 @@ defineMutation('sleepPowder.drowsy', {
     forEachEnemyIn(world, zone.x, zone.y, zone.radius, (e) => {
       const inside = (time.get(e.id) ?? 0) + dt;
       time.set(e.id, inside);
-      if (inside >= drowsy(slot).sleepAfter) applyStatuses(e, { slow: 0, stun: SLEEP, poisonDps: 0, stunKind: 'sleep' });
+      // A new effect (D21 guard rails): bosses are immune and stun fatigue applies, so no endless sleep.
+      if (inside >= drowsy(slot).sleepAfter && e.stunLeft <= 0) applyNewStun(e, SLEEP, 'sleep');
     });
   },
 });

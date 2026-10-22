@@ -103,6 +103,10 @@ export function computeMoveStats(
   let knockback = 0;
   let burnPct = 0;
   let lifesteal = 0;
+  let predatory = false;
+  let executePct = 0;
+  let volatileMin = 1;
+  let volatileMax = 1;
   for (const socket of sockets) {
     const e = AUGMENTS[socket.augmentId].ranks[socket.rank - 1].effect;
     damagePct += e.damagePct ?? 0;
@@ -122,6 +126,9 @@ export function computeMoveStats(
     knockback += e.knockback ?? 0;
     burnPct += e.burnPct ?? 0;
     lifesteal += e.lifestealPct ?? 0;
+    predatory ||= e.predatory ?? false;
+    executePct += e.executePct ?? 0;
+    if (e.volatile) [volatileMin, volatileMax] = e.volatile;
   }
   return {
     damage: def.damage * m.damageMult * Math.max(MIN_DAMAGE_FACTOR, 1 + damagePct) * typeDamageFactor(def, user),
@@ -140,6 +147,10 @@ export function computeMoveStats(
     returns,
     burnPct,
     lifesteal,
+    predatory,
+    executePct,
+    volatileMin,
+    volatileMax,
     // Innate knockback (Squirtle line) stacks with the Knockback augment.
     knockback: knockback + (def.onHit?.knockback ?? 0),
     slow: def.onHit?.slow ?? 0,
@@ -176,6 +187,7 @@ export function createSlot(moveId: MoveId): MoveSlot {
     mutState: {},
     stats,
     baseStats: { ...stats },
+    volatileMult: 1,
   };
 }
 

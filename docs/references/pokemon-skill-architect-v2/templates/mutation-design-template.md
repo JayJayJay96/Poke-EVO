@@ -1,0 +1,17 @@
+# NEW SKILL MUTATION
+- Mutation name and fantasy:
+- Core evolution requirement:
+- Enabler augment/skill/passive requirements:
+- Optional catalyst (weather/species/terrain) and enhancement only:
+- How choice becomes available; consent UX; offer expiration:
+- BEFORE combat loop:
+- AFTER combat loop:
+- REMOVE behaviors:
+- MODIFY behaviors:
+- ADD behaviors:
+- Ability costs, cooldown, inherited stats and effect ownership:
+- Advantages, sacrificed strength, weak enemy matchup:
+- Boss immunity/edge handling, growth/event limits:
+- What happens when prerequisite disappears or weather changes:
+- Tooltip, VFX and discoverability:
+- Deterministic tests and design score:

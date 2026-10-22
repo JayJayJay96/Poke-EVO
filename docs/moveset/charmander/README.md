@@ -53,11 +53,11 @@ The existing exclusives (Blaze Core `blazeCore`, Mega Flare `megaFlare`) stay as
 | Mutation | Ember (Lv 1) | + Flame Burst (Lv 10) | + Blast Burn (Lv 25) | Blaze link | Cost |
 |---|---|---|---|---|---|
 | **A. Kindle** `ember.kindle` — rhythm burst | Every 3rd shot is **Kindled**: ×2.2 damage, bigger fireball | The Kindled explosion leaves a Scorch ring | The Kindled shot becomes a **meteor**: a 0.6 s telegraphed circle, then it lands with a ×1.5-size crater | Every **2nd** shot is Kindled | The other shots −40% damage |
-| **B. Flamethrower** `ember.flamethrower` — close range | Ember becomes a short stream: 4 small flames in a cone, ~130 px reach, 35% damage each | The flames Burn (20%/s for 3 s) | The end of the cone leaves a line of Scorch | Cone +30% longer | Range −60%: you have to be close |
-| **C. Will-o-Wisp** `ember.wisp` — defensive ammo | Ember stops firing on its own. Each cast adds a wisp orbiting you (max 3). A wisp launches at any enemy that comes within 110 px, +40% damage | Launched wisps burst like Flame Burst (splash) | Launched wisps leave a small crater | Max 5 wisps | Nothing beyond 110 px gets shot |
+| **B. Flamethrower** `ember.flamethrower` — close range | Ember becomes a short stream: 4 small flames in a cone, ~130 px reach, 30% damage each | The flames Burn (20%/s for 3 s) | The end of the cone leaves a line of Scorch | Cone +30% longer | Range −60%: you have to be close |
+| **C. Will-o-Wisp** `ember.wisp` — defensive ammo | Ember stops firing on its own. Each cast adds a wisp orbiting you (max 3). A wisp launches at any enemy that comes within 110 px, +30% damage | Launched wisps burst like Flame Burst (splash) | Launched wisps leave a small crater | Max 5 wisps | Nothing beyond 110 px gets shot |
 
 Budget check (rule 4, dummy): Kindle (0.6 + 0.6 + 2.2) / 3 ≈ 1.13×. Flamethrower: about 2–3 of the 4 flames hit one
-target, 0.7–1.05×. Will-o-Wisp: same shots per second, +40% each, but only at short range.
+target, 0.6–0.9×. Will-o-Wisp: same shots per second, +30% each, but only at short range.
 
 - **A** = big satisfying hits on a beat; with Blaze it becomes every other shot.
 - **B** = commit to close range, the real glass-cannon fantasy.
@@ -105,7 +105,7 @@ stats are in their shared files. With them the learnset is 8 moves (template: 6�
 | **Inferno Storm** `hurricane.infernoStorm` | Hurricane | Charizard | Each kill during the storm adds +0.25 s (max +1.5 s). After **30 kills** in one cast (kills by *any* of your moves while the storm is up) the storm turns **Fire-type** and Burns for the rest of that cast *(owner, 2026-10-18: kills come easily)*. | −15% damage. |
 | **Hidden Flame** `smokescreen.hiddenFlame` | Smokescreen | Charmander | While you stand inside your own smoke, **Blaze counts as active** (whichever Blaze you have), so every Blaze-linked bonus turns on without the HP risk. | Cloud radius −40%, cooldown ×1.4: a small cloud you have to stand still in. |
 | **Searing Slash** `slash.searingSlash` | Slash | Charmeleon | Slash always crits **Burning** enemies and consumes the Burn, dealing all its remaining burn damage at once. Pays off every other Fire source (Fire Spin, Flamethrower, Scorch). | −20% damage vs enemies that aren't Burning. |
-| **Fan the Flames** `wingAttack.fanTheFlames` | Wing Attack | Charizard | Each of your Scorch patches the gusts touch **flares**: it refreshes to 3 s, grows +50%, and drifts 40 px in the gust's direction. **Only offered if the build already makes Scorch** (Kindle, Flamethrower, Flame Trail or Solar Power). | −20% damage. |
+| **Fan the Flames** `wingAttack.fanTheFlames` | Wing Attack | Charizard | Each of your Scorch patches the gusts touch **flares**: it refreshes to 3 s, grows +50% (capped at ×1.5 the normal Scorch size, so repeat flares don't stack), and drifts 40 px in the gust's direction. **Only offered if the build already makes Scorch** (Kindle, Flamethrower, Flame Trail or Solar Power). | −20% damage. |
 
 Balance notes:
 - Rule 4 (±15% vs Power Up I, condition true about half the time). E.g. Tail Flame: 2 flames ×0.75 = 1.5 at full HP,

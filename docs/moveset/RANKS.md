@@ -152,7 +152,7 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 
 ## Open points for the owner
 1. **Twist count:** 75 of 110 rank III entries carry a ★. Is that the right amount of "where natural"?
-2. **Utility Mutations** (Drift Cloud, Drowsy Haze, Static Pulse, Backdraft, Song of the Sea) get flat move damage at ranks II/III
+2. **Utility Mutations** (Drift Cloud, Drowsy Haze, Static Pulse, Backdraft, Song of the Sea, Afterimage, Frenzy Dance, Plasma Orb, Long Lash) get flat move damage at ranks II/III
    on top of their utility lever, so a rank-up is always worth a site. Smoke Trail and Hidden Flame sit on a move with no
    damage, so their ranks are utility only (they can't meet a DPS target).
-3. **Ricochet III** goes to 3 bounces (inside the chain cap) and pays with damage ×0.95 instead of ×1.04.
+3. **Ricochet III** goes to 3 bounces (inside the chain cap) and pays with damage ×0.8 instead of ×1.04.

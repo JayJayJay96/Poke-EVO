@@ -442,6 +442,10 @@ function updateMoves(world: World, dt: number): void {
 /** Casts one move now (its onCast hook is left to the caller); true if it found a target. */
 function fire(world: World, slot: MoveSlot): boolean {
   const hooks = hooksOf(slot);
+  // Volatility: a new damage roll per cast. shortcut: shots still in flight from the last cast use the new
+  // roll too; store it per projectile if that ever reads wrong.
+  const { volatileMin, volatileMax } = slot.stats;
+  if (volatileMax > volatileMin) slot.volatileMult = volatileMin + world.rng.next() * (volatileMax - volatileMin);
   // Pikachu at full Charge: the next signature cast is a Charged shot.
   const charged = slot === world.moves[0] ? chargedShotMult(world) : 1;
   slot.stats.damage *= charged;

@@ -7,8 +7,8 @@ cooldown 6 s · 1 dmg/tick (0.5 s) · radius 60 px · 2 s. Data: `src/data/moves
 ## Generic Mutations
 | Mutation | What changes | Cost |
 |---|---|---|
-| **Static Pulse** `thunderWave.pulse` | Instead of a field at the target, a ring expands from you (0 → 150 px) and paralyses everything it passes, once. | Paralysis 0.6 s → 0.4 s. |
-| **Electric Terrain** `thunderWave.terrain` | The field lasts 5 s and your Electric moves deal +25% to enemies inside it. A damage zone instead of a lock. | No paralysis. |
+| **Static Pulse** `thunderWave.pulse` | Instead of a field at the target, a ring expands from you (0 → 150 px) and paralyses everything it passes, once (stun fatigue applies, bosses are immune). | Paralysis 0.6 s → 0.4 s. |
+| **Electric Terrain** `thunderWave.terrain` | The field lasts 5 s and your Electric moves deal +25% to enemies inside it. A damage zone instead of a lock. | No paralysis; the field's own ticks deal −65% damage. |
 
 ## Bonds
 | Line | Bond |

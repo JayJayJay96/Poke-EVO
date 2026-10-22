@@ -39,7 +39,7 @@ Each Bond uses a different hook (rule 9). Hook IDs as in `INDEX.md`.
 | Stage | Ability | Effect |
 |---|---|---|
 | Pikachu | **Static** `static` | Enemies touching you are paralysed for 1 s *(unchanged)*. Running fills **Charge** (§1). At full Charge your next signature shot is **Charged**: ×2 damage, then Charge resets. |
-| Raichu | **Static — Discharge** `static.discharge` | As Static, but full Charge releases a **Discharge** instead: a 150 px burst around you for 3× your signature hit, paralysing 0.4 s (stun fatigue applies). Charge resets. |
+| Raichu | **Static — Discharge** `static.discharge` | As Static, but full Charge releases a **Discharge** instead: a 150 px burst around you for 3× your signature hit, paralysing 0.4 s (stun fatigue applies, bosses are immune). Charge resets. |
 | Raichu trait | Trait pick (D13 options, each with a Charge twist) | **Static+** `staticPlus`: paralysis 2 s, and each Static paralysis gives +30 Charge (instead of +15). · **Lightning Rod** `lightningRod`: Electric moves +30%, and Discharge is +40% wider. |
 
 Raichu gets its ability upgrade and its trait at the same moment (Lv 16), because the line has only one evolution.
@@ -62,15 +62,15 @@ Each also has a **Charge link**.
 
 | Mutation | Thunder Shock (Lv 1) | + Thunderbolt (Lv 16) | Charge link | Cost |
 |---|---|---|---|---|
-| **A. Live Wire** `thunderShock.liveWire` — lines of control | Every chain jump leaves a **live wire** between the two enemies for 1 s; enemies crossing a wire take 20% damage | Wires last 1.5 s and paralyse 0.2 s (stun fatigue applies) | Above 50% Charge, wires last twice as long | Chain jump damage −30% |
-| **B. Ball Lightning** `thunderShock.ballLightning` — slow zapping orb | The bolt becomes a slow orb (200 px/s, 1.6 s) that zaps the nearest enemy within 90 px every 0.3 s for 25%. **No chain** | At the end of its path the orb pops into the full Thunderbolt chain | Orb speed and zap rate scale up with Charge (up to +50%) | No chain on Thunder Shock |
+| **A. Live Wire** `thunderShock.liveWire` — lines of control | Every chain jump leaves a **live wire** between the two enemies for 1 s; enemies crossing a wire take 20% damage | Wires last 1.5 s and paralyse 0.2 s (stun fatigue applies, bosses are immune) | Above 50% Charge, wires last twice as long | Chain jump damage −30% |
+| **B. Ball Lightning** `thunderShock.ballLightning` — slow zapping orb | The bolt becomes a slow orb (200 px/s, 1.6 s), fired at the nearest enemy, that zaps the nearest enemy within 90 px every 0.3 s for 65%. **No chain** | At the end of its path the orb pops into the full Thunderbolt chain | Orb speed and zap rate scale up with Charge (up to +50%) | No chain on Thunder Shock |
 | **C. Return Arc** `thunderShock.returnArc` — Charge engine | The chain's last jump arcs **back to you**: +4 Charge per jump | The return arc damages everything along its line (50%) | Built in: the faster Charge fills, the more Discharges you get | −20% damage |
 
-Budget check (rule 4, dummy ring): Live Wire 0.7× on jumps plus wire hits, ≈1.0×. Ball Lightning ≈5 zaps × 0.25 ≈ 1.25×
-on one target with no chain, so less in crowds. Return Arc 0.8× plus ~+30% more Charge.
+Budget check (rule 4, dummy ring): Live Wire 0.7× on jumps plus wire hits, ≈1.0×. Ball Lightning ≈5 zaps × 0.65 ≈ 3.25× a bolt hit
+on one target with no chain, so less in crowds (at 0.25 per zap it measured only 0.34× vs the chaining bolt). Return Arc 0.8× plus ~+30% more Charge.
 
 - **A** = draw a web of lightning across the crowd.
-- **B** = a slow, deadly orb you aim with your path.
+- **B** = a slow, deadly orb that rolls toward the nearest enemy and zaps along its path.
 - **C** = feed the cheeks; Discharge every few seconds.
 
 ## 5. Learnset trees — 2 generic + 1 Bond per move
@@ -100,7 +100,7 @@ Thunder ──────┬─ Storm Call       `thunder.storm`             3 
 ### Bond details
 | Bond | Move | Offered from | What changes | Cost |
 |---|---|---|---|---|
-| **Volt Tackle** `quickAttack.voltTackle` | Quick Attack | Pikachu | At full Charge, the next Quick Attack becomes **Volt Tackle**: a 120 px electric dash-strike for ×3 damage that spends the Charge. It replaces the Charged shot; on Raichu the Discharge fires at the end of the dash. | Recoil, like the real move: you lose 5% max HP. |
+| **Volt Tackle** `quickAttack.voltTackle` | Quick Attack | Pikachu | At full Charge, the next Quick Attack becomes **Volt Tackle**: a 120 px electric dash-strike toward the nearest enemy for ×3 damage that spends the Charge. It replaces the Charged shot; on Raichu the Discharge fires at the end of the dash. | Recoil, like the real move: you lose 5% max HP (never below 1 HP). |
 | **Static Spark** `spark.staticSpark` | Spark | Pikachu | Each Static paralysis adds an extra spark to your orbit for 2 s (max +3). Touching Pikachu gets more dangerous. | Spark's own cooldown ×1.2. |
 | **Velocity Ball** `electroBall.velocityBall` | Electro Ball | Pikachu | Like the real move: damage scales with how much faster you are than the target, +1% per 1% faster (max +80%). Speed boosts become damage. | −40% base damage. |
 | **Conductor** `thunderWave.conductor` | Thunder Wave | Pikachu | Your signature chain prefers enemies inside a Thunder Wave field, and jump range is +60% between them. The cap stays 3 jumps. | Thunder Wave's paralysis 0.6 s → 0.4 s. |

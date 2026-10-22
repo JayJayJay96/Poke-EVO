@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "prototype_not_balanced",
+  "run": {
+    "targetMinutes": 35,
+    "skillSlots": 4,
+    "passiveSlots": 4,
+    "augmentSlotsPerSkill": 3,
+    "targetLevelAtEnd": 40
+  },
+  "draft": {
+    "normalChoices": 3,
+    "normalCategoryWeightsByLevel": [
+      {
+        "levels": "2-10",
+        "newSkill": 0.45,
+        "enhancement": 0.35,
+        "passive": 0.2
+      },
+      {
+        "levels": "11-22",
+        "newSkill": 0.2,
+        "enhancement": 0.5,
+        "passive": 0.3
+      },
+      {
+        "levels": "23+",
+        "newSkill": 0.05,
+        "enhancement": 0.65,
+        "passive": 0.3
+      }
+    ],
+    "rarityWeights": {
+      "common": 0.5,
+      "uncommon": 0.3,
+      "rare": 0.16,
+      "epic": 0.04
+    },
+    "focusMultiplier": 2.0,
+    "synergyMultiplier": 1.25,
+    "contextualWeightCap": 3.0
+  },
+  "mastery": {
+    "cumulativeThresholds": [
+      100,
+      300,
+      600,
+      900,
+      1400,
+      2000
+    ],
+    "targetEffectivePerMinute": [
+      80,
+      110
+    ],
+    "exampleRolling10SecondCap": 35,
+    "catchUp": [
+      {
+        "minuteMin": 0,
+        "minuteMax": 5,
+        "floor": 0,
+        "factor": 1.0
+      },
+      {
+        "minuteMin": 5,
+        "minuteMax": 10,
+        "floor": 100,
+        "factor": 1.15
+      },
+      {
+        "minuteMin": 10,
+        "minuteMax": 20,
+        "floor": 300,
+        "factor": 1.3
+      },
+      {
+        "minuteMin": 20,
+        "minuteMax": 35,
+        "floor": 600,
+        "factor": 1.5
+      }
+    ]
+  },
+  "rewards": {
+    "protectedAugmentMinutes": [
+      3,
+      6,
+      9,
+      13,
+      17,
+      21,
+      26,
+      31
+    ],
+    "protectedEvolutionMinutes": [
+      10,
+      15,
+      21,
+      27,
+      32
+    ],
+    "maxPendingAugmentTickets": 2,
+    "optionalAugmentOpportunityCap": 3
+  },
+  "mutations": {
+    "maxActivePerSkill": 1,
+    "maxActivePerRun": 2,
+    "requireAcceptance": true,
+    "onLostPrerequisite": "suspend"
+  },
+  "agency": {
+    "rerolls": 3,
+    "banishes": 2,
+    "augmentReplacements": 1,
+    "focusChanges": 1
+  },
+  "familyExample": {
+    "bulbasaurEvolvesAtLevel": 16,
+    "ivysaurEvolvesAtLevel": 32
+  },
+  "normalXPFormula": "20 + 5*level + 0.65*level*level"
+}

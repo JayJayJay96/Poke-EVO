@@ -44,9 +44,9 @@ The signature is line-only, so all three are Bonds by nature. Pick one; **it evo
 
 | Mutation | Bubble (Lv 1) | + Water Pulse (Lv 10) | + Hydro Cannon (Lv 25) | Cost |
 |---|---|---|---|---|
-| **A. Bubble Trap** `bubble.trap` — single-target control | Engulfs the first light enemy and floats it 1.2 s (can't move or attack), then pops: 40 px splash, stagger 20 | The pop first **pulls** enemies within 60 px in by 15 px, then bursts outward | **Giant bubble** traps up to 3 enemies, pops as the full Hydro Cannon blast and leaves a puddle | Cooldown ×1.3; the trapped enemy takes no hit damage until the pop |
-| **B. Froth Mines** `bubble.froth` — area denial | Each shot leaves 3 bubbles hovering on its path for 3 s; touching one pops it for 50% damage + slow | Mines pop with a small stagger ring | Mines drift toward the nearest enemy (40 px/s) | Main shot −30% damage; max 9 mines alive |
-| **C. Undertow** `bubble.undertow` — gather for melee | Bubbles fly out, stop, then get sucked back to you, hitting on both legs | Hit enemies are **dragged back 25 px** with the bubble | The return trip Soaks and leaves a puddle trail | −25% damage, range −20%; can't take Return |
+| **A. Bubble Trap** `bubble.trap` — single-target control | Engulfs the first light enemy and floats it 1.2 s (can't move or attack; stun fatigue applies; bosses and enemies ≥ 40 kg are only slowed 30%), then pops: 40 px splash for 80% damage, stagger 20 | The pop first **pulls** enemies within 60 px in by 15 px, then bursts outward | **Giant bubble** traps up to 3 enemies, pops as the full Hydro Cannon blast and leaves a puddle | Cooldown ×1.3; the trapped enemy takes no hit damage until the pop |
+| **B. Froth Mines** `bubble.froth` — area denial | Each shot leaves 3 bubbles hovering on its path for 3 s; touching one pops it for 25% damage + slow | Mines pop with a small stagger ring | Mines drift toward the nearest enemy (40 px/s) | Main shot −30% damage; max 9 mines alive |
+| **C. Undertow** `bubble.undertow` — gather for melee | Bubbles fly out, stop, then get sucked back to you, hitting on both legs | Hit enemies are **dragged back 25 px** with the bubble | The return trip Soaks and leaves a puddle trail | −35% damage, range −20%; can't take Return |
 
 ## 4. Learnset trees — 2 generic + 1 Bond per move
 One Mutation per move: generic *or* Bond. The generic ones are in `../shared/<move>.md`.
@@ -83,7 +83,7 @@ Flash Cannon ──┬─ Shrapnel           (generic) shatters into 6 shards
 | **Steady Aim** `waterGun.steadyAim` | Water Gun | Squirtle | While Shell is **ready**: beam length +40%, push ×2. Rewards *not* getting hit. | While Shell is down: −25% damage. |
 | **Eye of the Storm** `whirlpool.eyeOfTheStorm` | Whirlpool | Wartortle | Every Shell Burst also drops a half-size Whirlpool at your feet for 2 s. It uses Whirlpool's stat augments, never another Mutation. | Whirlpool's own cooldown ×1.3. |
 | **Last Wave** `surf.lastWave` | Surf | Squirtle | Below 40% HP: Surf cooldown −50%, radius +30%. A tank's last stand (pairs with Torrent+). | Above 40% HP: −20% damage. |
-| **Rain Cannon** `hydroPump.rainCannon` | Hydro Pump | Blastoise | Blastoise fires the pump straight up; it rains on a 130 px circle around you for the beam's duration. Each tick heals you 1 HP per enemy hit (max 4 HP/s). Pairs with Rain Dish. | −30% damage, no push, only around you. |
+| **Rain Cannon** `hydroPump.rainCannon` | Hydro Pump | Blastoise | Blastoise fires the pump straight up; it rains on a 130 px circle around you for the beam's duration. Each tick heals you 1 HP per enemy hit (max 4 HP/s). Pairs with Rain Dish. | −90% damage (it hits the whole circle every tick), no push, only around you. |
 | **Armor Rounds** `flashCannon.armorRounds` | Flash Cannon | Blastoise | If you took a hit since the last Flash Cannon, it also fires a second steel round at 60% damage. | Main shot −20% damage. |
 
 Balance notes:

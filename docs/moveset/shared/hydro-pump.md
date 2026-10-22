@@ -7,8 +7,8 @@ cooldown 4 s · 18 dmg/tick · 340 px long · 22 px wide · 0.8 s. Data: `src/da
 ## Generic Mutations
 | Mutation | What changes | Cost |
 |---|---|---|
-| **Split Stream** `hydroPump.splitStream` | Splits into two beams at ±30°, each 60% damage. | Less focus on one target. |
-| **Pressure Build** `hydroPump.pressureBuild` | Damage per tick grows +25% each tick; duration +50%. A boss and elite killer. | Cooldown ×1.5; weak vs crowds. |
+| **Split Stream** `hydroPump.splitStream` | Splits into two beams at ±30°, each 33% damage. | Less focus on one target: each beam deals only 33%. |
+| **Pressure Build** `hydroPump.pressureBuild` | Damage per tick grows +12% each tick; duration +50%. A boss and elite killer. | Cooldown ×1.5; weak vs crowds. |
 
 ## Bonds
 | Line | Bond |

@@ -1,0 +1,20 @@
+# Content approval checklist
+- [ ] Base action keeps move identity; target and ownership rules exact.
+- [ ] Enhancement is not disguised as behavioral augment.
+- [ ] Every augment changes at least one player decision.
+- [ ] Three equipped augments maximum, with duplicate/conflict policy.
+- [ ] Current evolved output affordances validated.
+- [ ] All offered augment conversions present and accurately previewed.
+- [ ] Two distinct shared evolutions have rank 1/2/3 mechanics and weaknesses.
+- [ ] Signature route restricted to intended family, not universally stronger.
+- [ ] Pair/triple augment composition has deterministic resolution and explicit merges.
+- [ ] No mutation secretly stacks removed behaviors.
+- [ ] Mutation is opt-in, meaningful tradeoff, optional catalyst policy clear.
+- [ ] Combat tags do not create reactions without explicit rules.
+- [ ] Generated events, statuses, damage/heals preserve provenance.
+- [ ] Recursion depth, per-source triggers, entities and terrain are capped.
+- [ ] Boss immunity, mobile enemies, weather transitions covered.
+- [ ] Visuals communicate setup/payoff without overwhelming screen.
+- [ ] Repeatable deterministic simulation and performance tests defined.
+- [ ] All assumed numerical values labeled prototype.
+- [ ] Locked vs proposed vs unresolved items separately identified.

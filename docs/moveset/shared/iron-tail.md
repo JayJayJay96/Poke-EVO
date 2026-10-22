@@ -8,7 +8,7 @@ cooldown 2.2 s · 24 dmg · reach 80 px · arc 180°. Data: `src/data/moves.ts` 
 | Mutation | What changes | Cost |
 |---|---|---|
 | **Iron Spin** `ironTail.spin` | A full 360° tail spin. | Reach −20%; −20% damage. |
-| **Iron Slam** `ironTail.slam` | The tail slams the ground **at the target** (60 px circle) after a 0.3 s telegraph; everything hit is stunned 0.5 s (stun fatigue applies). | Cooldown ×1.3. |
+| **Iron Slam** `ironTail.slam` | The tail slams the ground **at the target** (60 px circle) after a 0.3 s telegraph; everything hit is stunned 0.5 s (stun fatigue applies, bosses are immune). | Cooldown ×1.6. |
 
 ## Bonds
 | Line | Bond |

@@ -20,16 +20,8 @@ defineMutation('rapidSpin.spiralSpin', {
   },
 });
 
-/**
- * Deflector (generic): the shells eat enemy projectiles, each one adding spin time.
- * Ranged enemies arrive in P5; until then there is nothing to deflect and only the cost applies.
- */
-const deflector = ranked('rapidSpin.deflector');
-defineMutation('rapidSpin.deflector', {
-  stats: (s, _world, slot) => {
-    s.damage *= deflector(slot).damageMult;
-  },
-});
+// Deflector (generic) eats enemy projectiles. Not registered (so never offered at sites) until enemies
+// shoot in P5: until then it would be all cost and no effect (owner D29 audit, 2026-10-22).
 
 /** Shell Spin (Bond, Shell recharge): each enemy the shells hit cuts Shell's recharge, up to a cap per spin. */
 const shellSpin = ranked('rapidSpin.shellSpin');
