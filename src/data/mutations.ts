@@ -986,21 +986,24 @@ export const MUTATIONS = {
     rankText: ['moving ×0.9 (0.8); recharge ×2.3 (2)', '×1.0; ×2.6; ★ roots after 0.7 s (1)'],
     favoured: ['extend', 'quickCast', 'concentrated'],
   },
-  'vineWhip.longLash': {
-    ...signature('vineWhip', 'bulbasaur', 'bloom', 'Long Lash', 'Long reach; the tip always crits', {
-      reachMult: 1.8,
-      arcDeg: 50,
-      tipFraction: 0.3,
-      tipCritMult: 1.5,
-      closeMult: 0.6,
-      /** P4f-5 build value: "close" = inside this fraction of the reach. */
-      closeFraction: 0.4,
-      tier2: { rootFieldSizeMult: 0.6 },
-      damageMult: 1,
+  // D30: replaces Long Lash (retired). Binds use the new-effect stun, so stun fatigue and bosses apply.
+  'vineWhip.snare': {
+    ...signature('vineWhip', 'bulbasaur', 'bloom', 'Snare', 'The whip tip binds an enemy', {
+      bindSeconds: 0.8,
+      maxBinds: 1,
+      /** Bound enemies take this much more from your Grass moves while bound. */
+      grassVulnPct: 0.25,
+      /** Too heavy to bind (or a boss): slowed instead, for the bind time. */
+      heavySlow: 0.5,
+      damageMult: 0.8,
+      tier1: { burstBindSeconds: 0.5 },
+      tier2: { rootPatchSizeMult: 1 },
+      bloomBindRadius: 140,
+      bloomBindSeconds: 0.5,
     }),
-    ranks: [{ tipCritMult: 1.7, closeMult: 0.7, damageMult: 1.08 }, { tipCritMult: 1.9, closeMult: 0.8, damageMult: 1.15 }],
-    rankText: ['tip crit ×1.7 (1.5); close ×0.7 (0.6); move dmg ×1.08', '×1.9; close ×0.8; move dmg ×1.15'],
-    favoured: ['keenEdge', 'enlarge', 'knockback'],
+    ranks: [{ bindSeconds: 1, grassVulnPct: 0.3 }, { bindSeconds: 1.2, grassVulnPct: 0.35, maxBinds: 2 }],
+    rankText: ['bind 1 s (0.8); Grass +30% (25%)', 'bind 1.2 s; +35%; ★ the tip binds 2 enemies (1)'],
+    favoured: ['enlarge', 'quickCast', 'powerUp'],
   },
   'vineWhip.thornGarden': {
     ...signature('vineWhip', 'bulbasaur', 'bloom', 'Thorn Garden', 'Swings plant thorn sprouts', {

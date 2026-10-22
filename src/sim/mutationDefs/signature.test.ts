@@ -214,40 +214,47 @@ describe('Charmander — Ember → Flame Burst → Blast Burn', () => {
 });
 
 describe('Bulbasaur — Vine Whip → Power Whip → Frenzy Plant', () => {
-  const lash = MUTATIONS['vineWhip.longLash'].values;
+  const snare = MUTATIONS['vineWhip.snare'].values;
 
-  it('Long Lash: reach ×1.8 in a 50° arc; the tip crits, close enemies take less', () => {
-    const w = sig('bulbasaur', 'vineWhip.longLash');
-    const reach = (MOVES.vineWhip as MeleeMoveDef).reach * lash.reachMult;
-    const tip = dummy(w, reach * 0.9, 0);
-    const close = dummy(w, reach * 0.2, 5);
-    const behind = dummy(w, -reach * 0.5, 0);
+  it('Snare (D30): the tip binds the nearest enemy there, which then takes more from Grass moves', () => {
+    const w = sig('bulbasaur', 'vineWhip.snare');
+    const def = MOVES.vineWhip as MeleeMoveDef;
+    const close = dummy(w, def.reach * 0.3, 0, 'rattata');
+    const tip = dummy(w, def.reach * 0.85, 0, 'rattata');
+    const farTip = dummy(w, def.reach * 0.95, 0, 'rattata');
     step(w, IDLE, DT);
     const d = w.moves[0]!.stats.damage;
-    expect(lost(tip)).toBeCloseTo(d * lash.tipCritMult);
-    expect(lost(close)).toBeCloseTo(d * lash.closeMult);
-    expect(lost(behind)).toBe(0);
+    expect(lost(tip)).toBeCloseTo(d * def.tip!.damageMult); // the binding swing itself isn't boosted
+    expect(tip.stunLeft).toBeGreaterThan(0);
+    expect(tip.vulnType).toBe('Grass');
+    expect(tip.vulnPct).toBeCloseTo(snare.grassVulnPct);
+    expect(farTip.stunLeft).toBe(0); // one bind per swing at rank I
+    expect(close.stunLeft).toBe(0); // not at the tip
   });
 
-  it('Long Lash: Power Whip sweeps 360°; Frenzy tip hits sprout a root field; a Bloom cracks a free sweep', () => {
-    const w = sig('bulbasaur', 'vineWhip.longLash', 1);
-    const behind = dummy(w, -60, 0);
-    step(w, IDLE, DT);
-    expect(lost(behind)).toBeGreaterThan(0);
+  it('Snare: the Power Whip burst binds a cluster; a Frenzy release leaves a root patch; a Bloom binds all close', () => {
+    const p = sig('bulbasaur', 'vineWhip.snare', 1);
+    const reach = (MOVES.powerWhip as MeleeMoveDef).reach;
+    const cluster = [dummy(p, reach, 0, 'rattata'), dummy(p, reach, 30, 'rattata'), dummy(p, reach + 30, 0, 'rattata')];
+    step(p, IDLE, DT);
+    expect(cluster.every((e) => e.stunLeft > 0)).toBe(true);
 
-    const f = sig('bulbasaur', 'vineWhip.longLash', 2);
-    const reach = (MOVES.frenzyPlant as MeleeMoveDef).reach * lash.reachMult;
-    dummy(f, reach * 0.9, 0);
+    const f = sig('bulbasaur', 'vineWhip.snare', 2);
+    dummy(f, 120, 0, 'rattata');
     step(f, IDLE, DT);
-    expect(f.zones.filter((z) => z.source === 'frenzyPlant').length).toBe(2); // the move's own + the tip's
+    f.moves[0]!.cooldownLeft = 1e9;
+    const released = () => f.zones.some((z) => z.source === 'frenzyPlant' && z.lifeLeft > 0 && Math.abs(z.x - 120) < 1);
+    expect(released()).toBe(false); // the move's own patches sit at ⅓, ⅔ and the tip of its reach
+    run(f, snare.bindSeconds + 0.05);
+    expect(released()).toBe(true);
 
-    const b = sig('bulbasaur', 'vineWhip.longLash', 1);
-    const e = dummy(b, 60, 0);
+    const b = sig('bulbasaur', 'vineWhip.snare', 1);
+    const e = dummy(b, 60, 0, 'rattata');
     b.moves[0]!.cooldownLeft = 1e9;
     step(b, IDLE, DT); // builds the spatial hash; the lash itself is on cooldown
-    expect(lost(e)).toBe(0);
+    expect(e.stunLeft).toBe(0);
     emit(b, 'bloom', 1);
-    expect(lost(e)).toBeGreaterThan(0);
+    expect(e.stunLeft).toBeGreaterThan(0);
   });
 
   it('Thorn Garden: swings plant sprouts that lash every 1 s; max 4; Frenzy sprouts end as root fields', () => {
@@ -283,7 +290,10 @@ describe('Bulbasaur — Vine Whip → Power Whip → Frenzy Plant', () => {
     step(w, IDLE, DT);
     // Leech heals too, so at least the 4 Sap heals.
     expect(w.player.hp).toBeGreaterThanOrEqual(50 + sap.maxHealPerSwing * sap.healPerHit);
-    expect(w.enemies.every((e) => e.seedLeft > 0)).toBe(true);
+    // D30: the lash is 30° wide, so judge the enemies it actually hit (separation nudges some aside).
+    const struck = w.enemies.filter((e) => lost(e) > 0);
+    expect(struck.length).toBeGreaterThanOrEqual(sap.maxHealPerSwing);
+    expect(struck.every((e) => e.seedLeft > 0)).toBe(true);
 
     const f = sig('bulbasaur', 'vineWhip.sapLash', 2);
     f.moves[0]!.cooldownLeft = 1e9;

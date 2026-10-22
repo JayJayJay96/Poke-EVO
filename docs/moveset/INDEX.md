@@ -196,7 +196,7 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 
 Smokescreen, Slash and Wing Attack are proposed new moves (not in `src/data/moves.ts` yet).
 **Prerequisites:** a Hook cell marked **needs …** means the Bond is only offered when the build already has that source.
-**Retired IDs:** `vineWhip.longLash` (Long Lash) was removed by D30 (2026-10-22) and replaced by `vineWhip.snare`. Delete it from `src/data/mutations.ts`, and migrate or version-bump saved build snapshots that hold it. Never reuse a retired ID.
+**Retired IDs:** `vineWhip.longLash` (Long Lash) was removed by D30 (2026-10-22) and replaced by `vineWhip.snare`. Deleted from the code on 2026-10-22 (snapshots aren't persisted, so nothing to migrate). Never reuse a retired ID.
 
 "From 0" on a final-stage-only move (Hydro Pump, Flash Cannon, Air Slash, Hurricane, Solar Beam, Thunder) still means the move
 itself must be owned first, and it only unlocks at stage 2.

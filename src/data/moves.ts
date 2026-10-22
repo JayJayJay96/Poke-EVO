@@ -146,7 +146,7 @@ export interface ZoneMoveDef extends MoveDefBase {
   readonly instant?: boolean;
 }
 
-/** A lingering field left by a melee swing on its target (Frenzy Plant's roots). */
+/** Lingering patches a melee swing leaves along its line (Frenzy Plant's roots, D30). */
 export interface FieldDef {
   readonly radius: number;
   readonly duration: number;
@@ -154,6 +154,15 @@ export interface FieldDef {
   /** Damage per tick as a fraction of the swing's damage. */
   readonly damageFraction: number;
   readonly onTick?: InnateEffects;
+  /** Patches spread evenly along the swing toward its target, the last one at the tip (default 1). */
+  readonly count?: number;
+}
+
+/** The outer part of a lash hits harder (Bulbasaur's whips, D30). */
+export interface TipDef {
+  /** Outer fraction of the reach that counts as the tip. */
+  readonly fraction: number;
+  readonly damageMult: number;
 }
 
 /** Instant arc swipe toward the nearest enemy. */
@@ -163,6 +172,9 @@ export interface MeleeMoveDef extends MoveDefBase {
   readonly reach: number;
   readonly arcDegrees: number;
   readonly field?: FieldDef;
+  readonly tip?: TipDef;
+  /** A burst at the end of the swing (Power Whip's crack, D30); splash as a fraction of the swing's damage. */
+  readonly tipBurst?: ExplosionDef;
   /**
    * Arcs aimed relative to your facing (degrees; 90 = your left) instead of one arc at the
    * nearest enemy (Wing Attack's two wing beats). Cast while an enemy is within reach.
@@ -477,39 +489,45 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     pierce: 2,
   },
   // Bulbasaur-line signature tiers (D13): long whips → 360° sweep → sweep that leaves roots.
+  // D30: a narrow lash, not a circle. Its tip (outer 30%) hits hardest, so Bulbasaur plays at whip length.
   vineWhip: {
     id: 'vineWhip',
     name: 'Vine Whip',
-    description: 'Two long vines lash in front of you',
+    description: 'A long, narrow lash; the tip hits hardest',
     tags: ['Grass', 'Melee'],
     form: 'melee',
     cooldown: 1.0,
-    damage: 11,
-    reach: 75,
-    arcDegrees: 140,
+    damage: 13,
+    reach: 120,
+    arcDegrees: 30,
+    tip: { fraction: 0.3, damageMult: 1.3 },
   },
   powerWhip: {
     id: 'powerWhip',
     name: 'Power Whip',
-    description: 'A 360° vine sweep',
+    description: 'A narrow lash whose tip cracks into a burst',
     tags: ['Grass', 'Melee', 'Area'],
     form: 'melee',
     cooldown: 1.1,
-    damage: 15,
-    reach: 85,
-    arcDegrees: 360,
+    damage: 17,
+    reach: 130,
+    arcDegrees: 30,
+    tip: { fraction: 0.3, damageMult: 1.3 },
+    tipBurst: { radius: 45, damageFraction: 0.6 },
   },
   frenzyPlant: {
     id: 'frenzyPlant',
     name: 'Frenzy Plant',
-    description: 'A 360° sweep that leaves a slowing root field',
+    description: 'A narrow lash that bursts at the tip and leaves roots along it',
     tags: ['Grass', 'Melee', 'Area', 'Zone'],
     form: 'melee',
     cooldown: 1.4,
-    damage: 21,
-    reach: 95,
-    arcDegrees: 360,
-    field: { radius: 60, duration: 2.5, tickInterval: 0.5, damageFraction: 0.3, onTick: { slow: 0.4 } },
+    damage: 24,
+    reach: 140,
+    arcDegrees: 30,
+    tip: { fraction: 0.3, damageMult: 1.3 },
+    tipBurst: { radius: 55, damageFraction: 0.6 },
+    field: { radius: 35, duration: 2.5, tickInterval: 0.5, damageFraction: 0.3, onTick: { slow: 0.4 }, count: 3 },
   },
   razorLeaf: {
     id: 'razorLeaf',

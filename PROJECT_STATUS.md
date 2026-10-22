@@ -333,10 +333,21 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 **Next:** the owner playtests the Snorlax fight.
 
-### 2026-10-22 — Skill design: Bulbasaur signature redesign (D30, no code yet)
+### 2026-10-22 — Bulbasaur signature redesign (D30): designed and built
 - **Why:** owner playtest: Power Whip / Frenzy Plant are 360° sweeps, "plain and easy", and Long Lash made Ivysaur/Venusaur "basically invincible". In code, Long Lash turns into a full circle from Power Whip on (`vineWhip.ts` `halfArc = π` at tier ≥ 1) at ×1.8 reach with tip crits up to ×1.9. `balance-report.md` (8 seeds): Bulbasaur leads every checkpoint (5 min 269 DPS vs Lapras 147; 9 min site DPS 1048 vs ≤ 410).
 - **Proposal** (`docs/moveset/bulbasaur/README.md` §4, signature only; Bulb, Leech tiers and learnset Bonds unchanged): the signature becomes a **narrow directional lash** (30°, reach 120 → 130 → 140) with a strong **tip** (+30%); Power Whip's tip cracks into a 45 px burst (Area); Frenzy Plant leaves 3 root patches along the lash (Zone). **Long Lash retired → new `vineWhip.snare`** (tip binds; bound enemies take +25% from Grass moves; ranks to 1.2 s / +35% / binds 2). Thorn Garden and Sap Lash unchanged.
-- **Approved by the owner as D30** (`PROJECT.md` §13 and §6). `INDEX.md`: the `vineWhip.longLash` row is now `vineWhip.snare`, with a "Retired IDs" note. **Code not changed yet**: the build session does it from `bulbasaur/README.md` §4.4 (moves, mutations, `vineWhip.ts`, `signature.test.ts`, `BUILD_SNAPSHOT_VERSION` for saved Long Lash), then re-runs `npm run balance`.
+- **Built 2026-10-22 (same session, owner asked):** `moves.ts` (lash tiers: arc 30°, reach 120/130/140, dmg 13/17/24, `tip`, `tipBurst`, Frenzy `field.count` 3 patches of 35 px), `forms/melee.ts` (`swingArc` tip bonus, tip burst, patches along the lash, `tipBurstRadius`), `mutations.ts` + `mutationDefs/vineWhip.ts` (Long Lash removed; **Snare** via the `cast` hook: normal lash, then binds at the tip; Power Whip burst binds; Frenzy release patch; Bloom bind), tests (`signature.test.ts`, `world.test.ts`), `docs/moveset/RANKS.md` row. Snare's release patch is one full 35 px Frenzy patch (60% of the new patch would be ~20 px). Snapshots aren't persisted, so no migration.
+- **Checks:** `npm run typecheck` clean; `npx vitest run` **438/438 passed** (re-run after D31 landed); `npm run build` passed. This also fixes the 2 registry-parity failures the D31 entry saw: the D30 docs commit renamed the INDEX.md row before the code had Snare. Browser check **not done**: the preview loaded and Bulbasaur + Snare started, but the session wasn't open in any window, so the hidden pane never ran the game loop (clock stayed 0:00). Needs the owner's playtest.
+- **`npm run balance` after D30 (8 seeds; not comparable to the 2026-10-19 table, other code changed levels for every line). Site DPS (with Mutations):**
+
+  | min | Bulbasaur | Charmander | Squirtle | Pikachu | Lapras |
+  |---|---|---|---|---|---|
+  | 5 | 214 | 202 | 179 | **384** | 243 |
+  | 9 | **693** | 529 | 537 | 607 | 424 |
+  | 15 | 720 | 813 | 632 | **924** | 838 |
+
+  Base DPS (no sites) 5/9/15 min: Bulbasaur 173 / 525 / 769 (top at 9 and 15). Bulbasaur is no longer the runaway outlier (9-min site DPS was 2.5× the next line; now +14%). **D19 is still not met, for other lines:** at 15 min Raichu and Lapras out-damage every 3-stage final with Mutations. Also odd: Squirtle shows as Squirtle at Lv 22 and Wartortle at Lv 50 in this run, so check its evolution gating. Both are cross-line tuning for a later pass.
+- **Approved by the owner as D30** (`PROJECT.md` §13 and §6). `INDEX.md`: the `vineWhip.longLash` row is now `vineWhip.snare`, with a "Retired IDs" note.
 
 ### 2026-10-22 — Reference-pack review (D29)
 **What happened**

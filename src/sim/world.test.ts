@@ -1597,30 +1597,37 @@ describe('Bulbasaur line (P4c)', () => {
     expect(world.moves[0]!.stats.lifesteal).toBeCloseTo(0.03);
   });
 
-  it('Vine Whip lashes in front only; Power Whip sweeps all around', () => {
+  it('Vine Whip is a narrow lash whose tip hits hardest; Power Whip cracks a burst at the tip (D30)', () => {
     const world = bulbasaur();
     world.player.invulnLeft = 99;
     const front = still(world, 60, 0);
+    const atTip = still(world, 100, 0);
+    const side = still(world, 60, 40);
     const behind = still(world, -65, 0);
     step(world, IDLE, DT);
-    expect(front.hp).toBeLessThan(front.maxHp);
-    expect(behind.hp).toBe(behind.maxHp);
+    const hit = (e: { maxHp: number; hp: number }) => e.maxHp - e.hp;
+    expect(hit(front)).toBeGreaterThan(0);
+    expect(hit(atTip) / hit(front)).toBeCloseTo((MOVES.vineWhip as MeleeMoveDef).tip!.damageMult);
+    expect(hit(side)).toBe(0); // outside the 30° lash
+    expect(hit(behind)).toBe(0);
 
     world.moves = [createSlot('powerWhip')];
     refreshStats(world);
+    const besideTip = still(world, 130, 36); // outside the lash, inside the burst at its tip
     step(world, IDLE, DT);
-    expect(behind.hp).toBeLessThan(behind.maxHp);
+    expect(hit(besideTip)).toBeGreaterThan(0);
+    expect(hit(behind)).toBe(0);
   });
 
-  it('Frenzy Plant leaves a slowing root field on its target', () => {
+  it('Frenzy Plant leaves 3 slowing root patches along the lash (D30)', () => {
     const world = bulbasaur();
     world.player.invulnLeft = 99;
     world.moves = [createSlot('frenzyPlant')];
     refreshStats(world);
     const target = still(world, 90, 0);
     step(world, IDLE, DT);
-    expect(world.zones).toHaveLength(1);
-    expect(world.zones[0]!.x).toBe(90);
+    const reach = (MOVES.frenzyPlant as MeleeMoveDef).reach;
+    expect(world.zones.map((z) => z.x)).toEqual([reach / 3, (reach * 2) / 3, reach].map((x) => expect.closeTo(x, 5)));
     expect(world.zones[0]!.slow).toBeCloseTo(0.4);
     run(world, 0.6);
     expect(target.slowLeft).toBeGreaterThan(0);

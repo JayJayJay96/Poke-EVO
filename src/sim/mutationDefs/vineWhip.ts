@@ -1,10 +1,20 @@
 import { MOVES, type FieldDef, type MeleeMoveDef } from '../../data/moves';
-import { MAX_ENEMY_RADIUS, applySeed, applySlow, damageEnemy, findNearestEnemy, makeHitInfo, procHit } from '../combat';
-import { SWING_SECONDS } from '../forms/melee';
+import {
+  MAX_ENEMY_RADIUS,
+  applyNewStun,
+  applySeed,
+  applySlow,
+  applyVuln,
+  canTrap,
+  damageEnemy,
+  findNearestEnemy,
+  procHit,
+} from '../combat';
+import { castMelee, tipBurstRadius } from '../forms/melee';
 import { atFullHp, bulbCapacity, defineMutation, healPlayer } from '../hooks';
-import type { MoveSlot, World } from '../types';
+import type { Enemy, MoveSlot, World } from '../types';
 import { spawnZone } from '../zones';
-import { capEntities, dirTo, entitiesOf, forEachEnemyIn, ranked, signatureTier, spawnEntity } from './util';
+import { capEntities, entitiesOf, forEachEnemyIn, ranked, signatureTier, spawnEntity } from './util';
 
 // Bulbasaur signature Mutations: Vine Whip → Power Whip → Frenzy Plant (docs/moveset/bulbasaur §4).
 // Each has a Bulb link from Ivysaur on and keeps its earlier tiers (rule 10).
@@ -28,53 +38,73 @@ function rootField(world: World, slot: MoveSlot, x: number, y: number, field: Fi
   );
 }
 
-// ── A. Long Lash ────────────────────────────────────────────────────────
-const lash = ranked('vineWhip.longLash');
+// ── A. Snare (D30, replaces Long Lash) ──────────────────────────────────
+const snare = ranked('vineWhip.snare');
 
 /**
- * One lash: the tip always crits, enemies close to you take less; Frenzy tier sprouts a root field.
- * The free sweep from a Bloom is a proc (rule 5): plain damage, full circle, no fields.
+ * Binds an enemy: a light one can't move or attack and takes more from Grass moves; a heavy one or a boss
+ * is slowed instead. A whip bind at the Frenzy tier leaves a root patch when it ends (not a Bloom bind).
  */
-function longLash(world: World, slot: MoveSlot, fromBloom: boolean): boolean {
-  const def = MOVES[slot.moveId] as MeleeMoveDef;
-  const { player } = world;
-  const v = lash(slot);
-  const reach = def.reach * slot.stats.area * slot.stats.reachMult * v.reachMult;
-  const target = findNearestEnemy(world, reach + MAX_ENEMY_RADIUS);
-  if (!target) return false;
-  const tier = signatureTier(world, slot);
-  const halfArc = fromBloom || tier >= 1 ? Math.PI : (v.arcDeg * Math.PI) / 360;
-  const [dirX, dirY] = dirTo(player.x, player.y, target.x, target.y);
-  const hit = fromBloom ? procHit(slot.stats.attackType) : makeHitInfo(slot.stats, slot);
-  let sprouted = fromBloom;
-  forEachEnemyIn(world, player.x, player.y, reach, (e) => {
-    const dist = Math.hypot(e.x - player.x, e.y - player.y);
-    const inArc =
-      halfArc >= Math.PI || dist <= e.radius || ((e.x - player.x) * dirX + (e.y - player.y) * dirY) / dist >= Math.cos(halfArc);
-    if (!inArc) return;
-    const tip = dist >= reach * (1 - v.tipFraction);
-    const close = dist < reach * v.closeFraction;
-    [hit.dirX, hit.dirY] = dirTo(player.x, player.y, e.x, e.y);
-    damageEnemy(world, e, slot.stats.damage * (tip ? v.tipCritMult : close ? v.closeMult : 1), hit);
-    if (tip && tier >= 2 && !sprouted) {
-      rootField(world, slot, e.x, e.y, FRENZY_FIELD, v.tier2.rootFieldSizeMult);
-      sprouted = true;
-    }
-  });
-  world.swings.push({ x: player.x, y: player.y, dirX, dirY, reach, halfArc, lifeLeft: SWING_SECONDS });
-  // The move's own field (Frenzy Plant) stays part of the swing.
-  if (def.field && !fromBloom) rootField(world, slot, target.x, target.y, def.field, 1);
-  return true;
+function bind(world: World, slot: MoveSlot, enemy: Enemy, seconds: number, fromWhip: boolean): void {
+  const v = snare(slot);
+  if (!canTrap(enemy)) {
+    applySlow(enemy, v.heavySlow, seconds);
+    return;
+  }
+  if (!applyNewStun(enemy, seconds)) return;
+  applyVuln(enemy, v.grassVulnPct, seconds, 'Grass');
+  if (fromWhip && signatureTier(world, slot) >= 2) {
+    spawnEntity(world, 'vineWhip.snare', enemy.x, enemy.y, seconds).hitIds.push(enemy.id);
+  }
 }
 
-defineMutation('vineWhip.longLash', {
+defineMutation('vineWhip.snare', {
   stats: (s, _world, slot) => {
-    s.damage *= lash(slot).damageMult;
+    s.damage *= snare(slot).damageMult;
   },
-  cast: (world, slot) => longLash(world, slot, false),
-  // Bulb link: each Bloom cracks a free 360° tip sweep.
+  // The normal lash, then its tip binds the nearest enemies there; Power Whip's burst binds all it hits.
+  cast: (world, slot) => {
+    const def = MOVES[slot.moveId] as MeleeMoveDef;
+    if (!castMelee(world, slot, def)) return false;
+    const swing = world.swings[world.swings.length - 1]!;
+    const v = snare(slot);
+    const tipFrom = swing.reach * (1 - (def.tip?.fraction ?? 0));
+    const cosHalf = Math.cos(swing.halfArc);
+    const inTip: { e: Enemy; d: number }[] = [];
+    forEachEnemyIn(world, swing.x, swing.y, swing.reach, (e) => {
+      const d = Math.hypot(e.x - swing.x, e.y - swing.y);
+      if (d >= tipFrom && ((e.x - swing.x) * swing.dirX + (e.y - swing.y) * swing.dirY) / d >= cosHalf) inTip.push({ e, d });
+    });
+    inTip.sort((a, b) => a.d - b.d);
+    const bound = new Set<number>();
+    for (const { e } of inTip.slice(0, v.maxBinds)) {
+      bind(world, slot, e, v.bindSeconds, true);
+      bound.add(e.id);
+    }
+    const burst = tipBurstRadius(slot, def);
+    if (signatureTier(world, slot) >= 1 && burst > 0) {
+      const bx = swing.x + swing.dirX * swing.reach;
+      const by = swing.y + swing.dirY * swing.reach;
+      forEachEnemyIn(world, bx, by, burst, (e) => {
+        if (!bound.has(e.id)) bind(world, slot, e, v.tier1.burstBindSeconds, true);
+      });
+    }
+    return true;
+  },
+  // Frenzy tier: a released enemy is left standing in a root patch.
+  update: (world, slot, dt) => {
+    for (const mark of entitiesOf(world, 'vineWhip.snare')) {
+      mark.lifeLeft -= dt;
+      if (mark.lifeLeft > 0) continue;
+      const enemy = world.enemies.find((e) => e.id === mark.hitIds[0] && e.hp > 0);
+      if (enemy) rootField(world, slot, enemy.x, enemy.y, FRENZY_FIELD, snare(slot).tier2.rootPatchSizeMult);
+    }
+  },
+  // Bulb link: a Bloom binds everything close.
   onEvent: (world, slot, event) => {
-    if (event === 'bloom') longLash(world, slot, true);
+    if (event !== 'bloom') return;
+    const v = snare(slot);
+    forEachEnemyIn(world, world.player.x, world.player.y, v.bloomBindRadius, (e) => bind(world, slot, e, v.bloomBindSeconds, false));
   },
 });
 

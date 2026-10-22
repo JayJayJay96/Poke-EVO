@@ -93,7 +93,7 @@ as they were; they already work with a single target, and fewer hits per swing t
 
 | Mutation | Vine Whip (Lv 1) | + Power Whip (Lv 10) | + Frenzy Plant (Lv 25) | Bulb link (Ivysaur+) | Cost |
 |---|---|---|---|---|---|
-| **A. Snare** `vineWhip.snare` — control *(new)* | The tip **binds** the first enemy it hits for 0.8 s (can't move or attack; light enemies only, heavier ones are slowed 50% instead). Bound enemies take **+25% from your Grass moves** | The tip burst binds everything in it for 0.5 s (stun fatigue applies) | When a bind ends, the enemy is left standing in a small root patch (Frenzy patch, 60% size) | A Bloom binds every enemy within 140 px for 0.5 s | −20% damage |
+| **A. Snare** `vineWhip.snare` — control *(new)* | The tip **binds** the first enemy it hits for 0.8 s (can't move or attack; light enemies only, heavier ones are slowed 50% instead). Bound enemies take **+25% from your Grass moves** | The tip burst binds everything in it for 0.5 s (stun fatigue applies) | When a bind ends, the enemy is left standing in a root patch (one Frenzy patch, 35 px) | A Bloom binds every enemy within 140 px for 0.5 s | −20% damage |
 | **B. Thorn Garden** `vineWhip.thornGarden` — turrets | Each swing plants a **thorn sprout** at the target (max 4 alive, 5 s). Sprouts lash enemies within 50 px every 1 s for 30% | Sprouts lash 360° and slow 20% | Expiring sprouts become root fields | A Bloom makes every sprout lash at once for ×2 | Whip −30% damage |
 | **C. Sap Lash** `vineWhip.sapLash` — sustain | Each enemy hit heals 1 HP (max 4 per swing), on top of Leech | Hit enemies are Seeded for 2 s (50% strength) | Standing in your own root field heals 2 HP/s | Sap heals fill the Bulb even when you're **not** at full HP (half rate) | −25% damage |
 
@@ -113,7 +113,7 @@ Grass-heavy build, less otherwise; its value is control. Thorn Garden and Sap La
 - `src/data/mutations.ts` + `src/sim/mutationDefs/vineWhip.ts`: remove `vineWhip.longLash`, add `vineWhip.snare`
   (bind = the existing stun with stun fatigue; vulnerability only from Grass moves). Thorn Garden and Sap Lash keep
   their IDs. Update `signature.test.ts` and the INDEX.md row.
-- Runs that saved Long Lash (build snapshots, `BUILD_SNAPSHOT_VERSION`) need a migration or a version bump.
+- Saved runs: build snapshots are not persisted anywhere yet (only tests use them), so the retired Long Lash needs no migration. **Built 2026-10-22.**
 
 ## 5. Learnset trees — 2 generic + 1 Bond per move
 One Mutation per move: generic *or* Bond. The generic ones are in `../shared/<move>.md`.

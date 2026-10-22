@@ -106,7 +106,7 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | `solarBeam.fullCharge` Full Charge | dmg ×1.38 (1.2) | ×1.56; ★ charges in 0.75 s (1) | `concentrated`, `extend`, `keenEdge` |
 | `solarBeam.prism` Prism | 46% per beam (40%); main beam ×0.95 (0.85) | 52%; main beam ×1.05 | `extend`, `enlarge`, `powerUp` |
 | `solarBeam.ingrain` Ingrain | moving ×0.9 (0.8); recharge ×2.3 (2) | ×1.0; ×2.6; ★ roots after 0.7 s (1) | `extend`, `quickCast`, `concentrated` |
-| `vineWhip.longLash` Long Lash (signature) | tip crit ×1.7 (1.5); close ×0.7 (0.6); move dmg ×1.08 | ×1.9; close ×0.8; move dmg ×1.15 | `keenEdge`, `enlarge`, `knockback` |
+| `vineWhip.snare` Snare (signature, D30) | bind 1 s (0.8); Grass +30% (25%) | bind 1.2 s; +35%; ★ the tip binds 2 enemies (1) | `enlarge`, `quickCast`, `powerUp` |
 | `vineWhip.thornGarden` Thorn Garden (signature) | lashes 45% (30%) | 50%; ★ 5 sprouts (4) | `enlarge`, `quickCast`, `powerUp` |
 | `vineWhip.sapLash` Sap Lash (signature) | dmg ×0.86 (0.75); heal cap 5 per swing (4) | ×0.97; cap 6 | `lifesteal`, `enlarge`, `quickCast` |
 
@@ -152,7 +152,7 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 
 ## Open points for the owner
 1. **Twist count:** 75 of 110 rank III entries carry a ★. Is that the right amount of "where natural"?
-2. **Utility Mutations** (Drift Cloud, Drowsy Haze, Static Pulse, Backdraft, Song of the Sea, Afterimage, Frenzy Dance, Plasma Orb, Long Lash) get flat move damage at ranks II/III
+2. **Utility Mutations** (Drift Cloud, Drowsy Haze, Static Pulse, Backdraft, Song of the Sea, Afterimage, Frenzy Dance, Plasma Orb) get flat move damage at ranks II/III
    on top of their utility lever, so a rank-up is always worth a site. Smoke Trail and Hidden Flame sit on a move with no
    damage, so their ranks are utility only (they can't meet a DPS target).
 3. **Ricochet III** goes to 3 bounces (inside the chain cap) and pays with damage ×0.8 instead of ×1.04.
