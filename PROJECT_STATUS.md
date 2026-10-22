@@ -76,6 +76,145 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-23 (overnight) — Batch-2 enemies, player statuses, status resistance (D36, D37)
+**Owner (going to sleep):** "implement whatever that we discuss and approved beforehand in the documents… if there's no more task, design the next 10 enemies with their respective roles, and the next boss". Nothing is committed: the owner commits in the morning, and the skill team's D30 files are still uncommitted in this tree.
+
+**Built**
+- **Batch-2 species (ROSTER):** Caterpie, Weedle, Zubat, Oddish, Psyduck, Geodude, Gastly, Abra, Voltorb, Chansey, with stats, types and colours.
+  - New defender types Bug, Rock, Ground, Ghost, Psychic, with their type-chart rows.
+  - Waves: tier 1 early, tier 2 from 3:00, Chansey rarely from 6:00. Counters to every starter type, never a majority.
+- **Their attacks (`enemyAttacks.ts`):**
+
+  | Enemy | Attack |
+  |---|---|
+  | Caterpie | Web patches that slow you |
+  | Zubat | Supersonic cone (confusion) |
+  | Oddish | Poison Powder pulse (a powder: Grass starters ×0.25) |
+  | Psyduck | Ranged, Soaks |
+  | Geodude | Rollout charge (×4, 300 px) |
+  | Gastly | Phases through enemies; Lick paralyses |
+  | Weedle | Poison Sting on contact |
+  | Abra | Blinks ahead of you, then a Confusion pulse |
+  | Voltorb | Fuse (no stun), Self-Destruct with no XP; killed while fusing = defused |
+  | Chansey | Keeps its distance; heal pulse on allies |
+
+- **Their Elite abilities:** Shield Dust, Run Away (Weedle, Oddish), Infiltrator (ignores Shell), Swift Swim (puddles), Sturdy, Synchronize, Aftermath (delayed blast), Healer (cleanses allies). Horde lines added; Chansey never in a horde.
+- **Player statuses (README §10):**
+  - poison, burn, slow, paralysis, confusion, Soaked
+  - 2 s fatigue after each ends, a slow cap of 50%, never a stun (paralysis's 0.2 s stutter is the worst)
+  - resisted by the starter's types via `statusMult`
+  - confusion steers base aiming (`findTarget`) to a random enemy in range
+  - Zapdos's paralysis now uses this
+  - shown in the red line under the HUD
+- **Enemy status resistance (D27):** `enemyStatusMult` in applyBurn, applyStatuses, applyNewStun, applyBlind, applySlow, applySeed and soak, plus the on-hit seed. The boss rule halves stuns.
+- `hitPlayer` now returns whether the hit landed (a Shell block stops contact statuses).
+
+**Files**
+- New: `src/data/playerStatus.ts`, `src/sim/playerStatus.ts`, `src/sim/statusResist.ts`, `src/sim/playerStatus.test.ts`.
+- Changed: `content.ts`, `typeChart.ts`, `waves.ts`, `enemyAttacks.ts` (data and sim), `hordes.ts` (data), `combat.ts`, `world.ts`, `types.ts`, `bosses.ts`, `arena.ts`, `RunScene.ts`, and the tests (`enemyAttacks.test.ts`, `hordes.test.ts`, `arena.test.ts`).
+
+**Checks (observed)**
+- `npm run typecheck` clean.
+- `npx vitest run` **493/493** (25 new across these steps). That run includes the skill team's uncommitted D30 code.
+- `npm run build` passed. `npm run bench`: 0.70 ms per step.
+- Browser (own server on port 5181, sim stepped from the page). Seen on screen:
+  - Caterpie's web line, Zubat's cone, Voltorb's fuse ring, Chansey's green heal ring
+  - Abra's blink ring ahead of a moving player, Psyduck's Water Gun line
+  - the status line ("Poisoned 2.4s · Paralysed 1.1s") in the red warning line
+- No console errors.
+
+**Not verified / risks**
+- **Balance not run** (`npm run balance` writes the skill team's report too, so it was left alone). The new species, Elite XP and statuses change difficulty and XP flow in ways that aren't measured.
+- **Not built:** Gastly's Levitate, the "Flying ignores ground effects" rule, and resistance for statuses that Mutation code writes directly.
+- **Not changed:** the base-stat formulas and two-tier speeds for the original 6 species (needs the balance pass; the D26 test lives in the skill team's `world.test.ts`).
+- Fight feel of every new attack is unplayed.
+
+**Design (owner's last overnight task; docs only, awaiting approval)**
+- **Batch 3** (`docs/enemies/ROSTER.md`), 10 species with roles:
+
+  | Species | Role / style |
+  |---|---|
+  | Diglett | burrower |
+  | Seel | tank, Icy Wind |
+  | Koffing | Smog zoner |
+  | Magnemite | ranged, paralysis |
+  | Exeggcute | splitter |
+  | Sandshrew | triple Rollout |
+  | Machop | Karate Chop combo |
+  | Dratini | rare Dragon Rage sniper that resists 4 starter types |
+  | Mr. Mime | barrier |
+  | Ponyta | flame trail |
+
+  It also has stats, counters, Fighting/Fairy chart rows, Elite abilities and engine needs. Flagged: Neutralizing Gas, Magnet Pull for every type, Sand Veil's random miss, Dragon Rage's fixed damage.
+- **Next boss: Articuno**, full kit (`docs/enemies/BOSSES.md` §4):
+  - meltable ice pillars, Ice Shard, Blizzard, Icy Wind, Ice Beam strip, Roost
+  - immune Mist at 66%, Mean Look, Freeze-Dry rhythm, Reflect
+  - immune Freeze-over at 33% into Sheer Cold armour, Whirlwind, Hurricane, Seel adds
+
+  Flagged: Freeze-Dry ×1.5 on Water starters, Hurricane's pull, Mist's cadence.
+
+**Next:** the owner reviews the overnight work and decides what to commit (only the enemy files; the skill team's D30 files stay out). Then a playtest, approval of batch 3 and Articuno, and a balance pass.
+
+### 2026-10-23 — Telegraphed enemy attacks: ranged, charge, dive (D35)
+**Owner:** horde timing is good; "how about the ranged and charger telegraph attacks?" Then (overnight): "implement whatever we discussed and approved in the documents… then design the next 10 enemies and the next boss".
+
+**Built (ROSTER attack rows; numbers in `src/data/enemyAttacks.ts`, provisional)**
+- **Spearow, ranged:**
+  - It holds 180–320 px from you: it backs off at ×0.7 when you're closer and closes in when you're farther.
+  - Every 3 s it stops behind a 0.4 s line telegraph, then fires a dart along the locked line (×0.8 contact).
+  - Its speed is now the ranged band, 71 px/s (was 120), per ROSTER.
+- **Tauros, charger:** every 5 s within 320 px it paws behind a 0.7 s thick line, dashes 250 px at ×3 speed (contact ×1.5), then recovers for 0.4 s.
+- **Fearow, diver:** every 6 s within 350 px it marks a 45 px ring on you (0.8 s, locked), lands on it (×1.5 contact), then recovers for 0.5 s.
+- All aims lock when the telegraph appears and never re-aim. A stun, Blinded or fleeing drops a windup. Darts are capped at 150; the ones in flight are cleared when you enter an arena.
+
+**Files**
+- New: `src/data/enemyAttacks.ts`, `src/sim/enemyAttacks.ts`, `src/sim/enemyAttacks.test.ts`.
+- `types.ts`: Enemy attack fields, `EnemyShot`, `World.enemyShots`.
+- `world.ts`: `updateEnemyAttacks` in `step`, `attackVelocity` in `moveEnemies`, the charge contact multiplier.
+- `arena.ts`: clears darts on entry.
+- `content.ts`: Spearow speed.
+- `RunScene.ts`: telegraph lines and rings, darts.
+
+**Checks:** typecheck clean; **468/468** tests (5 new); build passed; bench 0.70 ms per step. Browser check pending; it's batched with the next steps.
+
+### 2026-10-23 — Spawn pacing, horde events, Elites (D34)
+**Why (owner):** the spawn was "a big endless horde of head-tackling enemies without a space to breathe": one enemy at a time, from a random angle, faster and faster, with no lulls.
+
+**Built (numbers in `src/data/hordes.ts`, provisional)**
+- **Pressure cycle:** 45 s on the run clock. ×1 build-up for 30 s, a ×2 surge for 5 s, then a **10 s lull** at ×0.35. The average rate is about the same as before.
+- **Packs:** outside surges, enemies come in packs of 3–8 from one 60° side. During a surge they come from every side.
+- **Horde events:** every 90 s (first at 1:30), with a 3 s warning (HUD line plus an orange edge arrow).
+  - An **Elite** of a species in the current wave mix leads its species line (`HORDE_FOLLOWERS`): 6 followers, +0.6 per minute, up to 14.
+  - The pack marches at the slowest member's speed.
+- **Leader falls:** the followers **flee until 450 px away, then fight again** at their own speed, and an 8 s lull follows. Fleeing enemies aren't recycled as stragglers.
+- **Elites:**
+  - HP ×6, contact ×1.3, XP ×6, size ×1.35, half stagger, 50% berry, gold ring.
+  - Abilities: Run Away, Tangled Feet, Sniper, Guts, Keen Eye, Anger Point (ROSTER).
+  - `MAX_ENEMY_RADIUS` includes the Elite size.
+
+**Files**
+- New: `src/data/hordes.ts`, `src/sim/hordes.ts`, `src/sim/hordes.test.ts`.
+- `src/sim/types.ts`:
+  - Enemy gains `elite`, `hordeId`, `fleeTo`, `fleeLeft`, `ranAway`, `rageLeft`.
+  - World gains pack, lull and horde state.
+- `src/sim/world.ts`: the spawner (rate multiplier, pack angle, `updateHordes`), straggler recycling skips fleeing enemies, fleeing in `moveEnemies`, the Elite contact multiplier.
+- `src/sim/combat.ts`: Elite XP, berry and stagger; Tangled Feet, Anger Point, Run Away, Keen Eye.
+- `src/scenes/RunScene.ts`: Elite gold ring, horde warning text and arrow.
+- Docs: `docs/enemies/README.md` §8.
+
+**Checks (observed)**
+- `npm run typecheck` clean.
+- `npx vitest run` **463/463** (10 new). That run includes the skill team's uncommitted D30 code in this working tree.
+- `npm run build` passed. `npm run bench`: 0.64 ms per step (500 enemies plus a maxed build).
+- Browser (own server on port 5181, sim stepped from the page):
+  - the warning "A horde led by Elite Rattata (Run Away) is coming!" with its orange arrow
+  - then the horde: a gold-ringed Elite Rattata with 6 Rattata
+- No console errors.
+
+**Not verified:** feel of the cycle and the lulls in real play; the flee on screen (unit-tested); balance with Elite XP (no `npm run balance` run).
+
+**Next:** the owner playtests the pacing (is the 10 s lull enough?); then batch-2 enemies and spawn variety.
+
 ### 2026-10-22 — Zapdos: second arena boss (D32)
 **Why:** with only Snorlax in the pool, every run fought Snorlax at all 4 arena events. The owner picked Zapdos over building batch-2 enemies first.
 

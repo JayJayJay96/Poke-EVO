@@ -127,7 +127,11 @@ Two type profiles cover all 6 enemies, so the rows are listed once.
 
 ---
 
-# Batch 2 (2026-10-21)
+# Batch 2 (2026-10-21; **built 2026-10-23, D37**)
+In the game: the stats below (`content.ts`), the types and type-chart rows (`typeChart.ts`), the wave mix by tier
+(`waves.ts`), the attacks (`enemyAttacks.ts`), the Elite abilities and horde lines (`hordes.ts`). One gap:
+**Gastly's Levitate** is named but not built, because it needs the shared terrain code. Rollout rolls straight,
+because the map has no walls to bounce off.
 Chosen so **every starter element meets a counter** and every §9 archetype has an example:
 
 | Player element | Resisted by (batch 2) | Weak (batch 2) |
@@ -324,3 +328,124 @@ scaling). Attacks and statuses aren't priced yet; the balance bot will measure r
   (Raichu 175). Bursts (Run Away, charges, dives) are exempt but must be telegraphed.
 - The Normal/Flying rows say Normal/Flying enemies take ×0.5 from ground effects. Diving enemies count as airborne
   during the dive.
+
+---
+
+# Batch 3 (DRAFT for owner approval, 2026-10-23; design only, nothing built)
+The owner asked overnight for "the next 10 enemies with their respective roles". These fill four gaps:
+- the attack styles no species uses yet: burrower, roller, barrier, splitter (README §9.2)
+- new defender types: Fighting, Fairy, Dragon
+- the boss adds that don't exist yet: **Seel** (Articuno), **Ponyta** (Moltres), **Magnemite** (Zapdos)
+- more late-game threat (tier 3 had only Tauros and Fearow)
+
+Stats use the D27 formulas (README §6.1), speed comes from the role band (§6.2), and every number is provisional.
+Healers never join hordes; every other species leads its own line.
+
+## Summary
+| Species | Types | Role / style | HP | Contact | Speed | XP | Tier (threat) | Elite ability |
+|---|---|---|---|---|---|---|---|---|
+| Diglett | Ground | fodder · **burrower** | 14 | 10 | 84 | 1.1 | 1 (1.5) | Arena Trap |
+| Seel | Water | tank · Icy Wind cone | 38 | 8 | 53 | 1.3 | 1 (2.0) | Thick Fat |
+| Koffing | Poison | tank · **zoner** (Smog clouds) | 33 | 12 | 52 | 1.4 | 1 (2.6) | Neutralizing Gas |
+| Magnemite | Electric/Steel | ranged · paralysing darts | 26 | 17 | 68 | 1.3 | 2 (3.8) | Magnet Pull |
+| Exeggcute | Grass/Psychic | fodder · **splitter** | 37 | 11 | 77 | 1.3 | 2 (3.9) | Harvest |
+| Sandshrew | Ground | bruiser · **roller** (Rollout ×3) | 32 | 14 | 82 | 1.2 | 2 (4.6) | Sand Veil |
+| Machop | Fighting | bruiser · **combo** (Karate Chop ×3) | 34 | 14 | 82 | 1.2 | 2 (4.9) | No Guard |
+| Dratini | Dragon | fast · rare **Dragon Rage** sniper | 27 | 12 | 122 | 1.2 | 2 (4.9), rare | Marvel Scale |
+| Mr. Mime | Psychic/Fairy | ranged · **barrier** | 40 | 18 | 73 | 3.2 | 3 (6.6) | Filter |
+| Ponyta | Fire | fast · **flame trail** | 33 | 15 | 131 | 1.6 | 3 (8.1) | Flash Fire |
+
+## Counters to each starter (batch 3)
+| Your type | Resisted by | Weak |
+|---|---|---|
+| Fire | Ponyta, Seel, Dratini, Mr. Mime (×0.5) | Magnemite, Exeggcute (×2) |
+| Water | Seel, Dratini, Exeggcute (×0.5) | Diglett, Sandshrew, Ponyta (×2) |
+| Grass | Koffing, Ponyta, Magnemite, Dratini, Exeggcute (×0.5) | Diglett, Sandshrew, Seel (×2) |
+| Electric | Diglett, Sandshrew (×0.5, immunity softened), Magnemite, Dratini, Exeggcute (×0.5) | Seel (×2) |
+| Ice | Ponyta, Seel, Magnemite (×0.5) | Diglett, Sandshrew, Exeggcute, Dratini (×2) |
+
+**Dratini** resists Fire, Water, Grass and Electric: it's the rare "you can't one-element this" enemy. Only Ice and
+Dragon hit it hard.
+
+## Type-chart additions needed (Fighting and Fairy defenders)
+| Attack | vs Fighting | vs Fairy |
+|---|---|---|
+| Flying | 2 | 1 |
+| Poison | 1 | 2 |
+| Steel | 1 | 2 |
+| Fire | 1 | 0.5 |
+| Dark | 0.5 | 0.5 |
+| Dragon | 1 | **0.5** (immune) |
+| others | 1 | 1 |
+
+## Sheets
+**Diglett** · Ground · fodder band (base Speed 95) · HP 10/Atk 55/Def 25/SpA 35/SpD 45, exp 53, 0.2 m, 0.8 kg
+- **Attack: Burrower.** It digs in (can't be hit; a dirt trail shows its path) and pops up under you. Ring 0.6 s, ×1.2 contact, cooldown 5 s.
+- **Defence:** Water, Grass, Ice ×2; Electric ×0.5 (immune), Poison ×0.5. Status: paralysis 0.25, poison 0.5, Leech Seed and Soaked 1.5, freeze 1.5.
+- **Elite, Arena Trap:** within 150 px of it you move 20% slower (lore: you can't flee). The slow is drawn as a ring.
+
+**Seel** · Water · tank band (Speed 45) · HP 65/Atk 45/Def 55/SpA 45/SpD 70, exp 65, 1.1 m, 90 kg
+- **Attack: Icy Wind.** A cone (0.6 s, 100°, 140 px) that slows you 2 s. Lapras resists it ×0.25.
+- **Defence:** Electric, Grass ×2; Fire, Water, Ice, Steel ×0.5. Status: Soaked 0.25, paralysis and Leech Seed 1.5, burn and freeze 0.5.
+- **Elite, Thick Fat:** Fire and Ice hits ×0.5, burn ×0.5.
+- **Articuno's adds** (BOSSES.md).
+
+**Koffing** · Poison · tank band (Speed 35) · HP 40/Atk 65/Def 95/SpA 60/SpD 45, exp 68, 0.6 m, 1 kg
+- **Attack: Zoner.** It floats slowly; every 5 s it exhales a **Smog** cloud (70 px, 4 s; ring 0.6 s first). Standing in it poisons you. Max 6 clouds.
+- **Defence:** Grass ×0.5, Poison ×0.5. Status: poison 0.25, Leech Seed 0.5.
+- **Elite, Neutralizing Gas** (Gen 8): inside its clouds **your ability is switched off** (Blaze, Shell, Static, Leech…). A hard counter to ability-reliant play, so it's flagged for owner approval.
+
+**Magnemite** · Electric/Steel · ranged band (Speed 45) · HP 25/Atk 35/Def 70/SpA 95/SpD 55, exp 65, 0.3 m, 6 kg
+- **Attack: Ranged Thunder Shock darts** (line 0.4 s, ×0.8 contact, cooldown 3 s) that **paralyse**.
+- **Defence:** Fire ×2; Grass, Electric, Ice, Normal, Dragon ×0.5, Poison ×0.5 (immune); Flying, Steel ×0.25. Status: paralysis and poison 0.25, burn 1.5, freeze 0.5, Leech Seed 0.25, weaken 0.5.
+- **Elite, Magnet Pull:** within 220 px it pulls you toward it at 25 px/s, shown as field lines. Lore only traps Steel types; this widens it to everyone, so it's flagged.
+- **Zapdos's adds.**
+
+**Exeggcute** · Grass/Psychic · fodder band (Speed 40) · HP 60/Atk 40/Def 80/SpA 60/SpD 45, exp 65, 0.4 m, 2.5 kg
+- **Attack: Splitter.** When it dies it bursts into **3 eggs**: 25% HP each, speed 95, contact 5, XP 0.2, and they don't split again.
+- **Defence:** Fire, Ice, Flying, Poison, Dark ×2; Water, Grass, Electric ×0.5. Status: burn, freeze and poison 1.5; Leech Seed and powders 0.25; paralysis and Soaked 0.5; sleep and confusion 0.5.
+- **Elite, Harvest:** once below 50% it eats a berry and regains 20% HP (visible).
+
+**Sandshrew** · Ground · bruiser band (Speed 40) · HP 50/Atk 75/Def 85/SpA 20/SpD 30, exp 60, 0.6 m, 12 kg
+- **Attack: Roller.** **3 Rollouts in a row**, each 200 px at ×4 speed, each re-aimed behind its own 0.4 s line. A rhythm combo.
+- **Defence and status:** as Diglett.
+- **Elite, Sand Veil:** while rolling, 1 in 4 hits on it misses (shown as "miss"). Its only random element; flagged.
+
+**Machop** · Fighting · bruiser band (Speed 35) · HP 70/Atk 80/Def 50/SpA 35/SpD 35, exp 61, 0.8 m, 19.5 kg
+- **Attack: Combo.** **Karate Chop ×3**: three 60 px lunges behind short lines, with 0.3 / 0.25 / 0.2 s gaps, ×1.2 contact each.
+- **Defence:** Flying ×2; Dark ×0.5. Status: flinch 0.5.
+- **Elite, No Guard:** it deals and takes ×1.3. Glass-cannon lore.
+
+**Dratini** · Dragon · fast band (Speed 50) · HP 41/Atk 64/Def 45/SpA 50/SpD 50, exp 60, 1.8 m, 3.3 kg
+- **Rare spawn:** low weight, berry 0.3.
+- **Attack: Dragon Rage.** Keeps 250–350 px away and fires a bolt that deals a **fixed 15 damage**, ignoring damage-taken modifiers (lore). Line 0.5 s, cooldown 4 s.
+- **Defence:** Ice, Dragon ×2; Fire, Water, Grass, Electric ×0.5. Status: freeze 1.5; burn, paralysis, Leech Seed and Soaked 0.5.
+- **Elite, Marvel Scale:** while it has any status it takes ×0.67.
+
+**Mr. Mime** · Psychic/Fairy · ranged band (Speed 90) · HP 40/Atk 45/Def 65/SpA 100/SpD 120, exp 161, 1.3 m, 54.5 kg
+- **Attack: Barrier.** Every 8 s it raises a 120 px wall between itself and you for 4 s, after a 0.5 s flicker. The wall **blocks your projectiles**; beams and areas pass. Between walls it fires slow Psybeam darts that confuse you.
+- **Defence:** Poison, Steel ×2; Fire ×0.5, Dragon ×0.5 (immune). Status: sleep 0.5, confusion 0.25, poison 1.5.
+- **Elite, Filter:** super-effective hits ×0.75.
+
+**Ponyta** · Fire · fast band (Speed 90) · HP 50/Atk 85/Def 55/SpA 65/SpD 65, exp 82, 1.0 m, 30 kg
+- **Attack: Flame trail.** While it runs it leaves short burning patches (35 px, 2 s, max 8) that **burn** you. Charmander's line resists ×0.25.
+- **Defence:** Water ×2; Fire, Grass, Ice, Steel ×0.5. Status: burn 0.25, Soaked 1.5, freeze and Leech Seed 0.5.
+- **Elite, Flash Fire:** Fire hits ×0.25. After absorbing one, its trail burns ×1.5 for 4 s.
+- **Moltres's adds.**
+
+## Notes for building batch 3
+- **Speed:** Ponyta (131) and Dratini (122) are flankers. At the final ×1.15 scale Ponyta reaches 151, past the
+  slowest starter. That's allowed by the approved two-tier rule (README §6.2), but the old D26 test in
+  `world.test.ts` (fastest enemy below the slowest stage) must change to the horde-body version first. That file
+  currently has the skill team's uncommitted edits.
+- **Engine needs:**
+  - burrowing (untargetable plus a trail), wall segments that block player projectiles (Mr. Mime), split-on-death
+    (an `eggs` EnemyId)
+  - lingering enemy zones (Smog, flame trail: reuse the web list), ability suppression (Neutralizing Gas), a pull
+    aura (Magnet Pull), fixed-damage hits (Dragon Rage)
+- **Hordes:** each species leads its own line (Exeggcute's eggs never lead).
+- **Flagged for owner approval:**
+  - **Neutralizing Gas:** switches off your ability; strong.
+  - **Magnet Pull** widened to every type.
+  - **Sand Veil's** 1-in-4 miss: the only random defence.
+  - **Dragon Rage's** fixed damage ignores damage-taken modifiers.

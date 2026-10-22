@@ -170,6 +170,36 @@ special animations must not be burst through. All numbers are in `SNORLAX_KIT` (
 | **Projectiles** | **Ice Shard:** **mixed-speed** fans (lead 1); shards hitting a pillar **split** into 3. **Icy Wind:** **boomerang** crescents that fly out and return; they slow you 1 s. Paired with Blizzard, they make the run to cover hard |
 | **Adds** | A few Seel/Dewgong in phase 3 (owner-approved) |
 
+**Full kit for building (DRAFT for owner approval, 2026-10-23).** The owner asked overnight to design "the next
+boss". Articuno is the next arena boss to build. This expands it to the D31 standard: immune phase-change
+animations, a phase gate, 10+ kinds of moves, the projectile layer (§2b), Pressure, a 6-min limit (D33), and Seel adds
+from batch 3.
+
+| Move | Phase | What it does | Answer |
+|---|---|---|---|
+| **Ice pillars** | all | 5 pillars (HP) stand around the arena and regrow 25 s after breaking. **Fire hits melt them** | Your cover; Fire players must aim around it |
+| **Ice Shard** | 1+ | Fans of 5 at mixed speeds (lead 1); a shard that hits a pillar **splits into 3** | Read the lanes |
+| **Blizzard** | 1+ | A sweep across the whole arena from one side, 1.5 s warning (the side is shown) | Stand behind a pillar |
+| **Icy Wind** | 1+ | 2 boomerang crescents that fly out and come back; they slow you 1 s | Step across their return path |
+| **Ice Beam** | 1+ | A line beam (lead 0, 0.9 s); it leaves a **frozen strip** for 4 s that slows you while you stand on it | Don't fight on the strip |
+| **Roost** | once per phase, after losing 12% in it | Lands and heals 15% over 3 s, **loses Flying** (Electric ×2 → ×1, Rock and Steel now matter) | The damage window, **not immune** |
+| **Mist** | at 66%: **immune 1.5 s animation** | Then, every 20 s, 6 s of mist: no status lands on it (visible) | Save control moves for after the mist |
+| **Mean Look** | 2+ | During a Blizzard: a tether holds you within 260 px of it | Find cover inside the leash |
+| **Freeze-Dry** | 2+ | 3 rings on you in rhythm (gaps 0.8 / 0.6 / 0.4 s). Lore: super effective on Water, so Squirtle and Lapras take ×1.5 | Timing |
+| **Reflect** | 2+ | A shimmering wall in front of it for 4 s; your projectiles through it deal ×0.5 | Go around; beams and areas are unaffected |
+| **Sheer Cold armour** | at 33%: **immune 1.5 s animation** (Freeze-over) | Then it takes ×0.25 until it has taken 8% of max HP in super-effective hits (Fire, Steel; Rock and Fighting later); it reforms once after 30 s | A build check |
+| **Whirlwind** | 3 | A gust pushes you ~120 px (a push, never a stun) | Mind the arena wall |
+| **Hurricane** | 3 | A slow tornado drifts across the arena for 5 s and pulls you gently toward it (a small velocity nudge) | Keep moving across its path |
+| **Adds: Seel ×3** | 3 | Batch-3 Seel (Icy Wind slows); one is an Elite with Thick Fat | Pick targets |
+
+- **Types and defence:** as above. Starters: Charmander is strong here (pillars and armour) but loses its cover. Squirtle and Lapras take Freeze-Dry ×1.5. Lapras resists the slows ×0.25.
+- **Player statuses used:** slow only, from Icy Wind, Ice Beam's strip and Seel. **No freeze on the player** (README §10).
+- **Rough fight length:** about 3–4 min at the 6-min limit, assuming the pillars and armour are played right.
+- **Flagged for owner approval:**
+  - Freeze-Dry's ×1.5 on Water starters (a player-side type twist)
+  - Hurricane's pull (a push or pull, never a stun)
+  - Mist's 20 s cadence
+
 ### Zapdos: rift. "The power plant"
 | | |
 |---|---|

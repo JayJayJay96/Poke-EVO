@@ -192,6 +192,30 @@ self-healing horde is too much.
 Left to the game logic designer: horde size X, spawn timing, what happens when the leader dies (scatter, buff,
 loot), chest drops, warnings and telegraphs.
 
+**Built (D34, 2026-10-23; numbers in `src/data/hordes.ts`, provisional):**
+- **Hordes:** every 90 s of run clock (first at 1:30), with a 3 s warning (HUD line naming the Elite and its ability,
+  plus an edge arrow).
+  - The leader is an **Elite** of a species currently in the wave mix, followed by its species line.
+  - There are 6 followers, +0.6 per minute, up to 14, all marching at the slowest member's speed.
+- **Leader falls** (owner): the pack **flees until 450 px away, then fights again** at its own speed, and an 8 s lull
+  follows.
+- **Elites:** HP ×6, contact ×1.3, XP ×6, size ×1.35, half stagger, 50% berry drop, and a gold ring. Their abilities:
+
+  | Species | Ability | Effect |
+  |---|---|---|
+  | Rattata | Run Away | Sprints off once below 30% HP |
+  | Pidgey | Tangled Feet | ×0.7 damage while slowed or trapped |
+  | Spearow | Sniper | ×1.5 contact on a player below 50% HP |
+  | Raticate | Guts | ×1.5 contact while burned, poisoned or paralysed |
+  | Fearow | Keen Eye | Blinded ×0.25 |
+  | Tauros | Anger Point | A crit enrages it for 4 s |
+
+- **Pacing:** a 45 s pressure cycle: 30 s build-up, 5 s surge (×2, enemies from every side), then a **10 s lull**
+  (×0.35, owner: "test the 10 s lull first"). Outside surges, spawns come in **packs of 3–8 from one 60° side**, so
+  lanes stay open.
+- **Not built yet:** spawn variety (threat budget, in-season species, counter guarantee, §11), which waits for the
+  batch-2 enemies.
+
 ## 9. Attack styles (owner asked to document, 2026-10-21; P5 build, details provisional)
 ### 9.1 Telegraph rule
 Every enemy attack except plain contact is **telegraphed** before it hits (pillar 3, readable chaos). There are three
@@ -263,6 +287,24 @@ The current stage's types decide. Slows from **Ice** attacks use the Ice row.
 | Water/Ice (Lapras) | 1 | 1 | **1.5** | **0.25** | **0.25** | |
 
 This makes the starter pick matter against certain enemies (pillar 1, "kit over stats").
+
+### 10.4 Built (D35–D37, 2026-10-23)
+- **Attack styles built:**
+  - ranged (Spearow, Psyduck)
+  - charge (Tauros, Geodude's Rollout)
+  - dive (Fearow)
+  - web (Caterpie), cone (Zubat), pulse (Oddish), blink (Abra), explode (Voltorb), heal (Chansey)
+  - the phaser (Gastly)
+  - contact statuses (Weedle poison, Gastly paralysis)
+
+  Numbers are in `src/data/enemyAttacks.ts`.
+- **Not built:** the burrower, roller bounces (the map has no walls), Barrier, splitter and Ambusher styles. They wait for species that use them.
+- **Player statuses built** (`src/data/playerStatus.ts`): poison, burn, slow, paralysis, confusion, Soaked, with the 2 s fatigue rule and resistance by the starter's types (`statusMult`, shared with enemies). They show in the red line under the HUD.
+- **Confusion** steers the base aiming (projectiles, beams, zone casts) to a random enemy in range. Mutation code that picks its own nearest target is unchanged.
+- **Enemy status resistance (§2–§3)** is applied in combat.ts's status functions:
+  - covered: burn, poison, Leech Seed, slow, stun (sleep, paralysis, flinch), Blinded, Soaked
+  - plus the boss rule: stuns ×0.5
+  - not covered: statuses that Mutation code writes straight onto an enemy (traps, some terrain), and the "Flying ignores ground effects" rule (§3.3), which needs the shared terrain code
 
 ## 11. Spawn variety (owner idea 2026-10-21; a proposal for the game logic designer)
 Owner: no fixed Rattata → Pidgey → Raticate queue every run. The enemies should vary from run to run while the

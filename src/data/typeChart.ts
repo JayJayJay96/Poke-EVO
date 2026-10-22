@@ -11,10 +11,11 @@ const IMMUNE = NOT_VERY;
 
 type Chart = Readonly<Partial<Record<PokemonType, Readonly<Partial<Record<PokemonType, number>>>>>>;
 
+// Bug, Rock, Ground, Ghost and Psychic defenders arrived with the batch-2 enemies (ROSTER.md, D27).
 export const TYPE_CHART: Chart = {
-  Normal: { Steel: NOT_VERY },
-  Fire: { Fire: NOT_VERY, Water: NOT_VERY, Grass: SUPER, Ice: SUPER, Dragon: NOT_VERY, Steel: SUPER },
-  Water: { Fire: SUPER, Water: NOT_VERY, Grass: NOT_VERY, Dragon: NOT_VERY },
+  Normal: { Steel: NOT_VERY, Rock: NOT_VERY, Ghost: IMMUNE },
+  Fire: { Fire: NOT_VERY, Water: NOT_VERY, Grass: SUPER, Ice: SUPER, Dragon: NOT_VERY, Steel: SUPER, Bug: SUPER, Rock: NOT_VERY },
+  Water: { Fire: SUPER, Water: NOT_VERY, Grass: NOT_VERY, Dragon: NOT_VERY, Rock: SUPER, Ground: SUPER },
   Grass: {
     Fire: NOT_VERY,
     Water: SUPER,
@@ -23,8 +24,11 @@ export const TYPE_CHART: Chart = {
     Flying: NOT_VERY,
     Dragon: NOT_VERY,
     Steel: NOT_VERY,
+    Bug: NOT_VERY,
+    Rock: SUPER,
+    Ground: SUPER,
   },
-  Electric: { Water: SUPER, Grass: NOT_VERY, Electric: NOT_VERY, Flying: SUPER, Dragon: NOT_VERY },
+  Electric: { Water: SUPER, Grass: NOT_VERY, Electric: NOT_VERY, Flying: SUPER, Dragon: NOT_VERY, Ground: IMMUNE },
   Ice: {
     Fire: NOT_VERY,
     Water: NOT_VERY,
@@ -33,12 +37,13 @@ export const TYPE_CHART: Chart = {
     Flying: SUPER,
     Dragon: SUPER,
     Steel: NOT_VERY,
+    Ground: SUPER,
   },
-  Poison: { Grass: SUPER, Poison: NOT_VERY, Steel: IMMUNE },
-  Flying: { Grass: SUPER, Electric: NOT_VERY, Steel: NOT_VERY },
+  Poison: { Grass: SUPER, Poison: NOT_VERY, Steel: IMMUNE, Rock: NOT_VERY, Ground: NOT_VERY, Ghost: NOT_VERY },
+  Flying: { Grass: SUPER, Electric: NOT_VERY, Steel: NOT_VERY, Bug: SUPER, Rock: NOT_VERY },
   Dragon: { Dragon: SUPER, Steel: NOT_VERY },
-  Dark: { Dark: NOT_VERY },
-  Steel: { Fire: NOT_VERY, Water: NOT_VERY, Electric: NOT_VERY, Ice: SUPER, Steel: NOT_VERY },
+  Dark: { Dark: NOT_VERY, Ghost: SUPER, Psychic: SUPER },
+  Steel: { Fire: NOT_VERY, Water: NOT_VERY, Electric: NOT_VERY, Ice: SUPER, Steel: NOT_VERY, Rock: SUPER },
 };
 
 const POKEMON_TYPES: ReadonlySet<string> = new Set<PokemonType>([
@@ -53,6 +58,11 @@ const POKEMON_TYPES: ReadonlySet<string> = new Set<PokemonType>([
   'Ice',
   'Dark',
   'Steel',
+  'Bug',
+  'Rock',
+  'Ground',
+  'Ghost',
+  'Psychic',
 ]);
 
 /** A move's attack type: its first Pokémon-type tag (null if it has none). */

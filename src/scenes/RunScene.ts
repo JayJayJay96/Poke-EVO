@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
 import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
+import { ENEMY_ATTACKS } from '../data/enemyAttacks';
+import { ELITE_ABILITY, ELITE_ABILITY_NAMES } from '../data/hordes';
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
@@ -84,6 +86,11 @@ const COLORS = {
   chain: 0xb8b8c8,
   shield: 0xffffff,
   zap: 0xffe14d,
+  elite: 0xffb300,
+  dart: 0xd9a066,
+  web: 0xe8e8e8,
+  psychic: 0xf85888,
+  water: 0x3d8bff,
   shock: 0xc8f0ff,
   rain: 0x4a7fd4,
   safe: 0x6ee07a,
@@ -113,6 +120,11 @@ const TYPE_COLORS: Readonly<Record<PokemonType, number>> = {
   Ice: 0x9ff3ff,
   Dark: 0x6b5a4e,
   Steel: 0xb8b8d0,
+  Bug: 0xa8b820,
+  Rock: 0xb8a038,
+  Ground: 0xe0c068,
+  Ghost: 0x705898,
+  Psychic: 0xf85888,
 };
 const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   rattata: 0x9b6bc8,
@@ -124,6 +136,16 @@ const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   snorlax: 0x2f5d6e,
   zapdos: 0xf2d13a,
   pylon: 0x8c8f99,
+  caterpie: 0x7cc142,
+  weedle: 0xc9a23a,
+  zubat: 0x4a6fb5,
+  oddish: 0x3f6fb0,
+  psyduck: 0xf2d35a,
+  geodude: 0x8a7f6a,
+  gastly: 0x3a2f55,
+  abra: 0xd6a83a,
+  voltorb: 0xd8433a,
+  chansey: 0xf2a6c0,
 };
 /** Gems worth at least this much draw bigger and green. */
 const BIG_GEM_VALUE = 5;
@@ -461,6 +483,13 @@ export class RunScene extends Phaser.Scene {
     }
     if (entrance) {
       return `${ENTRANCE_NAMES[ARENA_BOSSES[entrance.bossId].entrance]} is open: ${formatTime(entrance.closesAt - time)}`;
+    }
+    // A horde on its way (D34): who leads it and with which ability.
+    const warning = this.world.hordeWarning;
+    if (warning) {
+      const ability = ELITE_ABILITY[warning.leader];
+      const named = ability ? ` (${ELITE_ABILITY_NAMES[ability]})` : '';
+      return `A horde led by Elite ${ENEMIES[warning.leader].name}${named} is coming!`;
     }
     return '';
   }
@@ -1138,6 +1167,7 @@ export class RunScene extends Phaser.Scene {
       g.fillCircle(blast.x, blast.y, blast.radius * (0.7 + 0.3 * t));
     }
 
+    drawEnemyAttacks(g, this.world);
     const fight = this.world.arena;
     for (const e of enemies) {
       const isBoss = fight?.bossEnemyId === e.id;
@@ -1148,6 +1178,11 @@ export class RunScene extends Phaser.Scene {
         e.lastEffectiveness > 1 ? COLORS.superEffective : e.lastEffectiveness < 1 ? COLORS.notVery : COLORS.flash;
       g.fillStyle(e.hitFlashLeft > 0 ? flash : ENEMY_COLORS[e.kind], 1);
       g.fillCircle(e.x, e.y, e.radius);
+      // Elites (D34): a gold ring so you can tell their ability is on.
+      if (e.elite) {
+        g.lineStyle(3, COLORS.elite, 0.95);
+        g.strokeCircle(e.x, e.y, e.radius + 3);
+      }
       // Immune during a special animation (owner 2026-10-22): a white shield ring.
       if (isBoss && bossImmune(this.world, e)) {
         g.lineStyle(4, COLORS.shield, 0.9);
@@ -1387,6 +1422,21 @@ export class RunScene extends Phaser.Scene {
           ? `   ≋ Tide: Flood (ebbs at Lv ${MUTATION_TUNING.tideLevel})`
           : '   ~ Tide: Ebb'
         : '';
+    // Statuses on you (D36): named with their seconds left, so you know what hit you.
+    const ps = this.world.playerStatus;
+    const statuses = (
+      [
+        ['Poisoned', ps.poisonLeft],
+        ['Burned', ps.burnLeft],
+        ['Paralysed', ps.paraLeft],
+        ['Confused', ps.confuseLeft],
+        ['Slowed', ps.slowLeft],
+        ['Soaked', ps.soakLeft],
+      ] as const
+    )
+      .filter(([, left]) => left > 0)
+      .map(([label, left]) => `${label} ${left.toFixed(1)}s`)
+      .join(' · ');
     this.hud.setText(
       `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${Math.round(player.maxHp)}${abilityTag}   ` +
         `${formatTime(time)} / ${formatTime(TUNING.runSeconds)}   KOs ${kills}   on field ${enemies.length}${tide}\n` +
@@ -1398,7 +1448,7 @@ export class RunScene extends Phaser.Scene {
     // Visible cost of "damage taken" trade-offs (D12).
     const taken = this.world.mods.damageTakenMult;
     const glass = taken > 1.001 ? `⚠ Glass: you take +${Math.round((taken - 1) * 100)}% damage` : '';
-    this.warnText.setText([glass, this.arenaHudLine()].filter(Boolean).join('\n'));
+    this.warnText.setText([glass, statuses, this.arenaHudLine()].filter(Boolean).join('\n'));
 
     // XP bar across the top edge.
     const h = this.hudGfx;
@@ -1418,6 +1468,8 @@ export class RunScene extends Phaser.Scene {
     }
     const entrance = this.world.entrance;
     if (entrance) this.edgeArrow(entrance.x - player.x, entrance.y - player.y, entrance.radius, COLORS.entranceRim);
+    const warning = this.world.hordeWarning;
+    if (warning) this.edgeArrow(Math.cos(warning.angle) * 2000, Math.sin(warning.angle) * 2000, 0, COLORS.elite);
 
     // Boss HP bar under the XP bar during an arena fight (D28).
     const fight = this.world.arena;
@@ -1662,6 +1714,67 @@ function drawZapdos(g: Phaser.GameObjects.Graphics, world: World, arena: ArenaFi
       g.strokeCircle(shot.x, shot.y, shot.radius + 4);
     }
   }
+}
+
+/**
+ * Telegraphed enemy attacks (D35): a thin line before a dart, a thick line before a charge (both thicken as they
+ * come), a filling ring before a dive; then the darts in flight.
+ */
+function drawEnemyAttacks(g: Phaser.GameObjects.Graphics, world: World): void {
+  // String Shot webs on the ground (D37).
+  g.fillStyle(COLORS.web, 0.35);
+  for (const web of world.webs) g.fillCircle(web.x, web.y, web.radius);
+  const ring = (x: number, y: number, radius: number, t: number, color: number): void => {
+    g.fillStyle(color, 0.25);
+    g.fillCircle(x, y, radius * t);
+    g.lineStyle(2, color, 0.9);
+    g.strokeCircle(x, y, radius);
+  };
+  for (const e of world.enemies) {
+    if (e.atkPhase !== 'windup') continue;
+    const atk = ENEMY_ATTACKS[e.kind];
+    if (!atk) continue;
+    const t = 1 - e.atkTimer / atk.telegraph;
+    switch (atk.kind) {
+      case 'dive':
+      case 'web':
+      case 'blink':
+        ring(e.markX, e.markY, atk.kind === 'web' ? 40 : atk.radius, t, atk.kind === 'blink' ? COLORS.psychic : COLORS.telegraph);
+        if (atk.kind === 'web') {
+          g.lineStyle(2, COLORS.web, 0.7);
+          g.lineBetween(e.x, e.y, e.markX, e.markY);
+        }
+        break;
+      case 'pulse':
+      case 'explode':
+        ring(e.x, e.y, atk.radius, t, COLORS.telegraph);
+        break;
+      case 'heal':
+        ring(e.x, e.y, atk.radius, t, COLORS.safe);
+        break;
+      case 'cone': {
+        const aim = Math.atan2(e.aimY, e.aimX);
+        const half = (atk.arcDeg * Math.PI) / 360;
+        g.beginPath();
+        g.slice(e.x, e.y, atk.reach, aim - half, aim + half, false);
+        g.lineStyle(2 + 2 * t, COLORS.telegraph, 0.9);
+        g.strokePath();
+        break;
+      }
+      default: {
+        const length = atk.kind === 'ranged' ? atk.range : atk.dashDistance;
+        const width = atk.kind === 'ranged' ? 2 + 4 * t : 4 + (e.radius * 2 - 4) * t;
+        g.lineStyle(width, COLORS.telegraph, atk.kind === 'ranged' ? 0.6 : 0.4);
+        g.lineBetween(e.x, e.y, e.x + e.aimX * length, e.y + e.aimY * length);
+      }
+    }
+  }
+  for (const shot of world.enemyShots) {
+    g.fillStyle(shot.status === 'soaked' ? COLORS.water : COLORS.dart, 1);
+    g.fillCircle(shot.x, shot.y, shot.radius);
+  }
+  // Aftermath (Elite Voltorb): its ring fills, then it explodes.
+  for (const b of world.delayedBlasts) ring(b.x, b.y, b.radius, 1 - b.left / b.total, COLORS.telegraph);
 }
 
 /** A filled ring between two radii, in triangles (thick strokes leave seams). */

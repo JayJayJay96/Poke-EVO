@@ -3,6 +3,7 @@ import type { AugmentId } from '../data/augments';
 import type { AbilityId, EnemyId, PokemonId, PokemonType } from '../data/content';
 import type { MoveId, StunKind } from '../data/moves';
 import type { MutationId } from '../data/mutations';
+import type { PlayerStatusId } from '../data/playerStatus';
 import type { BoostId, ItemId } from '../data/upgrades';
 import type { Rng } from './rng';
 import type { SpatialHash } from './spatialHash';
@@ -116,6 +117,41 @@ export interface Enemy {
   seedJumps: number;
   /** Toxic: poison stacks while it stays in the cloud (reset when the poison ends). */
   poisonStacks: number;
+  /** Elite variant (D34): tougher, its species' ability on. */
+  elite: boolean;
+  /** The horde it belongs to (0 = none). */
+  hordeId: number;
+  /** Running away from the player: until this far (horde whose leader fell; 0 = not), or for `fleeLeft` s. */
+  fleeTo: number;
+  fleeLeft: number;
+  /** A once-per-life Elite ability (Run Away, Sturdy) has been used. */
+  abilityUsed: boolean;
+  /** Anger Point (Elite Tauros): enraged for this long. */
+  rageLeft: number;
+  /** Telegraphed attack (D35, ranged / charge): cooldown, current step and its timer, the locked aim, dash left. */
+  atkCooldown: number;
+  atkPhase: 'windup' | 'dash' | 'recover' | null;
+  atkTimer: number;
+  aimX: number;
+  aimY: number;
+  dashLeft: number;
+  /** A diver's locked landing spot. */
+  markX: number;
+  markY: number;
+}
+
+/** A dart fired by a ranged enemy (D35). */
+export interface EnemyShot {
+  x: number;
+  y: number;
+  readonly vx: number;
+  readonly vy: number;
+  readonly radius: number;
+  left: number;
+  readonly damage: number;
+  readonly owner: Enemy;
+  /** A status the dart puts on you (Psyduck's Soak). */
+  readonly status?: PlayerStatusId;
 }
 
 /**
@@ -607,9 +643,6 @@ export interface ZapdosState {
   agilityLeft: number;
   roost: { left: number } | null;
   discharge: { left: number; taken: number; readonly safeX: number; readonly safeY: number; phase: 'channel' | 'recover' } | null;
-  /** Paralysis on the player (seconds left, and how long it was when it landed, for the stutter). */
-  paraLeft: number;
-  paraTotal: number;
 }
 
 export interface ArenaFight {
@@ -781,6 +814,36 @@ export interface World {
   spawnTimer: number;
   /** Distance from the player at which enemies appear; the scene sets it from the screen size. */
   spawnRadius: number;
+  /** Pack spawning (D34): the side the current pack comes from and how many are still to come. */
+  packAngle: number;
+  packLeft: number;
+  /** Extra lull after a horde leader falls (seconds left). */
+  lullLeft: number;
+  /** Horde events (D34): when the next one is due (run clock), the warning in progress, the hordes alive. */
+  nextHordeAt: number;
+  hordeWarning: { readonly angle: number; left: number; readonly leader: EnemyId } | null;
+  hordes: { readonly id: number; readonly leaderId: number }[];
+  /** Darts from ranged enemies in flight (D35), capped. */
+  enemyShots: EnemyShot[];
+  /** String Shot webs on the ground (D37): they slow you while you stand in one. */
+  webs: { readonly x: number; readonly y: number; readonly radius: number; left: number }[];
+  /** Aftermath (Elite Voltorb, D37): rings that explode after a short delay. */
+  delayedBlasts: { readonly x: number; readonly y: number; readonly radius: number; left: number; readonly total: number; readonly damage: number; readonly owner: Enemy }[];
+  /** Statuses on the player (D36, README §10): seconds left, poison's damage, and each status's fatigue. */
+  playerStatus: {
+    poisonLeft: number;
+    poisonDps: number;
+    poisonTick: number;
+    burnLeft: number;
+    burnDps: number;
+    burnTick: number;
+    slowLeft: number;
+    paraLeft: number;
+    paraTotal: number;
+    confuseLeft: number;
+    soakLeft: number;
+    fatigue: Record<PlayerStatusId, number>;
+  };
   readonly rng: Rng;
   readonly hash: SpatialHash;
 }

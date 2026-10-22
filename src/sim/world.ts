@@ -1,4 +1,6 @@
 import { ZAPDOS_KIT } from '../data/arena';
+import { CONTACT_STATUS, ENEMY_ATTACKS, PHASERS } from '../data/enemyAttacks';
+import { ABILITY_TUNING, HORDE } from '../data/hordes';
 import { REROLLS_PER_RUN } from '../data/augments';
 import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
 import { MOVES, type MoveDef } from '../data/moves';
@@ -25,6 +27,9 @@ import { castProjectile, updateProjectiles } from './forms/projectile';
 import { castZone } from './forms/zoneCast';
 import { emit, healPlayer, hooksOf, mutationDamageTakenMult, mutationMoveSpeedMult } from './hooks';
 import './mutationDefs';
+import { attackContactMult, attackVelocity, updateEnemyAttacks, webSlow } from './enemyAttacks';
+import { eliteAbility, eliteContactMult, nextSpawnAngle, spawnRateMult, updateHordes } from './hordes';
+import { applyPlayerStatus, emptyPlayerStatus, playerStatusSlow, updatePlayerStatus } from './playerStatus';
 import { gainXp, makeOffer } from './progression';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
@@ -129,6 +134,16 @@ export function createWorld({
     spawnEnabled,
     spawnTimer: WAVES[0]!.spawnInterval,
     spawnRadius,
+    packAngle: 0,
+    packLeft: 0,
+    lullLeft: 0,
+    nextHordeAt: HORDE.firstAt,
+    hordeWarning: null,
+    hordes: [],
+    enemyShots: [],
+    webs: [],
+    delayedBlasts: [],
+    playerStatus: emptyPlayerStatus(),
     rng,
     hash: new SpatialHash(TUNING.spatialCellSize),
   };
@@ -154,12 +169,14 @@ export function step(world: World, input: InputState, dt: number): void {
   world.time += dt;
   if (world.arena) world.arenaSeconds += dt;
   tickTimers(world, dt);
+  updatePlayerStatus(world, dt);
   movePlayer(world, input, dt);
   updateArena(world, dt);
   // The arena is a closed fight: no horde spawns and no sites while it runs (D28).
   if (world.spawnEnabled && !world.arena) updateSpawner(world, dt);
   rebuildHash(world);
   moveEnemies(world, dt);
+  updateEnemyAttacks(world, dt);
   updateStatuses(world, dt);
   updateAbilities(world, dt);
   updateMoves(world, dt);
@@ -261,6 +278,21 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     trapDamage: 0,
     seedJumps: 0,
     poisonStacks: 0,
+    elite: false,
+    hordeId: 0,
+    fleeTo: 0,
+    fleeLeft: 0,
+    abilityUsed: false,
+    rageLeft: 0,
+    // Telegraphed attackers start half-way through their cooldown (D35).
+    atkCooldown: (ENEMY_ATTACKS[kind]?.cooldown ?? 0) / 2,
+    atkPhase: null,
+    atkTimer: 0,
+    aimX: 0,
+    aimY: 0,
+    dashLeft: 0,
+    markX: 0,
+    markY: 0,
     vulnPct: 0,
     vulnLeft: 0,
     vulnType: null,
@@ -318,7 +350,9 @@ function movePlayer(world: World, input: InputState, dt: number): void {
     p.movingFor = 0;
   }
   // Snorlax's Yawn cloud slows the player (D28, B2).
-  const speed = p.speed * mutationMoveSpeedMult(world) * (1 - (world.arena?.playerSlow ?? 0));
+  // Slows don't stack: the strongest of a boss's (Yawn) and the player's statuses (D36) wins.
+  const slow = Math.max(world.arena?.playerSlow ?? 0, playerStatusSlow(world), webSlow(world));
+  const speed = p.speed * mutationMoveSpeedMult(world) * (1 - slow);
   p.vx = mx * speed;
   p.vy = my * speed;
   p.x += p.vx * dt;
@@ -336,6 +370,8 @@ function recycleStragglers(world: World): void {
   const limit = world.spawnRadius * TUNING.spawn.recycleFactor;
   const facing = Math.atan2(player.faceY, player.faceX);
   for (const enemy of world.enemies) {
+    // A fleeing pack is meant to run off for a while (D34).
+    if (enemy.fleeTo > 0 || enemy.fleeLeft > 0) continue;
     const dx = enemy.x - player.x;
     const dy = enemy.y - player.y;
     if (dx * dx + dy * dy <= limit * limit) continue;
@@ -349,12 +385,14 @@ function recycleStragglers(world: World): void {
 
 function updateSpawner(world: World, dt: number): void {
   recycleStragglers(world);
-  world.spawnTimer -= dt;
+  updateHordes(world, dt);
+  // Pressure cycle (D34): build-up, surge, lull; packs from one side except in a surge.
+  world.spawnTimer -= dt * spawnRateMult(world);
   while (world.spawnTimer <= 0) {
     const wave = waveAt(runClock(world));
     world.spawnTimer += wave.spawnInterval;
     if (world.enemies.length >= TUNING.spawn.maxEnemies) continue;
-    const angle = world.rng.next() * Math.PI * 2;
+    const angle = nextSpawnAngle(world);
     const enemy = spawnEnemy(
       world,
       pickEnemyKind(wave.weights, world.rng),
@@ -384,15 +422,30 @@ function moveEnemies(world: World, dt: number): void {
     if (blind && Math.hypot(enemy.wanderX - enemy.x, enemy.wanderY - enemy.y) < enemy.radius) pickWanderPoint(world, enemy);
     // An arena boss may head for something else (Snorlax going for a berry, D28).
     const goal = world.arena?.bossEnemyId === enemy.id ? world.arena.goal : null;
-    const dx = (goal ? goal.x : blind ? enemy.wanderX : player.x) - enemy.x;
-    const dy = (goal ? goal.y : blind ? enemy.wanderY : player.y) - enemy.y;
+    let dx = (goal ? goal.x : blind ? enemy.wanderX : player.x) - enemy.x;
+    let dy = (goal ? goal.y : blind ? enemy.wanderY : player.y) - enemy.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const speed = enemy.speed * enemySpeedFactor(enemy);
-    let vx = (dx / dist) * speed;
-    let vy = (dy / dist) * speed;
+    // Fleeing (D34): a pack whose leader fell runs until it's far enough; Run Away sprints off for a while.
+    enemy.rageLeft = Math.max(0, enemy.rageLeft - dt);
+    enemy.fleeLeft = Math.max(0, enemy.fleeLeft - dt);
+    if (enemy.fleeTo > 0 && dist >= enemy.fleeTo) enemy.fleeTo = 0;
+    const fleeing = enemy.fleeTo > 0 || enemy.fleeLeft > 0;
+    // Telegraphed attacks (D35): still while winding up, along the locked line while charging, ranged keep away.
+    const attack = goal || blind ? null : attackVelocity(enemy, dx / dist, dy / dist, dist, enemy.speed * enemySpeedFactor(enemy), dt);
+    if (fleeing) {
+      dx = -dx;
+      dy = -dy;
+    }
+    // Run Away sprints; Swift Swim (Elite Psyduck, D37) is fast in a puddle.
+    const swim = eliteAbility(enemy) === 'swiftSwim' && world.puddles.some((p) => (p.x - enemy.x) ** 2 + (p.y - enemy.y) ** 2 <= p.radius ** 2);
+    const sprint = (enemy.fleeLeft > 0 ? ABILITY_TUNING.runAway.speedMult : 1) * (swim ? ABILITY_TUNING.swiftSwim.speedMult : 1);
+    const speed = enemy.speed * enemySpeedFactor(enemy) * sprint;
+    let vx = attack && !fleeing ? attack.vx : (dx / dist) * speed;
+    let vy = attack && !fleeing ? attack.vy : (dy / dist) * speed;
 
-    // Push apart from overlapping neighbours so the horde spreads instead of stacking.
-    queryEnemies(world, enemy.x, enemy.y, enemy.radius, neighbours);
+    // Push apart from overlapping neighbours so the horde spreads instead of stacking. Phasers drift through (D37).
+    if (PHASERS.has(enemy.kind)) neighbours.length = 0;
+    else queryEnemies(world, enemy.x, enemy.y, enemy.radius, neighbours);
     for (const j of neighbours) {
       if (j === i) continue;
       const other = enemies[j]!;
@@ -567,7 +620,10 @@ function applyContactDamage(world: World): void {
     }
     if (hurt || wasStunned || player.invulnLeft > 0) continue;
     hurt = true; // one hit per step
-    hitPlayer(world, enemy.contactDamage, enemy);
+    const landed = hitPlayer(world, enemy.contactDamage * eliteContactMult(world, enemy) * attackContactMult(enemy), enemy);
+    // Poison Sting, Lick (D37): some contact hits leave a status (not through a Shell block).
+    const status = CONTACT_STATUS[enemy.kind];
+    if (landed && status) applyPlayerStatus(world, status, { hit: enemy.contactDamage });
   }
 }
 
@@ -576,16 +632,17 @@ function applyContactDamage(world: World): void {
  * Shell may block it; the enemy's weaken / Blinded and the player's damage-taken modifiers apply.
  * The caller checks invulnerability first.
  */
-export function hitPlayer(world: World, damage: number, enemy: Enemy): void {
+export function hitPlayer(world: World, damage: number, enemy: Enemy): boolean {
   const { player } = world;
   const ability = ABILITIES[player.ability];
   player.invulnLeft = TUNING.player.invulnSeconds;
-  if (ability.blockEvery && player.blockReadyLeft <= 0) {
+  // Infiltrator (Elite Zubat, D37): its hits slip past Shell.
+  if (ability.blockEvery && player.blockReadyLeft <= 0 && eliteAbility(enemy) !== 'infiltrator') {
     // Shell: this hit is blocked; the shell recharges.
     player.blockReadyLeft = ability.blockEvery;
     onShellBlock(world);
     emit(world, 'shellBlock', damage);
-    return;
+    return false;
   }
   const contact =
     damage *
@@ -603,6 +660,21 @@ export function hitPlayer(world: World, damage: number, enemy: Enemy): void {
   emit(world, 'hitTaken', taken, enemy);
   if (player.hp <= 0) {
     // In an arena a knockout throws you back to the map instead of ending the run (owner 2026-10-21).
+    if (world.arena) world.arena.knockedOut = true;
+    else world.status = 'fainted';
+  }
+  return true;
+}
+
+/**
+ * Damage over time on the player (poison, D36): no invulnerability window, no Shell block, no hit hooks; the
+ * damage-taken modifiers apply and a knockout works like any hit's.
+ */
+export function drainPlayer(world: World, amount: number): void {
+  const { player } = world;
+  if (amount <= 0 || player.hp <= 0) return;
+  player.hp = Math.max(0, player.hp - amount * world.mods.damageTakenMult * mutationDamageTakenMult(world));
+  if (player.hp <= 0) {
     if (world.arena) world.arena.knockedOut = true;
     else world.status = 'fainted';
   }

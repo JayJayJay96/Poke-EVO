@@ -1,8 +1,7 @@
 import { SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
-import { effectiveness } from '../data/typeChart';
 import { addCharge } from './abilities';
 import { BLAST_SECONDS } from './forms/projectile';
-import { currentStage } from './stats';
+import { applyPlayerStatus } from './playerStatus';
 import { spawnPuddle } from './terrain';
 import type { ArenaFight, Enemy, SnorlaxMove, World, ZapdosMove, ZapdosState } from './types';
 import { hitPlayer, spawnEnemy } from './world';
@@ -628,8 +627,6 @@ export function startZapdos(world: World, fight: ArenaFight, boss: Enemy): Zapdo
     agilityLeft: 0,
     roost: null,
     discharge: null,
-    paraLeft: 0,
-    paraTotal: 0,
   };
   const { count, ringFraction } = kit.pylons;
   for (let i = 0; i < count; i++) {
@@ -647,20 +644,9 @@ function spawnPylon(world: World, boss: Enemy, x: number, y: number): number {
   return pylon.id;
 }
 
-/** How long an Electric status lasts on the player: their stage's types resist it like an enemy's (README §10.3). */
-export function playerElectricMult(world: World): number {
-  const types = currentStage(world).types;
-  if (types.includes('Electric')) return 0.25;
-  const e = effectiveness('Electric', types);
-  return e >= 2 ? 1.5 : e <= 0.5 ? 0.5 : 1;
-}
-
-/** Paralysis on the player: a slow with a short stutter, never a stun (README §10). */
-function paralyse(world: World, zap: ZapdosState, seconds: number): void {
-  const d = seconds * playerElectricMult(world);
-  if (d <= zap.paraLeft) return;
-  zap.paraLeft = d;
-  zap.paraTotal = d;
+/** Paralysis on the player: the shared player status (D36): a slow with a short stutter, never a stun. */
+function paralyse(world: World, seconds: number): void {
+  applyPlayerStatus(world, 'paralysis', { seconds });
 }
 
 /** Where a Thunder lands: Lightning Rod pulls every strike straight onto the player. */
@@ -682,7 +668,7 @@ function landThunder(world: World, zap: ZapdosState, boss: Enemy, s: ZapdosState
   let hit = Math.hypot(player.x - s.x, player.y - s.y) <= thunder.radius + player.radius;
   if (!hit && zap.raining && world.puddles.some((p) => Math.hypot(player.x - p.x, player.y - p.y) <= p.radius + player.radius)) {
     hit = true;
-    paralyse(world, zap, rain.paralysis);
+    paralyse(world, rain.paralysis);
   }
   if (!hit) return;
   const landed = player.invulnLeft <= 0;
@@ -740,7 +726,7 @@ function updateZapShots(world: World, fight: ArenaFight, zap: ZapdosState, boss:
     shot.y += vy * dt;
     if (Math.hypot(player.x - shot.x, player.y - shot.y) <= shot.radius + player.radius) {
       strike(world, boss, shot.factor);
-      if (shot.kind === 'cannon') paralyse(world, zap, zapCannon.paralysis);
+      if (shot.kind === 'cannon') paralyse(world, zapCannon.paralysis);
       shot.left = 0;
     } else if (Math.hypot(shot.x - fight.x, shot.y - fight.y) > fight.radius) {
       shot.left = 0;
@@ -916,10 +902,8 @@ function zapdos(world: World, fight: ArenaFight, boss: Enemy, dt: number): void 
       spawnPuddle(world, at.x, at.y, kit.rain.puddleSeconds);
     }
   }
-  // Paralysis on the player: a short stutter, then a slow.
-  zap.paraLeft = Math.max(0, zap.paraLeft - dt);
-  const { slow, stutter, stutterSlow } = kit.playerParalysis;
-  fight.playerSlow = zap.paraLeft > 0 ? (zap.paraTotal - zap.paraLeft < stutter ? stutterSlow : slow) : 0;
+  // Paralysis on the player is the shared player status now (D36), applied by `paralyse`.
+  fight.playerSlow = 0;
 
   fight.goal = null;
   if (zap.transitionLeft > 0) {
@@ -973,7 +957,7 @@ function zapdos(world: World, fight: ArenaFight, boss: Enemy, dt: number): void 
       world.blasts.push({ x: fight.x, y: fight.y, radius: fight.radius, lifeLeft: BLAST_SECONDS, type: 'Electric' });
       if (Math.hypot(player.x - dis.safeX, player.y - dis.safeY) > kit.discharge.safeRadius) {
         strike(world, boss, kit.discharge.damageFactor);
-        paralyse(world, zap, kit.discharge.paralysis);
+        paralyse(world, kit.discharge.paralysis);
       }
       dis.phase = 'recover';
       dis.left = kit.discharge.recover;

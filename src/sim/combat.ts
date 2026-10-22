@@ -1,13 +1,22 @@
 import { SNORLAX_KIT, ZAPDOS_KIT } from '../data/arena';
 import { ABILITIES, ENEMIES, TUNING, type PokemonType } from '../data/content';
+import { ABILITY_TUNING, ELITE, ELITE_ABILITY } from '../data/hordes';
 import { MUTATION_TUNING } from '../data/mutations';
 import { effectiveness } from '../data/typeChart';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
 import { blazeFaked, emit, healPlayer, hooksOf, mutationLeechBonus } from './hooks';
+import { applyPlayerStatus } from './playerStatus';
+import { statusMult, type StatusId } from './statusResist';
 import type { Enemy, Gem, HitInfo, MoveSlot, MoveStats, World } from './types';
 
 /** Largest horde radius. Bosses are left out so their size doesn't widen every query (D28). */
-export const MAX_ENEMY_RADIUS = Math.max(...Object.values(ENEMIES).filter((e) => !e.boss).map((e) => e.radius));
+// Elites are bigger than their species (D34).
+export const MAX_ENEMY_RADIUS = Math.max(...Object.values(ENEMIES).filter((e) => !e.boss).map((e) => e.radius)) * ELITE.radiusMult;
+
+/** The ability an Elite has on (D34); none for normal enemies. */
+function eliteAbilityOf(enemy: Enemy) {
+  return enemy.elite ? ELITE_ABILITY[enemy.kind] : undefined;
+}
 /**
  * Extra query reach while an arena boss is out. shortcut: melee targeting (reach + MAX_ENEMY_RADIUS) still
  * ignores it, so melee reaches a boss up to this much later; widen those calls if bosses feel out of reach.
@@ -94,8 +103,17 @@ export function findNearestEnemy(
   return best;
 }
 
+/** A random living enemy within `range` of the player (confusion's aim). */
+function randomEnemyInRange(world: World, range: number): Enemy | undefined {
+  const { x, y } = world.player;
+  const inRange = world.enemies.filter((e) => e.hp > 0 && (e.x - x) ** 2 + (e.y - y) ** 2 <= range * range);
+  return inRange.length > 0 ? inRange[Math.floor(world.rng.next() * inRange.length)] : undefined;
+}
+
 /** The enemy a move aims at: the nearest in range, or with Predatory the one with the lowest HP % (2026-10-22). */
 export function findTarget(world: World, slot: MoveSlot, range: number): Enemy | undefined {
+  // Confused (D36, README §10): your aim drifts to a random enemy in range; movement is never touched.
+  if (world.playerStatus.confuseLeft > 0) return randomEnemyInRange(world, range);
   if (!slot.stats.predatory) return findNearestEnemy(world, range);
   const { x, y } = world.player;
   let best: Enemy | undefined;
@@ -150,6 +168,12 @@ export function bossHpFloor(world: World, enemy: Enemy): number {
   return gate === undefined ? 0 : enemy.maxHp * gate;
 }
 
+/** A hit's statuses scaled down by Shield Dust (its damage is unchanged). */
+function shieldDusted(hit: Readonly<HitInfo>): Readonly<HitInfo> {
+  const m = ABILITY_TUNING.shieldDust.statusMult;
+  return { ...hit, burnDps: hit.burnDps * m, poisonDps: hit.poisonDps * m, seedDps: hit.seedDps * m, slow: hit.slow * m, stun: hit.stun * m };
+}
+
 /** Roosting Zapdos is grounded: it loses its Flying type until it takes off (BOSSES.md §4). */
 const ROOSTING_ZAPDOS: readonly PokemonType[] = ['Electric'];
 
@@ -192,6 +216,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     typeMult *
     mutationMult *
     vuln *
+    // Tangled Feet (Elite Pidgey): evasive while its footing is disrupted.
+    (eliteAbilityOf(enemy) === 'tangledFeet' && (enemy.slowLeft > 0 || enemy.trapLeft > 0) ? ABILITY_TUNING.tangledFeet.damageTakenMult : 1) *
     (sleeping ? SNORLAX_KIT.rest.damageTakenMult : 1) *
     // Zapdos's generators: shielded while any pylon stands.
     (zap?.pylons.some((p) => p.enemyId !== null) ? ZAPDOS_KIT.pylons.shieldMult : 1) *
@@ -205,6 +231,18 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   // Zapdos's Discharge channel: enough damage interrupts it.
   if (zap?.discharge?.phase === 'channel') zap.discharge.taken += dealt;
   enemy.hp = floor > 0 ? enemy.hp - dealt : enemy.hp - amount;
+  const ability = eliteAbilityOf(enemy);
+  // Anger Point (Elite Tauros): a crit enrages it. Run Away (Elite Rattata): once, at low HP, it sprints off.
+  if (crit && ability === 'angerPoint') enemy.rageLeft = ABILITY_TUNING.angerPoint.seconds;
+  if (ability === 'runAway' && !enemy.abilityUsed && enemy.hp > 0 && enemy.hp < enemy.maxHp * ABILITY_TUNING.runAway.belowPct) {
+    enemy.abilityUsed = true;
+    enemy.fleeLeft = ABILITY_TUNING.runAway.seconds;
+  }
+  // Sturdy (Elite Geodude): once per life, a hit that would KO it leaves it at 1 HP.
+  if (ability === 'sturdy' && !enemy.abilityUsed && enemy.hp <= 0) {
+    enemy.abilityUsed = true;
+    enemy.hp = 1;
+  }
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
 
   const lifesteal = hit.fromProc ? hit.lifesteal : hit.lifesteal + mutationLeechBonus(world, enemy);
@@ -213,21 +251,35 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
 
   if (enemy.hp <= 0) {
     world.kills++;
-    if (def.xp > 0) dropGem(world, enemy.x, enemy.y, def.xp);
-    maybeDropBerry(world, enemy.x, enemy.y, def.berryChance);
+    if (def.xp > 0) dropGem(world, enemy.x, enemy.y, def.xp * (enemy.elite ? ELITE.xpMult : 1));
+    maybeDropBerry(world, enemy.x, enemy.y, enemy.elite ? Math.max(def.berryChance, ELITE.berryChance) : def.berryChance);
     maybeDropMagnet(world, enemy.x, enemy.y);
+    // Aftermath (Elite Voltorb): it explodes anyway, after a short ring.
+    if (ability === 'aftermath') {
+      const { delay, radius, damageFactor } = ABILITY_TUNING.aftermath;
+      world.delayedBlasts.push({ x: enemy.x, y: enemy.y, radius, left: delay, total: delay, damage: enemy.contactDamage * damageFactor, owner: enemy });
+    }
     if (!hit.fromProc) {
       hooks?.onKill?.(world, slot!, enemy);
       emit(world, 'kill', 1, enemy);
     }
     return dealt;
   }
+  // Shield Dust (Elite Caterpie): statuses riding on a damaging hit barely land.
+  if (ability === 'shieldDust') hit = shieldDusted(hit);
+  // Synchronize (Elite Abra): burn, poison and paralysis bounce back onto you (only these three, lore).
+  if (ability === 'synchronize') {
+    if (hit.burnDps > 0) applyPlayerStatus(world, 'burn', { hit: enemy.contactDamage });
+    if (hit.poisonDps > 0) applyPlayerStatus(world, 'poison', { hit: enemy.contactDamage });
+    if (hit.stun > 0 && hit.stunKind === 'paralysis') applyPlayerStatus(world, 'paralysis');
+  }
   if (hit.burnDps > 0) applyBurn(enemy, hit.burnDps);
   applyStatuses(enemy, hit);
   if (hit.seedDps > 0) {
-    // Leech Seed: refreshes; a stronger seed replaces a weaker one.
+    // Leech Seed: refreshes; a stronger seed replaces a weaker one. Grass shrugs it off (D27).
     const seeded = enemy.seedLeft > 0;
-    enemy.seedDps = seeded ? Math.max(enemy.seedDps, hit.seedDps) : hit.seedDps;
+    const seedDps = hit.seedDps * enemyStatusMult(enemy, 'seed');
+    enemy.seedDps = seeded ? Math.max(enemy.seedDps, seedDps) : seedDps;
     if (!seeded) enemy.seedTickLeft = TUNING.status.burnTick;
     enemy.seedLeft = TUNING.status.seedSeconds;
   }
@@ -242,14 +294,38 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
 export function pushEnemy(enemy: Enemy, dirX: number, dirY: number, px: number): void {
   const def = ENEMIES[enemy.kind];
   const soaked = enemy.soakLeft > 0 ? MUTATION_TUNING.soaked.staggerTakenMult : 1;
-  const boss = def.boss ? MUTATION_TUNING.bossStaggerMult : 1;
+  const boss = def.boss ? MUTATION_TUNING.bossStaggerMult : enemy.elite ? ELITE.staggerMult : 1;
   const v = px * TUNING.status.knockbackDecay * (1 - knockbackResistance(def.weightKg)) * soaked * boss;
   enemy.kbX += dirX * v;
   enemy.kbY += dirY * v;
 }
 
+const RESIST_CACHE = new Map<string, number>();
+
+/**
+ * Status resistance by type (D27, README §2–§3): ×1.5 / ×1 / ×0.5 / ×0.25 from the enemy's types. It scales a
+ * DoT's damage or another status's duration. Bosses also take stuns at half length (boss rule, README §5).
+ */
+export function enemyStatusMult(enemy: Enemy, status: StatusId): number {
+  const key = `${enemy.kind}:${status}`;
+  let mult = RESIST_CACHE.get(key);
+  if (mult === undefined) {
+    const def = ENEMIES[enemy.kind];
+    const stun = status === 'sleep' || status === 'paralysis' || status === 'flinch' || status === 'freeze';
+    mult = statusMult(def.types, status) * (def.boss && stun ? 0.5 : 1);
+    RESIST_CACHE.set(key, mult);
+  }
+  return mult;
+}
+
+/** Which resistance a stun uses. */
+function stunStatus(kind: Enemy['stunKind']): StatusId {
+  return kind === 'sleep' ? 'sleep' : kind === 'paralysis' ? 'paralysis' : 'flinch';
+}
+
 /** Starts or refreshes a burn; a stronger burn replaces a weaker one. */
 export function applyBurn(enemy: Enemy, dps: number): void {
+  dps *= enemyStatusMult(enemy, 'burn');
   const burning = enemy.burnLeft > 0;
   enemy.burnDps = burning ? Math.max(enemy.burnDps, dps) : dps;
   if (!burning) enemy.burnTickLeft = TUNING.status.burnTick;
@@ -263,6 +339,7 @@ export function applyBurn(enemy: Enemy, dps: number): void {
  */
 export function applyNewStun(enemy: Enemy, seconds: number, kind: Enemy['stunKind'] = null): boolean {
   if (seconds <= 0 || enemy.stunFatigueLeft > 0 || ENEMIES[enemy.kind].boss) return false;
+  seconds *= enemyStatusMult(enemy, stunStatus(kind));
   if (seconds >= enemy.stunLeft) enemy.stunKind = kind;
   enemy.stunLeft = Math.max(enemy.stunLeft, seconds);
   enemy.fatigueOnEnd = true;
@@ -272,6 +349,9 @@ export function applyNewStun(enemy: Enemy, seconds: number, kind: Enemy['stunKin
 /** Blinded (D20): the enemy loses you for `seconds` and wanders off; bosses are immune. */
 export function applyBlind(world: World, enemy: Enemy, seconds: number): void {
   if (seconds <= 0 || ENEMIES[enemy.kind].boss) return;
+  // Keen Eye (Elite Fearow): its accuracy can't really be lowered.
+  if (eliteAbilityOf(enemy) === 'keenEye') seconds *= ABILITY_TUNING.keenEye.blindMult;
+  seconds *= enemyStatusMult(enemy, 'blind');
   if (enemy.blindLeft <= 0) pickWanderPoint(world, enemy);
   enemy.blindLeft = Math.max(enemy.blindLeft, seconds);
 }
@@ -292,7 +372,7 @@ export function canTrap(enemy: Enemy): boolean {
 /** A slow with its own duration (ability bursts); a stronger slow wins. */
 export function applySlow(enemy: Enemy, slow: number, seconds: number): void {
   enemy.slow = enemy.slowLeft > 0 ? Math.max(enemy.slow, slow) : slow;
-  enemy.slowLeft = Math.max(enemy.slowLeft, seconds);
+  enemy.slowLeft = Math.max(enemy.slowLeft, seconds * enemyStatusMult(enemy, 'slow'));
 }
 
 /** A vulnerability debuff; a stronger one replaces a weaker one, the time refreshes. */
@@ -312,6 +392,7 @@ export function applyVulnAll(enemy: Enemy, pct: number, seconds: number): void {
 
 /** Leech Seed from a Mutation (Sap Lash): a stronger seed replaces a weaker one; the time refreshes. */
 export function applySeed(enemy: Enemy, dps: number, seconds: number): void {
+  dps *= enemyStatusMult(enemy, 'seed');
   const seeded = enemy.seedLeft > 0;
   enemy.seedDps = seeded ? Math.max(enemy.seedDps, dps) : dps;
   if (!seeded) enemy.seedTickLeft = TUNING.status.burnTick;
@@ -320,7 +401,7 @@ export function applySeed(enemy: Enemy, dps: number, seconds: number): void {
 
 /** Soaked (shared Water terrain): refreshes. */
 export function soak(enemy: Enemy, seconds: number = MUTATION_TUNING.soaked.seconds): void {
-  enemy.soakLeft = Math.max(enemy.soakLeft, seconds);
+  enemy.soakLeft = Math.max(enemy.soakLeft, seconds * enemyStatusMult(enemy, 'soaked'));
 }
 
 /** Movement factor from slows and Soaked; the total slowdown is capped (guard rail). */
@@ -335,17 +416,20 @@ export function applyStatuses(
   enemy: Enemy,
   effects: Pick<HitInfo, 'slow' | 'stun' | 'poisonDps'> & { readonly stunKind?: Enemy['stunKind'] },
 ): void {
+  // Status resistance by type (D27) scales durations and the poison's damage.
   if (effects.slow > 0) {
     enemy.slow = enemy.slowLeft > 0 ? Math.max(enemy.slow, effects.slow) : effects.slow;
-    enemy.slowLeft = TUNING.status.slowSeconds;
+    enemy.slowLeft = TUNING.status.slowSeconds * enemyStatusMult(enemy, 'slow');
   }
   if (effects.stun > 0) {
-    if (effects.stun >= enemy.stunLeft) enemy.stunKind = effects.stunKind ?? null;
-    enemy.stunLeft = Math.max(enemy.stunLeft, effects.stun);
+    const stun = effects.stun * enemyStatusMult(enemy, stunStatus(effects.stunKind ?? null));
+    if (stun >= enemy.stunLeft) enemy.stunKind = effects.stunKind ?? null;
+    enemy.stunLeft = Math.max(enemy.stunLeft, stun);
   }
   if (effects.poisonDps > 0) {
+    const dps = effects.poisonDps * enemyStatusMult(enemy, 'poison');
     const poisoned = enemy.poisonLeft > 0;
-    enemy.poisonDps = poisoned ? Math.max(enemy.poisonDps, effects.poisonDps) : effects.poisonDps;
+    enemy.poisonDps = poisoned ? Math.max(enemy.poisonDps, dps) : dps;
     if (!poisoned) enemy.poisonTickLeft = TUNING.status.burnTick;
     enemy.poisonLeft = TUNING.status.poisonSeconds;
   }

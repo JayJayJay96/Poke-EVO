@@ -79,6 +79,10 @@ function enterArena(world: World): void {
   world.puddles = [];
   world.scorches = [];
   world.entities = [];
+  // Darts, webs and Aftermath rings on the map don't follow you in (D35, D37).
+  world.enemyShots = [];
+  world.webs = [];
+  world.delayedBlasts = [];
   const { x, y } = entrance;
   const wave = waveAt(runClock(world));
   const boss = spawnEnemy(world, def.enemy, x, y, wave.hpScale);

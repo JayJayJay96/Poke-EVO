@@ -86,8 +86,6 @@ export const ZAPDOS_KIT = {
   rain: { puddleEvery: 1.5, puddleSeconds: 6, paralysis: 2 },
   /** Lightning Rod (player trait): Thunder strikes you directly, and each hit fills this much Charge. */
   lightningRodCharge: 25,
-  /** Paralysis on the player (README §10): slowed, with a short stutter when it lands; never a stun. */
-  playerParalysis: { slow: 0.35, stutter: 0.2, stutterSlow: 0.9 },
 } as const;
 export const ARENA_BOSS_IDS = Object.keys(ARENA_BOSSES) as ArenaBossId[];
 

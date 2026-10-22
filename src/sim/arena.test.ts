@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
 import { ENEMIES, TUNING } from '../data/content';
 import { arenaBossChoices, arenaSchedule, chooseArenaReward, chooseCombine, resolveArena, rollRewardCards, skipCombine } from './arena';
-import { playerElectricMult } from './bosses';
+import { PLAYER_STATUS } from '../data/playerStatus';
+import { playerStatusSlow } from './playerStatus';
+import { currentStage } from './stats';
+import { statusMult } from './statusResist';
 import { NO_HIT, damageEnemy } from './combat';
 import { spawnPuddle } from './terrain';
 import { MAX_COMBO_MOVES, comboCandidates, comboCooldown, learnsetSlotsUsed } from './combo';
@@ -814,14 +817,15 @@ describe('Zapdos (D32)', () => {
     zap.strikes.push({ x: f.x - f.radius * 0.8, y: f.y, left: DT / 2, total: 1, factor: 1 });
     step(world, IDLE, DT);
     expect(world.player.hp).toBeLessThan(hp);
-    expect(zap.paraLeft).toBeGreaterThan(0);
-    run(world, ZAPDOS_KIT.playerParalysis.stutter + 0.1);
-    expect(f.playerSlow).toBeCloseTo(ZAPDOS_KIT.playerParalysis.slow);
+    expect(world.playerStatus.paraLeft).toBeGreaterThan(0);
+    run(world, PLAYER_STATUS.paralysis.stutter + 0.1);
+    expect(playerStatusSlow(world)).toBeCloseTo(PLAYER_STATUS.paralysis.slow);
   });
 
   it('player paralysis follows the starter type: Electric ×0.25, Water ×1.5, Fire ×1', () => {
     for (const [pokemonId, mult] of [['pikachu', 0.25], ['squirtle', 1.5], ['charmander', 1]] as const) {
-      expect(playerElectricMult(createWorld({ rng: createSeededRng(1), pokemonId }))).toBe(mult);
+      const w = createWorld({ rng: createSeededRng(1), pokemonId });
+      expect(statusMult(currentStage(w).types, 'paralysis')).toBe(mult);
     }
   });
 

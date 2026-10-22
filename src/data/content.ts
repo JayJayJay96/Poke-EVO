@@ -12,14 +12,40 @@ export type PokemonType =
   | 'Electric'
   | 'Ice'
   | 'Dark'
-  | 'Steel';
+  | 'Steel'
+  // Defender types of the batch-2 enemies (ROSTER.md, D27); no player move uses them yet.
+  | 'Bug'
+  | 'Rock'
+  | 'Ground'
+  | 'Ghost'
+  | 'Psychic';
 export type FormTag = 'Projectile' | 'Area' | 'Beam' | 'Melee' | 'Aura' | 'Zone' | 'Orbit';
 export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' | 'Ball' | 'Contact';
 export type MoveTag = PokemonType | FormTag | FlagTag;
 
 /** An evolution line, named after its first stage. */
 export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur' | 'pikachu' | 'lapras';
-export type EnemyId = 'rattata' | 'pidgey' | 'raticate' | 'spearow' | 'fearow' | 'tauros' | 'snorlax' | 'zapdos' | 'pylon';
+export type EnemyId =
+  | 'rattata'
+  | 'pidgey'
+  | 'raticate'
+  | 'spearow'
+  | 'fearow'
+  | 'tauros'
+  | 'snorlax'
+  | 'zapdos'
+  | 'pylon'
+  // Batch 2 (ROSTER.md, owner-approved 2026-10-21).
+  | 'caterpie'
+  | 'weedle'
+  | 'zubat'
+  | 'oddish'
+  | 'psyduck'
+  | 'geodude'
+  | 'gastly'
+  | 'abra'
+  | 'voltorb'
+  | 'chansey';
 export type AbilityId =
   | 'blaze'
   | 'blazePlus'
@@ -606,7 +632,8 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     name: 'Spearow',
     types: ['Normal', 'Flying'],
     maxHp: 22,
-    speed: 120,
+    // Ranged role (D35, ROSTER): it keeps its distance and shoots, so it moves in the ranged band (was 120, fast).
+    speed: 71,
     radius: 10,
     contactDamage: 13,
     xp: 3,
@@ -666,6 +693,19 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     weightKg: 52.6,
     boss: true,
   },
+  // Batch 2 (docs/enemies/ROSTER.md, owner-approved 2026-10-21): stats from the official base stats (D27), speed
+  // from the role band, XP = base exp ÷ 50. Attacks in enemyAttacks.ts, Elite abilities in hordes.ts. Provisional.
+  caterpie: { id: 'caterpie', name: 'Caterpie', types: ['Bug'], maxHp: 22, speed: 78, radius: 10, contactDamage: 5, xp: 0.8, berryChance: 0.004, weightKg: 2.9 },
+  weedle: { id: 'weedle', name: 'Weedle', types: ['Bug', 'Poison'], maxHp: 20, speed: 78, radius: 10, contactDamage: 6, xp: 0.8, berryChance: 0.004, weightKg: 3.2 },
+  zubat: { id: 'zubat', name: 'Zubat', types: ['Poison', 'Flying'], maxHp: 23, speed: 123, radius: 13, contactDamage: 8, xp: 1, berryChance: 0.004, weightKg: 7.5 },
+  oddish: { id: 'oddish', name: 'Oddish', types: ['Grass', 'Poison'], maxHp: 32, speed: 76, radius: 11, contactDamage: 14, xp: 1.3, berryChance: 0.01, weightKg: 5.4 },
+  psyduck: { id: 'psyduck', name: 'Psyduck', types: ['Water'], maxHp: 30, speed: 69, radius: 13, contactDamage: 12, xp: 1.3, berryChance: 0.01, weightKg: 19.6 },
+  geodude: { id: 'geodude', name: 'Geodude', types: ['Rock', 'Ground'], maxHp: 32, speed: 50, radius: 11, contactDamage: 14, xp: 1.2, berryChance: 0.01, weightKg: 20 },
+  gastly: { id: 'gastly', name: 'Gastly', types: ['Ghost', 'Poison'], maxHp: 19, speed: 82, radius: 16, contactDamage: 18, xp: 1.2, berryChance: 0.01, weightKg: 0.1 },
+  abra: { id: 'abra', name: 'Abra', types: ['Psychic'], maxHp: 18, speed: 63, radius: 14, contactDamage: 19, xp: 1.2, berryChance: 0.01, weightKg: 19.5 },
+  voltorb: { id: 'voltorb', name: 'Voltorb', types: ['Electric'], maxHp: 28, speed: 104, radius: 11, contactDamage: 10, xp: 1.3, berryChance: 0.01, weightKg: 10.4 },
+  // A rare, high-XP healer (lore: its eggs heal, so a higher berry chance).
+  chansey: { id: 'chansey', name: 'Chansey', types: ['Normal'], maxHp: 92, speed: 63, radius: 15, contactDamage: 6, xp: 7.9, berryChance: 0.3, weightKg: 34.6 },
   // Zapdos's generators: a target that powers its shield. Never moves, never hurts, pays nothing; HP set at spawn.
   pylon: {
     id: 'pylon',
