@@ -549,6 +549,69 @@ export type SnorlaxMove =
   | 'belch'
   | 'earthquake';
 
+/** Moves Zapdos's picker can start (D32). */
+export type ZapdosMove =
+  | 'thunder'
+  | 'drillPeck'
+  | 'shockWave'
+  | 'thunderbolt'
+  | 'roost'
+  | 'thunderstorm'
+  | 'zapCannon'
+  | 'fence'
+  | 'agility'
+  | 'discharge';
+
+/** Zapdos's fight state (D32); null on other bosses' fights. */
+export interface ZapdosState {
+  phase: number;
+  /** Immune phase-change animation (Charge-up, Rain Dance). */
+  transitionLeft: number;
+  raining: boolean;
+  puddleTimer: number;
+  moveGap: number;
+  lastMove: ZapdosMove | null;
+  cooldowns: Record<Exclude<ZapdosMove, 'roost'>, number>;
+  /** The phase Roost was last used in (once per phase), and the HP it entered the phase with. */
+  roostPhase: number;
+  phaseStartHp: number;
+  /** Generators: the enemy standing there (null while broken) and the seconds until it's rebuilt. */
+  pylons: { readonly x: number; readonly y: number; enemyId: number | null; recharge: number }[];
+  /** Thunder rings waiting to land. */
+  strikes: { readonly x: number; readonly y: number; left: number; readonly total: number; readonly factor: number }[];
+  /** Thunderstorm: strikes still to call and the seconds until the next. */
+  storm: { next: number; left: number } | null;
+  /** Drill Peck: the locked line, then the dash, then the recover. */
+  peck: { readonly x: number; readonly y: number; readonly angle: number; left: number; travelled: number; hit: boolean; phase: 'windup' | 'dash' | 'recover' } | null;
+  /** Standing still while casting Shock Wave, Thunderbolt or Zap Cannon. */
+  cast: { readonly move: 'shockWave' | 'thunderbolt' | 'zapCannon'; left: number } | null;
+  shots: {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    readonly radius: number;
+    left: number;
+    homingLeft: number;
+    readonly turnRate: number;
+    readonly factor: number;
+    readonly kind: 'shock' | 'bolt' | 'cannon';
+    /** Zigzag: seconds alive and the straight heading the bolt weaves around. */
+    age: number;
+    readonly heading: number;
+  }[];
+  /** Electric Fences: a telegraph line, then live for a while. */
+  fences: { readonly x1: number; readonly y1: number; readonly x2: number; readonly y2: number; left: number; phase: 'windup' | 'live' }[];
+  /** Agility: the line to where it zips, then a speed buff. */
+  agility: { readonly x: number; readonly y: number; left: number } | null;
+  agilityLeft: number;
+  roost: { left: number } | null;
+  discharge: { left: number; taken: number; readonly safeX: number; readonly safeY: number; phase: 'channel' | 'recover' } | null;
+  /** Paralysis on the player (seconds left, and how long it was when it landed, for the stutter). */
+  paraLeft: number;
+  paraTotal: number;
+}
+
 export interface ArenaFight {
   readonly bossId: ArenaBossId;
   readonly bossEnemyId: number;
@@ -622,6 +685,8 @@ export interface ArenaFight {
   belchReady: boolean;
   /** Earthquake: two bands of ground around where it stomped hit, then the band between them. */
   quake: { readonly x: number; readonly y: number; left: number; step: 1 | 2; phase: 'windup' | 'recover' } | null;
+  /** Zapdos's own state (D32); null when the boss is someone else. */
+  zap: ZapdosState | null;
   /** Rocks from Body Slam that block the player for a while. */
   rubble: { readonly x: number; readonly y: number; readonly radius: number; left: number }[];
   readonly stored: {
@@ -640,7 +705,7 @@ export interface ArenaFight {
 
 /** Arena news for the scene to show once (D28). */
 export interface ArenaNotice {
-  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'knockedOut' | 'rest' | 'woke' | 'bellyDrum';
+  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'knockedOut' | 'rest' | 'woke' | 'bellyDrum' | 'chargeUp' | 'rainDance';
   readonly bossId: ArenaBossId;
 }
 
@@ -648,6 +713,8 @@ export type RunStatus = 'running' | 'fainted' | 'survived';
 
 export interface World {
   time: number;
+  /** Seconds spent inside arenas: the run clock (`runClock`) doesn't count them (owner 2026-10-23). */
+  arenaSeconds: number;
   status: RunStatus;
   player: Player;
   enemies: Enemy[];

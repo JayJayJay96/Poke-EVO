@@ -181,13 +181,39 @@ special animations must not be burst through. All numbers are in `SNORLAX_KIT` (
 
 | Phase | Moves |
 |---|---|
-| **1** | **Generators:** 3 pylons power a **shield** (Zapdos takes ×0.25 while any pylon is up). Break them; they recharge after 20 s. **Thunder:** strikes with **bracket** aim (one on you, one ahead). **Drill Peck** dash (lead 1) |
+| **1** | **Generators:** 3 pylons power a **shield** (Zapdos takes ×0.25 while any pylon is up). Break them; they are rebuilt after 35 s (owner 2026-10-23; was 20 s). **Thunder:** strikes with **bracket** aim (one on you, one ahead). **Drill Peck** dash (lead 1) |
 | **2 (below 66%)** | **Electric fences:** dashes across the arena, leaving lightning lines that **split it into zones** for 4 s. Thunder becomes a **rhythm combo** (3 strikes, shrinking gaps) |
 | **3 (below 33%)** | **Rain Dance** (arena only): Thunder hits **instantly in puddles** and puddles spawn. Standing in water means paralysis, so Squirtle and Lapras must mind their own puddles. **Charge → Discharge:** a 2 s channel with an **interrupt bar**, then a full-arena shock with a single safe ring |
 | **Lightning Rod** | A player with the Lightning Rod trait **pulls Thunder onto themselves**: they take the hit, but it fills their Charge meter. A brave-Pikachu payoff |
 | **Roost** | As Articuno: loses Flying while roosting (pure Electric: Ice drops to ×1, Grass to ×1; Electric becomes ×0.5) |
 | **Projectiles** | **Shock Wave:** homing bolts (lore: never misses) with a strong turn rate but only a **2.5 s timeout**. **Thunderbolt:** **zigzag** sine-wave bolts in a 3-way fan. Shock Wave plus electric fences is the phase 2 squeeze |
 | **Adds** | Voltorb and Magnemite from the Power Plant (lore-correct) |
+
+**Built as an arena boss (D32, 2026-10-22).** It follows D31's rules: special animations are immune, there's a phase
+gate, and it has 10+ kinds of moves. All numbers are in `ZAPDOS_KIT` (provisional).
+
+| Move | Phase | What it does |
+|---|---|---|
+| Generators | all | 3 pylons (real enemies your auto-fire targets, no XP) shield Zapdos ×0.25; a broken one is rebuilt after 35 s (owner 2026-10-23; was 20 s) |
+| Thunder | 1+ | Bracket: one ring on you, one where you're heading (0.9 s) |
+| Drill Peck | 1+ | Lead-aimed line, then a dash along it |
+| Shock Wave | 1+ | 3 homing bolts that give up after 2.5 s and fly straight |
+| Thunderbolt | 1+ | A 3-way fan of zigzag bolts |
+| Roost | once per phase, after losing 12% in it | Lands, heals 15% over 3 s, **loses Flying** (Ice ×2 → ×1): the damage window, not immune |
+| Charge-up | at 66% | Immune 1.5 s animation into phase 2 |
+| Thunderstorm | 2+ | 3 strikes on you, gaps 0.8 / 0.6 / 0.4 s |
+| Zap Cannon | 2+ | Slow, lazily homing ball that paralyses |
+| Electric Fence | 2+ | A line across the arena beside you; Zapdos zips along it and it stays live 4 s |
+| Agility | 2+ | Zips to the far side of the arena, then flies ×1.5 for 4 s |
+| Rain Dance | at 33% | Immune 1.5 s animation; then puddles keep appearing and **any Thunder hits you if you stand in a puddle** (and paralyses) |
+| Discharge | 3 | 2 s channel (deal 5% of max HP to interrupt), then the whole arena shocks except one safe ring |
+
+- **Movement:** it hovers about 260 px from you, drifting sideways; it never chases to contact.
+- **Pressure:** your move cooldowns run 15% slower during the fight.
+- **Lightning Rod:** every Thunder lands on you; the hit fills Charge.
+- **Paralysis on the player** (first player status, README §10): −35% speed with a 0.2 s heavier stutter at the
+  start, never a stun. The duration follows the starter's types: Electric ×0.25, Water or Flying ×1.5.
+- **Adds (Voltorb, Magnemite) are not built yet:** those enemies don't exist in the game.
 
 ### Moltres: rift. "The floor is burning"
 | | |

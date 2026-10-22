@@ -1,3 +1,4 @@
+import { ZAPDOS_KIT } from '../data/arena';
 import { REROLLS_PER_RUN } from '../data/augments';
 import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
 import { MOVES, type MoveDef } from '../data/moves';
@@ -57,6 +58,7 @@ export function createWorld({
   const firstStage = def.stages[0]!;
   const world: World = {
     time: 0,
+    arenaSeconds: 0,
     status: 'running',
     player: {
       pokemonId,
@@ -135,6 +137,14 @@ export function createWorld({
 }
 
 /**
+ * The run clock: time on the main map only. Arena fights don't count (owner 2026-10-23), so the run's end, the
+ * wave ramp and the arena schedule follow it; `world.time` keeps running for every timer inside a fight.
+ */
+export function runClock(world: World): number {
+  return world.time - world.arenaSeconds;
+}
+
+/**
  * Advances the run by one fixed step.
  * Does nothing once the run has ended, while level-up cards wait for a choice,
  * or while an evolution plays.
@@ -142,6 +152,7 @@ export function createWorld({
 export function step(world: World, input: InputState, dt: number): void {
   if (world.status !== 'running' || world.offer || world.evolution) return;
   world.time += dt;
+  if (world.arena) world.arenaSeconds += dt;
   tickTimers(world, dt);
   movePlayer(world, input, dt);
   updateArena(world, dt);
@@ -163,7 +174,7 @@ export function step(world: World, input: InputState, dt: number): void {
   resolveArena(world);
   upgradeSignatureByLevel(world);
   if (!world.arena) updateSites(world, dt);
-  if (world.time >= TUNING.runSeconds) world.status = 'survived';
+  if (runClock(world) >= TUNING.runSeconds) world.status = 'survived';
   // A captured site opens first; then evolution, whose summary card hands over to queued level-up cards.
   else if (!world.offer && !startEvolutionIfDue(world) && world.pendingLevelUps > 0) world.offer = makeOffer(world);
 }
@@ -340,7 +351,7 @@ function updateSpawner(world: World, dt: number): void {
   recycleStragglers(world);
   world.spawnTimer -= dt;
   while (world.spawnTimer <= 0) {
-    const wave = waveAt(world.time);
+    const wave = waveAt(runClock(world));
     world.spawnTimer += wave.spawnInterval;
     if (world.enemies.length >= TUNING.spawn.maxEnemies) continue;
     const angle = world.rng.next() * Math.PI * 2;
@@ -408,6 +419,8 @@ function moveEnemies(world: World, dt: number): void {
 
 function updateMoves(world: World, dt: number): void {
   const { combo } = world;
+  // Pressure (Zapdos's ability, D32): cooldowns run slower during its fight.
+  const pressure = world.arena?.zap && world.arena.engaged ? 1 + ZAPDOS_KIT.pressure : 1;
   for (let i = 0; i < world.moves.length; i++) {
     const slot = world.moves[i]!;
     const def = MOVES[slot.moveId];
@@ -416,7 +429,7 @@ function updateMoves(world: World, dt: number): void {
       Object.assign(slot.stats, slot.baseStats);
       hooks.live(slot.stats, world, slot);
     }
-    slot.cooldownLeft = Math.max(0, slot.cooldownLeft - dt);
+    slot.cooldownLeft = Math.max(0, slot.cooldownLeft - dt / pressure);
     // Combo members (D28) don't fire on their own: they fire with the base on its shared cooldown.
     const member = combo.indexOf(i) > 0;
     // A move with no valid target stays ready and fires the moment one appears.
@@ -538,6 +551,8 @@ function applyContactDamage(world: World): void {
     const dy = enemy.y - player.y;
     const reach = enemy.radius + player.radius;
     if (dx * dx + dy * dy > reach * reach) continue;
+    // Harmless things (Zapdos's generators) never hurt or get Static.
+    if (enemy.contactDamage <= 0) continue;
     // Snorlax in the air (Heavy Slam) can't be touched either way.
     const hs = world.arena?.bossEnemyId === enemy.id ? world.arena.heavySlam : null;
     if (hs && (hs.phase === 'air' || hs.phase === 'lock')) continue;

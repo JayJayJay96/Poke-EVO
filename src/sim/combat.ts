@@ -1,5 +1,5 @@
-import { SNORLAX_KIT } from '../data/arena';
-import { ABILITIES, ENEMIES, TUNING } from '../data/content';
+import { SNORLAX_KIT, ZAPDOS_KIT } from '../data/arena';
+import { ABILITIES, ENEMIES, TUNING, type PokemonType } from '../data/content';
 import { MUTATION_TUNING } from '../data/mutations';
 import { effectiveness } from '../data/typeChart';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
@@ -135,18 +135,23 @@ export function abilityDamageMult(world: World): number {
 export function bossImmune(world: World, enemy: Enemy): boolean {
   const f = world.arena;
   if (!f || f.bossEnemyId !== enemy.id) return false;
+  // Zapdos: its phase-change animations (Charge-up, Rain Dance).
+  if (f.zap) return f.zap.transitionLeft > 0;
   const airborne = f.heavySlam?.phase === 'air' || f.heavySlam?.phase === 'lock';
   return f.shakeLeft > 0 || f.drumLeft > 0 || airborne;
 }
 
-/** The lowest HP damage can take the arena boss to: its next Rest threshold, until that Rest has started. */
+/** The lowest HP damage can take the arena boss to: its next phase threshold, until that phase has started. */
 export function bossHpFloor(world: World, enemy: Enemy): number {
   const f = world.arena;
   if (!f || f.bossEnemyId !== enemy.id) return 0;
-  // While resting in phase p the gate is the next threshold; otherwise the current phase's own.
-  const gate = SNORLAX_KIT.restAt[f.rest ? f.phase : f.phase - 1];
+  // Snorlax: while resting in phase p the gate is the next threshold; otherwise the current phase's own.
+  const gate = f.zap ? ZAPDOS_KIT.phaseAt[f.zap.phase - 1] : SNORLAX_KIT.restAt[f.rest ? f.phase : f.phase - 1];
   return gate === undefined ? 0 : enemy.maxHp * gate;
 }
+
+/** Roosting Zapdos is grounded: it loses its Flying type until it takes off (BOSSES.md §4). */
+const ROOSTING_ZAPDOS: readonly PokemonType[] = ['Electric'];
 
 /**
  * Applies a hit and its on-hit effects (§8.8 onHit): crit roll, live multipliers
@@ -169,8 +174,9 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const player = world.player;
   const missing = hit.missingHpBonus > 0 ? hit.missingHpBonus * Math.max(0, 1 - player.hp / player.maxHp) : 0;
   const def = ENEMIES[enemy.kind];
+  const zap = world.arena?.bossEnemyId === enemy.id ? world.arena.zap : null;
   // Type chart (D14): multiplied for dual-type enemies; typeless hits stay ×1.
-  const typeMult = effectiveness(hit.attackType, def.types);
+  const typeMult = effectiveness(hit.attackType, zap?.roost ? ROOSTING_ZAPDOS : def.types);
   enemy.lastEffectiveness = typeMult;
   const mutationMult = hooks?.damageMult ? hooks.damageMult(world, slot!, enemy) : 1;
   // Vulnerability debuffs (Wash Down, Acid, Nightmare...): extra damage taken, for one type or all.
@@ -187,6 +193,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     mutationMult *
     vuln *
     (sleeping ? SNORLAX_KIT.rest.damageTakenMult : 1) *
+    // Zapdos's generators: shielded while any pylon stands.
+    (zap?.pylons.some((p) => p.enemyId !== null) ? ZAPDOS_KIT.pylons.shieldMult : 1) *
     // The move's own hits only (procs carry no slot): Volatility's roll and Predatory's bonus below half HP.
     (slot ? slot.volatileMult : 1) *
     (slot && slot.stats.executePct > 0 && enemy.hp < enemy.maxHp * 0.5 ? 1 + slot.stats.executePct : 1);
@@ -194,6 +202,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const floor = bossHpFloor(world, enemy);
   const dealt = Math.max(0, Math.min(enemy.hp - floor, amount));
   if (sleeping) sleeping.wake += dealt;
+  // Zapdos's Discharge channel: enough damage interrupts it.
+  if (zap?.discharge?.phase === 'channel') zap.discharge.taken += dealt;
   enemy.hp = floor > 0 ? enemy.hp - dealt : enemy.hp - amount;
   enemy.hitFlashLeft = TUNING.enemy.hitFlashSeconds;
 
@@ -203,7 +213,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
 
   if (enemy.hp <= 0) {
     world.kills++;
-    dropGem(world, enemy.x, enemy.y, def.xp);
+    if (def.xp > 0) dropGem(world, enemy.x, enemy.y, def.xp);
     maybeDropBerry(world, enemy.x, enemy.y, def.berryChance);
     maybeDropMagnet(world, enemy.x, enemy.y);
     if (!hit.fromProc) {

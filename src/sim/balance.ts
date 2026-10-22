@@ -8,7 +8,7 @@ import { chooseArenaReward, chooseCombine } from './arena';
 import { chooseSiteCard } from './sites';
 import { currentStage } from './stats';
 import type { World } from './types';
-import { createWorld, spawnEnemy, step } from './world';
+import { createWorld, runClock, spawnEnemy, step } from './world';
 
 // Early-vs-late gamble check (§5, P4d). A headless bot plays a line with random card
 // picks and never takes damage; at each checkpoint a ring of training dummies replaces
@@ -168,7 +168,7 @@ export function playLine(
   let heading = roam.next() * Math.PI * 2;
   let legLeft = ROAM_SECONDS;
   for (const time of checkpoints) {
-    while (world.time < time && world.status === 'running') {
+    while (runClock(world) < time && world.status === 'running') {
       world.player.invulnLeft = Infinity;
       // Perfect gem collector: real players walk to far kills, the bot can't, and
       // long-range lines would starve of XP otherwise.

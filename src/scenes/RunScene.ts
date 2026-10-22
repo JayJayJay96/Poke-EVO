@@ -4,7 +4,7 @@ import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId, type
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
-import { ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
+import { ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
 import { chooseArenaReward, chooseCombine, skipCombine } from '../sim/arena';
 import { angleGap, snoreOpenings } from '../sim/bosses';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
@@ -38,8 +38,8 @@ import { createRandomSeed, createSeededRng } from '../sim/rng';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
-import type { ArenaFight, AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, RewardCard, SiteCard, World } from '../sim/types';
-import { createWorld, step } from '../sim/world';
+import type { ArenaFight, AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, RewardCard, SiteCard, World, ZapdosState } from '../sim/types';
+import { createWorld, runClock, step } from '../sim/world';
 
 // Grey-box colours until real sprites arrive in P6.
 const COLORS = {
@@ -83,6 +83,10 @@ const COLORS = {
   gas: 0x9be36b,
   chain: 0xb8b8c8,
   shield: 0xffffff,
+  zap: 0xffe14d,
+  shock: 0xc8f0ff,
+  rain: 0x4a7fd4,
+  safe: 0x6ee07a,
   exclusive: 0xff8c42,
   /** Mutation frames: purple for generic, gold for Bond / signature (docs/moveset/README.md). */
   mutation: 0xb46cff,
@@ -118,6 +122,8 @@ const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   fearow: 0xd9a066,
   tauros: 0x6e4a2e,
   snorlax: 0x2f5d6e,
+  zapdos: 0xf2d13a,
+  pylon: 0x8c8f99,
 };
 /** Gems worth at least this much draw bigger and green. */
 const BIG_GEM_VALUE = 5;
@@ -444,7 +450,14 @@ export class RunScene extends Phaser.Scene {
       if (!arena.engaged) return `Walk to the middle: ${boss} is waiting`;
       const enemy = this.world.enemies.find((e) => e.id === arena.bossEnemyId);
       const wake = arena.rest && enemy ? Math.min(100, Math.round((arena.rest.wake / (enemy.maxHp * SNORLAX_KIT.rest.wakeAtPct)) * 100)) : null;
-      return `${boss}: ${formatTime(arena.timeLeft)} left${wake === null ? '' : ` · asleep, wake ${wake}%`}`;
+      const zap = arena.zap;
+      const up = zap ? zap.pylons.filter((p) => p.enemyId !== null).length : 0;
+      const stop = zap?.discharge?.phase === 'channel' && enemy ? Math.min(100, Math.round((zap.discharge.taken / (enemy.maxHp * ZAPDOS_KIT.discharge.interruptPct)) * 100)) : null;
+      const extra =
+        (wake === null ? '' : ` · asleep, wake ${wake}%`) +
+        (up > 0 ? ` · shielded by ${up} generator${up > 1 ? 's' : ''}` : '') +
+        (stop === null ? '' : ` · Discharge! interrupt ${stop}%`);
+      return `${boss}: ${formatTime(arena.timeLeft)} left${extra}`;
     }
     if (entrance) {
       return `${ENTRANCE_NAMES[ARENA_BOSSES[entrance.bossId].entrance]} is open: ${formatTime(entrance.closesAt - time)}`;
@@ -468,6 +481,8 @@ export class RunScene extends Phaser.Scene {
       rest: `${boss} fell asleep and is healing! Hit it hard to wake it`,
       woke: `${boss} woke up!`,
       bellyDrum: `${boss} used Belly Drum! Half its HP, double its power`,
+      chargeUp: `${boss} charges the sky! Thunderstorms and fences incoming`,
+      rainDance: `${boss} used Rain Dance! Puddles conduct its Thunder`,
     }[notice.kind];
     this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
   }
@@ -1036,6 +1051,7 @@ export class RunScene extends Phaser.Scene {
         }
       }
       drawSnorlaxExtras(g, this.world, arena);
+      if (arena.zap) drawZapdos(g, this.world, arena, arena.zap);
     }
 
     // Mutation Sites (D23): the ring's colour reveals the roll once you step in (gold = Pokémon-bound);
@@ -1355,7 +1371,9 @@ export class RunScene extends Phaser.Scene {
   }
 
   private drawHud(): void {
-    const { player, time, kills, status, enemies, level, xp, moves, items } = this.world;
+    const { player, kills, status, enemies, level, xp, moves, items } = this.world;
+    // The run clock: paused inside an arena (owner 2026-10-23).
+    const time = runClock(this.world);
     const name = currentStage(this.world).name;
     // ⛓ marks the skill combo (D28): those moves fire together.
     const moveNames = moves.map((s, i) => `${MOVES[s.moveId].name}${this.world.combo.includes(i) ? '⛓' : ''}`).join(', ');
@@ -1569,6 +1587,79 @@ function drawSnorlaxExtras(g: Phaser.GameObjects.Graphics, world: World, arena: 
       fillBand(g, x, y, outer, Math.hypot(x - arena.x, y - arena.y) + arena.radius);
     } else {
       fillBand(g, x, y, inner, outer);
+    }
+  }
+}
+
+/**
+ * Zapdos (D32): rain tint, generator tethers and the shield, Thunder rings, Drill Peck / Agility lines, fences,
+ * the Discharge safe ring, and its shots (Shock Wave pale, Thunderbolt yellow, Zap Cannon big with a ring).
+ */
+function drawZapdos(g: Phaser.GameObjects.Graphics, world: World, arena: ArenaFight, zap: ZapdosState): void {
+  const { thunder, drillPeck, fence, agility, discharge } = ZAPDOS_KIT;
+  const boss = world.enemies.find((e) => e.id === arena.bossEnemyId);
+  if (zap.raining) {
+    g.fillStyle(COLORS.rain, 0.12);
+    g.fillCircle(arena.x, arena.y, arena.radius);
+  }
+  // Generators: a line to Zapdos while they stand; the shield ring shows while any does.
+  let shielded = false;
+  for (const pylon of zap.pylons) {
+    if (pylon.enemyId === null) {
+      g.lineStyle(2, COLORS.chain, 0.4);
+      g.strokeCircle(pylon.x, pylon.y, 22);
+      continue;
+    }
+    shielded = true;
+    if (boss) {
+      g.lineStyle(2, COLORS.zap, 0.5);
+      g.lineBetween(pylon.x, pylon.y, boss.x, boss.y);
+    }
+  }
+  if (boss && shielded) {
+    g.lineStyle(3, COLORS.zap, 0.8);
+    g.strokeCircle(boss.x, boss.y, boss.radius + 10);
+  }
+  if (boss && zap.roost) {
+    g.lineStyle(3, COLORS.rubble, 0.9);
+    g.strokeCircle(boss.x, boss.y, boss.radius + 4);
+  }
+  for (const s of zap.strikes) {
+    g.fillStyle(COLORS.telegraph, 0.25);
+    g.fillCircle(s.x, s.y, thunder.radius * (1 - s.left / s.total));
+    g.lineStyle(2, COLORS.zap, 0.9);
+    g.strokeCircle(s.x, s.y, thunder.radius);
+  }
+  if (zap.peck?.phase === 'windup') {
+    const { x, y, angle } = zap.peck;
+    g.lineStyle(Math.max(2, drillPeck.width * (1 - zap.peck.left / drillPeck.telegraph)), COLORS.telegraph, 0.45);
+    g.lineBetween(x, y, x + Math.cos(angle) * drillPeck.length, y + Math.sin(angle) * drillPeck.length);
+  }
+  if (boss && zap.agility) {
+    g.lineStyle(2, COLORS.zap, 0.6);
+    g.lineBetween(boss.x, boss.y, zap.agility.x, zap.agility.y);
+    g.strokeCircle(zap.agility.x, zap.agility.y, boss.radius * (1 - zap.agility.left / agility.telegraph));
+  }
+  for (const f of zap.fences) {
+    const live = f.phase === 'live';
+    g.lineStyle(live ? fence.width : 2, live ? COLORS.zap : COLORS.telegraph, live ? 0.85 : 0.7);
+    g.lineBetween(f.x1, f.y1, f.x2, f.y2);
+  }
+  if (zap.discharge?.phase === 'channel') {
+    // Everything but the safe ring is about to be shocked.
+    g.fillStyle(COLORS.zap, 0.08 + 0.15 * (1 - zap.discharge.left / discharge.channel));
+    g.fillCircle(arena.x, arena.y, arena.radius);
+    g.fillStyle(COLORS.safe, 0.35);
+    g.fillCircle(zap.discharge.safeX, zap.discharge.safeY, discharge.safeRadius);
+    g.lineStyle(3, COLORS.safe, 0.9);
+    g.strokeCircle(zap.discharge.safeX, zap.discharge.safeY, discharge.safeRadius);
+  }
+  for (const shot of zap.shots) {
+    g.fillStyle(shot.kind === 'shock' ? COLORS.shock : COLORS.zap, 1);
+    g.fillCircle(shot.x, shot.y, shot.radius);
+    if (shot.kind === 'cannon') {
+      g.lineStyle(2, COLORS.shield, 0.8);
+      g.strokeCircle(shot.x, shot.y, shot.radius + 4);
     }
   }
 }

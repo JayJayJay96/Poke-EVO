@@ -19,7 +19,7 @@ export type MoveTag = PokemonType | FormTag | FlagTag;
 
 /** An evolution line, named after its first stage. */
 export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur' | 'pikachu' | 'lapras';
-export type EnemyId = 'rattata' | 'pidgey' | 'raticate' | 'spearow' | 'fearow' | 'tauros' | 'snorlax';
+export type EnemyId = 'rattata' | 'pidgey' | 'raticate' | 'spearow' | 'fearow' | 'tauros' | 'snorlax' | 'zapdos' | 'pylon';
 export type AbilityId =
   | 'blaze'
   | 'blazePlus'
@@ -651,6 +651,33 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     berryChance: 0,
     weightKg: 460,
     boss: true,
+  },
+  // Arena boss (D32, BOSSES.md §4): Electric/Flying, flies and keeps its distance. Numbers provisional.
+  zapdos: {
+    id: 'zapdos',
+    name: 'Zapdos',
+    types: ['Electric', 'Flying'],
+    maxHp: 2600,
+    speed: 110,
+    radius: 32,
+    contactDamage: 28,
+    xp: 60,
+    berryChance: 0,
+    weightKg: 52.6,
+    boss: true,
+  },
+  // Zapdos's generators: a target that powers its shield. Never moves, never hurts, pays nothing; HP set at spawn.
+  pylon: {
+    id: 'pylon',
+    name: 'Generator',
+    types: ['Electric'],
+    maxHp: 1,
+    speed: 0,
+    radius: 22,
+    contactDamage: 0,
+    xp: 0,
+    berryChance: 0,
+    weightKg: 9999,
   },
 };
 

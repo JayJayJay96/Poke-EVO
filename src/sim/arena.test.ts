@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT } from '../data/arena';
+import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
 import { ENEMIES, TUNING } from '../data/content';
 import { arenaBossChoices, arenaSchedule, chooseArenaReward, chooseCombine, resolveArena, rollRewardCards, skipCombine } from './arena';
-import { damageEnemy } from './combat';
+import { playerElectricMult } from './bosses';
+import { NO_HIT, damageEnemy } from './combat';
+import { spawnPuddle } from './terrain';
 import { MAX_COMBO_MOVES, comboCandidates, comboCooldown, learnsetSlotsUsed } from './combo';
 import { buildCardPool } from './progression';
 import { createSeededRng } from './rng';
 import { createSlot, refreshStats } from './stats';
 import type { World } from './types';
-import { createWorld, spawnEnemy, step, waveAt } from './world';
+import { createWorld, runClock, spawnEnemy, step, waveAt } from './world';
 
 const DT = TUNING.stepSeconds;
 const IDLE = { moveX: 0, moveY: 0 };
@@ -25,7 +27,9 @@ function openFirstEntrance(world: World): void {
   step(world, IDLE, DT);
 }
 
-function enter(world: World): void {
+/** Walks into the first event's arena; `bossId` picks the boss (the pool is random). */
+function enter(world: World, bossId: ArenaBossId = 'snorlax'): void {
+  world.arenaBossesUsed = ARENA_BOSS_IDS.filter((id) => id !== bossId);
   openFirstEntrance(world);
   const e = world.entrance!;
   world.player.x = e.x;
@@ -40,9 +44,25 @@ describe('arena events (D28): schedule and entrance', () => {
     expect(times).toHaveLength(4);
     times.forEach((t, i) => {
       expect(Math.abs(t - ARENA_TUNING.eventTimes[i]!)).toBeLessThanOrEqual(ARENA_TUNING.jitter);
-      const latestEnd = t + ARENA_TUNING.openSeconds + ARENA_TUNING.engageAfter + ARENA_BOSSES.snorlax.timeLimit;
-      expect(latestEnd).toBeLessThan(TUNING.runSeconds);
+      // Fights don't count on the run clock (owner 2026-10-23): only the open window must fit.
+      expect(t + ARENA_TUNING.openSeconds).toBeLessThan(TUNING.runSeconds);
     });
+  });
+
+  it('the run clock pauses inside an arena: the run still ends at 15:00 of map time', () => {
+    const world = makeWorld();
+    enter(world);
+    const before = runClock(world);
+    for (let i = 0; i < 120; i++) step(world, IDLE, DT);
+    expect(runClock(world)).toBeCloseTo(before);
+    expect(world.time).toBeGreaterThan(before);
+    // Back on the map the clock runs again, and 15:00 on it ends the run.
+    world.arena!.timeLeft = 0;
+    step(world, IDLE, DT);
+    expect(world.arena).toBeNull();
+    world.time = world.arenaSeconds + TUNING.runSeconds - DT / 2;
+    step(world, IDLE, DT);
+    expect(world.status).toBe('survived');
   });
 
   it('opens an entrance near the player at the event time, with a notice; none with spawns off', () => {
@@ -689,6 +709,251 @@ describe('Snorlax variety and immunity (owner 2026-10-22)', () => {
         if (f.lastMove && f.lastMove !== last) {
           seen.add(f.lastMove);
           last = f.lastMove;
+        }
+      }
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe('Zapdos (D32)', () => {
+  function fight(phase = 1, pokemonId: 'charmander' | 'pikachu' = 'charmander') {
+    const world = createWorld({ rng: createSeededRng(1), spawnEnabled: true, mapSeed: 1, pokemonId });
+    world.spawnTimer = 1e9;
+    enter(world, 'zapdos');
+    const f = world.arena!;
+    world.player.x = f.x;
+    world.player.y = f.y + 200;
+    world.player.invulnLeft = 999;
+    world.moves = [];
+    step(world, IDLE, DT);
+    const boss = world.enemies.find((e) => e.id === f.bossEnemyId)!;
+    const zap = f.zap!;
+    for (const id of Object.keys(zap.cooldowns) as (keyof typeof zap.cooldowns)[]) zap.cooldowns[id] = 99;
+    zap.phase = phase;
+    return { world, f, boss, zap };
+  }
+  const run = (world: World, seconds: number, input = IDLE) => {
+    for (let t = 0; t < seconds; t += DT) step(world, input, DT);
+  };
+  const breakPylons = (world: World, zap: NonNullable<World['arena']>['zap'] & object) => {
+    for (const p of zap.pylons) {
+      const e = world.enemies.find((en) => en.id === p.enemyId);
+      if (e) damageEnemy(world, e, 1e9);
+    }
+    step(world, IDLE, DT);
+  };
+
+  it('three generators shield it (×0.25) until broken; a broken one is rebuilt later', () => {
+    const { world, boss, zap } = fight();
+    expect(zap.pylons.filter((p) => p.enemyId !== null)).toHaveLength(ZAPDOS_KIT.pylons.count);
+    expect(world.enemies.filter((e) => e.kind === 'pylon')).toHaveLength(ZAPDOS_KIT.pylons.count);
+    expect(damageEnemy(world, boss, 100)).toBeCloseTo(100 * ZAPDOS_KIT.pylons.shieldMult);
+    breakPylons(world, zap);
+    expect(zap.pylons.every((p) => p.enemyId === null)).toBe(true);
+    expect(damageEnemy(world, boss, 100)).toBeCloseTo(100);
+    expect(world.gems).toHaveLength(0); // generators pay no XP
+    run(world, ZAPDOS_KIT.pylons.recharge + DT);
+    expect(zap.pylons.every((p) => p.enemyId !== null)).toBe(true);
+  });
+
+  it('phase gate holds HP at 66%; the Charge-up and Rain Dance animations are immune', () => {
+    const { world, boss, zap } = fight();
+    breakPylons(world, zap);
+    boss.hp = boss.maxHp * 0.7;
+    damageEnemy(world, boss, boss.maxHp);
+    expect(boss.hp).toBeCloseTo(boss.maxHp * ZAPDOS_KIT.phaseAt[0]);
+    step(world, IDLE, DT);
+    expect(zap.phase).toBe(2);
+    expect(world.arenaNotice?.kind).toBe('chargeUp');
+    expect(zap.transitionLeft).toBeGreaterThan(0);
+    expect(damageEnemy(world, boss, 500)).toBe(0);
+    zap.transitionLeft = 0;
+    boss.hp = boss.maxHp * 0.3;
+    step(world, IDLE, DT);
+    expect(zap.phase).toBe(3);
+    expect(zap.raining).toBe(true);
+    expect(world.arenaNotice?.kind).toBe('rainDance');
+  });
+
+  it('Thunder brackets you: one ring where you are, one where you are heading; it hits inside', () => {
+    const { world, zap } = fight();
+    zap.cooldowns.thunder = 0;
+    step(world, { moveX: 1, moveY: 0 }, DT);
+    expect(zap.strikes).toHaveLength(2);
+    const [now, ahead] = zap.strikes;
+    expect(now!.x).toBeCloseTo(world.player.x, 0);
+    expect(ahead!.x).toBeGreaterThan(now!.x);
+    world.player.invulnLeft = 0;
+    const hp = world.player.hp;
+    for (const s of zap.strikes) s.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBeLessThan(hp);
+  });
+
+  it('Lightning Rod pulls every Thunder onto you, and the hit fills your Charge', () => {
+    const { world, zap } = fight();
+    world.player.ability = 'lightningRod';
+    world.player.charge = 0;
+    zap.cooldowns.thunder = 0;
+    step(world, { moveX: 1, moveY: 0 }, DT);
+    for (const s of zap.strikes) expect(s.x).toBeCloseTo(world.player.x, 0);
+    world.player.invulnLeft = 0;
+    for (const s of zap.strikes) s.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(world.player.charge).toBeGreaterThan(0);
+  });
+
+  it('in the rain, a Thunder anywhere hits you through a puddle and paralyses (slow, never a stun)', () => {
+    const { world, f, zap } = fight(3);
+    zap.raining = true;
+    zap.puddleTimer = 99;
+    spawnPuddle(world, world.player.x, world.player.y, 10);
+    world.player.invulnLeft = 0;
+    const hp = world.player.hp;
+    zap.strikes.push({ x: f.x - f.radius * 0.8, y: f.y, left: DT / 2, total: 1, factor: 1 });
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBeLessThan(hp);
+    expect(zap.paraLeft).toBeGreaterThan(0);
+    run(world, ZAPDOS_KIT.playerParalysis.stutter + 0.1);
+    expect(f.playerSlow).toBeCloseTo(ZAPDOS_KIT.playerParalysis.slow);
+  });
+
+  it('player paralysis follows the starter type: Electric ×0.25, Water ×1.5, Fire ×1', () => {
+    for (const [pokemonId, mult] of [['pikachu', 0.25], ['squirtle', 1.5], ['charmander', 1]] as const) {
+      expect(playerElectricMult(createWorld({ rng: createSeededRng(1), pokemonId }))).toBe(mult);
+    }
+  });
+
+  it('Drill Peck: a locked line, then a dash along it that hits once', () => {
+    const { world, boss, zap } = fight();
+    zap.cooldowns.drillPeck = 0;
+    world.player.x = boss.x + 200;
+    world.player.y = boss.y;
+    step(world, IDLE, DT);
+    expect(zap.peck?.phase).toBe('windup');
+    world.player.invulnLeft = 0;
+    const hp = world.player.hp;
+    run(world, ZAPDOS_KIT.drillPeck.telegraph + 1);
+    expect(world.player.hp).toBeLessThan(hp);
+    expect(zap.peck?.phase ?? 'done').not.toBe('dash');
+  });
+
+  it('Shock Wave homes, then gives up and flies straight', () => {
+    const { world, zap } = fight();
+    zap.cooldowns.shockWave = 0;
+    step(world, IDLE, DT);
+    run(world, ZAPDOS_KIT.shockWave.cast + DT);
+    const bolt = zap.shots.find((s) => s.kind === 'shock')!;
+    expect(zap.shots.filter((s) => s.kind === 'shock')).toHaveLength(ZAPDOS_KIT.shockWave.bolts);
+    world.player.x += 400; // out of reach, so the bolts keep flying
+    run(world, ZAPDOS_KIT.shockWave.homing + 0.05);
+    const v = { x: bolt.vx, y: bolt.vy };
+    run(world, 0.2, { moveX: 0, moveY: 1 });
+    expect(bolt.vx).toBeCloseTo(v.x);
+    expect(bolt.vy).toBeCloseTo(v.y);
+  });
+
+  it('Thunderbolt: a 3-way fan of bolts that weave around their line', () => {
+    const { world, zap } = fight();
+    zap.cooldowns.thunderbolt = 0;
+    step(world, IDLE, DT);
+    run(world, ZAPDOS_KIT.thunderbolt.cast + DT);
+    expect(zap.shots.filter((s) => s.kind === 'bolt')).toHaveLength(ZAPDOS_KIT.thunderbolt.bolts);
+    const tb = zap.shots.find((s) => s.kind === 'bolt')!;
+    const start = { x: tb.x, y: tb.y };
+    // Sideways from its straight heading, but never more than twice the weave's amplitude (peak to peak).
+    let off = 0;
+    for (let i = 0; i < 20; i++) {
+      step(world, IDLE, DT);
+      off = Math.max(off, Math.abs(-(tb.x - start.x) * Math.sin(tb.heading) + (tb.y - start.y) * Math.cos(tb.heading)));
+    }
+    expect(off).toBeGreaterThan(5);
+    expect(off).toBeLessThanOrEqual(2 * ZAPDOS_KIT.thunderbolt.amplitude + 1);
+  });
+
+  it('Electric Fence: a telegraph line, then live; Zapdos zips along it and it hurts to stand on', () => {
+    const { world, boss, zap } = fight(2);
+    zap.cooldowns.fence = 0;
+    step(world, IDLE, DT);
+    const fence = zap.fences[0]!;
+    expect(fence.phase).toBe('windup');
+    fence.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(fence.phase).toBe('live');
+    expect(Math.hypot(boss.x - fence.x2, boss.y - fence.y2)).toBeLessThan(boss.radius + 5); // zipped to the far end
+    world.player.x = (fence.x1 + fence.x2) / 2;
+    world.player.y = (fence.y1 + fence.y2) / 2;
+    world.player.invulnLeft = 0;
+    const hp = world.player.hp;
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBeLessThan(hp);
+  });
+
+  it('Discharge: enough damage during the channel interrupts it; otherwise only the safe ring is safe', () => {
+    for (const mode of ['interrupt', 'safe', 'outside'] as const) {
+      const { world, boss, zap } = fight(3);
+      breakPylons(world, zap);
+      zap.raining = false;
+      zap.cooldowns.discharge = 0;
+      step(world, IDLE, DT);
+      const dis = zap.discharge!;
+      expect(dis.phase).toBe('channel');
+      if (mode === 'interrupt') damageEnemy(world, boss, boss.maxHp * ZAPDOS_KIT.discharge.interruptPct);
+      world.player.x = mode === 'safe' ? dis.safeX : dis.safeX + 200;
+      world.player.y = dis.safeY;
+      world.player.invulnLeft = 0;
+      const hp = world.player.hp;
+      dis.left = mode === 'interrupt' ? dis.left : DT / 2;
+      step(world, IDLE, DT);
+      if (mode === 'outside') expect(world.player.hp).toBeLessThan(hp);
+      else expect(world.player.hp).toBe(hp);
+      expect(zap.discharge?.phase).toBe('recover');
+    }
+  });
+
+  it('Roost (once per phase, after losing HP): heals and loses Flying, so Ice is no longer super effective', () => {
+    const { world, boss, zap } = fight();
+    breakPylons(world, zap);
+    boss.hp = boss.maxHp * 0.8;
+    step(world, IDLE, DT);
+    expect(zap.roost).not.toBeNull();
+    const ice = { ...NO_HIT, attackType: 'Ice' as const };
+    damageEnemy(world, boss, 10, ice);
+    expect(boss.lastEffectiveness).toBe(1);
+    run(world, ZAPDOS_KIT.roost.seconds + DT);
+    expect(zap.roost).toBeNull();
+    expect(boss.hp).toBeGreaterThan(boss.maxHp * 0.8);
+    damageEnemy(world, boss, 10, ice);
+    expect(boss.lastEffectiveness).toBe(2);
+  });
+
+  it('Pressure: your cooldowns run 15% slower during the fight', () => {
+    const world = makeWorld();
+    enter(world, 'zapdos');
+    const f = world.arena!;
+    world.player.x = f.x;
+    world.player.y = f.y + 200;
+    step(world, IDLE, DT); // engages
+    const slot = world.moves[0]!;
+    slot.cooldownLeft = 1;
+    for (let i = 0; i < 60; i++) step(world, IDLE, DT);
+    expect(slot.cooldownLeft).toBeCloseTo(1 - 1 / (1 + ZAPDOS_KIT.pressure), 2);
+  });
+
+  it('the picker uses at least 10 different moves over a fight', () => {
+    const seen = new Set<string>();
+    for (const phase of [1, 2, 3]) {
+      const { world, boss, zap } = fight(phase);
+      for (const id of Object.keys(zap.cooldowns) as (keyof typeof zap.cooldowns)[]) zap.cooldowns[id] = 0;
+      let last: string | null = null;
+      for (let t = 0; t < 90; t += DT) {
+        boss.hp = boss.maxHp; // stay in this phase
+        zap.phaseStartHp = boss.maxHp * 2; // Roost is open
+        step(world, { moveX: Math.floor(t / 3) % 2 ? 1 : -1, moveY: 0 }, DT);
+        if (zap.lastMove && zap.lastMove !== last) {
+          seen.add(zap.lastMove);
+          last = zap.lastMove;
         }
       }
     }

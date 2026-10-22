@@ -1,5 +1,5 @@
 import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, type ArenaBossId } from '../data/arena';
-import { blockByRubble, holdByBlock, updateBoss } from './bosses';
+import { blockByRubble, holdByBlock, startZapdos, updateBoss } from './bosses';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
 import { MAX_COMBO_MOVES, comboCandidates } from './combo';
@@ -8,7 +8,7 @@ import { createSeededRng, type Rng } from './rng';
 import { applySiteCard, rollSiteCards } from './sites';
 import { currentStage, refreshStats } from './stats';
 import type { ArenaFight, LevelUpOffer, RewardCard, World } from './types';
-import { spawnEnemy, waveAt } from './world';
+import { runClock, spawnEnemy, waveAt } from './world';
 
 // Arena boss events (D28). At set times an entrance opens near the player for a while; stepping in
 // stores the main map and starts a timed boss fight in a closed arena. Winning gives a reward pick;
@@ -80,7 +80,7 @@ function enterArena(world: World): void {
   world.scorches = [];
   world.entities = [];
   const { x, y } = entrance;
-  const wave = waveAt(world.time);
+  const wave = waveAt(runClock(world));
   const boss = spawnEnemy(world, def.enemy, x, y, wave.hpScale);
   boss.contactDamage *= wave.damageScale;
   const bossSpeed = boss.speed * wave.speedScale;
@@ -138,8 +138,10 @@ function enterArena(world: World): void {
     belch: null,
     belchReady: false,
     quake: null,
+    zap: null,
     stored,
   };
+  if (def.id === 'zapdos') world.arena.zap = startZapdos(world, world.arena, boss);
   world.entrance = null;
 }
 
@@ -202,7 +204,7 @@ export function updateArena(world: World, dt: number): void {
     return;
   }
   const next = world.arenaSchedule[world.arenaEventsDone];
-  if (world.spawnEnabled && next !== undefined && world.time >= next) openEntrance(world);
+  if (world.spawnEnabled && next !== undefined && runClock(world) >= next) openEntrance(world);
 }
 
 /** After deaths are removed: a dead boss wins (combine step, then reward pick), an empty timer loses (nothing). */

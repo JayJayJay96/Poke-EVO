@@ -1,7 +1,11 @@
-import { SNORLAX_KIT, type ArenaBossId } from '../data/arena';
+import { SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
+import { effectiveness } from '../data/typeChart';
+import { addCharge } from './abilities';
 import { BLAST_SECONDS } from './forms/projectile';
-import type { ArenaFight, Enemy, SnorlaxMove, World } from './types';
-import { hitPlayer } from './world';
+import { currentStage } from './stats';
+import { spawnPuddle } from './terrain';
+import type { ArenaFight, Enemy, SnorlaxMove, World, ZapdosMove, ZapdosState } from './types';
+import { hitPlayer, spawnEnemy } from './world';
 
 // Arena boss behaviour (D28; BOSSES.md §3: telegraph → act → recover). One function per boss, run each
 // step once the fight has started. Boss attacks never proc anything; every aimed attack locks its target
@@ -586,7 +590,429 @@ function snorlax(world: World, fight: ArenaFight, boss: Enemy, dt: number): void
   boss.speed = busy ? 0 : fight.bossSpeed * (fight.goal ? gluttony.rushMult : 1);
 }
 
-const BOSS_AI: Readonly<Record<ArenaBossId, BossAi>> = { snorlax };
+// ── Zapdos (D32, BOSSES.md §4) ─────────────────────────────────────────
+
+type ZapCooldown = keyof ZapdosState['cooldowns'];
+
+/** Zapdos's opening state: phase 1 and its three generators. */
+export function startZapdos(world: World, fight: ArenaFight, boss: Enemy): ZapdosState {
+  const kit = ZAPDOS_KIT;
+  const zap: ZapdosState = {
+    phase: 1,
+    transitionLeft: 0,
+    raining: false,
+    puddleTimer: 0,
+    moveGap: 0,
+    lastMove: null,
+    cooldowns: {
+      thunder: kit.thunder.firstAfter,
+      drillPeck: kit.drillPeck.firstAfter,
+      shockWave: kit.shockWave.firstAfter,
+      thunderbolt: kit.thunderbolt.firstAfter,
+      thunderstorm: kit.thunderstorm.firstAfter,
+      zapCannon: kit.zapCannon.firstAfter,
+      fence: kit.fence.firstAfter,
+      agility: kit.agility.firstAfter,
+      discharge: kit.discharge.firstAfter,
+    },
+    roostPhase: 0,
+    phaseStartHp: boss.maxHp,
+    pylons: [],
+    strikes: [],
+    storm: null,
+    peck: null,
+    cast: null,
+    shots: [],
+    fences: [],
+    agility: null,
+    agilityLeft: 0,
+    roost: null,
+    discharge: null,
+    paraLeft: 0,
+    paraTotal: 0,
+  };
+  const { count, ringFraction } = kit.pylons;
+  for (let i = 0; i < count; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI * 2) / count;
+    const x = fight.x + Math.cos(a) * fight.radius * ringFraction;
+    const y = fight.y + Math.sin(a) * fight.radius * ringFraction;
+    zap.pylons.push({ x, y, enemyId: spawnPylon(world, boss, x, y), recharge: 0 });
+  }
+  return zap;
+}
+
+function spawnPylon(world: World, boss: Enemy, x: number, y: number): number {
+  const pylon = spawnEnemy(world, 'pylon', x, y);
+  pylon.maxHp = pylon.hp = boss.maxHp * ZAPDOS_KIT.pylons.hpFraction;
+  return pylon.id;
+}
+
+/** How long an Electric status lasts on the player: their stage's types resist it like an enemy's (README §10.3). */
+export function playerElectricMult(world: World): number {
+  const types = currentStage(world).types;
+  if (types.includes('Electric')) return 0.25;
+  const e = effectiveness('Electric', types);
+  return e >= 2 ? 1.5 : e <= 0.5 ? 0.5 : 1;
+}
+
+/** Paralysis on the player: a slow with a short stutter, never a stun (README §10). */
+function paralyse(world: World, zap: ZapdosState, seconds: number): void {
+  const d = seconds * playerElectricMult(world);
+  if (d <= zap.paraLeft) return;
+  zap.paraLeft = d;
+  zap.paraTotal = d;
+}
+
+/** Where a Thunder lands: Lightning Rod pulls every strike straight onto the player. */
+function thunderSpot(world: World, fight: ArenaFight, windup: number, lead: number) {
+  const { player } = world;
+  if (player.ability === 'lightningRod') return { x: player.x, y: player.y };
+  return leadAim(world, fight, windup, lead, 0);
+}
+
+function callThunder(world: World, fight: ArenaFight, zap: ZapdosState, windup: number, lead: number, factor: number): void {
+  zap.strikes.push({ ...thunderSpot(world, fight, windup, lead), left: windup, total: windup, factor });
+}
+
+/** A Thunder landing: hits inside its ring, or anywhere in a puddle while it rains (and paralyses). */
+function landThunder(world: World, zap: ZapdosState, boss: Enemy, s: ZapdosState['strikes'][number]): void {
+  const { thunder, rain, lightningRodCharge } = ZAPDOS_KIT;
+  const { player } = world;
+  world.blasts.push({ x: s.x, y: s.y, radius: thunder.radius, lifeLeft: BLAST_SECONDS, type: 'Electric' });
+  let hit = Math.hypot(player.x - s.x, player.y - s.y) <= thunder.radius + player.radius;
+  if (!hit && zap.raining && world.puddles.some((p) => Math.hypot(player.x - p.x, player.y - p.y) <= p.radius + player.radius)) {
+    hit = true;
+    paralyse(world, zap, rain.paralysis);
+  }
+  if (!hit) return;
+  const landed = player.invulnLeft <= 0;
+  strike(world, boss, s.factor);
+  // Lightning Rod: the strike you take fills your Charge.
+  if (landed && player.ability === 'lightningRod') addCharge(world, lightningRodCharge);
+}
+
+/** Generators: pinned in place; a broken one is rebuilt after its recharge. */
+function updatePylons(world: World, zap: ZapdosState, boss: Enemy, dt: number): void {
+  for (const pylon of zap.pylons) {
+    if (pylon.enemyId !== null) {
+      const e = world.enemies.find((en) => en.id === pylon.enemyId);
+      if (!e || e.hp <= 0) {
+        pylon.enemyId = null;
+        pylon.recharge = ZAPDOS_KIT.pylons.recharge;
+      } else {
+        e.x = pylon.x;
+        e.y = pylon.y;
+      }
+    } else {
+      pylon.recharge -= dt;
+      if (pylon.recharge <= 0) pylon.enemyId = spawnPylon(world, boss, pylon.x, pylon.y);
+    }
+  }
+}
+
+/** Zapdos's shots: Shock Wave homes then gives up, Thunderbolt zigzags, Zap Cannon homes lazily and paralyses. */
+function updateZapShots(world: World, fight: ArenaFight, zap: ZapdosState, boss: Enemy, dt: number): void {
+  const { thunderbolt, zapCannon } = ZAPDOS_KIT;
+  const { player } = world;
+  for (const shot of zap.shots) {
+    shot.age += dt;
+    shot.left -= dt;
+    if (shot.homingLeft > 0) {
+      shot.homingLeft -= dt;
+      const speed = Math.hypot(shot.vx, shot.vy);
+      const now = Math.atan2(shot.vy, shot.vx);
+      const want = Math.atan2(player.y - shot.y, player.x - shot.x);
+      const turn = Math.atan2(Math.sin(want - now), Math.cos(want - now));
+      const a = now + Math.max(-shot.turnRate * dt, Math.min(shot.turnRate * dt, turn));
+      shot.vx = Math.cos(a) * speed;
+      shot.vy = Math.sin(a) * speed;
+    }
+    let vx = shot.vx;
+    let vy = shot.vy;
+    if (shot.kind === 'bolt') {
+      // Weave: a sideways speed whose integral is a sine around the straight heading.
+      const w = Math.PI * 2 * thunderbolt.frequency;
+      const side = thunderbolt.amplitude * w * Math.cos(w * shot.age);
+      vx += -Math.sin(shot.heading) * side;
+      vy += Math.cos(shot.heading) * side;
+    }
+    shot.x += vx * dt;
+    shot.y += vy * dt;
+    if (Math.hypot(player.x - shot.x, player.y - shot.y) <= shot.radius + player.radius) {
+      strike(world, boss, shot.factor);
+      if (shot.kind === 'cannon') paralyse(world, zap, zapCannon.paralysis);
+      shot.left = 0;
+    } else if (Math.hypot(shot.x - fight.x, shot.y - fight.y) > fight.radius) {
+      shot.left = 0;
+    }
+  }
+  zap.shots = zap.shots.filter((shot) => shot.left > 0);
+}
+
+function fireCast(world: World, zap: ZapdosState, boss: Enemy, move: 'shockWave' | 'thunderbolt' | 'zapCannon'): void {
+  const { shockWave, thunderbolt, zapCannon } = ZAPDOS_KIT;
+  const { player } = world;
+  const aim = Math.atan2(player.y - boss.y, player.x - boss.x);
+  type ShotRest = Omit<ZapdosState['shots'][number], 'x' | 'y' | 'vx' | 'vy' | 'age' | 'heading'>;
+  const push = (a: number, speed: number, rest: ShotRest): void => {
+    zap.shots.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, age: 0, heading: a, ...rest });
+  };
+  const fan = (n: number, spreadDeg: number, speed: number, rest: ShotRest): void => {
+    for (let i = 0; i < n; i++) push(aim + (n > 1 ? (i / (n - 1) - 0.5) * spreadDeg * DEG : 0), speed, rest);
+  };
+  if (move === 'shockWave') {
+    const s = shockWave;
+    fan(s.bolts, s.spreadDeg, s.speed, { radius: s.radius, left: s.life, homingLeft: s.homing, turnRate: s.turnRate, factor: s.damageFactor, kind: 'shock' });
+  } else if (move === 'thunderbolt') {
+    const s = thunderbolt;
+    fan(s.bolts, s.spreadDeg, s.speed, { radius: s.radius, left: s.life, homingLeft: 0, turnRate: 0, factor: s.damageFactor, kind: 'bolt' });
+  } else {
+    const s = zapCannon;
+    push(aim, s.speed, { radius: s.radius, left: s.life, homingLeft: s.life, turnRate: s.turnRate, factor: s.damageFactor, kind: 'cannon' });
+  }
+}
+
+/** Distance from the player to a segment. */
+function segmentDistance(world: World, x1: number, y1: number, x2: number, y2: number): number {
+  const { player } = world;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 > 0 ? Math.max(0, Math.min(1, ((player.x - x1) * dx + (player.y - y1) * dy) / len2)) : 0;
+  return Math.hypot(player.x - (x1 + dx * t), player.y - (y1 + dy * t));
+}
+
+/** Electric Fence: a chord of the arena passing `offset` px beside you at a random angle. */
+function startFence(world: World, fight: ArenaFight, zap: ZapdosState): void {
+  const { fence } = ZAPDOS_KIT;
+  const { player, rng } = world;
+  const a = rng.next() * Math.PI;
+  const side = rng.next() < 0.5 ? -1 : 1;
+  const px = player.x - Math.sin(a) * fence.offset * side;
+  const py = player.y + Math.cos(a) * fence.offset * side;
+  const ux = Math.cos(a);
+  const uy = Math.sin(a);
+  const b = (px - fight.x) * ux + (py - fight.y) * uy;
+  const c = (px - fight.x) ** 2 + (py - fight.y) ** 2 - fight.radius ** 2;
+  const root = Math.sqrt(Math.max(0, b * b - c));
+  zap.fences.push({ x1: px + ux * (-b - root), y1: py + uy * (-b - root), x2: px + ux * (-b + root), y2: py + uy * (-b + root), left: fence.telegraph, phase: 'windup' });
+}
+
+/** Zapdos's picker: weighted, never the same move twice in a row, unlocked by phase (BOSSES.md §3). */
+function pickZapdosMove(world: World, fight: ArenaFight, zap: ZapdosState, boss: Enemy): void {
+  const kit = ZAPDOS_KIT;
+  const { player } = world;
+  const cd = zap.cooldowns;
+  const ready: { id: ZapdosMove; begin: () => void }[] = [];
+  const add = (id: ZapdosMove, ok: boolean, begin: () => void): void => {
+    if (ok) ready.push({ id, begin });
+  };
+  const cast = (move: 'shockWave' | 'thunderbolt' | 'zapCannon') => () => {
+    zap.cast = { move, left: kit[move].cast };
+  };
+  add('thunder', cd.thunder <= 0 && !zap.storm, () => {
+    callThunder(world, fight, zap, kit.thunder.telegraph, 0, kit.thunder.damageFactor);
+    callThunder(world, fight, zap, kit.thunder.telegraph, kit.thunder.lead, kit.thunder.damageFactor);
+    cd.thunder = kit.thunder.cooldown;
+  });
+  add('drillPeck', cd.drillPeck <= 0, () => {
+    const target = leadAim(world, fight, kit.drillPeck.telegraph, kit.drillPeck.lead, 0);
+    const angle = Math.atan2(target.y - boss.y, target.x - boss.x);
+    zap.peck = { x: boss.x, y: boss.y, angle, left: kit.drillPeck.telegraph, travelled: 0, hit: false, phase: 'windup' };
+  });
+  add('shockWave', cd.shockWave <= 0, cast('shockWave'));
+  add('thunderbolt', cd.thunderbolt <= 0, cast('thunderbolt'));
+  add('roost', zap.roostPhase !== zap.phase && boss.hp <= zap.phaseStartHp - boss.maxHp * kit.roost.afterPct, () => {
+    zap.roost = { left: kit.roost.seconds };
+  });
+  add('thunderstorm', zap.phase >= 2 && cd.thunderstorm <= 0 && !zap.storm, () => {
+    zap.storm = { next: kit.thunderstorm.gaps.length, left: 0 };
+  });
+  add('zapCannon', zap.phase >= 2 && cd.zapCannon <= 0, cast('zapCannon'));
+  add('fence', zap.phase >= 2 && cd.fence <= 0, () => {
+    startFence(world, fight, zap);
+    cd.fence = kit.fence.cooldown;
+  });
+  add('agility', zap.phase >= 2 && cd.agility <= 0, () => {
+    // The far side of the arena from you.
+    const dx = player.x - fight.x;
+    const dy = player.y - fight.y;
+    const d = Math.hypot(dx, dy) || 1;
+    zap.agility = { x: fight.x - (dx / d) * fight.radius * 0.7, y: fight.y - (dy / d) * fight.radius * 0.7, left: kit.agility.telegraph };
+  });
+  add('discharge', zap.phase >= 3 && cd.discharge <= 0, () => {
+    const a = world.rng.next() * Math.PI * 2;
+    const d = Math.sqrt(world.rng.next()) * fight.radius * 0.7;
+    zap.discharge = { left: kit.discharge.channel, taken: 0, safeX: fight.x + Math.cos(a) * d, safeY: fight.y + Math.sin(a) * d, phase: 'channel' };
+  });
+  const pool = ready.length > 1 ? ready.filter((m) => m.id !== zap.lastMove) : ready;
+  if (pool.length === 0) return;
+  let roll = pool.length === 1 ? 0 : world.rng.next() * pool.reduce((sum, m) => sum + kit.weights[m.id], 0);
+  const pick = pool.find((m) => (roll -= kit.weights[m.id]) < 0) ?? pool[pool.length - 1]!;
+  pick.begin();
+  zap.lastMove = pick.id;
+  zap.moveGap = kit.moveGap;
+}
+
+/**
+ * Zapdos (BOSSES.md §4, D32): hovers at range; generators shield it; phases at 66% and 33% start with an immune
+ * Charge-up and Rain Dance. Pressure slows your cooldowns (world.ts).
+ */
+function zapdos(world: World, fight: ArenaFight, boss: Enemy, dt: number): void {
+  const kit = ZAPDOS_KIT;
+  const zap = fight.zap!;
+  const { player } = world;
+  zap.moveGap -= dt;
+  zap.agilityLeft -= dt;
+  for (const id of Object.keys(zap.cooldowns) as ZapCooldown[]) zap.cooldowns[id] -= dt;
+  updatePylons(world, zap, boss, dt);
+  updateZapShots(world, fight, zap, boss, dt);
+
+  // Thunder rings land on their own; Thunderstorm calls its next strike when the gap is up.
+  for (const s of zap.strikes) {
+    s.left -= dt;
+    if (s.left <= 0) landThunder(world, zap, boss, s);
+  }
+  zap.strikes = zap.strikes.filter((s) => s.left > 0);
+  if (zap.storm) {
+    zap.storm.left -= dt;
+    if (zap.storm.left <= 0) {
+      const gaps = kit.thunderstorm.gaps;
+      const gap = gaps[gaps.length - zap.storm.next]!;
+      callThunder(world, fight, zap, gap, 0, kit.thunderstorm.damageFactor);
+      zap.storm.next--;
+      zap.storm.left = gap;
+      if (zap.storm.next <= 0) {
+        zap.storm = null;
+        zap.cooldowns.thunderstorm = kit.thunderstorm.cooldown;
+      }
+    }
+  }
+  // Fences: telegraph, then live; Zapdos zips along the line as it comes alive.
+  for (const f of zap.fences) {
+    f.left -= dt;
+    if (f.phase === 'windup' && f.left <= 0) {
+      f.phase = 'live';
+      f.left = kit.fence.seconds;
+      const end = insideArena(fight, f.x2, f.y2, boss.radius);
+      boss.x = end.x;
+      boss.y = end.y;
+    } else if (f.phase === 'live' && segmentDistance(world, f.x1, f.y1, f.x2, f.y2) <= kit.fence.width / 2 + player.radius) {
+      strike(world, boss, kit.fence.damageFactor);
+    }
+  }
+  zap.fences = zap.fences.filter((f) => f.left > 0);
+  // Rain Dance (phase 3): puddles keep appearing, half of them near you.
+  if (zap.raining) {
+    zap.puddleTimer -= dt;
+    if (zap.puddleTimer <= 0) {
+      zap.puddleTimer = kit.rain.puddleEvery;
+      const near = world.rng.next() < 0.5;
+      const a = world.rng.next() * Math.PI * 2;
+      const d = Math.sqrt(world.rng.next()) * (near ? 150 : fight.radius * 0.85);
+      const cx = near ? player.x : fight.x;
+      const cy = near ? player.y : fight.y;
+      const at = insideArena(fight, cx + Math.cos(a) * d, cy + Math.sin(a) * d, 30);
+      spawnPuddle(world, at.x, at.y, kit.rain.puddleSeconds);
+    }
+  }
+  // Paralysis on the player: a short stutter, then a slow.
+  zap.paraLeft = Math.max(0, zap.paraLeft - dt);
+  const { slow, stutter, stutterSlow } = kit.playerParalysis;
+  fight.playerSlow = zap.paraLeft > 0 ? (zap.paraTotal - zap.paraLeft < stutter ? stutterSlow : slow) : 0;
+
+  fight.goal = null;
+  if (zap.transitionLeft > 0) {
+    zap.transitionLeft -= dt;
+  } else if (zap.peck) {
+    const peck = zap.peck;
+    peck.left -= dt;
+    if (peck.phase === 'windup' && peck.left <= 0) {
+      peck.phase = 'dash';
+    } else if (peck.phase === 'dash') {
+      const stepLen = kit.drillPeck.speed * dt;
+      const next = insideArena(fight, boss.x + Math.cos(peck.angle) * stepLen, boss.y + Math.sin(peck.angle) * stepLen, boss.radius);
+      const blocked = Math.hypot(next.x - boss.x, next.y - boss.y) < stepLen * 0.5;
+      peck.travelled += stepLen;
+      boss.x = next.x;
+      boss.y = next.y;
+      if (!peck.hit && Math.hypot(player.x - boss.x, player.y - boss.y) <= boss.radius + kit.drillPeck.width / 2 + player.radius) {
+        peck.hit = true;
+        strike(world, boss, kit.drillPeck.damageFactor);
+      }
+      if (peck.travelled >= kit.drillPeck.length || blocked) {
+        peck.phase = 'recover';
+        peck.left = kit.drillPeck.recover;
+      }
+    } else if (peck.phase === 'recover' && peck.left <= 0) {
+      zap.peck = null;
+      zap.cooldowns.drillPeck = kit.drillPeck.cooldown;
+    }
+  } else if (zap.cast) {
+    zap.cast.left -= dt;
+    if (zap.cast.left <= 0) {
+      fireCast(world, zap, boss, zap.cast.move);
+      zap.cooldowns[zap.cast.move] = kit[zap.cast.move].cooldown;
+      zap.cast = null;
+    }
+  } else if (zap.roost) {
+    zap.roost.left -= dt;
+    boss.hp = Math.min(boss.maxHp, boss.hp + ((boss.maxHp * kit.roost.healPct) / kit.roost.seconds) * dt);
+    if (zap.roost.left <= 0) {
+      zap.roost = null;
+      zap.roostPhase = zap.phase;
+    }
+  } else if (zap.discharge) {
+    const dis = zap.discharge;
+    dis.left -= dt;
+    if (dis.phase === 'channel' && dis.taken >= boss.maxHp * kit.discharge.interruptPct) {
+      // Interrupted: staggered, no shock.
+      dis.phase = 'recover';
+      dis.left = kit.discharge.recover;
+    } else if (dis.phase === 'channel' && dis.left <= 0) {
+      world.blasts.push({ x: fight.x, y: fight.y, radius: fight.radius, lifeLeft: BLAST_SECONDS, type: 'Electric' });
+      if (Math.hypot(player.x - dis.safeX, player.y - dis.safeY) > kit.discharge.safeRadius) {
+        strike(world, boss, kit.discharge.damageFactor);
+        paralyse(world, zap, kit.discharge.paralysis);
+      }
+      dis.phase = 'recover';
+      dis.left = kit.discharge.recover;
+    } else if (dis.phase === 'recover' && dis.left <= 0) {
+      zap.discharge = null;
+      zap.cooldowns.discharge = kit.discharge.cooldown;
+    }
+  } else if (zap.agility) {
+    zap.agility.left -= dt;
+    if (zap.agility.left <= 0) {
+      boss.x = zap.agility.x;
+      boss.y = zap.agility.y;
+      zap.agility = null;
+      zap.agilityLeft = kit.agility.seconds;
+      zap.cooldowns.agility = kit.agility.cooldown;
+    }
+  } else if (zap.phase <= kit.phaseAt.length && boss.hp <= boss.maxHp * kit.phaseAt[zap.phase - 1]!) {
+    // Next phase: an immune animation (the phase gate held HP here until now).
+    zap.phase++;
+    zap.transitionLeft = kit.transitionSeconds;
+    zap.phaseStartHp = boss.hp;
+    if (zap.phase === 3) zap.raining = true;
+    world.arenaNotice = { kind: zap.phase === 3 ? 'rainDance' : 'chargeUp', bossId: fight.bossId };
+  } else {
+    // Free: hover at range, drifting sideways, and pick a move.
+    const away = Math.atan2(boss.y - player.y, boss.x - player.x) + kit.hover.strafeDeg * DEG;
+    fight.goal = insideArena(fight, player.x + Math.cos(away) * kit.hover.distance, player.y + Math.sin(away) * kit.hover.distance, boss.radius);
+    if (zap.moveGap <= 0) pickZapdosMove(world, fight, zap, boss);
+  }
+
+  const busy = zap.transitionLeft > 0 || zap.peck || zap.cast || zap.roost || zap.discharge || zap.agility;
+  if (busy) {
+    fight.goal = null;
+    zap.moveGap = Math.max(zap.moveGap, kit.moveGap);
+  }
+  boss.speed = busy ? 0 : fight.bossSpeed * (zap.agilityLeft > 0 ? kit.agility.speedMult : 1);
+}
+
+const BOSS_AI: Readonly<Record<ArenaBossId, BossAi>> = { snorlax, zapdos };
 
 /** Runs the boss's behaviour for this step (only once the fight has started). */
 export function updateBoss(world: World, fight: ArenaFight, boss: Enemy, dt: number): void {

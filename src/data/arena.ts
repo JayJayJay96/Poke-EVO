@@ -3,7 +3,7 @@ import type { EnemyId } from './content';
 // Arena boss events (D28): Mewtwo is the only main-map boss; every other boss is drawn at random for
 // an arena event. Every number is provisional.
 
-export type ArenaBossId = 'snorlax';
+export type ArenaBossId = 'snorlax' | 'zapdos';
 /** Themed entrance on the main map; its entry animation is presentation (enemy design team). */
 export type ArenaEntranceKind = 'mountainHole' | 'pool' | 'whirlwind';
 
@@ -17,8 +17,78 @@ export interface ArenaBossDef {
 }
 
 export const ARENA_BOSSES: Readonly<Record<ArenaBossId, ArenaBossDef>> = {
-  snorlax: { id: 'snorlax', enemy: 'snorlax', entrance: 'mountainHole', timeLimit: 120 },
+  // Owner 2026-10-23: 6 min to win, and arena time doesn't count on the run clock (was 120 / 150 s).
+  snorlax: { id: 'snorlax', enemy: 'snorlax', entrance: 'mountainHole', timeLimit: 360 },
+  zapdos: { id: 'zapdos', enemy: 'zapdos', entrance: 'whirlwind', timeLimit: 360 },
 };
+
+/**
+ * Zapdos's kit (BOSSES.md §4, D32; owner 2026-10-22: special animations are immune, at least 10 kinds of attack).
+ * Phase 1: Thunder, Drill Peck, Shock Wave, Thunderbolt, Roost, generators. Phase 2 (below 66%, after an immune
+ * Charge-up) adds Thunderstorm, Zap Cannon, Electric Fence, Agility. Phase 3 (below 33%, after an immune Rain Dance)
+ * adds Discharge and rain: Thunder conducts through puddles. Every number provisional.
+ */
+export const ZAPDOS_KIT = {
+  /** HP fractions where the next phase starts; the phase gate holds HP there until its animation starts. */
+  phaseAt: [0.66, 0.33],
+  /** Seconds of each phase-change animation (Charge-up, Rain Dance): immune. */
+  transitionSeconds: 1.5,
+  /** Zapdos flies at about this distance from you, drifting sideways, instead of chasing to contact. */
+  hover: { distance: 260, strafeDeg: 35 },
+  moveGap: 0.6,
+  /** Relative odds of each move when several are ready. */
+  weights: {
+    thunder: 3,
+    drillPeck: 3,
+    shockWave: 2,
+    thunderbolt: 3,
+    roost: 1,
+    thunderstorm: 2,
+    zapCannon: 2,
+    fence: 2,
+    agility: 1,
+    discharge: 2,
+  },
+  /** Pressure (its ability; lore: drains PP): your move cooldowns run this much slower during the fight. */
+  pressure: 0.15,
+  /**
+   * Generators (Power Plant lore): pylons on a ring around the arena centre; while any stands, Zapdos takes
+   * ×`shieldMult`. A broken one is rebuilt `recharge` s later. Pylon HP = Zapdos's max HP × `hpFraction`.
+   */
+  pylons: { count: 3, ringFraction: 0.65, hpFraction: 0.04, recharge: 35, shieldMult: 0.25 }, // owner 2026-10-23: rebuilt too fast at 20 s
+  /** Thunder: two rings at once, one on you and one where you're heading (bracket). */
+  thunder: { cooldown: 4, firstAfter: 2, radius: 55, telegraph: 0.9, lead: 1, damageFactor: 1.4 },
+  /** Thunderstorm (phase 2+): three strikes on you, the gaps shrinking (rhythm). */
+  thunderstorm: { cooldown: 10, firstAfter: 0, gaps: [0.8, 0.6, 0.4], radius: 55, damageFactor: 1.2 },
+  /** Drill Peck: a lead-aimed line, then a dash along it. */
+  drillPeck: { cooldown: 6, firstAfter: 3, telegraph: 0.7, lead: 1, speed: 650, length: 420, width: 40, damageFactor: 1.5, recover: 0.6 },
+  /** Shock Wave (lore: never misses): homing bolts that give up after `homing` s and fly straight. */
+  shockWave: { cooldown: 7, firstAfter: 4, cast: 0.5, bolts: 3, spreadDeg: 40, speed: 170, turnRate: 3, homing: 2.5, life: 4, radius: 9, damageFactor: 0.8 },
+  /** Thunderbolt: a 3-way fan of zigzag bolts. */
+  thunderbolt: { cooldown: 5, firstAfter: 1, cast: 0.6, bolts: 3, spreadDeg: 30, speed: 260, amplitude: 40, frequency: 2.5, life: 3, radius: 8, damageFactor: 1 },
+  /** Zap Cannon (phase 2+): a slow, lazily homing ball that paralyses. */
+  zapCannon: { cooldown: 12, firstAfter: 0, cast: 0.8, speed: 110, turnRate: 1, life: 6, radius: 26, damageFactor: 2, paralysis: 2 },
+  /** Electric Fence (phase 2+): a line across the arena near you; Zapdos zips along it and it stays live. */
+  fence: { cooldown: 11, firstAfter: 0, telegraph: 0.8, seconds: 4, width: 16, offset: 60, damageFactor: 0.7 },
+  /** Agility (phase 2+): zips to the far side of the arena, then flies faster for a while. */
+  agility: { cooldown: 12, firstAfter: 0, telegraph: 0.5, speedMult: 1.5, seconds: 4 },
+  /**
+   * Roost (once per phase, after losing `afterPct` of max HP in it): lands and heals, and loses its Flying type
+   * while roosting (pure Electric: Ice and Electric hits change). The damage window.
+   */
+  roost: { seconds: 3, healPct: 0.15, afterPct: 0.12 },
+  /**
+   * Discharge (phase 3): channels with an interrupt bar (deal `interruptPct` of max HP to cancel it), then shocks
+   * the whole arena except one safe ring shown during the channel.
+   */
+  discharge: { cooldown: 16, firstAfter: 2, channel: 2, interruptPct: 0.05, safeRadius: 80, damageFactor: 2, paralysis: 1.5, recover: 1 },
+  /** Rain Dance (phase 3, arena only): puddles keep appearing; a Thunder landing while you stand in one hits and paralyses. */
+  rain: { puddleEvery: 1.5, puddleSeconds: 6, paralysis: 2 },
+  /** Lightning Rod (player trait): Thunder strikes you directly, and each hit fills this much Charge. */
+  lightningRodCharge: 25,
+  /** Paralysis on the player (README §10): slowed, with a short stutter when it lands; never a stun. */
+  playerParalysis: { slow: 0.35, stutter: 0.2, stutterSlow: 0.9 },
+} as const;
 export const ARENA_BOSS_IDS = Object.keys(ARENA_BOSSES) as ArenaBossId[];
 
 /**
@@ -134,8 +204,8 @@ export const SNORLAX_KIT = {
 
 export const ARENA_TUNING = {
   /**
-   * The 4 events per run (D2, D28), before jitter. The last one opens by 11:20 so jitter, a full open
-   * window, the engage wait and a full fight still end before 15:00.
+   * The 4 events per run (D2, D28), before jitter; on the run clock, which fights don't count (owner 2026-10-23).
+   * The first stays at ~3:00 (owner). The last opens by 11:40 so its whole open window ends before 15:00.
    */
   eventTimes: [180, 390, 600, 680],
   /** ± seconds of seeded jitter per event. */

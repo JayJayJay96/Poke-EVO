@@ -76,6 +76,65 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-22 — Zapdos: second arena boss (D32)
+**Why:** with only Snorlax in the pool, every run fought Snorlax at all 4 arena events. The owner picked Zapdos over building batch-2 enemies first.
+
+**Built (BOSSES.md §4; numbers in `ZAPDOS_KIT`, provisional)**
+- **Boss:** Electric/Flying, 2600 HP base, 110 px/s, 150 s limit, whirlwind entrance. It hovers about 260 px away instead of chasing.
+- **Generators:** 3 `pylon` enemies (no XP, no contact damage, pinned in place) shield it ×0.25. A broken one is rebuilt after 35 s (owner playtest 2026-10-23; was 20 s).
+- **Phases and moves:**
+
+  | Phase | Moves |
+  |---|---|
+  | **1** | Thunder (bracket), Drill Peck, Shock Wave (homing, 2.5 s timeout), Thunderbolt (zigzag), Roost (once per phase; loses Flying) |
+  | **2** | immune Charge-up (66%), then adds Thunderstorm (3-strike rhythm), Zap Cannon (paralyses), Electric Fence, Agility |
+  | **3** | immune Rain Dance (33%): puddles spawn and conduct any Thunder; adds Discharge (interrupt bar, one safe ring) |
+
+  That's 10 picker moves, plus generators, Charge-up and Rain Dance. The phase gate and the weighted picker are the same as D31.
+- **Pressure:** your cooldowns tick 15% slower while the fight is engaged.
+- **Lightning Rod:** Thunder strikes the player directly, and the hit adds Charge.
+- **First player status, paralysis:** a slow with a 0.2 s heavier stutter, never a stun. The duration follows the stage's types (`playerElectricMult`).
+
+**Files**
+- `src/data/content.ts`: `zapdos` and `pylon` enemies.
+- `src/data/arena.ts`: `ArenaBossId` gets `zapdos`; `ARENA_BOSSES.zapdos`; `ZAPDOS_KIT`.
+- `src/sim/types.ts`: `ZapdosMove`, `ZapdosState`, `ArenaFight.zap`, notices `chargeUp` / `rainDance`.
+- `src/sim/bosses.ts`: `startZapdos`, the Zapdos AI and picker, shots, fences, Discharge, rain, `playerElectricMult`.
+- `src/sim/arena.ts`: starts Zapdos's state on entry.
+- `src/sim/combat.ts`:
+  - immunity and the phase gate generalised per boss
+  - the pylon shield, Roost type change and Discharge interrupt meter
+  - no 0-XP gems
+- `src/sim/world.ts`: Pressure on the cooldown tick; 0-contact enemies are skipped in the contact loop.
+- `src/scenes/RunScene.ts`: rain tint, generator tethers and shield ring, Thunder rings, Peck and Agility lines, fences, Discharge safe ring, shots, notices, the HUD shield/interrupt text.
+- `src/sim/arena.test.ts`: `enter(world, bossId)`, and 14 Zapdos tests.
+
+**Checks (observed)**
+- `npm run typecheck` clean.
+- `npx vitest run`: **452/452 passed**. That run included the skill team's uncommitted D30 code in this working tree. After the fence fix, the arena suite passed again (51/51).
+- `npm run build` passed.
+- Browser (own dev server on port 5181; the sim stepped from the page). Seen on screen:
+  - Zapdos with the shield ring and 3 generator tethers; HUD "shielded by 3 generators"
+  - Thunder bracket rings
+  - a live Electric Fence with Zapdos at its end (the end point is now clamped inside the wall)
+  - Thunderbolt bolts
+  - phase 3 rain tint, puddles, the Discharge flash with its green safe ring, and the HUD interrupt meter
+- No console errors.
+
+**Not verified:** fight feel and difficulty; whether 150 s is enough with the shield; Shock Wave, Zap Cannon and Agility on screen (unit-tested only).
+
+**Not built:** the adds (Voltorb, Magnemite) — those enemies don't exist yet.
+
+**Owner playtest follow-up (2026-10-23, D33)**
+- **Generators:** rebuild after **35 s** (was 20 s).
+- **Run clock:** pauses inside an arena. `World.arenaSeconds` counts arena time and `runClock(world) = time − arenaSeconds`. These now use it: the 15:00 end, the spawner's wave ramp, the wave scale at entry, the arena schedule, the HUD time and the balance-bot checkpoints. `world.time` keeps running inside fights, because the Mutation hooks' timers rely on it.
+- **Fight time limit:** **6 min** for both bosses. The first event stays at ~3:00.
+- **Bug fixed:** the schedule test now checks only the open window, since fights are off the clock. Before, it used Snorlax's limit only, which could let a 2:30 Zapdos at the last event run past 15:00.
+- **Checks:** typecheck clean. **453/453** tests (1 new: the clock pauses in an arena and the run still ends at 15:00 of map time). Build passed.
+- **Browser:** the run clock stayed at 2:40 during 10 s of a Zapdos fight while `world.time` advanced; the HUD showed "Zapdos: 5:47 left".
+
+**Next:** the owner playtests Zapdos again; then batch-2 enemies or the next boss.
+
 ### 2026-10-22 — Snorlax: variety and immunity (D31)
 **Owner requests:**
 - Special animations should make the boss invulnerable, so it can't be burst down (e.g. the berry phase).
