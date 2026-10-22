@@ -158,7 +158,7 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 | `solarBeam.fullCharge` | Full Charge | generic | solarBeam | any | 0 | — | site | [shared/solar-beam.md](shared/solar-beam.md) |
 | `solarBeam.prism` | Prism | generic | solarBeam | any | 0 | — | site | [shared/solar-beam.md](shared/solar-beam.md) |
 | `solarBeam.ingrain` | Ingrain | bond | solarBeam | bulbasaur | 2 | `standingStill` | site | [bulbasaur/](bulbasaur/README.md) |
-| `vineWhip.longLash` | Long Lash | signature | vineWhip → powerWhip → frenzyPlant | bulbasaur | 0 | `bloom` | site | [bulbasaur/](bulbasaur/README.md) |
+| `vineWhip.snare` | Snare | signature | vineWhip → powerWhip → frenzyPlant | bulbasaur | 0 | `bloom` | site | [bulbasaur/](bulbasaur/README.md) |
 | `vineWhip.thornGarden` | Thorn Garden | signature | vineWhip → powerWhip → frenzyPlant | bulbasaur | 0 | `bloom` | site | [bulbasaur/](bulbasaur/README.md) |
 | `vineWhip.sapLash` | Sap Lash | signature | vineWhip → powerWhip → frenzyPlant | bulbasaur | 0 | `bloom` | site | [bulbasaur/](bulbasaur/README.md) |
 | `quickAttack.blink` | Blink Strike | generic | quickAttack | any | 0 | — | site | [shared/quick-attack.md](shared/quick-attack.md) |
@@ -196,6 +196,7 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 
 Smokescreen, Slash and Wing Attack are proposed new moves (not in `src/data/moves.ts` yet).
 **Prerequisites:** a Hook cell marked **needs …** means the Bond is only offered when the build already has that source.
+**Retired IDs:** `vineWhip.longLash` (Long Lash) was removed by D30 (2026-10-22) and replaced by `vineWhip.snare`. Delete it from `src/data/mutations.ts`, and migrate or version-bump saved build snapshots that hold it. Never reuse a retired ID.
 
 "From 0" on a final-stage-only move (Hydro Pump, Flash Cannon, Air Slash, Hurricane, Solar Beam, Thunder) still means the move
 itself must be owned first, and it only unlocks at stage 2.

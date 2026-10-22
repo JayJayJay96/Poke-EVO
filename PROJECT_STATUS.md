@@ -76,6 +76,11 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-22 — Skill design: Bulbasaur signature redesign (D30, no code yet)
+- **Why:** owner playtest: Power Whip / Frenzy Plant are 360° sweeps, "plain and easy", and Long Lash made Ivysaur/Venusaur "basically invincible". In code, Long Lash turns into a full circle from Power Whip on (`vineWhip.ts` `halfArc = π` at tier ≥ 1) at ×1.8 reach with tip crits up to ×1.9. `balance-report.md` (8 seeds): Bulbasaur leads every checkpoint (5 min 269 DPS vs Lapras 147; 9 min site DPS 1048 vs ≤ 410).
+- **Proposal** (`docs/moveset/bulbasaur/README.md` §4, signature only; Bulb, Leech tiers and learnset Bonds unchanged): the signature becomes a **narrow directional lash** (30°, reach 120 → 130 → 140) with a strong **tip** (+30%); Power Whip's tip cracks into a 45 px burst (Area); Frenzy Plant leaves 3 root patches along the lash (Zone). **Long Lash retired → new `vineWhip.snare`** (tip binds; bound enemies take +25% from Grass moves; ranks to 1.2 s / +35% / binds 2). Thorn Garden and Sap Lash unchanged.
+- **Approved by the owner as D30** (`PROJECT.md` §13 and §6). `INDEX.md`: the `vineWhip.longLash` row is now `vineWhip.snare`, with a "Retired IDs" note. **Code not changed yet**: the build session does it from `bulbasaur/README.md` §4.4 (moves, mutations, `vineWhip.ts`, `signature.test.ts`, `BUILD_SNAPSHOT_VERSION` for saved Long Lash), then re-runs `npm run balance`.
+
 ### 2026-10-22 — Reference-pack review (D29)
 **What happened**
 - Two agents read `docs/references/`: the skill-architect pack (21 files) and the progression-architect pack (16 files).
