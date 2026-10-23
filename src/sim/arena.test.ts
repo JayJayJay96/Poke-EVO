@@ -41,10 +41,10 @@ function enter(world: World, bossId: ArenaBossId = 'snorlax'): void {
 }
 
 describe('arena events (D28): schedule and entrance', () => {
-  it('4 seeded events per run, each ending (open + fight) before the run does', () => {
+  it('2 seeded events per run (~6:30 and ~12:30), each open window ending before the run does', () => {
     const times = arenaSchedule(42);
     expect(times).toEqual(arenaSchedule(42));
-    expect(times).toHaveLength(4);
+    expect(times).toHaveLength(2);
     times.forEach((t, i) => {
       expect(Math.abs(t - ARENA_TUNING.eventTimes[i]!)).toBeLessThanOrEqual(ARENA_TUNING.jitter);
       // Fights don't count on the run clock (owner 2026-10-23): only the open window must fit.
@@ -355,7 +355,8 @@ describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
     for (let t = 0; t < SNORLAX_KIT.rest.seconds; t += DT) step(world, IDLE, DT);
     expect(f.rest).toBeNull();
     expect(f.phase).toBe(2);
-    expect(boss.hp).toBeCloseTo(boss.maxHp * (0.6 + SNORLAX_KIT.rest.healPct), -1);
+    // As a fraction of max HP: boss HP scales with the event time, so an absolute tolerance doesn't hold.
+    expect(boss.hp / boss.maxHp).toBeCloseTo(0.6 + SNORLAX_KIT.rest.healPct, 2);
   });
 
   it('asleep it takes ×1.5 damage; enough damage wakes it into a quick Body Slam (no more healing)', () => {

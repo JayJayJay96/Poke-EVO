@@ -202,10 +202,11 @@ export const SNORLAX_KIT = {
 
 export const ARENA_TUNING = {
   /**
-   * The 4 events per run (D2, D28), before jitter; on the run clock, which fights don't count (owner 2026-10-23).
-   * The first stays at ~3:00 (owner). The last opens by 11:40 so its whole open window ends before 15:00.
+   * Arena events per run, before jitter; on the run clock, which fights don't count (owner 2026-10-23).
+   * Owner 2026-10-23: 2 bosses, the 1st at ~6–7 min and the 2nd at ~12–13 min, until the run gets longer
+   * (was 4 events at 3:00 / 6:30 / 10:00 / 11:20). Each open window must end before 15:00.
    */
-  eventTimes: [180, 390, 600, 680],
+  eventTimes: [390, 750],
   /** ± seconds of seeded jitter per event. */
   jitter: 20,
   /** Seconds an entrance stays open before it closes and the event is missed. */
