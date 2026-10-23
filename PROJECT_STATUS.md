@@ -76,6 +76,20 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-23 — Normal level rewards redesign (D40, design only)
+**Owner:** normal-level stat cards are "decent but not interesting". The owner asked me to propose and advise, then approved Techniques + Natures, 5 Technique slots, and the 13-Technique starter list.
+
+**Files**
+- `docs/superpowers/specs/2026-10-23-techniques-natures-design.md` (new spec)
+- `PROJECT.md` (D40 row; a §8.3 note)
+
+**Checks:** none run (docs only). No code has changed yet.
+
+**Next:**
+1. The owner reviews the spec.
+2. Write the implementation plan.
+3. Build D40: data, then sim and tests, then cards and HUD, then the balance bot.
+
 ### 2026-10-23 — Banked level-ups (D39)
 **Owner:** level-up pop-ups felt disruptive. Approved: bank them behind a badge plus hotkey, auto-open at 3 banked or after 30 s, and no pop-ups during arena fights.
 
