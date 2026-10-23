@@ -18,7 +18,9 @@ export type PokemonType =
   | 'Rock'
   | 'Ground'
   | 'Ghost'
-  | 'Psychic';
+  | 'Psychic'
+  // Defender type of Machamp (D42); no player move uses it yet.
+  | 'Fighting';
 export type FormTag = 'Projectile' | 'Area' | 'Beam' | 'Melee' | 'Aura' | 'Zone' | 'Orbit';
 export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' | 'Ball' | 'Contact';
 export type MoveTag = PokemonType | FormTag | FlagTag;
@@ -35,6 +37,8 @@ export type EnemyId =
   | 'snorlax'
   | 'zapdos'
   | 'pylon'
+  | 'machamp'
+  | 'focusOrb'
   // Batch 2 (ROSTER.md, owner-approved 2026-10-21).
   | 'caterpie'
   | 'weedle'
@@ -714,6 +718,33 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     maxHp: 1,
     speed: 0,
     radius: 22,
+    contactDamage: 0,
+    xp: 0,
+    berryChance: 0,
+    weightKg: 9999,
+  },
+  // Arena boss (D42, BOSSES.md §4): Fighting, tier 1; ×1.4 Snorlax's speed, still slower than every starter.
+  machamp: {
+    id: 'machamp',
+    name: 'Machamp',
+    types: ['Fighting'],
+    maxHp: 2800,
+    speed: 105,
+    radius: 34,
+    contactDamage: 28,
+    xp: 60,
+    berryChance: 0,
+    weightKg: 130,
+    boss: true,
+  },
+  // Machamp's Focus Blast orb: a real enemy so your auto-fire can shoot it down; moved by its AI, no XP.
+  focusOrb: {
+    id: 'focusOrb',
+    name: 'Focus Blast',
+    types: ['Fighting'],
+    maxHp: 1,
+    speed: 0,
+    radius: 18,
     contactDamage: 0,
     xp: 0,
     berryChance: 0,

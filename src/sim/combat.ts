@@ -1,4 +1,4 @@
-import { SNORLAX_KIT, ZAPDOS_KIT } from '../data/arena';
+import { MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT } from '../data/arena';
 import { ABILITIES, ENEMIES, TUNING, type PokemonType } from '../data/content';
 import { ABILITY_TUNING, ELITE, ELITE_ABILITY } from '../data/hordes';
 import { MUTATION_TUNING } from '../data/mutations';
@@ -155,8 +155,9 @@ export function abilityDamageMult(world: World): number {
 export function bossImmune(world: World, enemy: Enemy): boolean {
   const f = world.arena;
   if (!f || f.bossEnemyId !== enemy.id) return false;
-  // Zapdos: its phase-change animations (Charge-up, Rain Dance).
+  // Zapdos and Machamp: their phase-change animations (Charge-up, Rain Dance; Focus Energy, No Guard).
   if (f.zap) return f.zap.transitionLeft > 0;
+  if (f.champ) return f.champ.transitionLeft > 0;
   const airborne = f.heavySlam?.phase === 'air' || f.heavySlam?.phase === 'lock';
   return f.shakeLeft > 0 || f.drumLeft > 0 || airborne;
 }
@@ -166,7 +167,11 @@ export function bossHpFloor(world: World, enemy: Enemy): number {
   const f = world.arena;
   if (!f || f.bossEnemyId !== enemy.id) return 0;
   // Snorlax: while resting in phase p the gate is the next threshold; otherwise the current phase's own.
-  const gate = f.zap ? ZAPDOS_KIT.phaseAt[f.zap.phase - 1] : SNORLAX_KIT.restAt[f.rest ? f.phase : f.phase - 1];
+  const gate = f.zap
+    ? ZAPDOS_KIT.phaseAt[f.zap.phase - 1]
+    : f.champ
+      ? MACHAMP_KIT.phaseAt[f.champ.phase - 1]
+      : SNORLAX_KIT.restAt[f.rest ? f.phase : f.phase - 1];
   return gate === undefined ? 0 : enemy.maxHp * gate;
 }
 
@@ -206,6 +211,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const missing = hit.missingHpBonus > 0 ? hit.missingHpBonus * Math.max(0, 1 - player.hp / player.maxHp) : 0;
   const def = ENEMIES[enemy.kind];
   const zap = world.arena?.bossEnemyId === enemy.id ? world.arena.zap : null;
+  const champ = world.arena?.bossEnemyId === enemy.id ? world.arena.champ : null;
   // Type chart (D14): multiplied for dual-type enemies; typeless hits stay ×1.
   const typeMult = effectiveness(hit.attackType, zap?.roost ? ROOSTING_ZAPDOS : def.types);
   enemy.lastEffectiveness = typeMult;
@@ -230,6 +236,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     // Zapdos's generators: shielded while any pylon stands.
     (zap?.pylons.some((p) => p.enemyId !== null) ? ZAPDOS_KIT.pylons.shieldMult : 1) *
     (zap && zap.overloadLeft > 0 ? ZAPDOS_KIT.overload.damageTakenMult : 1) *
+    // Machamp after Close Combat: its defences are down for a moment.
+    (champ && champ.openLeft > 0 ? MACHAMP_KIT.closeCombat.weakMult : 1) *
     // The move's own hits only (procs carry no slot): Volatility's roll and Predatory's bonus below half HP.
     (slot ? slot.volatileMult : 1) *
     (slot && slot.stats.executePct > 0 && enemy.hp < enemy.maxHp * 0.5 ? 1 + slot.stats.executePct : 1);
@@ -239,6 +247,9 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   if (sleeping) sleeping.wake += dealt;
   // Zapdos's Discharge channel: enough damage interrupts it.
   if (zap?.discharge?.phase === 'channel') zap.discharge.taken += dealt;
+  // Machamp: damage during a pose or the Focus Punch channel fills its interrupt meter.
+  if (champ?.pose) champ.pose.taken += dealt;
+  if (champ?.focus?.phase === 'channel') champ.focus.taken += dealt;
   enemy.hp = floor > 0 ? enemy.hp - dealt : enemy.hp - amount;
   const ability = eliteAbilityOf(enemy);
   // Anger Point (Elite Tauros): a crit enrages it. Run Away (Elite Rattata): once, at low HP, it sprints off.

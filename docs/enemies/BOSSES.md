@@ -166,7 +166,11 @@ Snorlax in the event-1 pool (D38). Both follow D31 (immune phase-change animatio
 event-1 fairness filter for every starter. 6-min limit (D33); target fight ~60–90 s like Snorlax. Every number
 provisional.
 
-#### Machamp: "The dojo master" (Saffron Dojo). **Design approved (owner 2026-10-23, D42); tier 1; to build**
+#### Machamp: "The dojo master" (Saffron Dojo). **Design approved (owner 2026-10-23, D42); tier 1; built**
+**Built 2026-10-23** (`src/sim/machamp.ts`, numbers in `MACHAMP_KIT`, entrance: a dojo door). Where the build differs
+from the text below: Low Sweep and Rock Tomb use the shared **slow** status (30%, 2 s, D36) rather than 40%; Seismic
+Toss's 6% still goes through your damage-taken modifiers (and Shell can block it); Focus Blast homes with a turn
+rate (a sharp turn shakes it); the rock shield has 3% of its max HP; Rock Throw cracks into 3 rocks.
 Owner additions: a rock skill (grab a nearby rock or rip one from the ground, then throw it, shield-charge with it,
 or rarely shield-pose with it: "a big element of surprise"); faster than Snorlax "since he so fit"; the openings
 come from **flexing poses** between attack strings.

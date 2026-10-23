@@ -5,6 +5,7 @@ import { applyPlayerStatus } from './playerStatus';
 import { spawnPuddle } from './terrain';
 import type { ArenaFight, Enemy, SnorlaxMove, World, ZapdosMove, ZapdosState } from './types';
 import { hitPlayer, spawnEnemy } from './world';
+import { machamp } from './machamp';
 
 // Arena boss behaviour (D28; BOSSES.md §3: telegraph → act → recover). One function per boss, run each
 // step once the fight has started. Boss attacks never proc anything; every aimed attack locks its target
@@ -15,7 +16,7 @@ type BossAi = (world: World, fight: ArenaFight, boss: Enemy, dt: number) => void
 const DEG = Math.PI / 180;
 
 /** A point pulled back inside the arena, `margin` px from its wall. */
-function insideArena(fight: ArenaFight, x: number, y: number, margin: number) {
+export function insideArena(fight: ArenaFight, x: number, y: number, margin: number) {
   const dx = x - fight.x;
   const dy = y - fight.y;
   const d = Math.hypot(dx, dy);
@@ -36,22 +37,25 @@ export function angleGap(a: number, b: number): number {
 }
 
 /** A boss attack lands on the player unless they're still invulnerable from the last hit. */
-function strike(world: World, boss: Enemy, factor: number): void {
-  if (world.player.invulnLeft <= 0) hitPlayer(world, boss.contactDamage * factor, boss);
+export function strike(world: World, boss: Enemy, factor: number): boolean {
+  return world.player.invulnLeft <= 0 && hitPlayer(world, boss.contactDamage * factor, boss);
 }
 
 /** Whether the player stands in a cone from (x, y). */
-function inCone(world: World, x: number, y: number, angle: number, reach: number, arcDeg: number): boolean {
+export function inCone(world: World, x: number, y: number, angle: number, reach: number, arcDeg: number): boolean {
   const { player } = world;
   const d = Math.hypot(player.x - x, player.y - y);
   return d <= reach + player.radius && angleGap(Math.atan2(player.y - y, player.x - x), angle) <= (arcDeg * DEG) / 2;
 }
 
-/** Rocks become rubble that blocks the player; the oldest crumble past the cap. */
-function addRubble(fight: ArenaFight, x: number, y: number): void {
-  const { rubble } = SNORLAX_KIT.bodySlam;
-  fight.rubble.push({ x, y, radius: rubble.radius, left: rubble.seconds });
-  if (fight.rubble.length > rubble.max) fight.rubble.splice(0, fight.rubble.length - rubble.max);
+/** Rocks become rubble that blocks the player; the oldest crumble past the cap (a held rock never does). */
+export function addRubble(fight: ArenaFight, x: number, y: number, seconds: number = SNORLAX_KIT.bodySlam.rubble.seconds, max: number = SNORLAX_KIT.bodySlam.rubble.max): void {
+  fight.rubble.push({ x, y, radius: SNORLAX_KIT.bodySlam.rubble.radius, left: seconds });
+  while (fight.rubble.length > max) {
+    const oldest = fight.rubble.findIndex((rock) => rock.hp === undefined);
+    if (oldest < 0) break;
+    fight.rubble.splice(oldest, 1);
+  }
 }
 
 function startSlam(world: World, fight: ArenaFight, boss: Enemy, windup: number): void {
@@ -1030,7 +1034,7 @@ function zapdos(world: World, fight: ArenaFight, boss: Enemy, realDt: number): v
     : fight.bossSpeed * (zap.agilityLeft > 0 ? kit.agility.speedMult : 1) * (zap.weakLeft > 0 ? kit.overload.weakSpeedMult : 1);
 }
 
-const BOSS_AI: Readonly<Record<ArenaBossId, BossAi>> = { snorlax, zapdos };
+const BOSS_AI: Readonly<Record<ArenaBossId, BossAi>> = { snorlax, zapdos, machamp };
 
 /** Runs the boss's behaviour for this step (only once the fight has started). */
 export function updateBoss(world: World, fight: ArenaFight, boss: Enemy, dt: number): void {

@@ -3,9 +3,9 @@ import type { EnemyId } from './content';
 // Arena boss events (D28): Mewtwo is the only main-map boss; every other boss is drawn at random for
 // an arena event. Every number is provisional.
 
-export type ArenaBossId = 'snorlax' | 'zapdos';
+export type ArenaBossId = 'snorlax' | 'zapdos' | 'machamp';
 /** Themed entrance on the main map; its entry animation is presentation (enemy design team). */
-export type ArenaEntranceKind = 'mountainHole' | 'pool' | 'whirlwind';
+export type ArenaEntranceKind = 'mountainHole' | 'pool' | 'whirlwind' | 'dojo';
 
 export interface ArenaBossDef {
   readonly id: ArenaBossId;
@@ -25,7 +25,118 @@ export const ARENA_BOSSES: Readonly<Record<ArenaBossId, ArenaBossDef>> = {
   // Owner 2026-10-23: 6 min to win, and arena time doesn't count on the run clock (was 120 / 150 s).
   snorlax: { id: 'snorlax', enemy: 'snorlax', entrance: 'mountainHole', timeLimit: 360, tier: 1 },
   zapdos: { id: 'zapdos', enemy: 'zapdos', entrance: 'whirlwind', timeLimit: 360, tier: 2 },
+  machamp: { id: 'machamp', enemy: 'machamp', entrance: 'dojo', timeLimit: 360, tier: 1 },
 };
+
+/**
+ * Machamp's kit (BOSSES.md §4, D42). Rhythm: 2–3 attacks, then a Bulk Up pose (the opening). Its signature is the
+ * rock in hand: grab or rip a rock (a shield with HP), then throw it, charge with it (Strength) or, rarely, pose
+ * behind it (Iron Pose). Phase 2 (below 66%, after an immune Focus Energy) adds Bullet Punch, Dynamic Punch and
+ * Focus Blast; phase 3 (below 33%, after an immune No Guard) adds Focus Punch and Close Combat. Cones follow the
+ * fairness rule (BOSSES.md §2): a cone's `trigger` (centre distance) leaves a standing player fully inside its
+ * `reach`. Every number provisional.
+ */
+export const MACHAMP_KIT = {
+  phaseAt: [0.66, 0.33],
+  /** Seconds of each phase-change animation (Focus Energy, No Guard): immune. */
+  transitionSeconds: 1.5,
+  moveGap: 0.5,
+  /** Guts (its ability): while it carries a status you put on it, it hits this much harder. */
+  guts: 1.3,
+  /**
+   * Bulk Up pose (owner 2026-10-23: "the opening maybe will come from the constant flex"): after `every` attacks
+   * (rolled), it poses. Deal `interruptPct` of its max HP during the pose to throw it off; otherwise it gains a
+   * stack (+`stackDamage` each, max `maxStacks`) for the rest of the fight.
+   */
+  pose: { every: [2, 3], seconds: 1.2, secondsPhase3: 0.8, interruptPct: 0.04, stackDamage: 0.15, maxStacks: 3 },
+  /** Relative odds of each move when several are ready. */
+  weights: {
+    karateChop: 4,
+    crossChop: 3,
+    lowSweep: 3,
+    rockTomb: 2,
+    seismicToss: 3,
+    rock: 3,
+    bulletPunch: 3,
+    dynamicPunch: 2,
+    focusBlast: 2,
+    focusPunch: 2,
+    closeCombat: 3,
+  },
+  /** Karate Chop: a string of cone chops, each re-aimed (lead 0) with a step forward; 4 chops from phase 2. */
+  karateChop: { cooldown: 4, firstAfter: 1, trigger: 95, reach: 130, arcDeg: 70, chops: 3, chopsPhase2: 4, gaps: [0.7, 0.55, 0.4, 0.4], step: 30, damageFactor: 1, recover: 0.6 },
+  /** Cross Chop: crouch, leap to a lead-aimed spot, an X of two crossing lines, land; a long recover. */
+  crossChop: { cooldown: 7, firstAfter: 2, range: 320, crouch: 0.3, telegraph: 0.9, lead: 0.5, arm: 180, width: 36, damageFactor: 2, recover: 0.9 },
+  /** Low Sweep: a ring around itself when you hug it; slows you. `trigger` is measured from its edge. */
+  lowSweep: { cooldown: 6, firstAfter: 2, trigger: 60, radius: 130, telegraph: 0.6, damageFactor: 0.8, slowSeconds: 2, recover: 0.4 },
+  /** Rock Tomb: boulders on rings (one lead-aimed, the rest scattered round it); they stay as rocks. */
+  rockTomb: { cooldown: 9, firstAfter: 4, telegraph: 0.9, boulders: 3, scatter: 110, radius: 36, damageFactor: 1, slowSeconds: 2, stay: 8 },
+  /**
+   * Seismic Toss: a grab ring around it; caught, you're thrown `throwDistance` px away from it (a push, never a
+   * stun) for `hpPct` of your max HP (lore: fixed damage; your damage-taken modifiers still apply).
+   */
+  seismicToss: { cooldown: 8, firstAfter: 3, trigger: 50, radius: 120, telegraph: 0.7, throwDistance: 220, hpPct: 0.06, recover: 0.6 },
+  /**
+   * The rock in hand (owner 2026-10-23: "a big element of surprise"): it takes a rubble rock within `grabRange`
+   * (`grab` s) or rips one from the ground (`rip` s). The held rock is a shield in front of it: it blocks your shots
+   * (D41) and has `shieldHpPct` of its max HP; breaking it staggers it for `stagger` s. After a `tell` it picks a
+   * follow-up by weight, never the same twice in a row.
+   */
+  rock: {
+    cooldown: 7,
+    firstAfter: 5,
+    grabRange: 150,
+    grab: 0.5,
+    rip: 0.8,
+    tell: 0.4,
+    radius: 26,
+    shieldHpPct: 0.03,
+    stagger: 1.5,
+    /** Rocks it leaves (Rock Tomb, Strength, Rock Throw) never push the rubble past this; held rocks never crumble. */
+    maxRocks: 9,
+    weights: { throw: 45, strength: 40, iron: 15 },
+    ironWeightPhase3: 25,
+  },
+  /** Rock Throw: a lob onto a lead-aimed ring; it cracks into rocks around the landing spot. */
+  rockThrow: { telegraph: 0.9, lead: 1, radius: 70, damageFactor: 1.5, cracks: 3, crackSpread: 60, stay: 10 },
+  /**
+   * Strength: it walks at you behind its rock with momentum (speed ramps from `startMult` to `endMult` over
+   * `rampSeconds`, turning at most `turnRate` rad/s), plants within `plantWithin` px or after `maxCharge` s, shows a
+   * locked line, then the rock breaks into boulders rolling along it; at the wall they stay as rocks.
+   */
+  strength: {
+    startMult: 0.6,
+    endMult: 1.6,
+    rampSeconds: 2,
+    turnRate: 1.2,
+    plantWithin: 220,
+    maxCharge: 2.5,
+    telegraph: 0.5,
+    boulders: 3,
+    bouldersPhase3: 5,
+    gap: 0.15,
+    speed: 380,
+    radius: 20,
+    damageFactor: 1.2,
+    stay: 12,
+    recover: 0.8,
+  },
+  /** Iron Pose: the pose behind its planted rock; completed, it gives this many stacks. */
+  ironPose: { stacks: 2 },
+  /** Bullet Punch (phase 2+): a priority dash when you stand just outside melee. */
+  bulletPunch: { cooldown: 6, firstAfter: 0, minDistance: 120, maxDistance: 260, telegraph: 0.35, length: 260, speed: 420, width: 40, damageFactor: 1.2, recover: 0.5 },
+  /** Dynamic Punch (phase 2+): a big, slow, lead-aimed ring; it leaps onto it; confuses. */
+  dynamicPunch: { cooldown: 10, firstAfter: 2, range: 320, lead: 0.5, telegraph: 1.2, radius: 110, damageFactor: 2.2, confusion: 2, recover: 0.6 },
+  /** Focus Blast (phase 2+): a slow orb (an enemy your shots can kill) homing for `homing` s, then straight. */
+  focusBlast: { cooldown: 9, firstAfter: 1, cast: 0.5, speed: 140, turnRate: 2, homing: 2.5, life: 6, hpPct: 0.015, radius: 18, blastRadius: 70, damageFactor: 1.6 },
+  /**
+   * Focus Punch (phase 3): a focus channel with an interrupt bar (deal `interruptPct` of max HP to break it and
+   * stagger it), then a locked line across the arena (lead 0), then the punch.
+   */
+  focusPunch: { cooldown: 14, firstAfter: 2, channel: 2, interruptPct: 0.05, stagger: 1.2, telegraph: 0.5, width: 70, length: 900, damageFactor: 3, recover: 1 },
+  /** Close Combat (phase 3): a flurry of cone hits; afterwards it takes ×`weakMult` for `weakSeconds`. */
+  closeCombat: { cooldown: 12, firstAfter: 2, trigger: 95, reach: 130, arcDeg: 90, hits: 5, gap: 0.35, damageFactor: 0.8, weakSeconds: 3, weakMult: 1.5, recover: 0.4 },
+} as const;
 
 /**
  * Zapdos's kit (BOSSES.md §4, D32; owner 2026-10-22: special animations are immune, at least 10 kinds of attack).

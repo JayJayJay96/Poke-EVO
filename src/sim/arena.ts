@@ -1,5 +1,6 @@
 import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, type ArenaBossId } from '../data/arena';
 import { blockByRubble, holdByBlock, startZapdos, updateBoss } from './bosses';
+import { startMachamp } from './machamp';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
 import { MAX_COMBO_MOVES, comboCandidates } from './combo';
@@ -147,9 +148,11 @@ function enterArena(world: World): void {
     belchReady: false,
     quake: null,
     zap: null,
+    champ: null,
     stored,
   };
   if (def.id === 'zapdos') world.arena.zap = startZapdos(world, world.arena, boss);
+  if (def.id === 'machamp') world.arena.champ = startMachamp(world);
   world.entrance = null;
 }
 

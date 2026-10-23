@@ -194,6 +194,15 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - Balance-bot runs still level through auto-open, so pacing numbers barely move.
 - Pressing Space during a fight pauses to pick cards. Same as Esc pause; noted, not blocked.
 
+### 2026-10-23 — Machamp built (D42): tier 1 arena boss
+- **Objective:** owner: "commit and build" (after approving Machamp's design). **Status:** built, tested, browser-checked; **not committed**.
+- **Added:** `src/sim/machamp.ts` (the whole AI: attack-attack-pose rhythm with interruptible Bulk Up poses, the rock in hand with Rock Throw / Strength / Iron Pose and a breakable shield, Karate Chop, Cross Chop's X, Low Sweep, Rock Tomb, Seismic Toss, Bullet Punch, Dynamic Punch, Focus Blast orbs, Focus Punch, Close Combat, immune Focus Energy / No Guard phase changes, phase gate).
+- **Changed:** `src/data/arena.ts` (`MACHAMP_KIT`, `machamp` tier 1, `dojo` entrance), `src/data/content.ts` (`Fighting` type; `machamp`, `focusOrb` enemies), `src/data/typeChart.ts` (Flying ×2 and Dark ×0.5 on Fighting), `src/sim/types.ts` (`MachampState`, `ArenaRock` with optional `hp`, notices), `src/sim/bosses.ts` (helpers exported; `addRubble` takes duration/cap and never culls a held rock; AI registered), `src/sim/arena.ts` (start state), `src/sim/combat.ts` (immunity, phase gate, ×1.5 after Close Combat, pose/Focus Punch interrupt meters), `src/sim/forms/projectile.ts` (a shot stopped by a held rock wears its HP), `src/scenes/RunScene.ts` (drawing, HUD, notices, colours), `src/sim/arena.test.ts` (16 Machamp tests incl. a 2-min soak with auto-fire). BOSSES.md "built" note; PROJECT.md D42.
+- **Commands:** `npm run typecheck` clean; `npx vitest run` **539/539 passed**; `npm run build` passes. Browser (event 1 forced to Machamp): Cross Chop X, held rock with HP ring, Strength's locked line, Bulk Up pips, pose aura and HUD all draw; boulders end as rocks at the wall; no console errors. Real-time feel not judged (owner playtest).
+- **Risks:** tier 1 now draws Snorlax or Machamp at random; Machamp's HP/damage are untuned (balance bot not run); the Seismic Toss relocation is instant (no throw animation).
+- **Next:** owner playtest of Machamp; commit when asked; Kangaskhan design approval.
+- **Build runs:** yes.
+
 ### 2026-10-23 — Machamp design (D42); cones and swings that fall short (owner bug)
 - **Objective:** finish Machamp's design with the owner's additions; then fix cones that "hit the area barely in front" (Bulbasaur's lash vs an approaching mob; boss cones vs a standing player). **Status:** done and tested; not committed. Machamp **not built** yet.
 - **Machamp:** BOSSES.md §4 rewritten as the approved design (rock in hand: throw / Strength charge / rare Iron Pose; ×1.4 Snorlax speed; interruptible Bulk Up poses after every 2–3 attacks; Detect dropped); PROJECT.md D42 (regen is D43).

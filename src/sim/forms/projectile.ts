@@ -152,7 +152,12 @@ export function updateProjectiles(world: World, dt: number): void {
       proj.lifeLeft = proj.turnAt * 2 + 1; // safety cap for the trip home
     }
     // Arena rubble is a wall (owner 2026-10-23): a shot that reaches a rock ends its flight there.
-    if (rocks && rocks.some((r) => Math.hypot(proj.x - r.x, proj.y - r.y) <= r.radius + proj.radius)) proj.lifeLeft = 0;
+    const rock = rocks?.find((r) => Math.hypot(proj.x - r.x, proj.y - r.y) <= r.radius + proj.radius);
+    if (rock) {
+      proj.lifeLeft = 0;
+      // A rock Machamp holds as a shield is worn down by the shots it stops.
+      if (rock.hp !== undefined) rock.hp -= proj.damage;
+    }
     if (proj.lifeLeft <= 0) {
       proj.dead = true;
       const owner = proj.hit.slot;

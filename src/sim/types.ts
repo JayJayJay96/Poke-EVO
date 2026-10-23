@@ -676,6 +676,80 @@ export interface ZapdosState {
   weakLeft: number;
 }
 
+export interface ArenaRock {
+  x: number;
+  y: number;
+  readonly radius: number;
+  left: number;
+  hp?: number;
+}
+
+export type MachampMove =
+  | 'karateChop'
+  | 'crossChop'
+  | 'lowSweep'
+  | 'rockTomb'
+  | 'seismicToss'
+  | 'rock'
+  | 'bulletPunch'
+  | 'dynamicPunch'
+  | 'focusBlast'
+  | 'focusPunch'
+  | 'closeCombat';
+
+/** Machamp (D42, BOSSES.md §4). Each move in progress is its own field; at most one runs at a time (but rocks fly). */
+export interface MachampState {
+  phase: number;
+  /** Immune phase-change animation (Focus Energy, No Guard). */
+  transitionLeft: number;
+  moveGap: number;
+  lastMove: MachampMove | null;
+  cooldowns: Record<MachampMove, number>;
+  /** Attacks since the last pose, and how many it makes before the next one (2–3, rolled). */
+  attacks: number;
+  poseAfter: number;
+  /** Bulk Up stacks (+damage for the rest of the fight). */
+  bulk: number;
+  /** A pose in progress: Bulk Up (open) or Iron Pose (behind its rock); `taken` is the interrupt meter. */
+  pose: { left: number; taken: number; readonly iron: boolean } | null;
+  /** Staggered (shield broken, Focus Punch interrupted): it stands open. */
+  staggerLeft: number;
+  /** Close Combat lowered its defences: it takes more damage while > 0. */
+  openLeft: number;
+  /** Karate Chop / Close Combat: a string of cone hits, each re-aimed when its telegraph starts. */
+  chops: { angle: number; left: number; index: number; readonly count: number; readonly close: boolean; phase: 'windup' | 'recover' } | null;
+  crossChop: { readonly x: number; readonly y: number; readonly angle: number; left: number; phase: 'crouch' | 'windup' | 'recover' } | null;
+  sweep: { left: number; phase: 'windup' | 'recover' } | null;
+  toss: { left: number; phase: 'windup' | 'recover' } | null;
+  /** Rock Tomb boulders falling on their rings. */
+  tombs: { readonly x: number; readonly y: number; left: number }[];
+  /** The rock in hand: getting it, the tell, then the follow-up. `stone` is the rubble entry it holds. */
+  rock: {
+    stone: ArenaRock | null;
+    left: number;
+    phase: 'grab' | 'rip' | 'tell' | 'throw' | 'charge' | 'plant' | 'recover';
+    follow: 'throw' | 'strength' | 'iron';
+    /** Strength: heading (rad), seconds charging; the locked line once planted. */
+    heading: number;
+    charged: number;
+    angle: number;
+    /** Rock Throw: the locked landing spot. */
+    tx: number;
+    ty: number;
+  } | null;
+  lastFollow: 'throw' | 'strength' | 'iron' | null;
+  /** A thrown rock in the air (Rock Throw), landing on its ring. */
+  lob: { readonly fx: number; readonly fy: number; readonly tx: number; readonly ty: number; left: number } | null;
+  /** Strength boulders: queued ones wait `wait` s, then roll along the line; at the wall they stay as rocks. */
+  boulders: { x: number; y: number; readonly vx: number; readonly vy: number; wait: number; hit: boolean }[];
+  bullet: { readonly angle: number; left: number; travelled: number; hit: boolean; phase: 'windup' | 'dash' | 'recover' } | null;
+  dynamic: { readonly x: number; readonly y: number; left: number; phase: 'windup' | 'recover' } | null;
+  /** Focus Blast: casting, and the orbs in flight (each a 'focusOrb' enemy moved here). */
+  blastCast: number;
+  orbs: { readonly enemyId: number; vx: number; vy: number; homingLeft: number; left: number }[];
+  focus: { left: number; taken: number; angle: number; phase: 'channel' | 'line' | 'recover' } | null;
+}
+
 export interface ArenaFight {
   readonly bossId: ArenaBossId;
   readonly bossEnemyId: number;
@@ -751,8 +825,13 @@ export interface ArenaFight {
   quake: { readonly x: number; readonly y: number; left: number; step: 1 | 2; phase: 'windup' | 'recover' } | null;
   /** Zapdos's own state (D32); null when the boss is someone else. */
   zap: ZapdosState | null;
-  /** Rocks from Body Slam that block the player for a while. */
-  rubble: { readonly x: number; readonly y: number; readonly radius: number; left: number }[];
+  /** Machamp's own state (D42); null when the boss is someone else. */
+  champ: MachampState | null;
+  /**
+   * Rocks that block the player and their shots (D41) for a while. A rock with `hp` is one Machamp holds as a shield:
+   * it moves with Machamp, shots that hit it wear it down, and it never crumbles from the rubble cap.
+   */
+  rubble: ArenaRock[];
   readonly stored: {
     readonly enemies: Enemy[];
     readonly gems: Gem[];
@@ -769,7 +848,7 @@ export interface ArenaFight {
 
 /** Arena news for the scene to show once (D28). */
 export interface ArenaNotice {
-  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'knockedOut' | 'rest' | 'woke' | 'bellyDrum' | 'chargeUp' | 'rainDance' | 'overloaded';
+  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'knockedOut' | 'rest' | 'woke' | 'bellyDrum' | 'chargeUp' | 'rainDance' | 'overloaded' | 'focusEnergy' | 'noGuard';
   readonly bossId: ArenaBossId;
 }
 

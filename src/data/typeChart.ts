@@ -40,9 +40,9 @@ export const TYPE_CHART: Chart = {
     Ground: SUPER,
   },
   Poison: { Grass: SUPER, Poison: NOT_VERY, Steel: IMMUNE, Rock: NOT_VERY, Ground: NOT_VERY, Ghost: NOT_VERY },
-  Flying: { Grass: SUPER, Electric: NOT_VERY, Steel: NOT_VERY, Bug: SUPER, Rock: NOT_VERY },
+  Flying: { Grass: SUPER, Electric: NOT_VERY, Steel: NOT_VERY, Bug: SUPER, Rock: NOT_VERY, Fighting: SUPER },
   Dragon: { Dragon: SUPER, Steel: NOT_VERY },
-  Dark: { Dark: NOT_VERY, Ghost: SUPER, Psychic: SUPER },
+  Dark: { Dark: NOT_VERY, Ghost: SUPER, Psychic: SUPER, Fighting: NOT_VERY },
   Steel: { Fire: NOT_VERY, Water: NOT_VERY, Electric: NOT_VERY, Ice: SUPER, Steel: NOT_VERY, Rock: SUPER },
 };
 
@@ -63,6 +63,7 @@ const POKEMON_TYPES: ReadonlySet<string> = new Set<PokemonType>([
   'Ground',
   'Ghost',
   'Psychic',
+  'Fighting',
 ]);
 
 /** A move's attack type: its first Pokémon-type tag (null if it has none). */

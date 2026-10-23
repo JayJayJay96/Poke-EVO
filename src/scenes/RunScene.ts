@@ -6,7 +6,8 @@ import { ELITE_ABILITY, ELITE_ABILITY_NAMES } from '../data/hordes';
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
-import { ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
+import { ARENA_BOSSES, ARENA_TUNING, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
+import { crossArms } from '../sim/machamp';
 import { chooseArenaReward, chooseCombine, skipCombine } from '../sim/arena';
 import { angleGap, snoreOpenings } from '../sim/bosses';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
@@ -41,7 +42,7 @@ import { createRandomSeed, createSeededRng } from '../sim/rng';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
-import type { ArenaFight, AugmentCard, Card, EvolutionState, InputState, LevelUpOffer, MoveSlot, RewardCard, SiteCard, World, ZapdosState } from '../sim/types';
+import type { ArenaFight, AugmentCard, Card, Enemy, EvolutionState, InputState, LevelUpOffer, MachampState, MoveSlot, RewardCard, SiteCard, World, ZapdosState } from '../sim/types';
 import { createWorld, runClock, step } from '../sim/world';
 
 // Grey-box colours until real sprites arrive in P6.
@@ -126,8 +127,11 @@ const TYPE_COLORS: Readonly<Record<PokemonType, number>> = {
   Ground: 0xe0c068,
   Ghost: 0x705898,
   Psychic: 0xf85888,
+  Fighting: 0xc03028,
 };
 const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
+  machamp: 0x7a8fa6,
+  focusOrb: 0x7fd4ff,
   rattata: 0x9b6bc8,
   pidgey: 0xc8a165,
   raticate: 0x8a5a2b,
@@ -513,7 +517,8 @@ export class RunScene extends Phaser.Scene {
         (up > 0 ? ` · shielded by ${up} generator${up > 1 ? 's' : ''}` : '') +
         (stop === null ? '' : ` · Discharge! interrupt ${stop}%`) +
         (zap && zap.overloadLeft > 0 ? ` · Overloaded ${Math.ceil(zap.overloadLeft)} s` : '') +
-        (zap && zap.overloadLeft <= 0 && zap.weakLeft > 0 ? ` · Weakened ${Math.ceil(zap.weakLeft)} s` : '');
+        (zap && zap.overloadLeft <= 0 && zap.weakLeft > 0 ? ` · Weakened ${Math.ceil(zap.weakLeft)} s` : '') +
+        (arena.champ && enemy ? machampHud(arena.champ, enemy) : '');
       return `${boss}: ${formatTime(arena.timeLeft)} left${extra}`;
     }
     if (entrance) {
@@ -548,6 +553,8 @@ export class RunScene extends Phaser.Scene {
       chargeUp: `${boss} charges the sky! Thunderstorms and fences incoming`,
       rainDance: `${boss} used Rain Dance! Puddles conduct its Thunder`,
       overloaded: `${boss} is Overloaded! It takes extra damage. Hit it now`,
+      focusEnergy: `${boss} used Focus Energy! Bullet Punch, Dynamic Punch and Focus Blast incoming`,
+      noGuard: `${boss} takes the No Guard stance! Focus Punch and Close Combat incoming`,
     }[notice.kind];
     this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
   }
@@ -1117,6 +1124,7 @@ export class RunScene extends Phaser.Scene {
       }
       drawSnorlaxExtras(g, this.world, arena);
       if (arena.zap) drawZapdos(g, this.world, arena, arena.zap);
+      if (arena.champ) drawMachamp(g, this.world, arena, arena.champ);
     }
 
     // Mutation Sites (D23): the ring's colour reveals the roll once you step in (gold = Pokémon-bound);
@@ -1609,7 +1617,133 @@ const ENTRANCE_NAMES: Readonly<Record<ArenaEntranceKind, string>> = {
   mountainHole: 'A mountain hole',
   pool: 'A deep pool',
   whirlwind: 'A whirlwind',
+  dojo: 'A dojo door',
 };
+
+/** Machamp's state for the arena line: Bulk Up stacks, the pose and Focus Punch interrupt meters, its rock shield. */
+function machampHud(champ: MachampState, boss: Enemy): string {
+  const { pose, focusPunch } = MACHAMP_KIT;
+  const pct = (taken: number, of: number) => Math.min(100, Math.round((taken / (boss.maxHp * of)) * 100));
+  const stone = champ.rock?.stone;
+  return (
+    (champ.bulk > 0 ? ` · Bulk Up ×${champ.bulk}` : '') +
+    (champ.pose ? ` · ${champ.pose.iron ? 'Iron Pose' : 'Posing'}! interrupt ${pct(champ.pose.taken, pose.interruptPct)}%` : '') +
+    (champ.focus?.phase === 'channel' ? ` · Focus Punch! interrupt ${pct(champ.focus.taken, focusPunch.interruptPct)}%` : '') +
+    (stone?.hp !== undefined ? ` · rock shield ${Math.max(0, Math.round((stone.hp / (boss.maxHp * MACHAMP_KIT.rock.shieldHpPct)) * 100))}%` : '') +
+    (champ.staggerLeft > 0 ? ' · Staggered!' : '') +
+    (champ.openLeft > 0 ? ' · defences down' : '')
+  );
+}
+
+/**
+ * Machamp (D42): chop cones, the Cross Chop X, sweep and grab rings, Rock Tomb rings, the rock in hand (tells, the
+ * lob, Strength's line and boulders), Bullet Punch's line, Dynamic Punch's ring, Focus Blast orbs, Focus Punch, the
+ * pose aura and Bulk Up pips. Rocks themselves draw with the rubble.
+ */
+function drawMachamp(g: Phaser.GameObjects.Graphics, world: World, arena: ArenaFight, champ: MachampState): void {
+  const kit = MACHAMP_KIT;
+  const boss = world.enemies.find((e) => e.id === arena.bossEnemyId);
+  if (!boss) return;
+  const ring = (x: number, y: number, radius: number, t: number, color: number = COLORS.telegraph): void => {
+    g.fillStyle(color, 0.25);
+    g.fillCircle(x, y, radius * Math.max(0, Math.min(1, t)));
+    g.lineStyle(3, color, 0.9);
+    g.strokeCircle(x, y, radius);
+  };
+  const line = (x1: number, y1: number, x2: number, y2: number, width: number): void => {
+    g.lineStyle(width, COLORS.telegraph, 0.45);
+    g.lineBetween(x1, y1, x2, y2);
+  };
+  const c = champ.chops;
+  if (c?.phase === 'windup') {
+    const spec = c.close ? kit.closeCombat : kit.karateChop;
+    const half = (spec.arcDeg * Math.PI) / 360;
+    g.beginPath();
+    g.slice(boss.x, boss.y, spec.reach, c.angle - half, c.angle + half, false);
+    g.lineStyle(3, COLORS.telegraph, 0.9);
+    g.strokePath();
+  }
+  const cc = champ.crossChop;
+  if (cc && cc.phase !== 'recover') {
+    const t = cc.phase === 'crouch' ? 0 : 1 - cc.left / kit.crossChop.telegraph;
+    for (const [x1, y1, x2, y2] of crossArms(cc.x, cc.y, cc.angle)) line(x1, y1, x2, y2, Math.max(2, kit.crossChop.width * t));
+  }
+  if (champ.sweep?.phase === 'windup') ring(boss.x, boss.y, kit.lowSweep.radius, 1 - champ.sweep.left / kit.lowSweep.telegraph);
+  if (champ.toss?.phase === 'windup') ring(boss.x, boss.y, kit.seismicToss.radius, 1 - champ.toss.left / kit.seismicToss.telegraph, COLORS.chain);
+  for (const t of champ.tombs) ring(t.x, t.y, kit.rockTomb.radius, 1 - t.left / kit.rockTomb.telegraph);
+  // The rock in hand: its HP ring, the follow-up's tell, Strength's locked line.
+  const rock = champ.rock;
+  if (rock?.stone?.hp !== undefined) {
+    const share = Math.max(0, rock.stone.hp / (boss.maxHp * kit.rock.shieldHpPct));
+    g.lineStyle(3, COLORS.shield, 0.9);
+    g.beginPath();
+    g.arc(rock.stone.x, rock.stone.y, rock.stone.radius + 5, -Math.PI / 2, -Math.PI / 2 + share * Math.PI * 2, false);
+    g.strokePath();
+  }
+  if (rock?.phase === 'tell') {
+    // Throw: the rock goes overhead (an arc above it); Strength: crouched, feet scraping; Iron Pose: arms glowing.
+    if (rock.follow === 'throw') {
+      g.lineStyle(4, COLORS.telegraph, 0.9);
+      g.beginPath();
+      g.arc(boss.x, boss.y, boss.radius + 14, -Math.PI * 0.8, -Math.PI * 0.2, false);
+      g.strokePath();
+    } else if (rock.follow === 'strength') {
+      g.lineStyle(3, COLORS.rubble, 0.9);
+      const back = Math.atan2(boss.y - world.player.y, boss.x - world.player.x);
+      for (const off of [-0.5, 0.5]) {
+        const a = back + off;
+        g.lineBetween(boss.x + Math.cos(a) * boss.radius, boss.y + Math.sin(a) * boss.radius, boss.x + Math.cos(a) * (boss.radius + 18), boss.y + Math.sin(a) * (boss.radius + 18));
+      }
+    } else {
+      g.lineStyle(4, COLORS.elite, 0.9);
+      g.strokeCircle(boss.x, boss.y, boss.radius + 10);
+    }
+  }
+  if (rock?.phase === 'plant') {
+    const t = 1 - rock.left / kit.strength.telegraph;
+    line(boss.x, boss.y, boss.x + Math.cos(rock.angle) * arena.radius * 2, boss.y + Math.sin(rock.angle) * arena.radius * 2, Math.max(2, kit.strength.radius * 2 * t));
+  }
+  const lob = champ.lob;
+  if (lob) {
+    const t = 1 - lob.left / kit.rockThrow.telegraph;
+    ring(lob.tx, lob.ty, kit.rockThrow.radius, t);
+    g.fillStyle(COLORS.rubble, 1);
+    g.fillCircle(lob.fx + (lob.tx - lob.fx) * t, lob.fy + (lob.ty - lob.fy) * t - Math.sin(t * Math.PI) * 60, kit.rock.radius);
+  }
+  g.fillStyle(COLORS.rubble, 1);
+  for (const b of champ.boulders) if (b.wait <= 0) g.fillCircle(b.x, b.y, kit.strength.radius);
+  if (champ.bullet?.phase === 'windup') {
+    const t = 1 - champ.bullet.left / kit.bulletPunch.telegraph;
+    const a = champ.bullet.angle;
+    line(boss.x, boss.y, boss.x + Math.cos(a) * kit.bulletPunch.length, boss.y + Math.sin(a) * kit.bulletPunch.length, Math.max(2, kit.bulletPunch.width * t));
+  }
+  if (champ.dynamic?.phase === 'windup') ring(champ.dynamic.x, champ.dynamic.y, kit.dynamicPunch.radius, 1 - champ.dynamic.left / kit.dynamicPunch.telegraph);
+  for (const orb of champ.orbs) {
+    const e = world.enemies.find((en) => en.id === orb.enemyId);
+    if (!e) continue;
+    g.lineStyle(2, COLORS.shock, 0.8);
+    g.strokeCircle(e.x, e.y, e.radius + 4);
+  }
+  const focus = champ.focus;
+  if (focus?.phase === 'channel') {
+    g.lineStyle(3, COLORS.elite, 0.4 + 0.5 * (1 - focus.left / kit.focusPunch.channel));
+    g.strokeCircle(boss.x, boss.y, boss.radius + 12);
+  } else if (focus?.phase === 'line') {
+    const t = 1 - focus.left / kit.focusPunch.telegraph;
+    line(boss.x, boss.y, boss.x + Math.cos(focus.angle) * kit.focusPunch.length, boss.y + Math.sin(focus.angle) * kit.focusPunch.length, Math.max(2, kit.focusPunch.width * t));
+  }
+  // The pose: a pulsing gold aura (Iron Pose: white); staggered: a grey ring; Bulk Up stacks as pips above it.
+  if (champ.pose) {
+    g.lineStyle(4, champ.pose.iron ? COLORS.shield : COLORS.elite, 0.6 + 0.3 * Math.sin(world.time * 12));
+    g.strokeCircle(boss.x, boss.y, boss.radius + 8);
+  }
+  if (champ.staggerLeft > 0) {
+    g.lineStyle(2, COLORS.chain, 0.9);
+    g.strokeCircle(boss.x, boss.y - boss.radius - 10, 8);
+  }
+  g.fillStyle(COLORS.telegraph, 1);
+  for (let i = 0; i < champ.bulk; i++) g.fillCircle(boss.x - 12 + i * 12, boss.y - boss.radius - 22, 4);
+}
 
 /**
  * Snorlax's variety moves (owner 2026-10-22): Crunch and Belch cones, Rock Slide rings, the Fling line, boss shots,

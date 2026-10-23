@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
+import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
 import { ENEMIES, TUNING } from '../data/content';
 import { arenaBossChoices, arenaSchedule, chooseArenaReward, chooseCombine, resolveArena, rollRewardCards, skipCombine } from './arena';
 import { PLAYER_STATUS } from '../data/playerStatus';
@@ -1073,6 +1073,282 @@ describe('Zapdos (D32)', () => {
       }
     }
     expect(seen.size).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe('Machamp (D42)', () => {
+  const kit = MACHAMP_KIT;
+  function fight() {
+    const world = makeWorld();
+    enter(world, 'machamp');
+    const f = world.arena!;
+    world.player.x = f.x;
+    world.player.y = f.y + 200;
+    world.player.invulnLeft = 999;
+    world.moves = []; // no auto-fire: the tests deal damage by hand
+    step(world, IDLE, DT); // engages
+    const boss = world.enemies.find((e) => e.id === f.bossEnemyId)!;
+    const champ = f.champ!;
+    for (const id of Object.keys(champ.cooldowns) as (keyof typeof champ.cooldowns)[]) champ.cooldowns[id] = 99;
+    champ.poseAfter = 99; // each test opens the move it checks
+    return { world, f, boss, champ };
+  }
+  const run = (world: World, seconds: number) => {
+    for (let t = 0; t < seconds; t += DT) step(world, IDLE, DT);
+  };
+  /** Opens the rock move next to a loose rock and returns once it holds it, with the follow-up forced. */
+  const holdRock = (follow: 'throw' | 'strength' | 'iron') => {
+    const s = fight();
+    s.f.rubble.push({ x: s.boss.x + 60, y: s.boss.y, radius: 26, left: 99 });
+    s.champ.cooldowns.rock = 0;
+    s.champ.moveGap = 0;
+    run(s.world, kit.rock.grab + 2 * DT);
+    s.champ.rock!.follow = follow;
+    return s;
+  };
+
+  it('is a tier 1 boss that resists no starter: the first event can draw it', () => {
+    expect(ARENA_BOSSES.machamp.tier).toBe(1);
+    const world = makeWorld();
+    world.arenaBossesUsed = ['snorlax'];
+    expect(arenaBossChoices(world)).toContain('machamp');
+  });
+
+  it('is Fighting: Flying hits it ×2', () => {
+    const { world, boss } = fight();
+    damageEnemy(world, boss, 10, { ...NO_HIT, attackType: 'Flying' });
+    expect(boss.lastEffectiveness).toBe(2);
+  });
+
+  it('poses after 2–3 attacks: left alone it gains a Bulk Up stack, hit hard enough it is thrown off', () => {
+    for (const interrupt of [false, true]) {
+      const { world, boss, champ } = fight();
+      champ.attacks = 2;
+      champ.poseAfter = 2;
+      champ.moveGap = 0;
+      step(world, IDLE, DT);
+      expect(champ.pose?.iron).toBe(false);
+      if (interrupt) expect(damageEnemy(world, boss, boss.maxHp * kit.pose.interruptPct * 1.2)).toBeGreaterThan(0); // not immune
+      run(world, kit.pose.seconds + DT);
+      expect(champ.pose).toBeNull();
+      expect(champ.bulk).toBe(interrupt ? 0 : 1);
+    }
+  });
+
+  it('Karate Chop: re-aimed cone chops; a standing player at its trigger range is hit, harder with Bulk Up', () => {
+    const lost: number[] = [];
+    for (const bulk of [0, 2]) {
+      const { world, boss, champ } = fight();
+      champ.bulk = bulk;
+      world.player.invulnLeft = 0;
+      world.player.x = boss.x;
+      world.player.y = boss.y + kit.karateChop.trigger - 1;
+      champ.cooldowns.karateChop = 0;
+      champ.moveGap = 0;
+      step(world, IDLE, DT);
+      expect(champ.chops?.close).toBe(false);
+      const hp = world.player.hp;
+      run(world, kit.karateChop.gaps[0] + DT);
+      lost.push(hp - world.player.hp);
+    }
+    expect(lost[0]).toBeGreaterThan(0);
+    expect(lost[1]).toBeCloseTo(lost[0]! * (1 + 2 * kit.pose.stackDamage), 0);
+  });
+
+  it('Cross Chop lands an X: on an arm you are hit, between the arms you are safe', () => {
+    for (const between of [false, true]) {
+      const { world, champ } = fight();
+      champ.cooldowns.crossChop = 0;
+      champ.moveGap = 0;
+      step(world, IDLE, DT);
+      const cc = champ.crossChop!;
+      const a = between ? cc.angle : cc.angle + Math.PI / 4;
+      world.player.x = cc.x + Math.cos(a) * 60;
+      world.player.y = cc.y + Math.sin(a) * 60;
+      world.player.invulnLeft = 0;
+      const hp = world.player.hp;
+      run(world, kit.crossChop.crouch + kit.crossChop.telegraph + DT);
+      if (between) expect(world.player.hp).toBe(hp);
+      else expect(world.player.hp).toBeLessThan(hp);
+    }
+  });
+
+  it('Seismic Toss throws you away from it (a push, not a stun) for a fixed share of your max HP', () => {
+    const { world, boss, champ } = fight();
+    world.player.x = boss.x;
+    world.player.y = boss.y + boss.radius + world.player.radius + 20;
+    world.player.invulnLeft = 0;
+    champ.cooldowns.seismicToss = 0;
+    champ.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(champ.toss?.phase).toBe('windup');
+    const y = world.player.y;
+    const hp = world.player.hp;
+    run(world, kit.seismicToss.telegraph + DT);
+    expect(world.player.y - y).toBeCloseTo(kit.seismicToss.throwDistance, 0);
+    expect(hp - world.player.hp).toBeCloseTo(world.player.maxHp * kit.seismicToss.hpPct, 0);
+  });
+
+  it('the rock in hand: it grabs a loose rock as a shield your shots wear down; breaking it staggers it', () => {
+    const { world, f, boss, champ } = fight();
+    f.rubble.push({ x: boss.x + 60, y: boss.y, radius: 26, left: 99 });
+    champ.cooldowns.rock = 0;
+    champ.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(champ.rock?.phase).toBe('grab');
+    expect(f.rubble).toHaveLength(0);
+    run(world, kit.rock.grab + DT);
+    const stone = champ.rock!.stone!;
+    expect(stone.hp).toBeCloseTo(boss.maxHp * kit.rock.shieldHpPct);
+    const shot = createProjectile();
+    Object.assign(shot, { x: stone.x, y: stone.y + 60, vx: 0, vy: -300, speed: 300, radius: 6, damage: stone.hp! + 1, lifeLeft: 5, dead: false });
+    world.projectiles.push(shot);
+    for (let i = 0; i < 30 && !shot.dead; i++) updateProjectiles(world, DT);
+    expect(stone.hp).toBeLessThanOrEqual(0);
+    expect(boss.hp).toBe(boss.maxHp); // the shield took it
+    step(world, IDLE, DT);
+    expect(champ.rock).toBeNull();
+    expect(champ.staggerLeft).toBeGreaterThan(0);
+    expect(f.rubble).not.toContain(stone);
+  });
+
+  it('with no rock in reach it rips one from the ground, which takes longer', () => {
+    const { world, champ } = fight();
+    champ.cooldowns.rock = 0;
+    champ.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(champ.rock?.phase).toBe('rip');
+    expect(kit.rock.rip).toBeGreaterThan(kit.rock.grab);
+  });
+
+  it('Rock Throw: a lob onto a lead-aimed ring that cracks into rocks around the spot', () => {
+    const { world, f, champ } = holdRock('throw');
+    world.player.invulnLeft = 0;
+    const hp = world.player.hp;
+    run(world, kit.rock.tell + DT);
+    const lob = champ.lob!;
+    expect(lob).not.toBeNull();
+    expect(lob.tx).toBeCloseTo(world.player.x, 0); // standing still: no lead
+    run(world, kit.rockThrow.telegraph + DT);
+    expect(world.player.hp).toBeLessThan(hp);
+    expect(f.rubble.filter((r) => r.hp === undefined)).toHaveLength(kit.rockThrow.cracks);
+  });
+
+  it('Strength: it charges behind its rock, plants, and shoves boulders along a locked line; they stay at the wall', () => {
+    const { world, f, champ } = holdRock('strength');
+    world.player.y = f.y + 400; // beyond where it plants, so it has to charge
+    run(world, kit.rock.tell + DT);
+    expect(champ.rock?.phase).toBe('charge');
+    for (let t = 0; t < 5 && champ.rock?.phase === 'charge'; t += DT) step(world, IDLE, DT);
+    expect(champ.rock?.phase).toBe('plant');
+    run(world, kit.strength.telegraph + DT);
+    expect(champ.boulders).toHaveLength(kit.strength.boulders);
+    run(world, 3);
+    expect(champ.boulders).toHaveLength(0);
+    const atWall = f.rubble.filter((r) => Math.hypot(r.x - f.x, r.y - f.y) >= f.radius - 2 * kit.strength.radius);
+    expect(atWall.length).toBeGreaterThanOrEqual(kit.strength.boulders);
+  });
+
+  it('Iron Pose (rare): it poses behind its planted rock; completed, it gains two stacks and the rock stays', () => {
+    const { world, f, champ } = holdRock('iron');
+    run(world, kit.rock.tell + DT);
+    expect(champ.pose?.iron).toBe(true);
+    run(world, kit.pose.seconds + DT);
+    expect(champ.bulk).toBe(kit.ironPose.stacks);
+    expect(champ.rock).toBeNull();
+    expect(f.rubble.some((r) => r.hp === undefined && r.left <= kit.rockThrow.stay)).toBe(true);
+  });
+
+  it('phase gate holds HP at 66%; Focus Energy is an immune animation', () => {
+    const { world, boss, champ } = fight();
+    damageEnemy(world, boss, boss.maxHp);
+    expect(boss.hp).toBeCloseTo(boss.maxHp * kit.phaseAt[0]);
+    champ.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(champ.phase).toBe(2);
+    expect(world.arenaNotice?.kind).toBe('focusEnergy');
+    expect(damageEnemy(world, boss, 100)).toBe(0);
+  });
+
+  it('Focus Blast: an orb your shots can kill; left alone it bursts on you', () => {
+    for (const shoot of [true, false]) {
+      const { world, f, boss, champ } = fight();
+      world.player.y = f.y + 400;
+      champ.phase = 2;
+      champ.cooldowns.focusBlast = 0;
+      champ.moveGap = 0;
+      step(world, IDLE, DT);
+      run(world, kit.focusBlast.cast + DT);
+      expect(champ.orbs).toHaveLength(1);
+      const orb = world.enemies.find((e) => e.kind === 'focusOrb')!;
+      expect(orb.maxHp).toBeCloseTo(boss.maxHp * kit.focusBlast.hpPct);
+      if (shoot) {
+        damageEnemy(world, orb, orb.maxHp);
+        step(world, IDLE, DT);
+        expect(champ.orbs).toHaveLength(0);
+      } else {
+        world.player.invulnLeft = 0;
+        const hp = world.player.hp;
+        for (let t = 0; t < 5 && champ.orbs.length > 0; t += DT) step(world, IDLE, DT);
+        expect(world.player.hp).toBeLessThan(hp);
+      }
+    }
+  });
+
+  it('Focus Punch: enough damage during the focus staggers it; otherwise a locked line across the arena', () => {
+    for (const interrupt of [true, false]) {
+      const { world, boss, champ } = fight();
+      champ.phase = 3;
+      champ.cooldowns.focusPunch = 0;
+      champ.moveGap = 0;
+      step(world, IDLE, DT);
+      expect(champ.focus?.phase).toBe('channel');
+      if (interrupt) {
+        damageEnemy(world, boss, boss.maxHp * kit.focusPunch.interruptPct * 1.2);
+        step(world, IDLE, DT);
+        expect(champ.focus).toBeNull();
+        expect(champ.staggerLeft).toBeGreaterThan(0);
+      } else {
+        world.player.invulnLeft = 0;
+        const hp = world.player.hp;
+        run(world, kit.focusPunch.channel + kit.focusPunch.telegraph + DT);
+        expect(world.player.hp).toBeLessThan(hp);
+      }
+    }
+  });
+
+  it('a long fight with auto-fire and a circling player: no NaN, and most of the kit gets used', () => {
+    const world = makeWorld();
+    enter(world, 'machamp');
+    const f = world.arena!;
+    const used = new Set<string>();
+    let posed = false;
+    for (let t = 0; t < 120 && world.arena; t += DT) {
+      world.player.hp = world.player.maxHp; // stay alive: this checks the boss, not the player
+      const a = t * 0.8;
+      step(world, { moveX: Math.cos(a), moveY: Math.sin(a) }, DT);
+      const champ = f.champ!;
+      if (champ.lastMove) used.add(champ.lastMove);
+      if (champ.pose) posed = true;
+      const boss = world.enemies.find((e) => e.id === f.bossEnemyId);
+      if (boss) expect(Number.isFinite(boss.x) && Number.isFinite(boss.y)).toBe(true);
+    }
+    expect(posed).toBe(true);
+    expect(used.size).toBeGreaterThanOrEqual(5);
+  });
+
+  it('Close Combat: a flurry, then its defences drop (it takes more for a moment)', () => {
+    const { world, boss, champ } = fight();
+    champ.phase = 3;
+    world.player.x = boss.x;
+    world.player.y = boss.y + kit.closeCombat.trigger - 1;
+    champ.cooldowns.closeCombat = 0;
+    champ.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(champ.chops?.close).toBe(true);
+    run(world, kit.closeCombat.gap * kit.closeCombat.hits + 0.2);
+    expect(champ.openLeft).toBeGreaterThan(0);
+    expect(damageEnemy(world, boss, 100)).toBeCloseTo(100 * kit.closeCombat.weakMult);
   });
 });
 
