@@ -772,9 +772,9 @@ export const TUNING = {
    * open on their own at this many banked / after this many seconds. Never on their own in an arena fight.
    */
   levelUpBank: { autoOpenAt: 3, autoOpenSeconds: 30 },
-  /** D43 (owner 2026-10-23): out of combat, the player regenerates a share of max HP. */
+  /** D44 (owner 2026-10-23): out of combat, the player regenerates a share of max HP. */
   restRegen: { afterSeconds: 5, maxHpPctPerSec: 0.01 },
-  /** D43: every level past 1 adds base max HP and damage, on top of stage stats. */
+  /** D44: every level past 1 adds base max HP and damage, on top of stage stats. */
   levelGrowth: { maxHp: 2, damagePct: 0.01 },
   /** Oran Berry heal drops (D12): no flat regen; walk over a berry to heal. */
   heal: {

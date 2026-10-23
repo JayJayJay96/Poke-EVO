@@ -40,7 +40,7 @@ export function gainXp(world: World, amount: number): void {
     world.pendingLevelUps++;
     emit(world, 'levelUp', 1);
   }
-  // Level growth (D43) lands the moment the level does, even while its card waits in the bank.
+  // Level growth (D44) lands the moment the level does, even while its card waits in the bank.
   if (world.level > before) refreshStats(world);
 }
 

@@ -6,7 +6,7 @@ import { createSeededRng } from './rng';
 import type { InputState, World } from './types';
 import { createWorld, drainPlayer, hitPlayer, spawnEnemy, step } from './world';
 
-// D43: out-of-combat regen and per-level growth.
+// D44: out-of-combat regen and per-level growth.
 const DT = TUNING.stepSeconds;
 const IDLE: InputState = { moveX: 0, moveY: 0 };
 const STAB = 1 + TUNING.stabBonus;
