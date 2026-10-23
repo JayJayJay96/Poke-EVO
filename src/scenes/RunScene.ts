@@ -11,7 +11,8 @@ import { chooseArenaReward, chooseCombine, skipCombine } from '../sim/arena';
 import { angleGap, snoreOpenings } from '../sim/bosses';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
-import { BIG_BOOST, BOOST_IDS, BOOST_MAX_PICKS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
+import { TECHNIQUES } from '../data/techniques';
+import { BIG_BOOST, BOOST_IDS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { bossImmune, isAbilityActive } from '../sim/combat';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
 import { beamLength } from '../sim/forms/beam';
@@ -1475,7 +1476,8 @@ export class RunScene extends Phaser.Scene {
     this.hud.setText(
       `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${Math.round(player.maxHp)}${abilityTag}   ` +
         `${formatTime(time)} / ${formatTime(TUNING.runSeconds)}   KOs ${kills}   on field ${enemies.length}${tide}\n` +
-        `Moves: ${moveNames}   Items: ${itemNames}   (Esc: build)`,
+        `Moves: ${moveNames}   Items: ${itemNames}   (Esc: build)` +
+        (this.world.techniques.length > 0 ? `\nTechniques: ${techniqueLine(this.world)}` : ''),
     );
 
     const cam = this.cameras.main;
@@ -1570,7 +1572,14 @@ function describeCard(world: World, card: Card): CardView {
     case 'boost': {
       const boost = BOOSTS[card.boostId];
       const next = world.boosts[card.boostId] + 1;
-      return { heading: 'BOOST', title: `${boost.name} ${next}/${BOOST_MAX_PICKS}`, body: boost.description, color: 0x5ad1ff };
+      if (boost.filler) return { heading: 'BOOST', title: boost.name, body: boost.description, color: 0x5ad1ff };
+      return { heading: 'NATURE', title: `${boost.name} ${next}/${boost.maxPicks}`, body: boost.description, color: 0x5ad1ff };
+    }
+    case 'technique': {
+      const tech = TECHNIQUES[card.techniqueId];
+      const heading = tech.requiresAny.length > 0 ? `TECHNIQUE · ${tech.requiresAny.join('/')}` : 'TECHNIQUE';
+      const title = `${tech.name} ${RANK_NUMERALS[card.rank - 1]}${card.rank > 1 ? ' (rank up)' : ''}`;
+      return { heading, title, body: tech.descriptions[card.rank - 1]!, color: 0x7ee081 };
     }
     case 'item': {
       const item = ITEMS[card.itemId];
@@ -1954,6 +1963,19 @@ function augmentLabel(id: AugmentId, rank: number): string {
   return maxRankOf(id) > 1 ? `${name} ${RANK_NUMERALS[rank - 1]}` : name;
 }
 
+/** Owned Techniques with their rank, plus live state worth watching (D40). */
+function techniqueLine(world: World): string {
+  const { moxie, endureLeft } = world.tech;
+  return world.techniques
+    .map(({ id, rank }) => {
+      const label = `${TECHNIQUES[id].name} ${RANK_NUMERALS[rank - 1]}`;
+      if (id === 'moxie') return `${label} +${Math.round(moxie * 100)}%`;
+      if (id === 'endure') return `${label} ${endureLeft > 0 ? `${Math.ceil(endureLeft)} s` : 'ready'}`;
+      return label;
+    })
+    .join(' · ');
+}
+
 /** Pause screen: the whole build at a glance. */
 function buildPanelText(world: World): string {
   const lines = ['PAUSED — Esc to resume', ''];
@@ -1966,7 +1988,8 @@ function buildPanelText(world: World): string {
   if (world.bigBoosts > 0) boosts.push(`${BIG_BOOST.name} ×${world.bigBoosts}`);
   if (world.surgeLeft > 0) boosts.push(`Site surge ${Math.ceil(world.surgeLeft)} s`);
   lines.push('');
-  lines.push(`Boosts: ${boosts.length ? boosts.join(', ') : '—'}`);
+  lines.push(`Natures & boosts: ${boosts.length ? boosts.join(', ') : '—'}`);
+  lines.push(`Techniques: ${techniqueLine(world) || '—'}`);
   lines.push(`Items: ${world.items.length ? world.items.map((id) => ITEMS[id].name).join(', ') : '—'}`);
   lines.push(`Rerolls left: ${world.rerollsLeft}`);
   return lines.join('\n');

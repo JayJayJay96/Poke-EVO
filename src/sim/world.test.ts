@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AUGMENT_IDS, AUGMENTS, MAX_RANK, MAX_SOCKETS, REROLLS_PER_RUN, isSpecialAugment } from '../data/augments';
 import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId } from '../data/content';
 import { MOVES, type MeleeMoveDef, type MoveId, type ProjectileMoveDef, type ZoneMoveDef } from '../data/moves';
-import { BOOST_IDS, BOOST_MAX_PICKS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
+import { BOOST_IDS, BOOSTS, ITEM_IDS, MAX_ITEMS, POTION_HEAL } from '../data/upgrades';
 import { effectiveness, moveType } from '../data/typeChart';
 import { WAVES } from '../data/waves';
 import {
@@ -45,6 +45,7 @@ import {
   rerollAugments,
   xpToNext,
 } from './progression';
+import { techniqueCards } from './techniques';
 import { createSeededRng } from './rng';
 import { SpatialHash } from './spatialHash';
 import { computeModifiers, createSlot, currentStage, refreshStats } from './stats';
@@ -456,30 +457,32 @@ describe('XP and levels', () => {
 });
 
 describe('stats', () => {
-  it('stacks boosts additively and cooldown multiplicatively, plus items', () => {
-    const m = computeModifiers({ ...NO_BOOSTS, damage: 2, cooldown: 2 }, ['quickClaw']);
-    expect(m.damageMult).toBeCloseTo(1.2);
-    expect(m.cooldownMult).toBeCloseTo(0.92 * 0.92 * 0.85);
+  it('stacks Natures additively and cooldown multiplicatively, plus items', () => {
+    const m = computeModifiers({ ...NO_BOOSTS, brave: 2, hasty: 2 }, ['quickClaw']);
+    expect(m.damageMult).toBeCloseTo(1.5);
+    expect(m.moveSpeedMult).toBeCloseTo(0.8);
+    expect(m.maxHpBonus).toBe(-40);
+    expect(m.cooldownMult).toBeCloseTo(0.85 * 0.85 * 0.85);
   });
 
   it('refreshStats applies max HP (with the matching heal), speed and pickup', () => {
     const world = makeWorld();
     world.player.hp = 50;
     world.boosts.hp = 1;
-    world.boosts.speed = 1;
+    world.boosts.timid = 1;
     world.items.push('expShare');
     refreshStats(world);
     expect(world.player.maxHp).toBe(120);
     expect(world.player.hp).toBe(70);
-    expect(world.player.speed).toBeCloseTo(POKEMON.charmander.stages[0]!.speed * 1.08);
-    expect(world.player.pickupRadius).toBeCloseTo(TUNING.player.baseMagnetRadius * 1.5);
+    expect(world.player.speed).toBeCloseTo(POKEMON.charmander.stages[0]!.speed * 1.15);
+    expect(world.player.pickupRadius).toBeCloseTo(TUNING.player.baseMagnetRadius * 1.75);
   });
 
   it('move stats follow damage and cooldown modifiers', () => {
     const world = makeWorld();
-    world.boosts.damage = 1;
+    world.boosts.brave = 1;
     refreshStats(world);
-    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * 1.1 * STAB);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES.ember.damage * 1.25 * STAB);
   });
 
   it('a guaranteed crit deals ×1.5', () => {
@@ -500,36 +503,40 @@ describe('stats', () => {
 });
 
 describe('level-up cards', () => {
-  it('the pool offers learnset moves and every boost at the start; items come only from sites (D23)', () => {
+  it('the pool offers learnset moves, Techniques and every Nature at the start; no filler, no items (D23, D40)', () => {
     const world = makeWorld();
     const pool = buildCardPool(world);
     const learnset = POKEMON.charmander.learnset.filter((e) => e.fromStage === 0).length;
-    expect(pool).toHaveLength(learnset + BOOST_IDS.length);
+    const natures = BOOST_IDS.filter((id) => !BOOSTS[id].filler).length;
+    expect(pool).toHaveLength(learnset + techniqueCards(world).length + natures);
+    expect(pool.some((c) => c.kind === 'boost' && BOOSTS[c.boostId].filler)).toBe(false);
     expect(pool.some((c) => c.kind === 'item')).toBe(false);
   });
 
   it('drops owned moves, maxed boosts and items once the item slots are full', () => {
     const world = makeWorld();
     world.moves.push(createSlot('scratch'));
-    world.boosts.damage = BOOST_MAX_PICKS;
+    world.boosts.brave = BOOSTS.brave.maxPicks;
     world.items = ITEM_IDS.slice(0, MAX_ITEMS);
     const pool = buildCardPool(world);
     expect(pool.some((c) => c.kind === 'move' && c.moveId === 'scratch')).toBe(false);
-    expect(pool.some((c) => c.kind === 'boost' && c.boostId === 'damage')).toBe(false);
+    expect(pool.some((c) => c.kind === 'boost' && c.boostId === 'brave')).toBe(false);
     expect(pool.some((c) => c.kind === 'item')).toBe(false);
   });
 
-  it('offers 3 distinct cards, or a Potion when nothing is left', () => {
+  it('offers 3 distinct cards, then only filler once everything else is taken', () => {
     const world = makeWorld(); // next level is 2: a normal level
     const offer = makeOffer(world);
     if (offer.kind !== 'cards') throw new Error('expected a normal card offer');
     expect(offer.cards).toHaveLength(3);
     expect(new Set(offer.cards.map((c) => JSON.stringify(c))).size).toBe(3);
 
-    for (const id of BOOST_IDS) world.boosts[id] = BOOST_MAX_PICKS;
-    world.items = ITEM_IDS.slice(0, MAX_ITEMS);
+    for (const id of BOOST_IDS) if (!BOOSTS[id].filler) world.boosts[id] = BOOSTS[id].maxPicks;
+    world.techniques = (['rollout', 'moxie', 'endure', 'rage', 'pickup'] as const).map((id) => ({ id, rank: 3 }));
     for (const e of POKEMON.charmander.learnset) if (e.fromStage === 0) world.moves.push(createSlot(e.move));
-    expect(makeOffer(world)).toEqual({ kind: 'cards', cards: [{ kind: 'potion' }] });
+    const last = makeOffer(world);
+    if (last.kind !== 'cards') throw new Error('expected a normal card offer');
+    expect(last.cards.map((c) => (c.kind === 'boost' ? c.boostId : c.kind)).sort()).toEqual(['hp', 'pickup']);
   });
 
   it('pauses the run while cards wait, applies the choice and chains pending level-ups', () => {
@@ -551,9 +558,9 @@ describe('level-up cards', () => {
     expect(world.pendingLevelUps).toBe(1);
     expect(world.offer).not.toBeNull(); // the second level-up is offered right away
 
-    world.offer = { kind: 'cards', cards: [{ kind: 'boost', boostId: 'damage' }] };
+    world.offer = { kind: 'cards', cards: [{ kind: 'boost', boostId: 'brave' }] };
     chooseCard(world, 0);
-    expect(world.boosts.damage).toBe(1);
+    expect(world.boosts.brave).toBe(1);
     expect(world.offer).toBeNull();
     run(world, 0.5);
     expect(world.time).toBeGreaterThan(pausedAt);

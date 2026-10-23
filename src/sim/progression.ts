@@ -11,7 +11,7 @@ import { MOVES } from '../data/moves';
 import { MUTATION_RANKS, MUTATIONS, type MutationDef } from '../data/mutations';
 import {
   BOOST_IDS,
-  BOOST_MAX_PICKS,
+  BOOSTS,
   CARDS_PER_OFFER,
   MAX_LEARNSET_SLOTS,
   POTION_HEAL,
@@ -21,6 +21,7 @@ import { emit, healPlayer } from './hooks';
 import { socketsUsed } from './mutations';
 import type { Rng } from './rng';
 import { createSlot, refreshStats } from './stats';
+import { learnTechnique, techniqueCards } from './techniques';
 import type { AugmentCard, Card, DrawnAugments, LevelUpOffer, World } from './types';
 
 /** XP needed to go from `level` to `level + 1`. */
@@ -49,7 +50,7 @@ export function resolvingLevel(world: World): number {
   return world.level - world.pendingLevelUps + 1;
 }
 
-/** Every normal-level card the player could be offered right now: learnset moves and boosts (D23). */
+/** Every normal-level card the player could be offered right now: learnset moves, Techniques and Natures (D23, D40). */
 export function buildCardPool(world: World): Card[] {
   const pool: Card[] = [];
   const learnsetOwned = learnsetSlotsUsed(world); // slot 0 is the signature move; combo members free theirs
@@ -60,10 +61,15 @@ export function buildCardPool(world: World): Card[] {
       if (!world.moves.some((slot) => slot.moveId === move)) pool.push({ kind: 'move', moveId: move });
     }
   }
+  pool.push(...techniqueCards(world));
   for (const boostId of BOOST_IDS) {
-    if (world.boosts[boostId] < BOOST_MAX_PICKS) pool.push({ kind: 'boost', boostId });
+    const { filler, maxPicks } = BOOSTS[boostId];
+    if (!filler && world.boosts[boostId] < maxPicks) pool.push({ kind: 'boost', boostId });
   }
-  // Held items come only from Mutation Sites now (D23).
+  // Vitality and Magnet only fill a short pool (D40). Held items come only from Mutation Sites (D23).
+  if (pool.length < CARDS_PER_OFFER) {
+    for (const boostId of BOOST_IDS) if (BOOSTS[boostId].filler) pool.push({ kind: 'boost', boostId });
+  }
   return pool;
 }
 
@@ -135,7 +141,11 @@ export function makeOffer(world: World): LevelUpOffer {
   }
   const pool = buildCardPool(world);
   if (pool.length === 0) return { kind: 'cards', cards: [{ kind: 'potion' }] };
-  return { kind: 'cards', cards: draw(world.rng, pool, CARDS_PER_OFFER) };
+  // At least one Technique whenever one is available (D40), shuffled so it isn't always first.
+  const techniques = pool.filter((card) => card.kind === 'technique');
+  const cards: Card[] = techniques.length > 0 ? draw(world.rng, techniques, 1) : [];
+  cards.push(...draw(world.rng, pool.filter((card) => !cards.includes(card)), CARDS_PER_OFFER - cards.length));
+  return { kind: 'cards', cards: draw(world.rng, cards, cards.length) };
 }
 
 /**
@@ -186,6 +196,9 @@ export function applyCard(world: World, card: Card): void {
       break;
     case 'boost':
       world.boosts[card.boostId]++;
+      break;
+    case 'technique':
+      learnTechnique(world, card.techniqueId);
       break;
     case 'item':
       world.items.push(card.itemId);

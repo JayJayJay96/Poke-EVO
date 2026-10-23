@@ -2,6 +2,7 @@ import type { AugmentId } from '../data/augments';
 import type { AbilityId, PokemonId } from '../data/content';
 import type { MoveId } from '../data/moves';
 import type { MutationId } from '../data/mutations';
+import type { TechniqueId } from '../data/techniques';
 import type { BoostId, ItemId } from '../data/upgrades';
 import { setMutation } from './mutations';
 import { createSlot, refreshStats } from './stats';
@@ -10,8 +11,8 @@ import type { World } from './types';
 // The player's build as plain JSON, so a later map level can continue it (owner, D23).
 // Only the build is kept: no position, enemies, timers or XP progress inside a level.
 
-// v2 (D24): Mutation ranks. v3 (D28): the skill combo.
-export const BUILD_SNAPSHOT_VERSION = 3;
+// v2 (D24): Mutation ranks. v3 (D28): the skill combo. v4 (D40): Techniques; boosts are Natures.
+export const BUILD_SNAPSHOT_VERSION = 4;
 
 export interface BuildSnapshot {
   readonly version: typeof BUILD_SNAPSHOT_VERSION;
@@ -26,6 +27,7 @@ export interface BuildSnapshot {
     readonly mutationRank: number;
   }[];
   readonly boosts: Readonly<Record<BoostId, number>>;
+  readonly techniques: readonly { readonly id: TechniqueId; readonly rank: number }[];
   readonly items: readonly ItemId[];
   readonly bigBoosts: number;
   readonly rerollsLeft: number;
@@ -48,6 +50,7 @@ export function snapshotBuild(world: World): BuildSnapshot {
       mutationRank: slot.mutationRank,
     })),
     boosts: { ...world.boosts },
+    techniques: world.techniques.map((t) => ({ id: t.id, rank: t.rank })),
     items: [...world.items],
     bigBoosts: world.bigBoosts,
     rerollsLeft: world.rerollsLeft,
@@ -76,6 +79,7 @@ export function restoreBuild(world: World, snap: BuildSnapshot): void {
     return slot;
   });
   world.boosts = { ...snap.boosts };
+  world.techniques = snap.techniques.map((t) => ({ id: t.id, rank: t.rank }));
   world.items = [...snap.items];
   world.bigBoosts = snap.bigBoosts;
   world.rerollsLeft = snap.rerollsLeft;

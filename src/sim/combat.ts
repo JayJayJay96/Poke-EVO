@@ -2,11 +2,13 @@ import { SNORLAX_KIT, ZAPDOS_KIT } from '../data/arena';
 import { ABILITIES, ENEMIES, TUNING, type PokemonType } from '../data/content';
 import { ABILITY_TUNING, ELITE, ELITE_ABILITY } from '../data/hordes';
 import { MUTATION_TUNING } from '../data/mutations';
+import { TECHNIQUE_TUNING } from '../data/techniques';
 import { effectiveness } from '../data/typeChart';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
 import { blazeFaked, emit, healPlayer, hooksOf, mutationLeechBonus } from './hooks';
 import { applyPlayerStatus } from './playerStatus';
 import { statusMult, type StatusId } from './statusResist';
+import { onTechniqueHit, onTechniqueKill, techniqueDamageMult } from './techniques';
 import type { Enemy, Gem, HitInfo, MoveSlot, MoveStats, World } from './types';
 
 /** Largest horde radius. Bosses are left out so their size doesn't widen every query (D28). */
@@ -193,8 +195,13 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   // Mutation hooks see only the move's own hits, never proc hits (no proc-from-proc).
   const slot = hit.fromProc ? null : hit.slot;
   const hooks = slot ? hooksOf(slot) : undefined;
+  // Focus Energy (D40): this move's next own hit is a forced ×2 crit.
+  const focus = slot !== null && slot.focusReady;
+  if (focus) slot.focusReady = false;
   // Only consume RNG when a crit is possible, so crit-free runs stay reproducible.
-  const crit = hooks?.forceCrit?.(world, slot!, enemy) === true || (hit.critChance > 0 && world.rng.next() < hit.critChance);
+  const crit =
+    focus || hooks?.forceCrit?.(world, slot!, enemy) === true || (hit.critChance > 0 && world.rng.next() < hit.critChance);
+  const critMult = focus ? TECHNIQUE_TUNING.focusEnergy.critMult : CRIT_MULTIPLIER;
   const player = world.player;
   const missing = hit.missingHpBonus > 0 ? hit.missingHpBonus * Math.max(0, 1 - player.hp / player.maxHp) : 0;
   const def = ENEMIES[enemy.kind];
@@ -210,8 +217,9 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   // Rest (D28, B2): a sleeping arena boss takes extra damage, and that damage fills its wake meter.
   const sleeping = world.arena?.rest && world.arena.bossEnemyId === enemy.id ? world.arena.rest : null;
   const amount =
-    (crit ? damage * CRIT_MULTIPLIER : damage) *
+    (crit ? damage * critMult : damage) *
     abilityDamageMult(world) *
+    techniqueDamageMult(world, enemy, slot) *
     (1 + missing) *
     typeMult *
     mutationMult *
@@ -249,6 +257,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const lifesteal = hit.fromProc ? hit.lifesteal : hit.lifesteal + mutationLeechBonus(world, enemy);
   if (lifesteal > 0) healPlayer(world, dealt * lifesteal);
   hooks?.onHit?.(world, slot!, enemy, dealt, hit);
+  if (slot) onTechniqueHit(world, slot, enemy);
 
   if (enemy.hp <= 0) {
     world.kills++;
@@ -264,6 +273,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
       hooks?.onKill?.(world, slot!, enemy);
       emit(world, 'kill', 1, enemy);
     }
+    onTechniqueKill(world, enemy, dealt);
     return dealt;
   }
   // Shield Dust (Elite Caterpie): statuses riding on a damaging hit barely land.

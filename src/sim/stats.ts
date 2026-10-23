@@ -18,6 +18,8 @@ import type { AugmentSocket, Modifiers, MoveSlot, MoveStats, World } from './typ
 /** Floors so stacked trade-offs can never zero out a move. */
 const MIN_DAMAGE_FACTOR = 0.1;
 const MIN_AREA_FACTOR = 0.2;
+const MIN_NATURE_FACTOR = 0.5;
+const MIN_MAX_HP = 20;
 
 export function currentStage(world: World): EvolutionStage {
   return POKEMON[world.player.pokemonId].stages[world.player.stage]!;
@@ -60,6 +62,9 @@ export function computeModifiers(
   for (const id of BOOST_IDS) add(BOOSTS[id].effect, boosts[id]);
   for (const id of items) add(ITEMS[id].effect, 1);
   add(BIG_BOOST.effect, bigBoosts);
+  // Natures (D40) can stack their downsides: never below half damage or half speed.
+  m.damageMult = Math.max(MIN_NATURE_FACTOR, m.damageMult);
+  m.moveSpeedMult = Math.max(MIN_NATURE_FACTOR, m.moveSpeedMult);
   return m;
 }
 
@@ -188,6 +193,7 @@ export function createSlot(moveId: MoveId): MoveSlot {
     stats,
     baseStats: { ...stats },
     volatileMult: 1,
+    focusReady: false,
   };
 }
 
@@ -211,7 +217,7 @@ export function refreshStats(world: World): void {
   m.moveSpeedMult += ability.moveSpeedPct ?? 0;
   m.cooldownMult *= 1 - (ability.cooldownPct ?? 0);
   world.mods = m;
-  const newMax = stage.maxHp + m.maxHpBonus;
+  const newMax = Math.max(MIN_MAX_HP, stage.maxHp + m.maxHpBonus);
   // Gaining max HP (boosts or evolving) also heals by the same amount.
   p.hp = Math.min(newMax, p.hp + Math.max(0, newMax - p.maxHp));
   p.maxHp = newMax;

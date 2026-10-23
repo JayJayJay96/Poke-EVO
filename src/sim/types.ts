@@ -4,6 +4,7 @@ import type { AbilityId, EnemyId, PokemonId, PokemonType } from '../data/content
 import type { MoveId, StunKind } from '../data/moves';
 import type { MutationId } from '../data/mutations';
 import type { PlayerStatusId } from '../data/playerStatus';
+import type { TechniqueId } from '../data/techniques';
 import type { BoostId, ItemId } from '../data/upgrades';
 import type { Rng } from './rng';
 import type { SpatialHash } from './spatialHash';
@@ -77,6 +78,8 @@ export interface Enemy {
   poisonDps: number;
   poisonLeft: number;
   poisonTickLeft: number;
+  /** Its burn/poison was spread by a Technique (D40): its death triggers no Technique. */
+  techMarked?: boolean;
   /** Slow strength 0..1 while slowLeft > 0. */
   slow: number;
   slowLeft: number;
@@ -440,6 +443,8 @@ export interface MoveSlot {
   baseStats: MoveStats;
   /** Volatility's roll for the latest cast; applies to this move's hits (1 without Volatility). */
   volatileMult: number;
+  /** Focus Energy (D40): this move's next own hit is a forced ×2 crit. */
+  focusReady: boolean;
 }
 
 /** A melee swipe kept around briefly so it can be drawn. */
@@ -461,9 +466,30 @@ export interface Swing {
   lifeLeft: number;
 }
 
+export interface OwnedTechnique {
+  readonly id: TechniqueId;
+  rank: number;
+}
+
+/** Live Technique state (D40). */
+export interface TechniqueState {
+  /** Rollout: seconds moving since the last cast. */
+  rollout: number;
+  /** Moxie: current damage bonus. */
+  moxie: number;
+  endureLeft: number;
+  rageLeft: number;
+  focusLeft: number;
+  /** Brawler: HP it may still heal this second. */
+  brawlerBudget: number;
+  /** > 0 while a Technique effect resolves: kills inside it trigger no Technique. */
+  procDepth: number;
+}
+
 export type Card =
   | { readonly kind: 'move'; readonly moveId: MoveId }
   | { readonly kind: 'boost'; readonly boostId: BoostId }
+  | { readonly kind: 'technique'; readonly techniqueId: TechniqueId; readonly rank: number }
   | { readonly kind: 'item'; readonly itemId: ItemId }
   | { readonly kind: 'potion' }
   | { readonly kind: 'bigBoost' };
@@ -791,8 +817,11 @@ export interface World {
   moves: MoveSlot[];
   /** Skill combine (D28): indices into `moves`, base first. Members fire with the base. */
   combo: number[];
-  /** Times each generic boost has been picked. */
+  /** Times each Nature / filler boost has been picked. */
   boosts: Record<BoostId, number>;
+  /** Owned Techniques in pick order (D40), at most MAX_TECHNIQUE_SLOTS. */
+  techniques: OwnedTechnique[];
+  tech: TechniqueState;
   items: ItemId[];
   /** Power Surge picks from the augment-level fallback. */
   bigBoosts: number;

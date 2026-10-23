@@ -2,7 +2,17 @@ import { MAX_RANK, MAX_SOCKETS, maxRankOf, type AugmentId } from '../data/augmen
 import { POKEMON, type EnemyId, type PokemonId } from '../data/content';
 import type { MoveId } from '../data/moves';
 import { MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
-import { BOOST_IDS, BOOST_MAX_PICKS } from '../data/upgrades';
+import { MAX_TECHNIQUE_RANK, type TechniqueId } from '../data/techniques';
+import { BOOST_IDS, BOOSTS } from '../data/upgrades';
+
+/** The costliest Techniques (on-kill neighbour queries, Focus crits) at max rank. */
+const STRESS_TECHNIQUES: readonly TechniqueId[] = ['kindling', 'sporeCloud', 'frostbite', 'focusEnergy', 'moxie'];
+
+/** Every Nature maxed (filler at 5) and a full set of max-rank Techniques. */
+function maxPassives(world: World): void {
+  for (const id of BOOST_IDS) world.boosts[id] = Math.min(BOOSTS[id].maxPicks, 5);
+  world.techniques = STRESS_TECHNIQUES.map((id) => ({ id, rank: MAX_TECHNIQUE_RANK }));
+}
 import { upgradeSignatureByLevel } from './evolution';
 import { grantMutation, socketsUsed } from './mutations';
 import { createSlot, refreshStats } from './stats';
@@ -33,7 +43,7 @@ export function setupStress(world: World): void {
     slot.sockets = augments.map((augmentId) => ({ augmentId, rank: Math.min(MAX_RANK, maxRankOf(augmentId)) }));
     return slot;
   });
-  for (const id of BOOST_IDS) world.boosts[id] = BOOST_MAX_PICKS;
+  maxPassives(world);
   world.items = ['leftovers', 'quickClaw', 'wideLens'];
   refreshStats(world);
   world.player.invulnLeft = Infinity; // never takes damage, never faints
@@ -83,7 +93,7 @@ export function setupMutationStress(world: World): void {
     slot.sockets = fillers.map((augmentId) => ({ augmentId, rank: Math.min(MAX_RANK, maxRankOf(augmentId)) }));
   }
   world.spawnEnabled = false;
-  for (const id of BOOST_IDS) world.boosts[id] = BOOST_MAX_PICKS;
+  maxPassives(world);
   world.items = ['leftovers', 'quickClaw', 'wideLens'];
   refreshStats(world);
   world.player.invulnLeft = Infinity;

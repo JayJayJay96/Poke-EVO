@@ -35,6 +35,15 @@ import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
 import { updateSites } from './sites';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
+import {
+  cooldownRate,
+  emptyTechniqueState,
+  endureSaves,
+  onGemCollected,
+  onPlayerHit,
+  rolloutMult,
+  updateTechniques,
+} from './techniques';
 import type { Enemy, InputState, MoveSlot, World } from './types';
 import { updateTerrain } from './terrain';
 import { updateZones } from './zones';
@@ -118,6 +127,8 @@ export function createWorld({
     moves: [createSlot(firstStage.signatureMove)],
     combo: [],
     boosts: Object.fromEntries(BOOST_IDS.map((id) => [id, 0])) as Record<BoostId, number>,
+    techniques: [],
+    tech: emptyTechniqueState(),
     items: [],
     bigBoosts: 0,
     surgeLeft: 0,
@@ -181,6 +192,7 @@ export function step(world: World, input: InputState, dt: number): void {
   updateEnemyAttacks(world, dt);
   updateStatuses(world, dt);
   updateAbilities(world, dt);
+  updateTechniques(world, dt);
   updateMoves(world, dt);
   updateProjectiles(world, dt);
   updateZones(world, dt);
@@ -492,6 +504,7 @@ function updateMoves(world: World, dt: number): void {
   const { combo } = world;
   // Pressure (Zapdos's ability, D32): cooldowns run slower during its fight.
   const pressure = world.arena?.zap && world.arena.engaged ? 1 + ZAPDOS_KIT.pressure : 1;
+  const rate = cooldownRate(world);
   for (let i = 0; i < world.moves.length; i++) {
     const slot = world.moves[i]!;
     const def = MOVES[slot.moveId];
@@ -500,7 +513,7 @@ function updateMoves(world: World, dt: number): void {
       Object.assign(slot.stats, slot.baseStats);
       hooks.live(slot.stats, world, slot);
     }
-    slot.cooldownLeft = Math.max(0, slot.cooldownLeft - dt / pressure);
+    slot.cooldownLeft = Math.max(0, slot.cooldownLeft - (dt * rate) / pressure);
     // Combo members (D28) don't fire on their own: they fire with the base on its shared cooldown.
     const member = combo.indexOf(i) > 0;
     // A move with no valid target stays ready and fires the moment one appears.
@@ -532,10 +545,13 @@ function fire(world: World, slot: MoveSlot): boolean {
   if (volatileMax > volatileMin) slot.volatileMult = volatileMin + world.rng.next() * (volatileMax - volatileMin);
   // Pikachu at full Charge: the next signature cast is a Charged shot.
   const charged = slot === world.moves[0] ? chargedShotMult(world) : 1;
-  slot.stats.damage *= charged;
+  // Rollout (D40): the first cast after 2 s of moving hits harder.
+  const rollout = rolloutMult(world);
+  slot.stats.damage *= charged * rollout;
   const cast = hooks?.cast ? hooks.cast(world, slot) : castMove(world, slot, MOVES[slot.moveId]);
-  slot.stats.damage /= charged;
+  slot.stats.damage /= charged * rollout;
   if (cast && charged > 1) world.player.charge = 0;
+  if (cast && rollout > 1) world.tech.rollout = 0;
   return cast;
 }
 
@@ -574,6 +590,7 @@ function updateGems(world: World, dt: number): void {
     if (dist <= collectReach + pull) {
       gem.collected = true;
       gainXp(world, gem.value);
+      onGemCollected(world);
       continue;
     }
     gem.x += (dx / dist) * pull;
@@ -676,7 +693,8 @@ export function hitPlayer(world: World, damage: number, enemy: Enemy): boolean {
   const armor = -(ability.damageTakenPct ?? 0);
   if (armor > 0) emit(world, 'armorAbsorb', contact * armor);
   emit(world, 'hitTaken', taken, enemy);
-  if (player.hp <= 0) {
+  onPlayerHit(world);
+  if (player.hp <= 0 && !endureSaves(world)) {
     // In an arena a knockout throws you back to the map instead of ending the run (owner 2026-10-21).
     if (world.arena) world.arena.knockedOut = true;
     else world.status = 'fainted';
@@ -692,7 +710,7 @@ export function drainPlayer(world: World, amount: number): void {
   const { player } = world;
   if (amount <= 0 || player.hp <= 0) return;
   player.hp = Math.max(0, player.hp - amount * world.mods.damageTakenMult * mutationDamageTakenMult(world));
-  if (player.hp <= 0) {
+  if (player.hp <= 0 && !endureSaves(world)) {
     if (world.arena) world.arena.knockedOut = true;
     else world.status = 'fainted';
   }

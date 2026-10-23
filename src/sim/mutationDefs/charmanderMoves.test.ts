@@ -126,7 +126,7 @@ describe('Dragon Rage', () => {
     const v = MUTATIONS['dragonRage.fixedRage'].values;
     const { w, slot } = withMove('dragonRage', 'dragonRage.fixedRage');
     w.level = 12;
-    w.boosts.damage = 5;
+    w.boosts.brave = 3;
     refreshStats(w);
     run(w, DT);
     expect(slot.stats.damage).toBe(v.fixedDamage + Math.floor(12 / v.levelsPerPoint));

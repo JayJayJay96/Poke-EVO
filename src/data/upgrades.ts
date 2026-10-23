@@ -21,11 +21,19 @@ export interface UpgradeDef<Id extends string> {
   readonly effect: ModifierDelta;
 }
 
-export type BoostId = 'hp' | 'damage' | 'cooldown' | 'speed' | 'pickup' | 'crit';
+/** Natures (D40) plus the two filler boosts. */
+export type BoostId = 'brave' | 'timid' | 'bold' | 'hasty' | 'hp' | 'pickup';
 export type ItemId = 'leftovers' | 'quickClaw' | 'wideLens' | 'expShare';
 
-/** Owner decision D9: each generic boost can be picked at most 5 times. */
-export const BOOST_MAX_PICKS = 5;
+export interface BoostDef extends UpgradeDef<BoostId> {
+  /** Picks allowed per run; filler is uncapped. */
+  readonly maxPicks: number;
+  /** Filler shows up only when the normal-level pool is short (D40). */
+  readonly filler: boolean;
+}
+
+/** D40: each Nature can be picked 3 times. */
+export const NATURE_MAX_PICKS = 3;
 export const MAX_ITEMS = 3;
 /** Learnset moves on top of the signature move. */
 export const MAX_LEARNSET_SLOTS = 4;
@@ -34,13 +42,23 @@ export const CARDS_PER_OFFER = 3;
 export const POTION_HEAL = 30;
 export const CRIT_MULTIPLIER = 1.5;
 
-export const BOOSTS: Readonly<Record<BoostId, UpgradeDef<BoostId>>> = {
-  hp: { id: 'hp', name: 'Vitality', description: '+20 max HP', effect: { maxHp: 20 } },
-  damage: { id: 'damage', name: 'Power', description: '+10% damage', effect: { damagePct: 0.1 } },
-  cooldown: { id: 'cooldown', name: 'Haste', description: '−8% cooldown', effect: { cooldownPct: 0.08 } },
-  speed: { id: 'speed', name: 'Agility', description: '+8% move speed', effect: { moveSpeedPct: 0.08 } },
-  pickup: { id: 'pickup', name: 'Magnet', description: '+25% pickup radius', effect: { pickupPct: 0.25 } },
-  crit: { id: 'crit', name: 'Focus', description: '+5% crit chance (×1.5 damage)', effect: { critChance: 0.05 } },
+const nature = (id: BoostId, name: string, description: string, effect: ModifierDelta): BoostDef => ({
+  id,
+  name,
+  description,
+  effect,
+  maxPicks: NATURE_MAX_PICKS,
+  filler: false,
+});
+
+/** Natures trade one stat for another (D40); Vitality and Magnet are filler. */
+export const BOOSTS: Readonly<Record<BoostId, BoostDef>> = {
+  brave: nature('brave', 'Brave', '+25% damage, −10% move speed', { damagePct: 0.25, moveSpeedPct: -0.1 }),
+  timid: nature('timid', 'Timid', '+15% move speed, +25% pickup, −10% damage', { moveSpeedPct: 0.15, pickupPct: 0.25, damagePct: -0.1 }),
+  bold: nature('bold', 'Bold', '+40 max HP, −10% damage', { maxHp: 40, damagePct: -0.1 }),
+  hasty: nature('hasty', 'Hasty', '−15% cooldown, −20 max HP', { cooldownPct: 0.15, maxHp: -20 }),
+  hp: { id: 'hp', name: 'Vitality', description: '+20 max HP', effect: { maxHp: 20 }, maxPicks: Infinity, filler: true },
+  pickup: { id: 'pickup', name: 'Magnet', description: '+25% pickup radius', effect: { pickupPct: 0.25 }, maxPicks: Infinity, filler: true },
 };
 
 export const ITEMS: Readonly<Record<ItemId, UpgradeDef<ItemId>>> = {

@@ -221,7 +221,7 @@ describe('build snapshot (D23)', () => {
     world.moves[1]!.mutation = mutation;
     world.moves[1]!.mutationRank = 2;
     world.items = ['leftovers'];
-    world.boosts.damage = 3;
+    world.boosts.brave = 3;
     refreshStats(world);
     const json = JSON.stringify(snapshotBuild(world));
 
