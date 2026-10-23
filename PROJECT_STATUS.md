@@ -76,6 +76,36 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-23 — Banked level-ups (D39)
+**Owner:** level-up pop-ups felt disruptive. Approved: bank them behind a badge plus hotkey, auto-open at 3 banked or after 30 s, and no pop-ups during arena fights.
+
+**Files** (commit `15860e3`)
+- `src/data/content.ts`: `TUNING.levelUpBank = { autoOpenAt: 3, autoOpenSeconds: 30 }`.
+- `src/sim/types.ts`: `World.levelUpWait`, `World.openLevelUps`.
+- `src/sim/world.ts`:
+  - the old "open the level-up window at once" line is replaced by `updateLevelBank()`: it opens on the player's request, at 3 banked or after 30 s, and never on its own during an arena fight
+  - evolution keeps priority but doesn't start mid arena fight
+  - once open, the existing chain resolves the whole bank
+- `src/scenes/RunScene.ts`:
+  - gold badge "LEVEL UP ×N · Space (auto in N s / after the fight)", clickable
+  - Space opens the bank while running
+
+**Checks (observed)**
+- `npm run typecheck` clean. `npm test` **498/498 passed**:
+  - the old "pauses and chains" test now banks first, then opens on request
+  - new test: opens at 3 banked; waits until 30 s with 1 banked; in a real arena fight neither cards nor evolution open on their own, but a request opens them
+- `npm run build` passed.
+- Browser (Charmander):
+  - the badge showed and counted down, and the run kept going
+  - clicking the badge opened the window
+  - Space via a real keyboard event in the page opened the normal level cards
+  - no console errors
+  - the browser tool's own key press doesn't reach the game in the pane (a known tool limit)
+
+**Notes**
+- Balance-bot runs still level through auto-open, so pacing numbers barely move.
+- Pressing Space during a fight pauses to pick cards. Same as Esc pause; noted, not blocked.
+
 ### 2026-10-23 — Boss tiers; Zapdos Overload and Weakened windows (D38)
 - **Objective:** owner asked to make Zapdos a tier 2 boss and add a weakened window once its generators are broken. **Status:** built and tested; not committed.
 - **Changed:** `src/data/arena.ts` (`ArenaBossDef.tier`, Snorlax 1 / Zapdos 2, `ZAPDOS_KIT.overload`), `src/sim/arena.ts` (`arenaBossChoices` draws event N from tier N; past the top tier, the top tier), `src/sim/types.ts` (`overloadLeft`, `weakLeft`, notice `overloaded`), `src/sim/bosses.ts` (`updatePylons` reports the last break, `overloadZapdos`, Weakened slows Zapdos's move clock and speed), `src/sim/combat.ts` (×1.5 while Overloaded), `src/scenes/RunScene.ts` (sparks / broken ring, HUD countdown, notice), `src/sim/arena.test.ts` (`enter` opens the boss's tier event; 5 new tests), BOSSES.md, PROJECT.md D38.
