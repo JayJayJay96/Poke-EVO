@@ -106,6 +106,12 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - Balance-bot runs still level through auto-open, so pacing numbers barely move.
 - Pressing Space during a fight pauses to pick cards. Same as Esc pause; noted, not blocked.
 
+### 2026-10-23 — Enemy attack telegraphs: slower, smaller (owner playtest)
+- **Objective:** owner playtest on Caterpie: windups "a bit fast", "only avoidable if you're moving"; "reduce the area by maybe 10 or 20%". **Status:** tuned; not committed.
+- **Changed:** `src/data/enemyAttacks.ts`: every enemy attack telegraph **+0.2 s** (Caterpie web 0.5 → 0.7 s, Voltorb fuse 1 → 1.2 s…); hazard areas **×0.85** (web 40 → 34, dive 45 → 38, cone reach 120 → 102, Poison Powder 60 → 51, Abra blink 60 → 51, Self-Destruct 70 → 60). Chansey's heal radius and dart sizes unchanged (not areas you dodge). `enemyAttacks.test.ts`: Oddish test stands 50 px away (was 70, now outside the smaller cloud). ROSTER.md / README.md §9 numbers synced.
+- **Commands:** `npm run typecheck` clean; `npx vitest run` **498/498 passed**; `npm run build` passes. Not checked in the browser (data-only change; the drawing reads the same fields).
+- **Next:** owner re-playtest of Caterpie and the other batch-2 attacks.
+
 ### 2026-10-23 — Boss tiers; Zapdos Overload and Weakened windows (D38)
 - **Objective:** owner asked to make Zapdos a tier 2 boss and add a weakened window once its generators are broken. **Status:** built and tested; not committed.
 - **Changed:** `src/data/arena.ts` (`ArenaBossDef.tier`, Snorlax 1 / Zapdos 2, `ZAPDOS_KIT.overload`), `src/sim/arena.ts` (`arenaBossChoices` draws event N from tier N; past the top tier, the top tier), `src/sim/types.ts` (`overloadLeft`, `weakLeft`, notice `overloaded`), `src/sim/bosses.ts` (`updatePylons` reports the last break, `overloadZapdos`, Weakened slows Zapdos's move clock and speed), `src/sim/combat.ts` (×1.5 while Overloaded), `src/scenes/RunScene.ts` (sparks / broken ring, HUD countdown, notice), `src/sim/arena.test.ts` (`enter` opens the boss's tier event; 5 new tests), BOSSES.md, PROJECT.md D38.

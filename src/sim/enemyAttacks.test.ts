@@ -175,7 +175,7 @@ describe('batch-2 attack styles (D37, ROSTER)', () => {
   it('Oddish: Poison Powder poisons you nearby; a Grass starter shrugs the powder off', () => {
     const dps: number[] = [];
     for (const id of ['charmander', 'bulbasaur'] as const) {
-      const { world } = near('oddish', 70, id);
+      const { world } = near('oddish', 50, id);
       world.player.invulnLeft = 99;
       run(world, atk('oddish').telegraph + DT);
       expect(world.playerStatus.poisonLeft).toBeGreaterThan(0);

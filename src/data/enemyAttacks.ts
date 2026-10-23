@@ -3,6 +3,7 @@ import type { PlayerStatusId } from './playerStatus';
 
 // Telegraphed attacks of normal enemies (D35; docs/enemies/README.md §9.2, ROSTER.md). Every attack locks its aim
 // when its line telegraph appears and never re-aims (fairness, BOSSES.md §2). Every number provisional.
+// Owner playtest 2026-10-23 ("only avoidable if you're moving"): every telegraph +0.2 s, hazard areas ×0.85.
 
 /** Ranged: keeps its distance, stops, shows a line, then fires a dart along it. */
 export interface RangedAttack {
@@ -139,7 +140,7 @@ export const ENEMY_ATTACKS: Readonly<Partial<Record<EnemyId, EnemyAttack>>> = {
     backOffMult: 0.7,
     range: 340,
     cooldown: 3,
-    telegraph: 0.4,
+    telegraph: 0.6,
     shotSpeed: 280,
     shotRadius: 6,
     shotLife: 2,
@@ -150,19 +151,19 @@ export const ENEMY_ATTACKS: Readonly<Partial<Record<EnemyId, EnemyAttack>>> = {
     kind: 'charge',
     range: 320,
     cooldown: 5,
-    telegraph: 0.7,
+    telegraph: 0.9,
     dashDistance: 250,
     dashSpeedMult: 3,
     damageFactor: 1.5,
     recover: 0.4,
   },
   // Fearow (ROSTER: flanker + Diver, Drill Peck).
-  fearow: { kind: 'dive', range: 350, cooldown: 6, telegraph: 0.8, radius: 45, damageFactor: 1.5, recover: 0.5 },
+  fearow: { kind: 'dive', range: 350, cooldown: 6, telegraph: 1, radius: 38, damageFactor: 1.5, recover: 0.5 },
 
   // Batch 2 (ROSTER.md, owner-approved 2026-10-21; D37).
-  caterpie: { kind: 'web', range: 280, cooldown: 6, telegraph: 0.5, radius: 40, seconds: 5 },
-  zubat: { kind: 'cone', range: 150, cooldown: 6, telegraph: 0.5, reach: 120, arcDeg: 90, status: 'confusion' },
-  oddish: { kind: 'pulse', range: 90, cooldown: 5, telegraph: 0.8, radius: 60, status: 'poison', powder: true },
+  caterpie: { kind: 'web', range: 280, cooldown: 6, telegraph: 0.7, radius: 34, seconds: 5 },
+  zubat: { kind: 'cone', range: 150, cooldown: 6, telegraph: 0.7, reach: 102, arcDeg: 90, status: 'confusion' },
+  oddish: { kind: 'pulse', range: 90, cooldown: 5, telegraph: 1, radius: 51, status: 'poison', powder: true },
   psyduck: {
     kind: 'ranged',
     keepMin: 180,
@@ -170,7 +171,7 @@ export const ENEMY_ATTACKS: Readonly<Partial<Record<EnemyId, EnemyAttack>>> = {
     backOffMult: 0.7,
     range: 340,
     cooldown: 3,
-    telegraph: 0.4,
+    telegraph: 0.6,
     shotSpeed: 260,
     shotRadius: 7,
     shotLife: 2,
@@ -178,10 +179,10 @@ export const ENEMY_ATTACKS: Readonly<Partial<Record<EnemyId, EnemyAttack>>> = {
     status: 'soaked',
   },
   // Rollout: a long, fast roll (there are no walls on the map to bounce off).
-  geodude: { kind: 'charge', range: 300, cooldown: 6, telegraph: 0.6, dashDistance: 300, dashSpeedMult: 4, damageFactor: 1.5, recover: 0.6 },
-  abra: { kind: 'blink', range: 400, cooldown: 4, telegraph: 0.6, ahead: 180, radius: 60, damageFactor: 0.6, status: 'confusion' },
-  voltorb: { kind: 'explode', range: 75, cooldown: 0, telegraph: 1, radius: 70, damageFactor: 3 },
-  chansey: { kind: 'heal', keepMin: 200, keepMax: 300, backOffMult: 0.7, range: 1e9, cooldown: 5, telegraph: 0.6, radius: 140, healPct: 0.15 },
+  geodude: { kind: 'charge', range: 300, cooldown: 6, telegraph: 0.8, dashDistance: 300, dashSpeedMult: 4, damageFactor: 1.5, recover: 0.6 },
+  abra: { kind: 'blink', range: 400, cooldown: 4, telegraph: 0.8, ahead: 180, radius: 51, damageFactor: 0.6, status: 'confusion' },
+  voltorb: { kind: 'explode', range: 75, cooldown: 0, telegraph: 1.2, radius: 60, damageFactor: 3 },
+  chansey: { kind: 'heal', keepMin: 200, keepMax: 300, backOffMult: 0.7, range: 1e9, cooldown: 5, telegraph: 0.8, radius: 140, healPct: 0.15 },
 };
 
 /** Budget for enemy darts in flight (README §9.3); past it, a shot is skipped. */

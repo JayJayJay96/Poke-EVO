@@ -234,9 +234,9 @@ proc anything (no proc-from-proc).
 | Style | Speed band | Behaviour | Telegraph | Kanto examples |
 |---|---|---|---|---|
 | **Chaser** | fodder | Walks at you; contact damage only | none | Rattata, Caterpie, Weedle |
-| **Ranged** | ranged | Holds **220–320 px** from you. Closer than 180 px, it backs off at ×0.7 speed. Stops for 0.4 s, then fires a projectile | Line | Psyduck (Water Gun), Koffing (Sludge), Magnemite (Thunder Shock) |
-| **Teleporter** | teleporter | Blinks to a spot **ahead of where you're walking** (inside the screen), then fires a short Confusion pulse | Ring at the landing spot, 0.6 s before it appears | Abra, Kadabra |
-| **Bruiser** | bruiser | Walks in; every few seconds stops, paws the ground, and **charges** in a straight line (a burst) | Line, 0.7 s | Tauros (Take Down), Rhyhorn |
+| **Ranged** | ranged | Holds **220–320 px** from you. Closer than 180 px, it backs off at ×0.7 speed. Stops for 0.6 s, then fires a projectile | Line | Psyduck (Water Gun), Koffing (Sludge), Magnemite (Thunder Shock) |
+| **Teleporter** | teleporter | Blinks to a spot **ahead of where you're walking** (inside the screen), then fires a short Confusion pulse | Ring at the landing spot, 0.8 s before it appears | Abra, Kadabra |
+| **Bruiser** | bruiser | Walks in; every few seconds stops, paws the ground, and **charges** in a straight line (a burst) | Line, 0.9 s | Tauros (Take Down), Rhyhorn |
 | **Exploder** | exploder | Rushes in; within ~60 px it stops and **fuses** for 1 s, then Self-Destructs (~70 px). **Killing it during the fuse defuses it.** It can't be stunned during the fuse | Ring, 1 s | Voltorb. Elite Electrode instead uses **Aftermath** (explodes when it dies) |
 | **Healer** | healer | Stays behind its horde and pulses Soft-Boiled every few seconds, healing nearby enemies. A priority target | Ring (green, on its allies) | Chansey |
 | **Burrower** | fodder | Digs in (can't be hit, leaves a dirt trail), then pops up under you | Ring, 0.6 s | Diglett, Dugtrio, Sandshrew |
@@ -244,7 +244,7 @@ proc anything (no proc-from-proc).
 | **Barrier** | ranged | Raises a short wall for a few seconds that **blocks player projectiles** (beams and areas pass) | Wall outline flickers 0.5 s before it's solid | Mr. Mime (Barrier / Light Screen) |
 | **Splitter** | fodder | When it dies it splits into 3–6 small, weak copies | none (visible: clustered eggs) | Exeggcute |
 | **Phaser** | fodder | Drifts **through** other enemies; flickers; its Lick paralyses you (§10) | none, but its contact hit applies a status | Gastly, Haunter |
-| **Diver** | fast | Marks a circle on you, flies off-screen, dives onto the circle (a burst) | Ring, 0.8 s | Fearow (Drill Peck), Dodrio |
+| **Diver** | fast | Marks a circle on you, flies off-screen, dives onto the circle (a burst) | Ring, 1 s | Fearow (Drill Peck), Dodrio |
 | **Web layer** | fodder | Leaves sticky String Shot patches that **slow you** (§10) | the patch is visible | Caterpie, Weedle, Venonat |
 | **Ambusher** (owner: keep) | 0 until triggered | A Voltorb **disguised as an item ball**, like the Power Plant. Walk near and it wakes and fuses | It wobbles slightly as a tell; then the exploder ring | Voltorb, Electrode |
 

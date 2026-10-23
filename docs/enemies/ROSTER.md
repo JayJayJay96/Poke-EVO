@@ -82,7 +82,7 @@ Two type profiles cover all 6 enemies, so the rows are listed once.
 | **Normal** | HP 21 · contact 11 · speed 127 · XP 1 · radius 10 · knockback resist 7% |
 | **Elite** | HP 126 · contact 14 · speed 127 · XP 6 · radius 13 · half stagger |
 | **Defence** | Normal/Flying row |
-| **Attack** (README §9) | Today: chaser (flanker). P5: **Ranged**, a Peck dart (line telegraph 0.4 s, damage ×0.8 contact, cooldown 3 s) fired from 220–320 px. No player status |
+| **Attack** (README §9) | Today: chaser (flanker). P5: **Ranged**, a Peck dart (line telegraph 0.6 s, damage ×0.8 contact, cooldown 3 s) fired from 220–320 px. No player status |
 | **Ability: Sniper** *(reaction)* | The Elite's hits on a player below 50% HP deal ×1.5. Lore: its critical hits hit harder. It punishes low-HP play such as Blaze |
 | **Horde** | `leader` Elite Spearow · `followers` Spearow · `hordeSpeed` 127 |
 
@@ -108,7 +108,7 @@ Two type profiles cover all 6 enemies, so the rows are listed once.
 | **Normal** | HP 38 · contact 16 · speed 133 · XP 3 · radius 16 · knockback resist 60% |
 | **Elite** | HP 228 · contact 21 · speed 133 · XP 19 · radius 21 · half stagger |
 | **Defence** | Normal/Flying row |
-| **Attack** (README §9) | Flanker plus **Diver** (P5): Drill Peck, ring telegraph 0.8 s on the player, damage ×1.5 contact, cooldown 6 s. No player status |
+| **Attack** (README §9) | Flanker plus **Diver** (P5): Drill Peck, ring telegraph 1 s on the player (38 px), damage ×1.5 contact, cooldown 6 s. No player status |
 | **Ability: Keen Eye** *(status resistance)* | The Elite takes Blinded ×0.25. Lore: its accuracy can't be lowered |
 | **Horde** | `leader` Elite Fearow · `followers` Fearow, Spearow · `hordeSpeed` 127 |
 
@@ -121,7 +121,7 @@ Two type profiles cover all 6 enemies, so the rows are listed once.
 | **Normal** | HP 47 · contact 18 · speed 90 · XP 3 · radius 17 · knockback resist 78% |
 | **Elite** | HP 282 · contact 23 · speed 90 · XP 21 · radius 23 · half stagger |
 | **Defence** | Normal row |
-| **Attack** (README §9) | **Bruiser** (P5): Take Down charge, line telegraph 0.7 s, dashes ~250 px at ×3 speed (a burst), damage ×1.5 contact, cooldown 5 s. No player status |
+| **Attack** (README §9) | **Bruiser** (P5): Take Down charge, line telegraph 0.9 s, dashes ~250 px at ×3 speed (a burst), damage ×1.5 contact, cooldown 5 s. No player status |
 | **Ability: Anger Point** *(reaction)* | A critical hit on the Elite enrages it: ×1.5 contact damage for 4 s. It punishes crit builds |
 | **Horde** | `leader` Elite Tauros · `followers` Tauros · `hordeSpeed` 90 |
 
@@ -171,7 +171,7 @@ The rows the player's move types need against the new defender types (modern cha
 | **Elite** | HP 132 · contact 7 · speed 78 · XP 4.7 · radius 14 · half stagger |
 | **Damage taken** | **Fire ×2, Flying ×2**; Grass ×0.5; others ×1 |
 | **Status** | Burn **1.5** · Leech Seed / powders 0.5 · all others 1 |
-| **Attack** | **Web layer:** spits String Shot at you (line telegraph 0.5 s, cooldown 6 s). It lands as a 40 px web patch for 5 s. **Player status: slow** while standing in the web (+1 s after) |
+| **Attack** | **Web layer:** spits String Shot at you (line telegraph 0.7 s, cooldown 6 s). It lands as a 34 px web patch for 5 s. **Player status: slow** while standing in the web (+1 s after) |
 | **Ability: Shield Dust** *(status resistance)* | Statuses that come **from a damaging hit** (Ember's burn, Thunder Shock's paralysis…) land ×0.25 on the Elite. Statuses from status moves and zones (Sleep Powder, Poison Powder, Smokescreen, Scorch) land normally. Lore: it blocks moves' added effects |
 | **Horde** | `leader` Elite Caterpie · `followers` Caterpie · `hordeSpeed` 78 |
 
@@ -199,7 +199,7 @@ The rows the player's move types need against the new defender types (modern cha
 | **Elite** | HP 138 · contact 10 · speed 123 · XP 5.9 · radius 18 · half stagger |
 | **Damage taken** | **Electric ×2, Ice ×2**; Poison ×0.5; **Grass ×0.25**; others ×1 |
 | **Status** | Paralysis **1.5** · freeze **1.5** · poison **0.25** · Leech Seed / powders **0.25** · slow 0.5 · trap 0.5 · ground effects 0.5 · all others 1 |
-| **Attack** | Flanker that flies in a weaving line. **Supersonic:** cone telegraph 0.5 s (90°, 120 px, cooldown 6 s), no damage, **player status: confusion** (2 s) |
+| **Attack** | Flanker that flies in a weaving line. **Supersonic:** cone telegraph 0.7 s (90°, 102 px, cooldown 6 s), no damage, **player status: confusion** (2 s) |
 | **Ability: Infiltrator** *(reaction)* | The Elite's hits **go through Squirtle's Shell** (they're not blocked, and they don't use up the block). Lore: it slips past barriers and Substitute |
 | **Horde** | `leader` Elite Zubat · `followers` Zubat · `hordeSpeed` 123 |
 
@@ -213,7 +213,7 @@ The rows the player's move types need against the new defender types (modern cha
 | **Elite** | HP 192 · contact 18 · speed 76 · XP 7.7 · radius 15 · half stagger |
 | **Damage taken** | **Fire ×2, Ice ×2, Flying ×2**; Water ×0.5, Electric ×0.5; **Grass ×0.25**; others ×1 |
 | **Status** | Burn **1.5** · freeze **1.5** · paralysis 0.5 · poison **0.25** · Leech Seed / powders **0.25** · Soaked 0.5 · all others 1 |
-| **Attack** | **Poison Powder:** every 5 s it puffs a cloud around itself (ring telegraph 0.8 s, 60 px). **Player status: poison** (3 s). It's a powder, so a Grass player takes ×0.25 (Bulbasaur line) |
+| **Attack** | **Poison Powder:** every 5 s it puffs a cloud around itself (ring telegraph 1 s, 51 px). **Player status: poison** (3 s). It's a powder, so a Grass player takes ×0.25 (Bulbasaur line) |
 | **Ability: Run Away** *(reaction)* | As Rattata (Oddish's other ability, Chlorophyll, needs sun; weather is out of MVP) |
 | **Horde** | `leader` Elite Oddish · `followers` Oddish · `hordeSpeed` 76 |
 
@@ -227,7 +227,7 @@ The rows the player's move types need against the new defender types (modern cha
 | **Elite** | HP 180 · contact 16 · speed 69 · XP 7.7 · radius 18 · half stagger |
 | **Damage taken** | **Electric ×2, Grass ×2**; Fire, Water, Ice, Steel ×0.5; others ×1 |
 | **Status** | Burn 0.5 · freeze 0.5 · paralysis **1.5** · Leech Seed / powders **1.5** · Soaked **0.25** · all others 1 |
-| **Attack** | **Ranged:** holds 220–320 px from you and fires **Water Gun** (line telegraph 0.4 s, damage ×0.8 contact, cooldown 3 s). **Player status: Soaked** (2 s) |
+| **Attack** | **Ranged:** holds 220–320 px from you and fires **Water Gun** (line telegraph 0.6 s, damage ×0.8 contact, cooldown 3 s). **Player status: Soaked** (2 s) |
 | **Ability: Swift Swim** *(reaction)* | The Elite moves ×1.5 while standing in a Puddle (puddles stand in for rain; weather is out of MVP). It punishes Squirtle-line puddle builds |
 | **Horde** | `leader` Elite Psyduck · `followers` Psyduck · `hordeSpeed` 69 |
 
@@ -241,7 +241,7 @@ The rows the player's move types need against the new defender types (modern cha
 | **Elite** | HP 192 · contact 18 · speed 50 · XP 7.2 · radius 15 · half stagger |
 | **Damage taken** | **Water ×4, Grass ×4**, Ice ×2, Steel ×2; Normal, Fire, Flying, Electric ×0.5; **Poison ×0.25**; Dragon, Dark ×1 |
 | **Status** | Burn 0.5 · freeze **1.5** · paralysis **0.25** (Ground) · poison **0.25** · Leech Seed / powders **1.5** · Soaked **1.5** · all others 1 |
-| **Attack** | **Roller:** Rollout, line telegraph 0.6 s, rolls up to 300 px at ×4 speed (a burst), bounces off obstacles up to 3 times (faster each time), damage ×1.5 contact, cooldown 6 s. Can't be staggered while rolling. No player status |
+| **Attack** | **Roller:** Rollout, line telegraph 0.8 s, rolls up to 300 px at ×4 speed (a burst), bounces off obstacles up to 3 times (faster each time), damage ×1.5 contact, cooldown 6 s. Can't be staggered while rolling. No player status |
 | **Ability: Sturdy** *(reaction)* | Once per life, a hit that would kill the Elite leaves it at 1 HP. Lore: it endures one KO hit. It blunts a single big nuke (Blast Burn, Solar Beam), while DoT and fast hits finish it |
 | **Horde** | `leader` Elite Geodude · `followers` Geodude · `hordeSpeed` 50 |
 
@@ -283,7 +283,7 @@ The rows the player's move types need against the new defender types (modern cha
 | **Elite** | HP 168 · contact 13 · speed 104 · XP 7.9 · radius 15 · half stagger |
 | **Damage taken** | Electric, Flying, Steel ×0.5; others ×1 |
 | **Status** | Paralysis **0.25** · all others 1 |
-| **Attack** | **Exploder:** within ~60 px it stops and **fuses for 1 s** (ring telegraph), then Self-Destructs (70 px, damage ×3 contact). **Killing it during the fuse defuses it.** It can't be stunned during the fuse. A Voltorb that self-destructs drops **no XP** (lore: no exp for a self-KO). No player status |
+| **Attack** | **Exploder:** within ~60 px it stops and **fuses for 1.2 s** (ring telegraph), then Self-Destructs (60 px, damage ×3 contact). **Killing it during the fuse defuses it.** It can't be stunned during the fuse. A Voltorb that self-destructs drops **no XP** (lore: no exp for a self-KO). No player status |
 | **Ability: Aftermath** *(reaction)* | When the Elite is killed, it leaves a 0.6 s ring and then explodes anyway (70 px, ×2 contact). Kill it from range |
 | **Horde** | `leader` Elite Voltorb · `followers` Voltorb · `hordeSpeed` 104 |
 
@@ -297,7 +297,7 @@ The rows the player's move types need against the new defender types (modern cha
 | **Elite** | HP 552 · contact 8 · speed 63 · XP 47.4 · radius 20 · half stagger |
 | **Damage taken** | Normal row (every player type ×1) |
 | **Status** | Every status ×1 |
-| **Attack** | **Healer:** keeps 200–300 px from you, behind other enemies. Every 5 s, **Soft-Boiled**: a green ring telegraph 0.6 s, then it heals every enemy within 140 px by 15% of their max HP (not itself). No player status. A rare, high-XP priority target. *(Idea: a higher berry drop chance; lore: Chansey's eggs heal)* |
+| **Attack** | **Healer:** keeps 200–300 px from you, behind other enemies. Every 5 s, **Soft-Boiled**: a green ring telegraph 0.8 s, then it heals every enemy within 140 px by 15% of their max HP (not itself). No player status. A rare, high-XP priority target. *(Idea: a higher berry drop chance; lore: Chansey's eggs heal)* |
 | **Ability: Healer** *(reaction)* | The Elite's Soft-Boiled also **clears statuses** from the enemies it heals (DoT, slow, stuns). It counters DoT and crowd-control builds |
 | **Horde** | **None: healers never join horde events** (owner, 2026-10-21). Elite Chansey can still spawn on its own |
 
