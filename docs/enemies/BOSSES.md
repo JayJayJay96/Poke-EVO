@@ -159,14 +159,14 @@ special animations must not be burst through. All numbers are in `SNORLAX_KIT` (
   there (its end-of-flight effects fire at the rock). Beams, melee and zones are unaffected. Snorlax hiding behind
   rubble is now real cover; Fling taking a rock opens the line again.
 
-### Tier 1 candidates (2026-10-23): Machamp approved (D43), Kangaskhan DRAFT
+### Tier 1 candidates (2026-10-23): Machamp approved (D42), Kangaskhan DRAFT
 Owner: "plan for tier 1 bosses 1st, let me see the moveset and how they execute them". Two strong regulars to join
 Snorlax in the event-1 pool (D38). Both follow D31 (immune phase-change animations, phase gate, 10+ moves), §2
 (speed alone doesn't solve them) and §2b (one projectile layer). Neither resists any starter's type, so both pass the
 event-1 fairness filter for every starter. 6-min limit (D33); target fight ~60–90 s like Snorlax. Every number
 provisional.
 
-#### Machamp: "The dojo master" (Saffron Dojo). **Design approved (owner 2026-10-23, D43); tier 1; to build**
+#### Machamp: "The dojo master" (Saffron Dojo). **Design approved (owner 2026-10-23, D42); tier 1; to build**
 Owner additions: a rock skill (grab a nearby rock or rip one from the ground, then throw it, shield-charge with it,
 or rarely shield-pose with it: "a big element of surprise"); faster than Snorlax "since he so fit"; the openings
 come from **flexing poses** between attack strings.
