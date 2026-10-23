@@ -876,13 +876,18 @@ describe('evolution', () => {
     step(world, IDLE, DT);
     finishEvolutionCinematic(world);
     const s1 = stages[1]!;
+    // Level growth (D42) adds HP (healed as gained) and damage on top of the stage.
+    const growth = world.level - 1;
+    const grownHp = growth * TUNING.levelGrowth.maxHp;
     expect(world.player.stage).toBe(1);
-    expect(world.player.maxHp).toBe(s1.maxHp);
-    expect(world.player.hp).toBe(50 + (s1.maxHp - stages[0]!.maxHp));
+    expect(world.player.maxHp).toBe(s1.maxHp + grownHp);
+    expect(world.player.hp).toBe(50 + grownHp + (s1.maxHp - stages[0]!.maxHp));
     expect(world.player.speed).toBeCloseTo(s1.speed);
     expect(world.player.radius).toBe(s1.radius);
     expect(world.moves[0]!.moveId).toBe(s1.signatureMove);
-    expect(world.moves[0]!.stats.damage).toBeCloseTo(MOVES[s1.signatureMove].damage * s1.damageMult * STAB);
+    expect(world.moves[0]!.stats.damage).toBeCloseTo(
+      MOVES[s1.signatureMove].damage * s1.damageMult * (1 + growth * TUNING.levelGrowth.damagePct) * STAB,
+    );
     expect(world.evolution?.phase).toBe('summary');
   });
 

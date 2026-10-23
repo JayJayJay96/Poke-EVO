@@ -33,12 +33,15 @@ export function xpToNext(level: number): number {
 
 export function gainXp(world: World, amount: number): void {
   world.xp += amount;
+  const before = world.level;
   while (world.xp >= xpToNext(world.level)) {
     world.xp -= xpToNext(world.level);
     world.level++;
     world.pendingLevelUps++;
     emit(world, 'levelUp', 1);
   }
+  // Level growth (D42) lands the moment the level does, even while its card waits in the bank.
+  if (world.level > before) refreshStats(world);
 }
 
 export function isAugmentLevel(level: number): boolean {

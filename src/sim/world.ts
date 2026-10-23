@@ -89,6 +89,7 @@ export function createWorld({
       pickupRadius: TUNING.player.baseMagnetRadius,
       blockReadyLeft: 0,
       movingFor: 0,
+      calmFor: 0,
       stillFor: 0,
       faceX: 1,
       vx: 0,
@@ -347,6 +348,10 @@ function tickTimers(world: World, dt: number): void {
     if (world.surgeLeft === 0) refreshStats(world); // the site surge wears off (D25)
   }
   if (world.mods.regenPerSec > 0) healPlayer(world, world.mods.regenPerSec * dt);
+  // Rest regen (D42): out of combat long enough, a share of max HP comes back.
+  p.calmFor += dt;
+  const rest = TUNING.restRegen;
+  if (p.calmFor >= rest.afterSeconds && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);
   // Solar Power's drain never takes the last HP point.
   const drain = ABILITIES[p.ability].hpDrainPerSec ?? 0;
   if (drain > 0 && p.hp > 1) p.hp = Math.max(1, p.hp - drain * dt);
@@ -686,6 +691,7 @@ export function hitPlayer(world: World, damage: number, enemy: Enemy): boolean {
   const taken = contact * world.mods.damageTakenMult * mutationDamageTakenMult(world);
   const hpBefore = player.hp;
   player.hp = Math.max(0, player.hp - taken);
+  player.calmFor = 0;
   onShellHitTaken(world);
   onLowHpHit(world, hpBefore);
   player.hurtFlashLeft = TUNING.player.hurtFlashSeconds;
@@ -710,6 +716,7 @@ export function drainPlayer(world: World, amount: number): void {
   const { player } = world;
   if (amount <= 0 || player.hp <= 0) return;
   player.hp = Math.max(0, player.hp - amount * world.mods.damageTakenMult * mutationDamageTakenMult(world));
+  player.calmFor = 0;
   if (player.hp <= 0 && !endureSaves(world)) {
     if (world.arena) world.arena.knockedOut = true;
     else world.status = 'fainted';

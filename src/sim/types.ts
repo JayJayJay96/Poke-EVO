@@ -38,6 +38,8 @@ export interface Player {
   /** Seconds of continuous movement / standing still (hooks `moving`, `standingStill`). */
   movingFor: number;
   stillFor: number;
+  /** Seconds since the player last took damage; rest regen starts past TUNING.restRegen.afterSeconds (D42). */
+  calmFor: number;
   /** Last movement direction (unit vector), for moves aimed with your feet. */
   faceX: number;
   faceY: number;
