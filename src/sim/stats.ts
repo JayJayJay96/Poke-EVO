@@ -210,7 +210,7 @@ export function refreshStats(world: World): void {
   const p = world.player;
   const stage = currentStage(world);
   m.damageMult *= stage.damageMult;
-  // Level growth (D42): every level past 1 adds a little base damage and max HP.
+  // Level growth (D43): every level past 1 adds a little base damage and max HP.
   const growth = Math.max(0, world.level - 1);
   m.damageMult *= 1 + growth * TUNING.levelGrowth.damagePct;
   m.maxHpBonus += growth * TUNING.levelGrowth.maxHp;

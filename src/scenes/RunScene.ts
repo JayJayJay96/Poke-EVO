@@ -1473,7 +1473,7 @@ export class RunScene extends Phaser.Scene {
       .filter(([, left]) => left > 0)
       .map(([label, left]) => `${label} ${left.toFixed(1)}s`)
       .join(' · ');
-    // Rest regen (D42) is healing right now.
+    // Rest regen (D43) is healing right now.
     const resting = player.calmFor >= TUNING.restRegen.afterSeconds && player.hp < player.maxHp ? ' (resting +)' : '';
     this.hud.setText(
       `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${Math.round(player.maxHp)}${resting}${abilityTag}   ` +

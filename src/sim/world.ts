@@ -348,7 +348,7 @@ function tickTimers(world: World, dt: number): void {
     if (world.surgeLeft === 0) refreshStats(world); // the site surge wears off (D25)
   }
   if (world.mods.regenPerSec > 0) healPlayer(world, world.mods.regenPerSec * dt);
-  // Rest regen (D42): out of combat long enough, a share of max HP comes back.
+  // Rest regen (D43): out of combat long enough, a share of max HP comes back.
   p.calmFor += dt;
   const rest = TUNING.restRegen;
   if (p.calmFor >= rest.afterSeconds && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);

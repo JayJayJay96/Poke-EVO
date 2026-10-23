@@ -876,7 +876,7 @@ describe('evolution', () => {
     step(world, IDLE, DT);
     finishEvolutionCinematic(world);
     const s1 = stages[1]!;
-    // Level growth (D42) adds HP (healed as gained) and damage on top of the stage.
+    // Level growth (D43) adds HP (healed as gained) and damage on top of the stage.
     const growth = world.level - 1;
     const grownHp = growth * TUNING.levelGrowth.maxHp;
     expect(world.player.stage).toBe(1);
