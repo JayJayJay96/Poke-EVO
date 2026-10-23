@@ -82,6 +82,7 @@ defineMutation('quickAttack.voltTackle', {
     );
     world.arcs.push({ x1: x0, y1: y0, x2: p.x, y2: p.y, lifeLeft: ARC_SECONDS });
     p.hp = Math.max(1, p.hp - p.maxHp * v.recoilMaxHpFraction);
+    p.invulnLeft = Math.max(p.invulnLeft, v.invulnSeconds);
     if (charge.discharge) discharge(world); // spends the Charge too
     else p.charge = 0;
     return true;

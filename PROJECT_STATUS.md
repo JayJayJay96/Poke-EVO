@@ -76,6 +76,11 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-23 — Volt Tackle lands invulnerable (owner playtest)
+- **Why:** Volt Tackle dashes into the nearest enemy, so Pikachu landed in the crowd and took contact hits at once ("very very risky").
+- **Change:** `quickAttack.voltTackle` gains `invulnSeconds: 0.8` (`src/data/mutations.ts`); the dash sets `invulnLeft` like Flare Up does (`src/sim/mutationDefs/quickAttack.ts`). Recoil unchanged. Doc row in `docs/moveset/pikachu/README.md`.
+- **Checks:** `tsc --noEmit` 0 errors; `npx vitest run` **498/498 passed** (the Volt Tackle test now dashes while vulnerable and checks the window). Not playtested in a browser.
+
 ### 2026-10-23 — Normal level rewards redesign (D40, design only)
 **Owner:** normal-level stat cards are "decent but not interesting". The owner asked me to propose and advise, then approved Techniques + Natures, 5 Technique slots, and the 13-Technique starter list.
 

@@ -1060,6 +1060,8 @@ export const MUTATIONS = {
       dashPx: 120,
       damageMult: 3,
       recoilMaxHpFraction: 0.05,
+      /** Owner playtest 2026-10-23: landing in the crowd took contact hits at once, so the dash ends invulnerable. */
+      invulnSeconds: 0.8,
     }),
     ranks: [{ damageMult: 3.45, recoilMaxHpFraction: 0.04 }, { damageMult: 3.9, recoilMaxHpFraction: 0.03, dashPx: 150 }],
     rankText: ['×3.45 (3); recoil 4% (5%)', '×3.9; recoil 3%; ★ dash 150 px (120)'],

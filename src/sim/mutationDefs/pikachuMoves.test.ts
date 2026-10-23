@@ -65,13 +65,15 @@ describe('Quick Attack', () => {
     expect(lost(e) - first).toBeCloseTo(first * v.secondHitFraction, 0);
   });
 
-  it('Volt Tackle: at full Charge Quick Attack dashes for ×3, spends the Charge, costs HP', () => {
+  it('Volt Tackle: at full Charge Quick Attack dashes for ×3, spends the Charge, costs HP, lands invulnerable', () => {
     const v = MUTATIONS['quickAttack.voltTackle'].values;
     const { w } = withMove('quickAttack', 'quickAttack.voltTackle');
     const e = dummy(w, 100, 0);
     w.player.charge = 100;
     const hp = w.player.hp;
-    run(w, DT);
+    w.player.invulnLeft = 0; // a real, vulnerable dash: only the recoil may cost HP
+    step(w, IDLE, DT);
+    expect(w.player.invulnLeft).toBeGreaterThan(v.invulnSeconds - 2 * DT);
     // Spent; landing next to the dummy, Static's touch paralysis may add its usual +15.
     expect(w.player.charge).toBeLessThanOrEqual(15);
     expect(w.player.x).toBeCloseTo(v.dashPx);

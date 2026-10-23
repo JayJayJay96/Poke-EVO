@@ -100,7 +100,7 @@ Thunder ──────┬─ Storm Call       `thunder.storm`             3 
 ### Bond details
 | Bond | Move | Offered from | What changes | Cost |
 |---|---|---|---|---|
-| **Volt Tackle** `quickAttack.voltTackle` | Quick Attack | Pikachu | At full Charge, the next Quick Attack becomes **Volt Tackle**: a 120 px electric dash-strike toward the nearest enemy for ×3 damage that spends the Charge. It replaces the Charged shot; on Raichu the Discharge fires at the end of the dash. | Recoil, like the real move: you lose 5% max HP (never below 1 HP). |
+| **Volt Tackle** `quickAttack.voltTackle` | Quick Attack | Pikachu | At full Charge, the next Quick Attack becomes **Volt Tackle**: a 120 px electric dash-strike toward the nearest enemy for ×3 damage that spends the Charge. It replaces the Charged shot; on Raichu the Discharge fires at the end of the dash. You land **invulnerable for 0.8 s** (owner playtest 2026-10-23: the dash ends inside the crowd). | Recoil, like the real move: you lose 5% max HP (never below 1 HP). |
 | **Static Spark** `spark.staticSpark` | Spark | Pikachu | Each Static paralysis adds an extra spark to your orbit for 2 s (max +3). Touching Pikachu gets more dangerous. | Spark's own cooldown ×1.2. |
 | **Velocity Ball** `electroBall.velocityBall` | Electro Ball | Pikachu | Like the real move: damage scales with how much faster you are than the target, +1% per 1% faster (max +80%). Speed boosts become damage. | −40% base damage. |
 | **Conductor** `thunderWave.conductor` | Thunder Wave | Pikachu | Your signature chain prefers enemies inside a Thunder Wave field, and jump range is +60% between them. The cap stays 3 jumps. | Thunder Wave's paralysis 0.6 s → 0.4 s. |
