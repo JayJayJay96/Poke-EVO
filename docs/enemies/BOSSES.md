@@ -219,12 +219,14 @@ from batch 3.
 | **Projectiles** | **Shock Wave:** homing bolts (lore: never misses) with a strong turn rate but only a **2.5 s timeout**. **Thunderbolt:** **zigzag** sine-wave bolts in a 3-way fan. Shock Wave plus electric fences is the phase 2 squeeze |
 | **Adds** | Voltorb and Magnemite from the Power Plant (lore-correct) |
 
-**Built as an arena boss (D32, 2026-10-22).** It follows D31's rules: special animations are immune, there's a phase
+**Built as an arena boss (D32, 2026-10-22); a tier 2 boss (D38).** Arena event N draws a tier-N boss: tier 1 is the
+strong regulars (Snorlax) at ~6:30, tier 2 the legendary birds at ~12:30, one tier below Mewtwo. It follows D31's rules: special animations are immune, there's a phase
 gate, and it has 10+ kinds of moves. All numbers are in `ZAPDOS_KIT` (provisional).
 
 | Move | Phase | What it does |
 |---|---|---|
 | Generators | all | 3 pylons (real enemies your auto-fire targets, no XP) shield Zapdos ×0.25; a broken one is rebuilt after 35 s (owner 2026-10-23; was 20 s) |
+| Overload | all | **D38 (owner 2026-10-23).** All generators down **at the same time**: Zapdos crashes for **5 s** (no moves, grounded, takes **×1.5**; its live hazards fizzle), then is **Weakened 5 s** (×0.6 speed; telegraphs, casts and cooldowns run ×1.5 slower). The phase change waits out the crash. After an Overload all 3 generators rebuild **together** 35 s after the crash, so breaking one rebuilt pylon never re-triggers it |
 | Thunder | 1+ | Bracket: one ring on you, one where you're heading (0.9 s) |
 | Drill Peck | 1+ | Lead-aimed line, then a dash along it |
 | Shock Wave | 1+ | 3 homing bolts that give up after 2.5 s and fly straight |

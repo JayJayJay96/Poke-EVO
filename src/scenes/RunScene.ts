@@ -478,7 +478,9 @@ export class RunScene extends Phaser.Scene {
       const extra =
         (wake === null ? '' : ` · asleep, wake ${wake}%`) +
         (up > 0 ? ` · shielded by ${up} generator${up > 1 ? 's' : ''}` : '') +
-        (stop === null ? '' : ` · Discharge! interrupt ${stop}%`);
+        (stop === null ? '' : ` · Discharge! interrupt ${stop}%`) +
+        (zap && zap.overloadLeft > 0 ? ` · Overloaded ${Math.ceil(zap.overloadLeft)} s` : '') +
+        (zap && zap.overloadLeft <= 0 && zap.weakLeft > 0 ? ` · Weakened ${Math.ceil(zap.weakLeft)} s` : '');
       return `${boss}: ${formatTime(arena.timeLeft)} left${extra}`;
     }
     if (entrance) {
@@ -512,6 +514,7 @@ export class RunScene extends Phaser.Scene {
       bellyDrum: `${boss} used Belly Drum! Half its HP, double its power`,
       chargeUp: `${boss} charges the sky! Thunderstorms and fences incoming`,
       rainDance: `${boss} used Rain Dance! Puddles conduct its Thunder`,
+      overloaded: `${boss} is Overloaded! It takes extra damage. Hit it now`,
     }[notice.kind];
     this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
   }
@@ -1675,6 +1678,25 @@ function drawZapdos(g: Phaser.GameObjects.Graphics, world: World, arena: ArenaFi
   if (boss && zap.roost) {
     g.lineStyle(3, COLORS.rubble, 0.9);
     g.strokeCircle(boss.x, boss.y, boss.radius + 4);
+  }
+  // Overloaded: sparks flicker around it; Weakened: a dim, broken ring.
+  if (boss && zap.overloadLeft > 0) {
+    g.lineStyle(2, COLORS.zap, 0.9);
+    const spin = world.time * 7;
+    for (let i = 0; i < 6; i++) {
+      const a = spin + (i * Math.PI) / 3;
+      const r1 = boss.radius + 6;
+      const r2 = boss.radius + 16 + 6 * Math.sin(world.time * 23 + i);
+      g.lineBetween(boss.x + Math.cos(a) * r1, boss.y + Math.sin(a) * r1, boss.x + Math.cos(a + 0.3) * r2, boss.y + Math.sin(a + 0.3) * r2);
+    }
+  } else if (boss && zap.weakLeft > 0) {
+    g.lineStyle(2, COLORS.chain, 0.6);
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      g.beginPath();
+      g.arc(boss.x, boss.y, boss.radius + 8, a, a + Math.PI / 8);
+      g.strokePath();
+    }
   }
   for (const s of zap.strikes) {
     g.fillStyle(COLORS.telegraph, 0.25);

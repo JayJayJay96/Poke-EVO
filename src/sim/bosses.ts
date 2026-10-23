@@ -627,6 +627,8 @@ export function startZapdos(world: World, fight: ArenaFight, boss: Enemy): Zapdo
     agilityLeft: 0,
     roost: null,
     discharge: null,
+    overloadLeft: 0,
+    weakLeft: 0,
   };
   const { count, ringFraction } = kit.pylons;
   for (let i = 0; i < count; i++) {
@@ -677,14 +679,16 @@ function landThunder(world: World, zap: ZapdosState, boss: Enemy, s: ZapdosState
   if (landed && player.ability === 'lightningRod') addCharge(world, lightningRodCharge);
 }
 
-/** Generators: pinned in place; a broken one is rebuilt after its recharge. */
-function updatePylons(world: World, zap: ZapdosState, boss: Enemy, dt: number): void {
+/** Generators: pinned in place; a broken one is rebuilt after its recharge. True when this step broke the last one. */
+function updatePylons(world: World, zap: ZapdosState, boss: Enemy, dt: number): boolean {
+  let broke = false;
   for (const pylon of zap.pylons) {
     if (pylon.enemyId !== null) {
       const e = world.enemies.find((en) => en.id === pylon.enemyId);
       if (!e || e.hp <= 0) {
         pylon.enemyId = null;
         pylon.recharge = ZAPDOS_KIT.pylons.recharge;
+        broke = true;
       } else {
         e.x = pylon.x;
         e.y = pylon.y;
@@ -694,6 +698,27 @@ function updatePylons(world: World, zap: ZapdosState, boss: Enemy, dt: number): 
       if (pylon.recharge <= 0) pylon.enemyId = spawnPylon(world, boss, pylon.x, pylon.y);
     }
   }
+  return broke && zap.pylons.every((p) => p.enemyId === null);
+}
+
+/**
+ * Overload (owner 2026-10-23): the last generator just broke. Zapdos crashes and drops whatever it was doing, and
+ * all generators rebuild together, so one rebuilt pylon can't be broken for a cheap second Overload.
+ */
+function overloadZapdos(world: World, fight: ArenaFight, zap: ZapdosState): void {
+  zap.overloadLeft = ZAPDOS_KIT.overload.seconds;
+  zap.weakLeft = 0;
+  zap.peck = null;
+  zap.cast = null;
+  zap.agility = null;
+  zap.agilityLeft = 0;
+  zap.roost = null;
+  zap.discharge = null;
+  zap.storm = null;
+  zap.strikes = [];
+  zap.fences = [];
+  for (const pylon of zap.pylons) pylon.recharge = ZAPDOS_KIT.pylons.recharge;
+  world.arenaNotice = { kind: 'overloaded', bossId: fight.bossId };
 }
 
 /** Zapdos's shots: Shock Wave homes then gives up, Thunderbolt zigzags, Zap Cannon homes lazily and paralyses. */
@@ -844,15 +869,18 @@ function pickZapdosMove(world: World, fight: ArenaFight, zap: ZapdosState, boss:
  * Zapdos (BOSSES.md §4, D32): hovers at range; generators shield it; phases at 66% and 33% start with an immune
  * Charge-up and Rain Dance. Pressure slows your cooldowns (world.ts).
  */
-function zapdos(world: World, fight: ArenaFight, boss: Enemy, dt: number): void {
+function zapdos(world: World, fight: ArenaFight, boss: Enemy, realDt: number): void {
   const kit = ZAPDOS_KIT;
   const zap = fight.zap!;
   const { player } = world;
+  if (updatePylons(world, zap, boss, realDt)) overloadZapdos(world, fight, zap);
+  updateZapShots(world, fight, zap, boss, realDt);
+  zap.weakLeft -= realDt;
+  // Weakened (owner 2026-10-23): its move clock runs slower, so telegraphs, casts and cooldowns all last longer.
+  const dt = zap.weakLeft > 0 ? realDt / kit.overload.weakTimeMult : realDt;
   zap.moveGap -= dt;
   zap.agilityLeft -= dt;
   for (const id of Object.keys(zap.cooldowns) as ZapCooldown[]) zap.cooldowns[id] -= dt;
-  updatePylons(world, zap, boss, dt);
-  updateZapShots(world, fight, zap, boss, dt);
 
   // Thunder rings land on their own; Thunderstorm calls its next strike when the gap is up.
   for (const s of zap.strikes) {
@@ -908,6 +936,10 @@ function zapdos(world: World, fight: ArenaFight, boss: Enemy, dt: number): void 
   fight.goal = null;
   if (zap.transitionLeft > 0) {
     zap.transitionLeft -= dt;
+  } else if (zap.overloadLeft > 0) {
+    // Overloaded: grounded, no moves, takes extra damage (combat.ts); the phase change waits. Then Weakened.
+    zap.overloadLeft -= realDt;
+    if (zap.overloadLeft <= 0) zap.weakLeft = kit.overload.weakSeconds;
   } else if (zap.peck) {
     const peck = zap.peck;
     peck.left -= dt;
@@ -988,12 +1020,14 @@ function zapdos(world: World, fight: ArenaFight, boss: Enemy, dt: number): void 
     if (zap.moveGap <= 0) pickZapdosMove(world, fight, zap, boss);
   }
 
-  const busy = zap.transitionLeft > 0 || zap.peck || zap.cast || zap.roost || zap.discharge || zap.agility;
+  const busy = zap.transitionLeft > 0 || zap.overloadLeft > 0 || zap.peck || zap.cast || zap.roost || zap.discharge || zap.agility;
   if (busy) {
     fight.goal = null;
     zap.moveGap = Math.max(zap.moveGap, kit.moveGap);
   }
-  boss.speed = busy ? 0 : fight.bossSpeed * (zap.agilityLeft > 0 ? kit.agility.speedMult : 1);
+  boss.speed = busy
+    ? 0
+    : fight.bossSpeed * (zap.agilityLeft > 0 ? kit.agility.speedMult : 1) * (zap.weakLeft > 0 ? kit.overload.weakSpeedMult : 1);
 }
 
 const BOSS_AI: Readonly<Record<ArenaBossId, BossAi>> = { snorlax, zapdos };

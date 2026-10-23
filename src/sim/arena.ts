@@ -25,8 +25,12 @@ export function arenaSchedule(mapSeed: number): number[] {
  * boss that resists one of the player's current types (D28 counter rule).
  */
 export function arenaBossChoices(world: World): ArenaBossId[] {
-  let pool = ARENA_BOSS_IDS.filter((id) => !world.arenaBossesUsed.includes(id));
-  if (pool.length === 0) pool = [...ARENA_BOSS_IDS];
+  // Event N draws from tier N (owner 2026-10-23); past the highest tier, the highest.
+  const maxTier = Math.max(...ARENA_BOSS_IDS.map((id) => ARENA_BOSSES[id].tier));
+  const tier = Math.min(world.arenaEventsDone + 1, maxTier);
+  const ofTier = ARENA_BOSS_IDS.filter((id) => ARENA_BOSSES[id].tier === tier);
+  let pool = ofTier.filter((id) => !world.arenaBossesUsed.includes(id));
+  if (pool.length === 0) pool = [...ofTier];
   if (world.arenaEventsDone === 0) {
     const types = currentStage(world).types;
     const fair = pool.filter((id) => types.every((t) => effectiveness(t, ENEMIES[ARENA_BOSSES[id].enemy].types) >= 1));

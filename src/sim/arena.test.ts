@@ -30,10 +30,13 @@ function openFirstEntrance(world: World): void {
   step(world, IDLE, DT);
 }
 
-/** Walks into the first event's arena; `bossId` picks the boss (the pool is random). */
+/** Walks into the arena of the event that draws `bossId`'s tier (event N = tier N, owner 2026-10-23). */
 function enter(world: World, bossId: ArenaBossId = 'snorlax'): void {
   world.arenaBossesUsed = ARENA_BOSS_IDS.filter((id) => id !== bossId);
-  openFirstEntrance(world);
+  const event = ARENA_BOSSES[bossId].tier - 1;
+  world.arenaEventsDone = event;
+  world.time = world.arenaSchedule[event]!;
+  step(world, IDLE, DT);
   const e = world.entrance!;
   world.player.x = e.x;
   world.player.y = e.y;
@@ -747,23 +750,98 @@ describe('Zapdos (D32)', () => {
     }
     step(world, IDLE, DT);
   };
+  /** Shield down without the Overload window, for tests of the moves themselves. */
+  const dropShield = (world: World, zap: NonNullable<World['arena']>['zap'] & object) => {
+    breakPylons(world, zap);
+    zap.overloadLeft = 0;
+    zap.moveGap = 0; // the Overload step held it busy
+    world.arenaNotice = null;
+  };
 
-  it('three generators shield it (×0.25) until broken; a broken one is rebuilt later', () => {
+  const breakOne = (world: World, zap: NonNullable<World['arena']>['zap'] & object, i: number) => {
+    damageEnemy(world, world.enemies.find((en) => en.id === zap.pylons[i]!.enemyId)!, 1e9);
+    step(world, IDLE, DT);
+  };
+
+  it('three generators shield it (×0.25) while any stands; a lone broken one is rebuilt on its own', () => {
     const { world, boss, zap } = fight();
     expect(zap.pylons.filter((p) => p.enemyId !== null)).toHaveLength(ZAPDOS_KIT.pylons.count);
     expect(world.enemies.filter((e) => e.kind === 'pylon')).toHaveLength(ZAPDOS_KIT.pylons.count);
     expect(damageEnemy(world, boss, 100)).toBeCloseTo(100 * ZAPDOS_KIT.pylons.shieldMult);
-    breakPylons(world, zap);
-    expect(zap.pylons.every((p) => p.enemyId === null)).toBe(true);
-    expect(damageEnemy(world, boss, 100)).toBeCloseTo(100);
+    breakOne(world, zap, 0);
+    expect(zap.pylons[0]!.enemyId).toBeNull();
+    expect(damageEnemy(world, boss, 100)).toBeCloseTo(100 * ZAPDOS_KIT.pylons.shieldMult);
+    expect(zap.overloadLeft).toBe(0);
     expect(world.gems).toHaveLength(0); // generators pay no XP
     run(world, ZAPDOS_KIT.pylons.recharge + DT);
+    expect(zap.pylons[0]!.enemyId).not.toBeNull();
+  });
+
+  it('all generators down at once Overloads it: no moves, ×1.5 damage, then Weakened (slower)', () => {
+    const { world, f, boss, zap } = fight();
+    const { overload } = ZAPDOS_KIT;
+    breakPylons(world, zap);
+    expect(world.arenaNotice?.kind).toBe('overloaded');
+    expect(zap.overloadLeft).toBeGreaterThan(0);
+    expect(damageEnemy(world, boss, 100)).toBeCloseTo(100 * overload.damageTakenMult);
+    zap.cooldowns.thunder = 0;
+    run(world, 1);
+    expect(zap.strikes).toHaveLength(0);
+    expect(boss.speed).toBe(0);
+    run(world, overload.seconds);
+    expect(zap.overloadLeft).toBeLessThanOrEqual(0);
+    expect(zap.weakLeft).toBeGreaterThan(0);
+    expect(damageEnemy(world, boss, 100)).toBeCloseTo(100);
+    zap.cooldowns.thunder = 99;
+    zap.strikes = [];
+    step(world, IDLE, DT);
+    expect(boss.speed).toBeCloseTo(f.bossSpeed * overload.weakSpeedMult);
+  });
+
+  it('the phase change waits out an Overload', () => {
+    const { world, boss, zap } = fight();
+    breakPylons(world, zap);
+    boss.hp = boss.maxHp * 0.6;
+    run(world, 1);
+    expect(zap.phase).toBe(1);
+    run(world, ZAPDOS_KIT.overload.seconds);
+    expect(zap.phase).toBe(2);
+  });
+
+  it('Weakened stretches its moves: a Drill Peck wind-up lasts ×1.5', () => {
+    const { world, zap } = fight();
+    const { telegraph } = ZAPDOS_KIT.drillPeck;
+    zap.weakLeft = 99;
+    zap.moveGap = 0;
+    zap.cooldowns.drillPeck = 0;
+    step(world, IDLE, DT);
+    expect(zap.peck?.phase).toBe('windup');
+    run(world, telegraph * 1.2);
+    expect(zap.peck?.phase).toBe('windup');
+    run(world, telegraph * 0.4);
+    expect(zap.peck?.phase).not.toBe('windup');
+  });
+
+  it('after an Overload all generators rebuild together, so one rebuilt pylon cannot re-trigger it', () => {
+    const { world, zap } = fight();
+    const { recharge } = ZAPDOS_KIT.pylons;
+    breakOne(world, zap, 0);
+    run(world, 20);
+    breakOne(world, zap, 1);
+    breakOne(world, zap, 2);
+    expect(zap.overloadLeft).toBeGreaterThan(0);
+    for (const p of zap.pylons) expect(p.recharge).toBeCloseTo(recharge - DT, 1);
+    run(world, recharge - 1);
+    expect(zap.pylons.every((p) => p.enemyId === null)).toBe(true);
+    run(world, 2);
     expect(zap.pylons.every((p) => p.enemyId !== null)).toBe(true);
+    breakOne(world, zap, 0);
+    expect(zap.overloadLeft).toBeLessThanOrEqual(0);
   });
 
   it('phase gate holds HP at 66%; the Charge-up and Rain Dance animations are immune', () => {
     const { world, boss, zap } = fight();
-    breakPylons(world, zap);
+    dropShield(world, zap);
     boss.hp = boss.maxHp * 0.7;
     damageEnemy(world, boss, boss.maxHp);
     expect(boss.hp).toBeCloseTo(boss.maxHp * ZAPDOS_KIT.phaseAt[0]);
@@ -898,7 +976,7 @@ describe('Zapdos (D32)', () => {
   it('Discharge: enough damage during the channel interrupts it; otherwise only the safe ring is safe', () => {
     for (const mode of ['interrupt', 'safe', 'outside'] as const) {
       const { world, boss, zap } = fight(3);
-      breakPylons(world, zap);
+      dropShield(world, zap);
       zap.raining = false;
       zap.cooldowns.discharge = 0;
       step(world, IDLE, DT);
@@ -919,7 +997,7 @@ describe('Zapdos (D32)', () => {
 
   it('Roost (once per phase, after losing HP): heals and loses Flying, so Ice is no longer super effective', () => {
     const { world, boss, zap } = fight();
-    breakPylons(world, zap);
+    dropShield(world, zap);
     boss.hp = boss.maxHp * 0.8;
     step(world, IDLE, DT);
     expect(zap.roost).not.toBeNull();

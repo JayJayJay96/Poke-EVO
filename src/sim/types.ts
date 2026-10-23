@@ -643,6 +643,9 @@ export interface ZapdosState {
   agilityLeft: number;
   roost: { left: number } | null;
   discharge: { left: number; taken: number; readonly safeX: number; readonly safeY: number; phase: 'channel' | 'recover' } | null;
+  /** Overload (all generators down at once): seconds of the crash, then of the Weakened tail. */
+  overloadLeft: number;
+  weakLeft: number;
 }
 
 export interface ArenaFight {
@@ -738,7 +741,7 @@ export interface ArenaFight {
 
 /** Arena news for the scene to show once (D28). */
 export interface ArenaNotice {
-  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'knockedOut' | 'rest' | 'woke' | 'bellyDrum' | 'chargeUp' | 'rainDance';
+  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'knockedOut' | 'rest' | 'woke' | 'bellyDrum' | 'chargeUp' | 'rainDance' | 'overloaded';
   readonly bossId: ArenaBossId;
 }
 

@@ -76,6 +76,14 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-23 — Boss tiers; Zapdos Overload and Weakened windows (D38)
+- **Objective:** owner asked to make Zapdos a tier 2 boss and add a weakened window once its generators are broken. **Status:** built and tested; not committed.
+- **Changed:** `src/data/arena.ts` (`ArenaBossDef.tier`, Snorlax 1 / Zapdos 2, `ZAPDOS_KIT.overload`), `src/sim/arena.ts` (`arenaBossChoices` draws event N from tier N; past the top tier, the top tier), `src/sim/types.ts` (`overloadLeft`, `weakLeft`, notice `overloaded`), `src/sim/bosses.ts` (`updatePylons` reports the last break, `overloadZapdos`, Weakened slows Zapdos's move clock and speed), `src/sim/combat.ts` (×1.5 while Overloaded), `src/scenes/RunScene.ts` (sparks / broken ring, HUD countdown, notice), `src/sim/arena.test.ts` (`enter` opens the boss's tier event; 5 new tests), BOSSES.md, PROJECT.md D38.
+- **Commands:** `npm run typecheck` clean; `npx vitest run` **497/497 passed**; `npm run build` passes. Browser (dev server, event 2 forced via `window.__world`): drew Zapdos, breaking all 3 pylons showed the notice, sparks and "Overloaded 5 s"; after it "Weakened 5 s", the broken ring, speed 75.6 of 126 (×0.6), all 3 generators recharging in sync. No console errors. The pane ran in the background, so the sim was stepped by hand; real-time feel not checked.
+- **Pending:** owner playtest of the Overload feel (5 s + 5 s, ×1.5). Articuno/Moltres as more tier 2 bosses still need approval (batch 3). With one boss per tier every run now meets Snorlax then Zapdos.
+- **Next:** owner playtest; commit when asked.
+- **Build runs:** yes.
+
 ### 2026-10-23 (overnight) — Batch-2 enemies, player statuses, status resistance (D36, D37)
 **Owner (going to sleep):** "implement whatever that we discuss and approved beforehand in the documents… if there's no more task, design the next 10 enemies with their respective roles, and the next boss". Nothing is committed: the owner commits in the morning, and the skill team's D30 files are still uncommitted in this tree.
 

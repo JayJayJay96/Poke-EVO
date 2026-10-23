@@ -221,6 +221,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     (sleeping ? SNORLAX_KIT.rest.damageTakenMult : 1) *
     // Zapdos's generators: shielded while any pylon stands.
     (zap?.pylons.some((p) => p.enemyId !== null) ? ZAPDOS_KIT.pylons.shieldMult : 1) *
+    (zap && zap.overloadLeft > 0 ? ZAPDOS_KIT.overload.damageTakenMult : 1) *
     // The move's own hits only (procs carry no slot): Volatility's roll and Predatory's bonus below half HP.
     (slot ? slot.volatileMult : 1) *
     (slot && slot.stats.executePct > 0 && enemy.hp < enemy.maxHp * 0.5 ? 1 + slot.stats.executePct : 1);

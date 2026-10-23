@@ -14,12 +14,17 @@ export interface ArenaBossDef {
   readonly entrance: ArenaEntranceKind;
   /** Seconds to win once the fight starts (BOSSES.md: Snorlax's target fight is 60–90 s). */
   readonly timeLimit: number;
+  /**
+   * Boss tier (owner 2026-10-23): event N draws from tier N. Tier 1 are strong regulars (Snorlax); tier 2 are the
+   * legendary birds, one tier below Mewtwo.
+   */
+  readonly tier: 1 | 2;
 }
 
 export const ARENA_BOSSES: Readonly<Record<ArenaBossId, ArenaBossDef>> = {
   // Owner 2026-10-23: 6 min to win, and arena time doesn't count on the run clock (was 120 / 150 s).
-  snorlax: { id: 'snorlax', enemy: 'snorlax', entrance: 'mountainHole', timeLimit: 360 },
-  zapdos: { id: 'zapdos', enemy: 'zapdos', entrance: 'whirlwind', timeLimit: 360 },
+  snorlax: { id: 'snorlax', enemy: 'snorlax', entrance: 'mountainHole', timeLimit: 360, tier: 1 },
+  zapdos: { id: 'zapdos', enemy: 'zapdos', entrance: 'whirlwind', timeLimit: 360, tier: 2 },
 };
 
 /**
@@ -56,6 +61,13 @@ export const ZAPDOS_KIT = {
    * ×`shieldMult`. A broken one is rebuilt `recharge` s later. Pylon HP = Zapdos's max HP × `hpFraction`.
    */
   pylons: { count: 3, ringFraction: 0.65, hpFraction: 0.04, recharge: 35, shieldMult: 0.25 }, // owner 2026-10-23: rebuilt too fast at 20 s
+  /**
+   * Overload (owner 2026-10-23): when all generators are down at once, Zapdos crashes for `seconds` (no moves, takes
+   * ×`damageTakenMult`), then stays Weakened for `weakSeconds` (×`weakSpeedMult` speed; its telegraphs, casts and
+   * cooldowns run ×`weakTimeMult` slower). All generators then rebuild together, `pylons.recharge` s after the crash,
+   * so a single rebuilt pylon can't be broken for a cheap second Overload.
+   */
+  overload: { seconds: 5, damageTakenMult: 1.5, weakSeconds: 5, weakSpeedMult: 0.6, weakTimeMult: 1.5 },
   /** Thunder: two rings at once, one on you and one where you're heading (bracket). */
   thunder: { cooldown: 4, firstAfter: 2, radius: 55, telegraph: 0.9, lead: 1, damageFactor: 1.4 },
   /** Thunderstorm (phase 2+): three strikes on you, the gaps shrinking (rhythm). */
