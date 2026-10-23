@@ -76,6 +76,75 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-23 — Techniques + Natures built (D40); rest regen + level growth (D44)
+**Objective:** build D40 from the approved spec, then the owner's follow-up: "getting hit in early stage without berry is too punishing", with stats growing every level. **Status:** both built, tested, committed. Not playtested by the owner.
+
+**D40, what works** (commit `0333ef4`; plan `docs/superpowers/plans/2026-10-23-techniques-natures.md`)
+- Normal levels offer learnset moves, **Techniques** and **Natures**.
+  - Each offer holds at least 1 Technique while one is available.
+  - Vitality and Magnet only appear when the pool has fewer than 3 cards.
+- **Techniques:** 13 of them, ranks I–III, 5 slots; once full, only rank-ups are offered.
+  - Tag-linked ones need a move with the tag (Kindling: Fire, Brawler: Melee/Contact…).
+  - Data in `src/data/techniques.ts`.
+  - Effects in `src/sim/techniques.ts`, called from `damageEnemy`, `hitPlayer`/`drainPlayer`, `fire`, `updateMoves`, `updateGems` and `step`.
+  - Anything a Technique creates triggers no Technique (`procDepth`, `Enemy.techMarked`).
+- **Natures** (Brave, Timid, Bold, Hasty; 3 picks each) replace the 6 flat boosts.
+  - Stacked downsides stop at 50% damage and speed, and max HP never drops below 20.
+- Build snapshot v4 saves Techniques.
+- UI:
+  - Technique cards have a mint frame and a `TECHNIQUE · Fire` heading for tag-linked ones.
+  - Nature cards read `NATURE`.
+  - The HUD has a Techniques line (Moxie shows its stack, Endure shows its cooldown).
+  - The build panel lists Techniques.
+- **Forced deviations from the spec** (recorded in D40):
+  - Frostbite triggers on a **slowed** kill, because enemies have no frozen state.
+  - Spore Cloud's puff is instant.
+  - Rollout resets only on the cast that uses it; with auto-fire, "any cast" would never let it charge.
+
+**D44, what works** (commit `1ce8f31`; renumbered in `512a5d8` and `3fbc65e`)
+- **Rest regen:** after 5 s without damage, the player regenerates 1% of max HP per second. A landed hit or a poison tick resets the wait, and the HUD shows "(resting +)".
+- **Level growth:** each level past 1 adds +2 max HP (healed as gained) and +1% damage. It applies in `gainXp`, the moment the level is gained, even while the card is banked.
+- Tuning is in `TUNING.restRegen` and `TUNING.levelGrowth`.
+- **Numbering:** first committed as "D42". Another session's Machamp design used D42 and was then committed as D43, so this is **D44**. The two old commit subjects say D42; the renumber commits explain why.
+
+**Checks (observed)**
+- `tsc --noEmit` clean; `npx vitest run` **523/523 passed**. New tests:
+  - `src/sim/techniques.test.ts`: 19 tests (pool, every Technique, no proc-from-proc, Natures, snapshot)
+  - `src/sim/growth.test.ts`: 3 tests
+  - updated old tests that used the removed boost ids
+- `npm run build` passed.
+- **Browser** (port 5180):
+  - normal-level cards show NEW MOVE / TECHNIQUE / NATURE; a rank-up card reads "Moxie III (rank up)"
+  - picking Rollout works; the Techniques HUD line shows
+  - Lv 5 gives max HP 108; "(resting +)" appears and HP climbs
+  - no console errors
+  - the pane was throttled, so the sim was stepped from the page; the tool's own key presses don't reach Phaser
+- **Balance bot**, 8 seeds, invulnerable random-pick bot. Each run used a clean copy of the commit, so other sessions' uncommitted edits were not included. 15:00 site DPS (level 46–50):
+
+  | line | before D40 (`aa114e8`) | D40 | D40 + D44 |
+  |---|---|---|---|
+  | Charmander | 813 | 673 | 1571 |
+  | Squirtle | 963 | 742 | 1073 |
+  | Bulbasaur | 855 | 599 | 1175 |
+  | Pikachu | 509 | 868 | 1115 |
+  | Lapras | 950 | 348 | 812 |
+
+  - D40 alone lowers bot firepower in 4 of 5 lines. The bot picks at random and can't use the defensive Techniques (it's never hit), and Power/Haste are gone.
+  - D44's +1% per level is about +47% damage at Lv 48, so late runs are stronger than before D40.
+  - The no-site 15:00 levels were already 19–33 before D40 (baseline). The low levels come from earlier changes, not D40 or D44.
+  - D19 is noisy here: with sites, Squirtle (1073) is 4% below Pikachu (1115).
+
+**Risks / debt**
+- Late-game damage is up a lot with level growth. If late runs feel too easy, retune enemy HP scaling or lower `levelGrowth.damagePct`.
+- The balance bot can't value Endure, Rage, Pickup, Brawler or Bold. A playtest is the real check.
+- A spread burn or poison marks its enemy for good (code comment `shortcut:`).
+
+**Next:**
+1. The owner playtests Techniques/Natures and rest regen/growth.
+2. Then the tuning pass: late-game damage, D19.
+
+**Build runs:** yes.
+
 ### 2026-10-23 — Volt Tackle lands invulnerable (owner playtest)
 - **Why:** Volt Tackle dashes into the nearest enemy, so Pikachu landed in the crowd and took contact hits at once ("very very risky").
 - **Change:** `quickAttack.voltTackle` gains `invulnSeconds: 0.8` (`src/data/mutations.ts`); the dash sets `invulnLeft` like Flare Up does (`src/sim/mutationDefs/quickAttack.ts`). Recoil unchanged. Doc row in `docs/moveset/pikachu/README.md`.
