@@ -8,6 +8,7 @@ import { currentStage } from './stats';
 import { statusMult } from './statusResist';
 import { NO_HIT, damageEnemy } from './combat';
 import { spawnPuddle } from './terrain';
+import { createProjectile, updateProjectiles } from './forms/projectile';
 import { MAX_COMBO_MOVES, comboCandidates, comboCooldown, learnsetSlotsUsed } from './combo';
 import { buildCardPool } from './progression';
 import { createSeededRng } from './rng';
@@ -327,6 +328,18 @@ describe('Snorlax phase 1 kit (B1-3)', () => {
     step(world, IDLE, DT);
     expect(f.rubble).toHaveLength(0);
   });
+
+  it('rubble stops your projectiles: a shot that reaches a rock ends there', () => {
+    const { world } = fight();
+    const f = world.arena!;
+    f.rubble.push({ x: f.x, y: f.y - 150, radius: 26, left: 99 });
+    const shot = createProjectile();
+    Object.assign(shot, { x: f.x - 100, y: f.y - 150, vx: 300, vy: 0, speed: 300, radius: 6, lifeLeft: 5, dead: false });
+    world.projectiles.push(shot);
+    for (let i = 0; i < 60 && !shot.dead; i++) updateProjectiles(world, DT);
+    expect(shot.dead).toBe(true);
+    expect(shot.x).toBeLessThan(f.x);
+  });
 });
 
 describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
@@ -441,6 +454,8 @@ describe('Snorlax B2: Rest, Yawn, Belly Drum, Hyper Beam', () => {
     const f = world.arena!;
     f.phase = 2;
     f.yawnCooldown = 0;
+    world.player.x = boss.x;
+    world.player.y = boss.y + SNORLAX_KIT.yawn.trigger; // its trigger edge: standing still there is inside the cloud
     step(world, IDLE, DT);
     const cloud = f.yawn!;
     expect(cloud.phase).toBe('windup');
@@ -587,6 +602,23 @@ describe('Snorlax variety and immunity (owner 2026-10-22)', () => {
       if (behind) expect(world.player.hp).toBe(hp);
       else expect(world.player.hp).toBeLessThan(hp);
     }
+  });
+
+  it('Crunch starts only when its bite reaches you: standing still at its trigger range gets hit', () => {
+    const { world, boss } = fight();
+    const f = world.arena!;
+    world.player.invulnLeft = 0;
+    world.player.x = boss.x;
+    world.player.y = boss.y + boss.radius + world.player.radius + SNORLAX_KIT.crunch.range - 1;
+    // The drawn cone covers your whole body, not just the front of it.
+    expect(world.player.y - boss.y + world.player.radius).toBeLessThanOrEqual(SNORLAX_KIT.crunch.reach);
+    f.cooldowns.crunch = 0;
+    step(world, IDLE, DT);
+    expect(f.crunch?.phase).toBe('windup');
+    const hp = world.player.hp;
+    f.crunch!.left = DT / 2;
+    step(world, IDLE, DT);
+    expect(world.player.hp).toBeLessThan(hp);
   });
 
   it('Rock Slide drops rocks on you and around you; one stays as rubble', () => {

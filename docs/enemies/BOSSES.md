@@ -39,6 +39,10 @@ running. So each boss mixes attacks that **speed doesn't answer**. All of these 
 - The target point **locks when the telegraph starts**; it never re-aims during the wind-up.
 - The telegraph is drawn **at the locked point**, so a lead-aimed ring appears ahead of the player.
 - Each move has a **fixed lead value** (0, 0.5 or 1) the player can learn. Only Mewtwo mixes them.
+- **A cone or melee swing starts only when you're well inside it** (owner 2026-10-23): its trigger range leaves a
+  standing player's **whole body** inside the drawn cone (trigger ≈ 75% of reach). Standing still gets you hit;
+  moving away during the telegraph escapes. Applies to enemies (Zubat), bosses (Crunch, Yawn, Machamp's chops) and,
+  the same way, the player's own melee swings (they wait until a target is really in reach).
 
 ## 2b. Projectile layer (owner, 2026-10-21)
 Owner: ground telegraphs alone are easy to dodge, so pair them with **projectiles in the air**: mixed speeds, and
@@ -151,6 +155,115 @@ special animations must not be burst through. All numbers are in `SNORLAX_KIT` (
   window.
 - **Phase gate:** damage can't take Snorlax below its next Rest threshold until that Rest has started, so a burst
   can't skip a phase. Phase 3 has no gate.
+- **Rubble is a wall for your shots too (owner 2026-10-23, D41):** a projectile that reaches a rock ends its flight
+  there (its end-of-flight effects fire at the rock). Beams, melee and zones are unaffected. Snorlax hiding behind
+  rubble is now real cover; Fling taking a rock opens the line again.
+
+### Tier 1 candidates (2026-10-23): Machamp approved (D43), Kangaskhan DRAFT
+Owner: "plan for tier 1 bosses 1st, let me see the moveset and how they execute them". Two strong regulars to join
+Snorlax in the event-1 pool (D38). Both follow D31 (immune phase-change animations, phase gate, 10+ moves), §2
+(speed alone doesn't solve them) and §2b (one projectile layer). Neither resists any starter's type, so both pass the
+event-1 fairness filter for every starter. 6-min limit (D33); target fight ~60–90 s like Snorlax. Every number
+provisional.
+
+#### Machamp: "The dojo master" (Saffron Dojo). **Design approved (owner 2026-10-23, D43); tier 1; to build**
+Owner additions: a rock skill (grab a nearby rock or rip one from the ground, then throw it, shield-charge with it,
+or rarely shield-pose with it: "a big element of surprise"); faster than Snorlax "since he so fit"; the openings
+come from **flexing poses** between attack strings.
+
+| | |
+|---|---|
+| **Types** | Fighting |
+| **Damage taken** | **Flying ×2** (Charizard's Flying moves); every other starter type ×1 |
+| **Ability: Guts** | While it carries a status **you** put on it (burn, poison, paralysis…), it hits ×1.3. The status still ticks. Build interaction: status builds speed the race up but make it scarier |
+| **Speed** | **×1.4 Snorlax's**, but always **slower than the slowest starter**: kiting works, at a cost. Tuned with the balance bot |
+| **Question it asks** | Can you read a combo string, then punish the pose, instead of kiting forever? |
+| **Rough cost** | 🟡: cones, rings, dashes, rubble and interrupt bars exist; new: the X telegraph (two lines), the held-rock shield (rubble that moves with it), the throw (a push), the lob |
+
+**Rhythm: attack, attack, pose.** After every **2–3 attacks** he stops and **flexes for 1.2 s** (0.8 s in phase 3).
+This is **Bulk Up** and the fight's main opening:
+- He never attacks straight out of a pose; every move after it still has its full telegraph.
+- **Interruptible, not immune:** deal **4% of his max HP** during the pose and he's thrown off (no stack). Leave him
+  alone and he gains a **Bulk Up stack: +15% damage, up to 3**, for the rest of the fight. The opening and the
+  damage race are the same moment.
+
+**The rock in hand (signature).** He takes a rock from within ~150 px (rubble, a Rock Tomb rock, a leftover
+boulder) in 0.5 s, or **rips one from the ground** in 0.8 s (a small crater). The held rock is a **shield in front
+of him**: it blocks your shots like any rubble (D41), and it has **HP**. **Break it at any point and he staggers
+for 1.5 s** (a big opening for strong builds). Then, after a **0.4 s tell**, one of three follow-ups (never the same
+one twice in a row):
+
+| Follow-up | Weight | Tell | What happens | Answer |
+|---|---|---|---|---|
+| **Rock Throw** (ammo) | 45 | Rock raised **overhead** | Lobs it at a **lead-1** ring (0.9 s). It lands and **cracks into 2–3 rocks** around the landing spot, which can box you in | Change direction during the lob; don't get walled in |
+| **Strength** (shield + charge) | 40 | Rock at the **chest**, crouched, feet scraping | Walks at you with **momentum**: ×0.6 → ×1.6 speed over 2 s, turning slowly (a sharp sidestep shakes him; running straight doesn't). Within 220 px or after 2.5 s he plants: a **locked line** (0.5 s), then the rock breaks into **3 boulders rolling along it** (5 in phase 3). They stop at the wall and **stay as rocks** (his next ammo, and cover for both of you). Recover 0.8 s | Flank him or break the shield; sidestep the line |
+| **Iron Pose** (shield + Bulk Up) | 15 (25 in phase 3) | Rock **planted in front**, arms glowing | The pose behind his rock: shots from the front are blocked. Completed, it gives **2 stacks** | Run round his side and interrupt him there, or break the rock |
+
+The rocks he leaves feed the next grab, so the rock moves come more often as the fight goes on.
+
+| Move | Phase | How it executes | Answer |
+|---|---|---|---|
+| **Karate Chop** | 1+ | **3 chops** in a 70° cone in front, each re-aimed (lead 0) and stepping 30 px forward, gaps **0.7 / 0.55 / 0.4 s** (rhythm); 4 chops from phase 2. Recover 0.6 s | Timing; sidestep the last chop and punish |
+| **Cross Chop** | 1+ | Crouch 0.3 s, leap to a **lead-0.5** spot; an **X telegraph** (two crossing 180 px lines) for 0.9 s, then lands. High damage; **recover 0.9 s** | Stand in a gap between the X's arms, then punish the long recover |
+| **Low Sweep** | 1+, you within 120 px | A ring around itself, 0.6 s; slows you 40% for 2 s | Don't hug it when its legs glow |
+| **Rock Tomb** | 1+ | Throws **3 boulders** at lead 1, a ring each (0.9 s); they stay **8 s as rocks** (block you and your shots; ammo for the rock in hand). Hit = slow 2 s | Rocks can trap you; keep a lane open |
+| **Seismic Toss** | 1+, you within 90 px | A grab ring around it, 0.7 s. If you're inside when it closes: it **throws you 220 px** toward the arena wall (a push, never a stun) for **6% of your max HP** whatever your defences (lore: fixed damage) | Back off when the grab ring shows |
+| **The rock in hand** | 1+ | Above: Rock Throw / Strength / Iron Pose | Read the tell |
+| **Bulk Up pose** | after every 2–3 attacks | Above: the interruptible opening | Punish it |
+| *Phase change 66%* | | **Immune 1.5 s:** it tears its belt (Focus Energy) | |
+| **Bullet Punch** | 2+, you 120–260 px | A priority dash: tiny 0.35 s line telegraph, 260 px at ×4 speed, lead 0 | Answers "stand just outside melee": move sideways when it flashes |
+| **Dynamic Punch** | 2+ | A charged fist: big ring (110 px) at **lead 0.5**, slow 1.2 s telegraph. Hit = heavy damage + **confusion 2 s** (lore: always confuses) | The ring is big but slow: leave early |
+| **Focus Blast** | 2+ | A slow orb that **homes for 2.5 s** then flies straight; it has HP, so **your auto-fire can shoot it down** (§2b). Explodes in a ring | Kill it or shake it with a sharp turn |
+| *Phase change 33%* | | **Immune 1.5 s:** No Guard stance (four arms spread). Poses shorten to 0.8 s | |
+| **Focus Punch** | 3 | **2 s focus channel** with an **interrupt bar** (deal 5% max HP to break it; lore: fails if it's hit). If it completes: a **lead-0 line punch across the whole arena** | Go aggressive during the focus |
+| **Close Combat** | 3 | A 5-hit flurry in a 90° cone (gaps 0.35 s), lead 0. Afterwards it takes **×1.5 for 3 s** (lore: drops its defences) | Survive it, then burst |
+
+- **Picker:** weighted, never the same move twice, 0.5 s between moves (as Snorlax), and a Bulk Up pose after every
+  2–3 attacks. Melee moves weigh more when you're close; Bullet Punch, Focus Blast and the rock in hand more when
+  you're far, so kiting is answered.
+- **Immune** only during the two phase-change animations (D31). The poses, the rock moves and Focus Punch are all
+  hittable windows. **Phase gate** at 66% and 33%.
+- **Player statuses used:** slow, confusion (both built, D36). The throw is a push (owner rule: no stun on the player).
+- **Adds:** none (a dojo duel). Machop later if batch 3 adds it.
+- **Detect** (draft) was dropped: the rock shield does the same job (a front guard you circle).
+- **Provisional, tune after the first playtest:** Seismic Toss's 6% and 220 px; Guts ×1.3; the follow-up weights;
+  the pose length and interrupt amount; the shield's HP.
+
+#### Kangaskhan: "The Safari Zone mother"
+| | |
+|---|---|
+| **Types** | Normal |
+| **Damage taken** | Every starter type ×1 |
+| **Ability: Parental Bond** (lore: Mega Kangaskhan) | While the **baby is in the pouch**, every punch or stomp **echoes**: the same telegraph lands again **0.3 s later at 50% damage**. The echo's outline is drawn with the first, so it's readable |
+| **Question it asks** | Who does your auto-fire hit first? Kill the baby (the mother enrages) or leave it (the echoes return)? Your **position** picks the target |
+| **Rough cost** | 🟡: the echo is a delayed copy of a telegraph (cheap); the baby is an add with its own small AI and HP bar |
+
+**The baby.** About 12% of the mother's max HP, its own HP bar. Phase 1: safe in the pouch (untargetable), so every
+punch echoes. At 66% it **hops out** and runs around on its own. If it's still alive at 33%, it **jumps back in**
+(healed) and the echoes return, now at 70% damage. **If you kill it:** the mother does an **immune 1.5 s roar** and
+becomes **Enraged** for the rest of the fight: ×1.25 speed, ×1.25 damage, half-length recover windows, Outrage
+unlocked, and **no more echoes**. That choice is the fight.
+
+| Move | Phase | How it executes | Answer |
+|---|---|---|---|
+| **Comet Punch** | 1+ | 4 jabs in a 60° cone, gaps 0.5 / 0.45 / 0.4 / 0.35 s, lead 0; each jab echoes | Step out, and **don't step back in** for the echo |
+| **Dizzy Punch** | 1+ | A ring on you at **lead 0.5**, 0.8 s. Hit = **confusion 2 s**. Echoes | Change direction during the telegraph |
+| **Stomp** | 1+ | A ring on you at lead 0, 0.7 s; hit = slow 1 s (lore: flinch). The echo lands on the **same spot** 0.3 s later | Leave the ring and stay out |
+| **Double-Edge** | 1+ | Line charge: 0.8 s telegraph, 280 px dash at ×3 speed. **Recoil:** she loses 3% of her max HP. Recover 0.7 s | Sidestep; the recoil is free damage |
+| **Fake Out** | first move of each phase, and right after the baby hops out | A fast 0.4 s clap ring around her; only hits if you're hugging her; slow 1 s | Don't stand on her at a phase change |
+| *Phase change 66%* | | **Immune 1.5 s:** the baby hops out (Fake Out follows) | |
+| **Baby: Bite / Tackle** | 2 (baby out) | The baby runs at you and lunges (0.5 s line, short) | Moving away drags it from the mother |
+| **Baby: Mud-Slap** | 2 (baby out) | The baby kicks a **mixed-speed fan** of 5 mud pellets (lanes, §2b); hit = slow 1 s | Read the lanes |
+| **Guard the baby** | 2, baby below 50% | The mother **dashes to stand over the baby** and raises a guard arc facing you (locked) for 3 s: shots from the front blocked | Circle round, or switch to hitting her |
+| *Phase change 33%* | | **Immune 1.5 s:** the baby returns to the pouch (if alive) or the Rage roar (if not) | |
+| **Hammer Arm** | 3 | A huge ring (130 px) at lead 0.5, 1.1 s; afterwards **she is slowed ×0.6 for 3 s** (lore: lowers her speed) | Leave early, then punish the slow window |
+| **Drain Punch** | 3 | A lead-0 cone punch, 0.6 s; heals her **by the damage it deals you** | Don't get hit: it's a damage race |
+| **Hyper Voice** | 3 | A cone of **sound bars** rolling out at 3 speeds (lanes). Echoes if the baby is in | Read the lanes |
+| **Outrage** | Enraged only | **3 dashes** at you, re-aimed each time (rhythm 0.6 / 0.5 / 0.4 s), then **confused 3 s**: she wobbles and takes ×1.5 | Survive three, then burst |
+
+- **Phase gate** at 66% and 33% (D31). Immune only during the phase-change animations and the Rage roar.
+- **Player statuses used:** confusion, slow (built, D36).
+- **Flagged for owner approval:** Parental Bond as the identity (it's Mega Kangaskhan's ability); the echo at 50% → 70%; Enraged numbers; whether the baby gives XP.
 
 ### Articuno: rift. "Cover that your own fire melts"
 | | |

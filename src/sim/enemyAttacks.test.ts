@@ -161,7 +161,7 @@ describe('batch-2 attack styles (D37, ROSTER)', () => {
 
   it('Zubat: Supersonic confuses you inside its locked cone, not behind it', () => {
     for (const behind of [false, true]) {
-      const { world, e } = near('zubat', 100);
+      const { world, e } = near('zubat', atk('zubat').range);
       step(world, IDLE, DT);
       expect(e.atkPhase).toBe('windup');
       e.stunLeft = 0;

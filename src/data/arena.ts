@@ -157,7 +157,8 @@ export const SNORLAX_KIT = {
    */
   snore: { interval: 1.5, speed: 170, thickness: 18, gapDeg: 70, gapTurnDeg: 75, maxRadius: 480, damageFactor: 0.6 },
   /** Yawn (phase 2+): a cone telegraph, then a drowsy cloud that slows the player inside it (no sleep, §10). */
-  yawn: { cooldown: 9, telegraph: 0.9, cloudSeconds: 4, range: 240, arcDeg: 90, slow: 0.4 },
+  /** Yawn: the cloud reaches `range`; it's only used when you're within `trigger` (well inside the cloud). */
+  yawn: { cooldown: 9, telegraph: 0.9, cloudSeconds: 4, range: 240, trigger: 180, arcDeg: 90, slow: 0.4 },
   /**
    * Belly Drum (start of phase 3): halves its current HP, doubles its contact (so slams and beams too), then drums
    * its belly for `seconds`, immune (owner 2026-10-22: special animations can't be burst through).
@@ -171,8 +172,11 @@ export const SNORLAX_KIT = {
   moveGap: 0.5,
   /** Relative odds of each move when several are ready. */
   weights: { bodySlam: 3, crunch: 4, rockSlide: 2, yawn: 2, fling: 2, heavySlam: 2, block: 2, hyperBeam: 3, earthquake: 2 },
-  /** Crunch (phase 1+): a quick bite cone when you hug it. `range` is measured from its edge. */
-  crunch: { cooldown: 5, firstAfter: 3, range: 110, reach: 160, arcDeg: 100, telegraph: 0.6, damageFactor: 1.5, recover: 0.5 },
+  /**
+   * Crunch (phase 1+): a quick bite cone when you hug it. `range` is measured from its edge; `reach` from its centre.
+   * It starts only when you're well inside the bite (owner 2026-10-23: it used to end just short of a standing player).
+   */
+  crunch: { cooldown: 5, firstAfter: 3, range: 70, reach: 160, arcDeg: 100, telegraph: 0.6, damageFactor: 1.5, recover: 0.5 },
   /**
    * Rock Slide (phase 1+): a short roar, then rocks fall on ring telegraphs: one where you are, one lead-aimed, the
    * rest scattered near you. `keep` of them stay as rubble (more Snore cover, more Fling ammo).

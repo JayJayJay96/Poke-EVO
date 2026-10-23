@@ -1,6 +1,6 @@
 import type { MeleeMoveDef, TipDef } from '../../data/moves';
-import { MAX_ENEMY_RADIUS, damageEnemy, findNearestEnemy, makeHitInfo, queryEnemies } from '../combat';
-import type { MoveSlot, World } from '../types';
+import { damageEnemy, makeHitInfo, queryEnemies } from '../combat';
+import type { Enemy, MoveSlot, World } from '../types';
 import { spawnZone } from '../zones';
 import { BLAST_SECONDS } from './projectile';
 
@@ -13,7 +13,18 @@ const neighbours: number[] = [];
 export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): boolean {
   const { player } = world;
   const reach = def.reach * slot.stats.area * slot.stats.reachMult;
-  const target = findNearestEnemy(world, reach + MAX_ENEMY_RADIUS);
+  // Only swing at an enemy the swipe can actually reach (by its edge), else the first swing at an approaching enemy
+  // hits air and goes on cooldown (owner 2026-10-23).
+  let target: Enemy | undefined;
+  let nearest = reach;
+  for (const enemy of world.enemies) {
+    if (enemy.hp <= 0) continue;
+    const edge = Math.hypot(enemy.x - player.x, enemy.y - player.y) - enemy.radius;
+    if (edge <= nearest) {
+      nearest = edge;
+      target = enemy;
+    }
+  }
   if (!target) return false;
   const arcDegrees = def.arcDegrees * slot.stats.arcMult;
 

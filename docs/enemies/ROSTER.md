@@ -199,7 +199,7 @@ The rows the player's move types need against the new defender types (modern cha
 | **Elite** | HP 138 · contact 10 · speed 123 · XP 5.9 · radius 18 · half stagger |
 | **Damage taken** | **Electric ×2, Ice ×2**; Poison ×0.5; **Grass ×0.25**; others ×1 |
 | **Status** | Paralysis **1.5** · freeze **1.5** · poison **0.25** · Leech Seed / powders **0.25** · slow 0.5 · trap 0.5 · ground effects 0.5 · all others 1 |
-| **Attack** | Flanker that flies in a weaving line. **Supersonic:** cone telegraph 0.7 s (90°, 102 px, cooldown 6 s), no damage, **player status: confusion** (2 s) |
+| **Attack** | Flanker that flies in a weaving line. **Supersonic:** cone telegraph 0.7 s (90°, 102 px, starts when you are within 80 px, cooldown 6 s), no damage, **player status: confusion** (2 s) |
 | **Ability: Infiltrator** *(reaction)* | The Elite's hits **go through Squirtle's Shell** (they're not blocked, and they don't use up the block). Lore: it slips past barriers and Substitute |
 | **Horde** | `leader` Elite Zubat · `followers` Zubat · `hordeSpeed` 123 |
 

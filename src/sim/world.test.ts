@@ -183,6 +183,22 @@ describe('Scratch (melee form)', () => {
     expect(world.swings).toHaveLength(1);
   });
 
+  it('waits until an approaching enemy is really in reach, so the first swing never hits air', () => {
+    const world = worldWithMove('scratch');
+    world.player.invulnLeft = 99;
+    const e = spawnEnemy(world, 'pidgey', 0, 0);
+    e.speed = 0;
+    e.x = world.player.x + (MOVES.scratch as { reach: number }).reach + e.radius + 5;
+    e.y = world.player.y;
+    step(world, IDLE, DT);
+    expect(world.swings).toHaveLength(0);
+    expect(world.moves[0]!.cooldownLeft).toBe(0);
+    e.x -= 10;
+    step(world, IDLE, DT);
+    expect(world.swings).toHaveLength(1);
+    expect(e.hp).toBeLessThan(e.maxHp);
+  });
+
   it('does not swing when nothing is in reach', () => {
     const world = worldWithMove('scratch');
     const far = spawnEnemy(world, 'raticate', 300, 0);

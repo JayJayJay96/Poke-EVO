@@ -125,6 +125,22 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - Balance-bot runs still level through auto-open, so pacing numbers barely move.
 - Pressing Space during a fight pauses to pick cards. Same as Esc pause; noted, not blocked.
 
+### 2026-10-23 — Machamp design (D43); cones and swings that fall short (owner bug)
+- **Objective:** finish Machamp's design with the owner's additions; then fix cones that "hit the area barely in front" (Bulbasaur's lash vs an approaching mob; boss cones vs a standing player). **Status:** done and tested; not committed. Machamp **not built** yet.
+- **Machamp:** BOSSES.md §4 rewritten as the approved design (rock in hand: throw / Strength charge / rare Iron Pose; ×1.4 Snorlax speed; interruptible Bulk Up poses after every 2–3 attacks; Detect dropped); PROJECT.md D43 (D42 is the skill team's regen).
+- **Root causes found:** (1) `castMelee` targeted enemies out to `reach + MAX_ENEMY_RADIUS` but hits only within `reach + the enemy's own radius`, so the first swing at a small approaching enemy hit air and spent the cooldown. (2) Zubat's cone started at 150 px but reaches 102. (3) Snorlax's Crunch started 110 px from its edge with a 160 px reach from its centre, and Yawn started at exactly its reach, so the cone ended mid-body on a standing player.
+- **Changed:** `src/sim/forms/melee.ts` (`castMelee` picks the nearest enemy by edge distance within reach; shared with the skill team, a self-contained change), `src/data/enemyAttacks.ts` (Zubat range 150 → 80), `src/data/arena.ts` (Crunch range 110 → 70; Yawn `trigger: 180`), `src/sim/bosses.ts` (Yawn uses `trigger`), tests: `world.test.ts` (lash waits for reach; confirmed it fails on the old code), `arena.test.ts` (Crunch covers a standing player's whole body; Yawn test stands at the trigger edge), `enemyAttacks.test.ts` (Zubat at its trigger edge). BOSSES.md §2 fairness rule; ROSTER.md Zubat.
+- **Commands:** `npm run typecheck` clean; `npx vitest run` **520/520 passed**; `npm run build` passes. Browser (Bulbasaur, 5 mob kinds walking at a standing player): every first lash hit, swung at 119–120 px from the mob's edge (reach 120). No console errors.
+- **Risk:** melee lines fire slightly later but never waste a swing, so Bulbasaur/Charmeleon damage rises a little; worth a `npm run balance` check by the skill team.
+- **Next:** build Machamp (tier 1); owner playtest of cones.
+
+### 2026-10-23 — Rubble blocks your shots (D41); tier 1 boss drafts (Machamp, Kangaskhan)
+- **Objective:** owner: projectiles must not pass through Snorlax's rocks; then plan tier 1 bosses' movesets. **Status:** rocks built and tested; boss drafts written, **waiting for owner approval**; not committed.
+- **Changed:** `src/sim/forms/projectile.ts` (`updateProjectiles`: a shot inside an arena rubble rock ends its flight; expiry hooks fire as usual), `src/sim/arena.test.ts` (1 new test; confirmed it fails without the fix), BOSSES.md (Snorlax note; new "Tier 1 candidates" with full Machamp and Kangaskhan kits), PROJECT.md D41 (D39 and D40 were taken by the skill team). Note: `projectile.ts` is shared with the skill team; the change is one check gated on `world.arena`.
+- **Commands:** `npm run typecheck` clean; `npx vitest run` **499/499 passed**; `npm run build` passes. Browser: Snorlax fight forced, a rock between Charmander and Snorlax, 5 s of Ember: 0 shots past the rock, Snorlax took 0 damage; no console errors.
+- **Pending (owner):** ~~approve Machamp~~ **Machamp design approved (D43)** with the owner's rock, speed and flex-pose additions (BOSSES.md); build next. Kangaskhan stays a draft.
+- **Build runs:** yes.
+
 ### 2026-10-23 — Enemy attack telegraphs: slower, smaller (owner playtest)
 - **Objective:** owner playtest on Caterpie: windups "a bit fast", "only avoidable if you're moving"; "reduce the area by maybe 10 or 20%". **Status:** tuned; not committed.
 - **Changed:** `src/data/enemyAttacks.ts`: every enemy attack telegraph **+0.2 s** (Caterpie web 0.5 → 0.7 s, Voltorb fuse 1 → 1.2 s…); hazard areas **×0.85** (web 40 → 34, dive 45 → 38, cone reach 120 → 102, Poison Powder 60 → 51, Abra blink 60 → 51, Self-Destruct 70 → 60). Chansey's heal radius and dart sizes unchanged (not areas you dodge). `enemyAttacks.test.ts`: Oddish test stands 50 px away (was 70, now outside the smaller cloud). ROSTER.md / README.md §9 numbers synced.

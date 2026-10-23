@@ -162,7 +162,8 @@ export const ENEMY_ATTACKS: Readonly<Partial<Record<EnemyId, EnemyAttack>>> = {
 
   // Batch 2 (ROSTER.md, owner-approved 2026-10-21; D37).
   caterpie: { kind: 'web', range: 280, cooldown: 6, telegraph: 0.7, radius: 34, seconds: 5 },
-  zubat: { kind: 'cone', range: 150, cooldown: 6, telegraph: 0.7, reach: 102, arcDeg: 90, status: 'confusion' },
+  // A cone starts only when you're well inside it (range ≤ ~75% of reach + your body): standing still is hit.
+  zubat: { kind: 'cone', range: 80, cooldown: 6, telegraph: 0.7, reach: 102, arcDeg: 90, status: 'confusion' },
   oddish: { kind: 'pulse', range: 90, cooldown: 5, telegraph: 1, radius: 51, status: 'poison', powder: true },
   psyduck: {
     kind: 'ranged',

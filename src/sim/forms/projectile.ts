@@ -123,6 +123,7 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
 export function updateProjectiles(world: World, dt: number): void {
   const { enemies, player } = world;
   const maxTurn = TUNING.homing.turnRate * dt;
+  const rocks = world.arena?.rubble;
   for (const proj of world.projectiles) {
     if (proj.dead) continue;
 
@@ -150,6 +151,8 @@ export function updateProjectiles(world: World, dt: number): void {
       proj.hitIds.length = 0; // the way back may hit the same enemies again
       proj.lifeLeft = proj.turnAt * 2 + 1; // safety cap for the trip home
     }
+    // Arena rubble is a wall (owner 2026-10-23): a shot that reaches a rock ends its flight there.
+    if (rocks && rocks.some((r) => Math.hypot(proj.x - r.x, proj.y - r.y) <= r.radius + proj.radius)) proj.lifeLeft = 0;
     if (proj.lifeLeft <= 0) {
       proj.dead = true;
       const owner = proj.hit.slot;

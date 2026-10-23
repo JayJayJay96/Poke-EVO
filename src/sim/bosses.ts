@@ -454,7 +454,7 @@ function pickMove(world: World, fight: ArenaFight, boss: Enemy): void {
   });
   add('rockSlide', cd.rockSlide <= 0, () => startRockSlide(world, fight));
   // Yawn only within the cloud's reach, so it isn't wasted on a player kiting far away (owner 2026-10-21).
-  add('yawn', fight.phase >= 2 && !fight.yawn && fight.yawnCooldown <= 0 && distance <= kit.yawn.range, () => {
+  add('yawn', fight.phase >= 2 && !fight.yawn && fight.yawnCooldown <= 0 && distance <= kit.yawn.trigger, () => {
     fight.yawn = { x: boss.x, y: boss.y, angle: toPlayer, left: kit.yawn.telegraph, phase: 'windup' };
   });
   add('fling', fight.phase >= 2 && cd.fling <= 0 && fight.rubble.length > 0, () => startFling(world, fight, boss));
