@@ -536,6 +536,9 @@ describe('level-up cards', () => {
     const world = makeWorld();
     gainXp(world, xpToNext(1) + xpToNext(2)); // two level-ups
     step(world, IDLE, DT);
+    expect(world.offer).toBeNull(); // banked (owner 2026-10-23): waits for the player
+    world.openLevelUps = true;
+    step(world, IDLE, DT);
     expect(world.offer).not.toBeNull();
 
     const pausedAt = world.time;
@@ -554,6 +557,43 @@ describe('level-up cards', () => {
     expect(world.offer).toBeNull();
     run(world, 0.5);
     expect(world.time).toBeGreaterThan(pausedAt);
+  });
+
+  it('banked level-ups open on their own at 3 banked or after 30 s, never mid arena fight (owner 2026-10-23)', () => {
+    const { autoOpenAt, autoOpenSeconds } = TUNING.levelUpBank;
+    // Three banked: opens at once.
+    const world = makeWorld();
+    world.pendingLevelUps = autoOpenAt;
+    step(world, IDLE, DT);
+    expect(world.offer).not.toBeNull();
+
+    // One banked: waits, then opens after the time limit.
+    const slow = makeWorld();
+    slow.pendingLevelUps = 1;
+    run(slow, autoOpenSeconds - 1);
+    expect(slow.offer).toBeNull();
+    run(slow, 1.1);
+    expect(slow.offer).not.toBeNull();
+
+    // In an arena fight: nothing opens on its own (evolution waits too), but the player can still open it.
+    const fight = makeWorld({ spawnEnabled: true });
+    fight.spawnTimer = 1e9;
+    fight.player.invulnLeft = 1e9;
+    fight.time = fight.arenaSchedule[0]!;
+    step(fight, IDLE, DT); // the entrance opens
+    fight.player.x = fight.entrance!.x;
+    fight.player.y = fight.entrance!.y;
+    step(fight, IDLE, DT); // in the arena
+    expect(fight.arena).not.toBeNull();
+    fight.pendingLevelUps = autoOpenAt + 2;
+    fight.level = 10; // Charmeleon is due
+    fight.levelUpWait = autoOpenSeconds + 5;
+    step(fight, IDLE, DT);
+    expect(fight.offer).toBeNull();
+    expect(fight.evolution).toBeNull();
+    fight.openLevelUps = true;
+    step(fight, IDLE, DT);
+    expect(fight.offer).not.toBeNull();
   });
 
   it('a Potion heals without exceeding max HP', () => {

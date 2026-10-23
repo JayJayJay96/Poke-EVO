@@ -767,6 +767,11 @@ export const TUNING = {
   stabBonus: 0.2,
   /** Knockback resistance = weight ÷ (weight + this many kg) (D14). */
   knockbackWeightK: 25,
+  /**
+   * Banked level-ups (owner 2026-10-23): level-ups wait in a bank (HUD badge) until the player opens them, or
+   * open on their own at this many banked / after this many seconds. Never on their own in an arena fight.
+   */
+  levelUpBank: { autoOpenAt: 3, autoOpenSeconds: 30 },
   /** Oran Berry heal drops (D12): no flat regen; walk over a berry to heal. */
   heal: {
     berryHeal: 25,

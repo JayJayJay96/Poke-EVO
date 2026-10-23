@@ -224,6 +224,8 @@ export class RunScene extends Phaser.Scene {
   private skipRequested = false;
   /** Red HUD line while a "damage taken" trade-off is active (D12). */
   private warnText!: Phaser.GameObjects.Text;
+  /** Banked level-ups badge (owner 2026-10-23): click or Space opens them. */
+  private levelBadge!: Phaser.GameObjects.Text;
   /** Floating red damage numbers on the player (D12). */
   private floaters: { text: Phaser.GameObjects.Text; lifeLeft: number; y: number }[] = [];
   private lastHp = 0;
@@ -320,6 +322,23 @@ export class RunScene extends Phaser.Scene {
       .text(16, 58, '', { fontFamily: 'monospace', fontSize: '14px', color: '#ff6b6b' })
       .setScrollFactor(0)
       .setDepth(10);
+    this.levelBadge = this.add
+      .text(this.cameras.main.width / 2, 40, '', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#1a1206',
+        fontStyle: 'bold',
+        backgroundColor: '#ffd34d',
+        padding: { x: 10, y: 4 },
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(15)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        this.world.openLevelUps = true;
+      });
     this.tierText = this.add
       .text(this.cameras.main.width / 2, 96, '', {
         fontFamily: 'monospace',
@@ -414,6 +433,8 @@ export class RunScene extends Phaser.Scene {
     } else if (JustDown(this.keys.change) && world.status !== 'running') {
       this.scene.start('select');
       return;
+    } else if (JustDown(this.keys.space) && world.status === 'running' && world.pendingLevelUps > 0) {
+      world.openLevelUps = true; // opens the bank on the next step
     } else if (JustDown(this.keys.pause) && world.status === 'running') {
       this.paused = !this.paused;
     }
@@ -462,6 +483,17 @@ export class RunScene extends Phaser.Scene {
     const uy = dy / dist;
     this.hudGfx.fillStyle(color, 0.95);
     this.hudGfx.fillTriangle(ax + ux * 14, ay + uy * 14, ax - ux * 7 - uy * 9, ay - uy * 7 + ux * 9, ax - ux * 7 + uy * 9, ay - uy * 7 - ux * 9);
+  }
+
+  /** The banked level-ups badge: how many, and when they open on their own (owner 2026-10-23). */
+  private updateLevelBadge(): void {
+    const { pendingLevelUps: n, offer, evolution, status, arena, levelUpWait } = this.world;
+    const show = n > 0 && !offer && !evolution && status === 'running';
+    this.levelBadge.setVisible(show);
+    if (!show) return;
+    const { autoOpenSeconds } = TUNING.levelUpBank;
+    const when = arena ? 'after the fight' : `auto in ${Math.max(0, Math.ceil(autoOpenSeconds - levelUpWait))} s`;
+    this.levelBadge.setText(`LEVEL UP ×${n} · Space (${when})`).setX(this.cameras.main.width / 2);
   }
 
   /** The arena line under the HUD: the entrance countdown, or the fight's state and timer (D28). */
@@ -1452,6 +1484,7 @@ export class RunScene extends Phaser.Scene {
     const taken = this.world.mods.damageTakenMult;
     const glass = taken > 1.001 ? `⚠ Glass: you take +${Math.round((taken - 1) * 100)}% damage` : '';
     this.warnText.setText([glass, statuses, this.arenaHudLine()].filter(Boolean).join('\n'));
+    this.updateLevelBadge();
 
     // XP bar across the top edge.
     const h = this.hudGfx;

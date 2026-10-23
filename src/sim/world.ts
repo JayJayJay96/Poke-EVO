@@ -127,6 +127,8 @@ export function createWorld({
     level: 1,
     xp: 0,
     pendingLevelUps: 0,
+    levelUpWait: 0,
+    openLevelUps: false,
     offer: null,
     evolution: null,
     signatureTierUp: null,
@@ -192,8 +194,24 @@ export function step(world: World, input: InputState, dt: number): void {
   upgradeSignatureByLevel(world);
   if (!world.arena) updateSites(world, dt);
   if (runClock(world) >= TUNING.runSeconds) world.status = 'survived';
-  // A captured site opens first; then evolution, whose summary card hands over to queued level-up cards.
-  else if (!world.offer && !startEvolutionIfDue(world) && world.pendingLevelUps > 0) world.offer = makeOffer(world);
+  // A captured site opens first; then evolution (never mid arena fight), whose summary card hands over to
+  // the banked level-ups; otherwise the bank decides.
+  else if (!world.offer && (world.arena || !startEvolutionIfDue(world))) updateLevelBank(world, dt);
+}
+
+/**
+ * Banked level-ups (owner 2026-10-23): they open when the player asks, or on their own once enough are banked or
+ * the bank has waited long enough. Never on their own during an arena fight. Opening resolves the whole bank.
+ */
+function updateLevelBank(world: World, dt: number): void {
+  const { autoOpenAt, autoOpenSeconds } = TUNING.levelUpBank;
+  world.levelUpWait = world.pendingLevelUps > 0 ? world.levelUpWait + dt : 0;
+  const auto = !world.arena && (world.pendingLevelUps >= autoOpenAt || world.levelUpWait >= autoOpenSeconds);
+  if (world.pendingLevelUps > 0 && (world.openLevelUps || auto)) {
+    world.offer = makeOffer(world);
+    world.levelUpWait = 0;
+  }
+  world.openLevelUps = false;
 }
 
 export interface WaveState {

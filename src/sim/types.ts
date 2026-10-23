@@ -804,8 +804,12 @@ export interface World {
   level: number;
   /** XP collected towards the next level. */
   xp: number;
-  /** Level-ups not yet resolved by a card choice. */
+  /** Level-ups not yet resolved by a card choice (banked until opened, owner 2026-10-23). */
   pendingLevelUps: number;
+  /** Seconds the bank has held level-ups without opening. */
+  levelUpWait: number;
+  /** The player asked to open the bank (hotkey or badge); consumed by the next step. */
+  openLevelUps: boolean;
   /** Cards waiting for a choice; the sim is paused while this is set. */
   offer: LevelUpOffer | null;
   /** Evolution in progress; takes priority over level-up cards and pauses the sim. */
