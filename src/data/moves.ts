@@ -240,7 +240,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileRadius: 7,
     projectileLifetime: 1.2,
     count: 1,
-    explosion: { radius: 45, damageFraction: 0.6 },
+    explosion: { radius: 56, damageFraction: 0.6 }, // 45 → 56: its own horde clear (D48)
   },
   blastBurn: {
     id: 'blastBurn',
@@ -328,6 +328,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileRadius: 7,
     projectileLifetime: 1.3,
     count: 1,
+    pierce: 1, // D48: a bubble pops through the first enemy (its own horde clear; evolution keeps it)
     onHit: { slow: 0.35 },
   },
   waterPulse: {
@@ -343,6 +344,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileRadius: 8,
     projectileLifetime: 1.3,
     count: 1,
+    pierce: 1, // D48: a bubble pops through the first enemy (its own horde clear; evolution keeps it)
     explosion: { radius: 45, damageFraction: 0.5 },
     onHit: { slow: 0.35, knockback: 15 },
   },
@@ -359,6 +361,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileRadius: 10,
     projectileLifetime: 1.3,
     count: 1,
+    pierce: 1, // D48: a bubble pops through the first enemy (its own horde clear; evolution keeps it)
     explosion: { radius: 65, damageFraction: 0.6 },
     onHit: { slow: 0.4, knockback: 30 },
   },
@@ -760,6 +763,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileRadius: 6,
     projectileLifetime: 0.9,
     count: 1,
+    pierce: 2, // D48: a fast spike goes through (its own horde clear; Sheer Cold keeps it)
   },
   sheerCold: {
     id: 'sheerCold',
@@ -774,6 +778,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileRadius: 9,
     projectileLifetime: 1.0,
     count: 1,
+    pierce: 2, // D48: a fast spike goes through (its own horde clear; Sheer Cold keeps it)
     explosion: { radius: 55, damageFraction: 0.4 },
     crater: { radius: 55, duration: 2.5, tickInterval: 0.5, damageFraction: 0.2, slow: 0.5 },
     onHit: { slow: 0.35 },

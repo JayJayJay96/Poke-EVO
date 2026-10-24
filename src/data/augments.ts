@@ -84,6 +84,12 @@ export interface AugmentDef {
   readonly ranks: readonly [AugmentRank, ...AugmentRank[]];
 }
 
+/**
+ * Return hits at most this many enemies on each leg (D48; was unlimited, which made it the only way a
+ * projectile signature scaled with a horde). Pierce adds to it. The out leg turns home early when spent.
+ */
+export const RETURN_HITS_PER_LEG = 4;
+
 export const MAX_SOCKETS = 3;
 export const MAX_RANK = 3;
 /** Every Nth level is an augment level (D7). */
@@ -265,9 +271,10 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
     kind: 'behaviour',
     requiresAny: ['Projectile'],
     ranks: [
-      { effect: { pierce: 1 }, text: 'Passes through 1 enemy' },
+      // D48: a real alternative to Return for clearing hordes (was 1 / 2 / 4).
       { effect: { pierce: 2 }, text: 'Passes through 2 enemies' },
       { effect: { pierce: 4 }, text: 'Passes through 4 enemies' },
+      { effect: { pierce: 6 }, text: 'Passes through 6 enemies' },
     ],
   },
   homing: {
@@ -286,7 +293,7 @@ export const AUGMENTS: Readonly<Record<AugmentId, AugmentDef>> = {
     ranks: [
       {
         effect: { returns: true, damagePct: -0.3 },
-        text: 'Flies out and back, passing through enemies both ways; −30% damage',
+        text: `Flies out and back, passing through up to ${RETURN_HITS_PER_LEG} enemies each way; −30% damage`,
       },
     ],
   },

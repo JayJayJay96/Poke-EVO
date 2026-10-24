@@ -1,3 +1,4 @@
+import { RETURN_HITS_PER_LEG } from '../../data/augments';
 import { TUNING } from '../../data/content';
 import type { ProjectileMoveDef } from '../../data/moves';
 import { NO_HIT, damageEnemy, findNearestEnemy, findTarget, queryEnemies } from '../combat';
@@ -41,6 +42,7 @@ export function createProjectile(): Projectile {
     chainFraction: 0,
     hit: { ...NO_HIT },
     pierceLeft: 0,
+    legPierce: 0,
     homing: false,
     homingTarget: null,
     returns: false,
@@ -105,7 +107,9 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
     p.hit.knockback = s.knockback;
     p.hit.slot = slot;
     p.hit.fromProc = false;
-    p.pierceLeft = s.pierce + (def.pierce ?? 0);
+    // Return (D48): passes through up to RETURN_HITS_PER_LEG enemies each way, plus any Pierce.
+    p.legPierce = s.pierce + (def.pierce ?? 0) + (s.returns ? RETURN_HITS_PER_LEG - 1 : 0);
+    p.pierceLeft = p.legPierce;
     p.homing = s.homing;
     p.homingTarget = null;
     p.returns = s.returns;
@@ -148,9 +152,7 @@ export function updateProjectiles(world: World, dt: number): void {
         continue;
       }
     } else if (proj.returns && proj.lifeLeft <= proj.turnAt) {
-      proj.returning = true;
-      proj.hitIds.length = 0; // the way back may hit the same enemies again
-      proj.lifeLeft = proj.turnAt * 2 + 1; // safety cap for the trip home
+      turnBack(proj);
     }
     // Arena rubble is a wall (owner 2026-10-23): a shot that reaches a rock ends its flight there.
     const rock = rocks?.find((r) => Math.hypot(proj.x - r.x, proj.y - r.y) <= r.radius + proj.radius);
@@ -185,10 +187,15 @@ export function updateProjectiles(world: World, dt: number): void {
       chain(world, proj, enemy);
       const owner = proj.hit.slot;
       if (owner) hooksOf(owner)?.onProjectileHit?.(world, owner, proj, enemy);
-      if (proj.returns) continue; // a boomerang passes through everything, both ways
       if (proj.pierceLeft > 0) {
         proj.pierceLeft--;
         continue;
+      }
+      // Return (D48): the out leg's last hit turns it home early; the way back ends on its last hit.
+      if (proj.returns && !proj.returning) {
+        turnBack(proj);
+        remember(proj, enemy.id); // no second hit on the enemy it just bounced off
+        break;
       }
       proj.dead = true;
       break;
@@ -257,6 +264,14 @@ function chain(world: World, proj: Projectile, from: Enemy): void {
     current = next;
   }
   if (proj.chainJumps > 0 && hooks?.onChainEnd) hooks.onChainEnd(world, slot!, current);
+}
+
+/** A Return projectile heads home: its hit memory and pass-through budget start over for the second leg. */
+function turnBack(proj: Projectile): void {
+  proj.returning = true;
+  proj.hitIds.length = 0; // the way back may hit the same enemies again
+  proj.pierceLeft = proj.legPierce;
+  proj.lifeLeft = proj.turnAt * 2 + 1; // safety cap for the trip home
 }
 
 function remember(proj: Projectile, enemyId: number): void {

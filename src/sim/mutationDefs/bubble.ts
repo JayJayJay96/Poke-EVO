@@ -68,6 +68,7 @@ defineMutation('bubble.trap', {
     }
     const v = trap(slot);
     if (!engulf(enemy, proj.damage, v.floatSeconds)) return;
+    proj.pierceLeft = 0; // the bubble stays on the enemy it engulfed (Bubble's innate pierce, D48)
     enemy.hp = Math.min(enemy.maxHp, enemy.hp + first); // the trapped enemy takes no hit damage until the pop
     if (signatureTier(world, slot) >= 2) {
       // Giant bubble: up to maxTrapped enemies in the splash.

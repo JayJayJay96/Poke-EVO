@@ -1080,14 +1080,13 @@ describe('behaviour augments', () => {
     expect(targets[1]!.hp).toBe(targets[1]!.maxHp);
   });
 
-  it('Pierce I passes through one enemy and stops at the next', () => {
-    const { world, targets } = emberVsLine([{ augmentId: 'pierce', rank: 1 }], [100, 160, 220]);
+  it('Pierce I passes through two enemies (D48) and stops at the next', () => {
+    const { world, targets } = emberVsLine([{ augmentId: 'pierce', rank: 1 }], [80, 120, 160, 200]);
     step(world, IDLE, DT);
     world.moves[0]!.cooldownLeft = 999;
     run(world, 1);
-    expect(targets[0]!.hp).toBeLessThan(targets[0]!.maxHp);
-    expect(targets[1]!.hp).toBeLessThan(targets[1]!.maxHp);
-    expect(targets[2]!.hp).toBe(targets[2]!.maxHp);
+    expect(targets.slice(0, 3).every((t) => t.hp < t.maxHp)).toBe(true);
+    expect(targets[3]!.hp).toBe(targets[3]!.maxHp);
   });
 
   it('Homing curves toward an enemy the straight shot would miss', () => {
@@ -1118,6 +1117,18 @@ describe('behaviour augments', () => {
     expect(world.projectiles).toHaveLength(0);
     const hits = Math.round((targets[0]!.maxHp - targets[0]!.hp) / MOVES.ember.damage);
     expect(hits).toBe(2); // once on each leg
+  });
+
+  it('Return (D48) passes through 4 enemies on the way out, then turns home early', () => {
+    const { world, targets } = emberVsLine([{ augmentId: 'boomerang', rank: 1 }], [60, 90, 120, 150, 180, 210]);
+    step(world, IDLE, DT);
+    world.moves[0]!.cooldownLeft = 999;
+    run(world, 2);
+    expect(world.projectiles.filter((p) => !p.dead)).toHaveLength(0);
+    const d = world.moves[0]!.stats.damage;
+    const hits = targets.map((t) => Math.round((t.maxHp - t.hp) / d));
+    // Out: the first 4 (the 4th turns it back, not hit again); home: the 3 it passes on the way.
+    expect(hits).toEqual([2, 2, 2, 1, 0, 0]);
   });
 
   it('Knockback staggers an enemy away from the hit, reduced by its weight', () => {
@@ -1237,7 +1248,7 @@ describe('P3 playtest revisions (D11)', () => {
       { augmentId: 'multishot', rank: 1 },
       { augmentId: 'velocity', rank: 1 },
     ]);
-    expect(world.moves[0]!.stats.pierce).toBe(1);
+    expect(world.moves[0]!.stats.pierce).toBe(AUGMENTS.pierce.ranks[0]!.effect.pierce);
     expect(world.offer).toBeNull();
   });
 

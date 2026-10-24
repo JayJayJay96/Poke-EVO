@@ -215,6 +215,8 @@ export interface Projectile {
   hit: HitInfo;
   /** Enemies it may still pass through. */
   pierceLeft: number;
+  /** Pass-throughs per leg for a Return projectile; `pierceLeft` refills to this when it turns (D48). */
+  legPierce: number;
   homing: boolean;
   homingTarget: Enemy | null;
   returns: boolean;

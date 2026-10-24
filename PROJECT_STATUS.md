@@ -76,6 +76,21 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — D48: horde clear without Return (skill team)
+- **Why:** owner: without Return "it's hard to clear the horde". In code, Return was unlimited pierce: a Return shot passed every enemy both ways, and each pass fired the signature's explosion and chain. It was the only augment that scaled with a crowd.
+- **Built:** `RETURN_HITS_PER_LEG = 4` (`src/data/augments.ts`; card text updated). `forms/projectile.ts`: per-leg budget `legPierce` (new `Projectile` field in `types.ts`, plus Pierce); the out leg turns home early once spent (`turnBack`) and doesn't re-hit the enemy it bounced off. Pierce ranks **2 / 4 / 6** (was 1 / 2 / 4). `moves.ts`: Flame Burst explosion **45 → 56 px**; Bubble / Water Pulse / Hydro Cannon **pierce 1**; Ice Shard / Sheer Cold **pierce 2**. `mutationDefs/bubble.ts`: Bubble Trap's bubble stops on the enemy it engulfs. Tests: new Return-cap test (hits per target `[2,2,2,1,0,0]`), Pierce tests read data. `PROJECT.md` D48 row.
+- **Checks:** `tsc --noEmit` 0 errors; `npx vitest run` **573/573 passed**.
+- **Balance (`npm run balance`, isolated worktree; site dps ± s.e., 24 seeds):**
+
+  | min | Charizard | Blastoise | Venusaur | Raichu | Lapras |
+  |---|---|---|---|---|---|
+  | 5 | 245 ± 14 | 252 ± 19 | 335 ± 25 | 369 ± 40 | 353 ± 26 |
+  | 9 | 926 ± 108 | 905 ± 97 | 932 ± 90 | 654 ± 81 | 707 ± 45 |
+  | 15 | **1789 ± 152** | **1727 ± 108** | **1602 ± 92** | 1372 ± 156 | 1245 ± 56 |
+
+  D19 at 15 min ✓: all three 3-stage finals above Raichu and Lapras; Raichu ≈ Lapras (10%, inside Raichu's s.e.). At 5 min Lapras is level with Pikachu (353 vs 369, a tie inside the noise), no longer clearly ahead. Possible lever if the owner wants a clear lead: Raichu evolving at Lv 18 instead of 16 (provisional §5).
+- **Caveats:** the run snapshot included other sessions' uncommitted work in this checkout (Articuno, arena, bosses), and HEAD moved since the 10-23 pass (map obstacles, magnets), so deltas aren't all D48. **Process note:** a first D48 run was invalid. Its report was byte-for-byte the 10-23 baseline copy from the shared system `$TMP`, so another session likely copied it over `balance-report.md`. Balance runs now go in an isolated worktree, with outputs in the session scratchpad.
+
 ### 2026-10-23 — Balance pass toward D19 (skill team)
 - **Bot bug found and fixed (`src/sim/balance.ts`):** an open card window pauses `step()`, and `measureDps` never closed one. Since banked level-ups (D39) auto-open after 3 banked or 30 s, a window often opened during the 10 s measurement, and that seed read ~0 DPS (per-seed values like 3, 28, 0). Every report since D39 under-read some lines. `measureDps` now takes a `resolve` callback; `playLine` passes its random picker. New `src/sim/balance.test.ts` reproduces it (without the fix < 1 DPS).
 - **Report reliability (`balance.bench.ts`):** the site columns (the D19 reference, D25) now use **24 seeds** plus an `s.e.` column. With 8, a line's per-seed spread (up to ~5×) left means only good to ~±15%, wider than D19's 10% margins. The report takes ~32 min now (was ~18).
