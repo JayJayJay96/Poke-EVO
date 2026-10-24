@@ -76,6 +76,38 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-24 — HTML pause and select screens (D46)
+**Owner:** "the UI need a bit improvement". The owner sent two reference shots (a pause screen and a Pokémon select screen) and approved building both now: the pause screen first, then the select screen. **Status:** both built, checked in the browser, committed. Not playtested by the owner.
+
+**Files**
+- `src/ui/`, new, presentation only:
+  - `dom.ts` (a tiny `h()` builder; text goes in as text, never as HTML)
+  - `labels.ts` (`TYPE_COLORS`, `augmentLabel` and `mutationLabel`, moved out of RunScene; `textOn` gives readable chips on light types)
+  - `overlay.css`
+  - `pauseOverlay.ts` and `selectOverlay.ts`
+- `src/scenes/RunScene.ts`: the Esc toggle shows or hides `PauseOverlay`. The old text panel (`buildPanelText`) is gone, and the overlay hides on scene shutdown.
+- `src/scenes/SelectScene.ts`: shows `SelectOverlay` and remembers the last pick. The stress shortcut is kept.
+- `src/sim`: `World.damageDealt` (every source) and `MoveSlot.damageDealt` (the move's own hits), counted in `damageEnemy`. The pause screen uses them for the damage tiles and each move's share.
+
+**Checks (observed)**
+- `tsc --noEmit` clean.
+- `npx vitest run`: **558/558** in the working tree (includes other sessions' uncommitted work). **543/543** on the exact staged snapshot, exported to a scratch folder.
+- New test: `src/sim/damageCount.test.ts`.
+- `npm run build` passed, on the working tree and on the snapshot.
+- **Browser**, 1600×900:
+  - pause screen rendered from a live build (Charmeleon Lv 12, Moxie/Kindling/Endure, Brave ×2, Leftovers): header, columns and green/red stats look right
+  - Give up asks for a second click; Continue closes it
+  - select screen: tiles, number keys (4 → Pikachu), the detail panel scrolls inside the window, and "I choose you!" / Enter starts the chosen line with the overlay removed
+  - no console errors, apart from one hot-reload error caught mid-edit, which was gone after a reload
+- **Not verified:** pressing the real Esc key in the browser pane. The pane takes Esc itself, so the overlay was opened from its module instead. The Esc wiring is the existing `paused` toggle.
+
+**Notes**
+- Staging: this session's hunks were staged on top of HEAD by text anchors. The other sessions' uncommitted Articuno, balance and Lapras work in the same files was left unstaged.
+
+**Next:** owner check of both screens (Esc in a real browser); sprites/portraits at P6.
+
+**Build runs:** yes.
+
 ### 2026-10-24 — Magnets stop dropping late game (bug); magnets pull berries; magnet rate up
 **Owner:** late game, magnets "not really showing up". The owner also asked: "up the rate of magnet a bit", and "magnet attracts healing orb too". **Status:** fixed, tested, committed. Not playtested by the owner.
 

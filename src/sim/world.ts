@@ -136,6 +136,7 @@ export function createWorld({
     rerollsLeft: REROLLS_PER_RUN,
     mods: emptyModifiers(),
     kills: 0,
+    damageDealt: 0,
     level: 1,
     xp: 0,
     pendingLevelUps: 0,

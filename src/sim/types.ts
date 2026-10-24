@@ -451,6 +451,8 @@ export interface MoveSlot {
   volatileMult: number;
   /** Focus Energy (D40): this move's next own hit is a forced ×2 crit. */
   focusReady: boolean;
+  /** Damage this move's own hits dealt this run (pause screen share). */
+  damageDealt: number;
 }
 
 /** A melee swipe kept around briefly so it can be drawn. */
@@ -915,6 +917,8 @@ export interface World {
   rerollsLeft: number;
   mods: Modifiers;
   kills: number;
+  /** Damage dealt this run from every source (moves, procs, statuses). */
+  damageDealt: number;
   level: number;
   /** XP collected towards the next level. */
   xp: number;

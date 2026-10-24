@@ -194,6 +194,7 @@ export function createSlot(moveId: MoveId): MoveSlot {
     baseStats: { ...stats },
     volatileMult: 1,
     focusReady: false,
+    damageDealt: 0,
   };
 }
 

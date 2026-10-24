@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS, maxRankOf, type AugmentId } from '../data/augments';
+import { AUGMENTS, MAX_SOCKETS, RANK_NUMERALS } from '../data/augments';
 import { ABILITIES, ENEMIES, POKEMON, TUNING, type EnemyId, type PokemonId, type PokemonType } from '../data/content';
 import { ENEMY_ATTACKS } from '../data/enemyAttacks';
 import { ELITE_ABILITY, ELITE_ABILITY_NAMES } from '../data/hordes';
@@ -13,7 +13,7 @@ import { angleGap, snoreOpenings } from '../sim/bosses';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
 import { TECHNIQUES } from '../data/techniques';
-import { BIG_BOOST, BOOST_IDS, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
+import { BIG_BOOST, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { bossImmune, isAbilityActive } from '../sim/combat';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from '../sim/evolution';
 import { beamLength } from '../sim/forms/beam';
@@ -44,6 +44,8 @@ import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
 import type { ArenaFight, AugmentCard, Card, Enemy, EvolutionState, InputState, LevelUpOffer, MachampState, MoveSlot, RewardCard, SiteCard, World, ZapdosState } from '../sim/types';
 import { createWorld, runClock, step } from '../sim/world';
+import { PauseOverlay } from '../ui/pauseOverlay';
+import { TYPE_COLORS, augmentLabel, mutationLabel } from '../ui/labels';
 
 // Grey-box colours until real sprites arrive in P6.
 const COLORS = {
@@ -109,26 +111,6 @@ const COLORS = {
   /** A Mutation Site before its roll is known. */
   site: 0x8fe3ff,
 } as const;
-/** Player and move colours by Pokémon type, so each line reads differently in grey-box. */
-const TYPE_COLORS: Readonly<Record<PokemonType, number>> = {
-  Normal: 0xd8d8c0,
-  Fire: 0xff7a2f,
-  Water: 0x3d8bff,
-  Grass: 0x4cd964,
-  Flying: 0xb9c7ff,
-  Dragon: 0x7b5cff,
-  Poison: 0xb05cff,
-  Electric: 0xffe84d,
-  Ice: 0x9ff3ff,
-  Dark: 0x6b5a4e,
-  Steel: 0xb8b8d0,
-  Bug: 0xa8b820,
-  Rock: 0xb8a038,
-  Ground: 0xe0c068,
-  Ghost: 0x705898,
-  Psychic: 0xf85888,
-  Fighting: 0xc03028,
-};
 const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   machamp: 0x7a8fa6,
   focusOrb: 0x7fd4ff,
@@ -236,6 +218,8 @@ export class RunScene extends Phaser.Scene {
   private lastHp = 0;
   private accumulator = 0;
   private paused = false;
+  /** The Esc pause screen, an HTML overlay (owner 2026-10-24). */
+  private pauseOverlay!: PauseOverlay;
   /** `?stress=1`: maxed build vs 500 enemies (P2d budget check); `?stress=<line>`: that line's maxed Mutations (P4f-8). */
   private stress = false;
   private perfText: Phaser.GameObjects.Text | null = null;
@@ -267,6 +251,14 @@ export class RunScene extends Phaser.Scene {
     }
     this.accumulator = 0;
     this.paused = false;
+    this.pauseOverlay = new PauseOverlay({
+      resume: () => {
+        this.paused = false;
+      },
+      restart: () => this.scene.restart({ pokemonId: this.pokemonId } satisfies RunSceneData),
+      giveUp: () => this.scene.start('select'),
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.pauseOverlay.hide());
     this.overlay = [];
     this.overlayKey = null;
     this.evoText = null;
@@ -443,6 +435,10 @@ export class RunScene extends Phaser.Scene {
     } else if (JustDown(this.keys.pause) && world.status === 'running') {
       this.paused = !this.paused;
     }
+    // The Esc pause screen is an HTML overlay; it is built once on open (the sim is frozen while it shows).
+    const showPause = this.paused && world.status === 'running' && !world.offer && !world.evolution;
+    if (showPause && !this.pauseOverlay.open) this.pauseOverlay.show(world);
+    else if (!showPause && this.pauseOverlay.open) this.pauseOverlay.hide();
 
     const cam = this.cameras.main;
     world.spawnRadius = Math.hypot(cam.width, cam.height) / 2 + TUNING.spawn.ringPadding;
@@ -1546,9 +1542,6 @@ export class RunScene extends Phaser.Scene {
           `${name} fainted!\n\nSurvived ${formatTime(time)} · Lv ${level} · KOs ${kills}\n\nR: restart · C: change Pokémon`,
         )
         .setVisible(true);
-    } else if (this.paused) {
-      this.banner.setVisible(false);
-      this.panel.setText(buildPanelText(this.world)).setVisible(true);
     } else {
       this.banner.setVisible(false);
     }
@@ -2084,21 +2077,6 @@ function socketLines(slot: MoveSlot): string[] {
   return lines;
 }
 
-/** "Slick (Mutation)" or "Steady Aim II (Bond · Squirtle)"; rank I shows no numeral. */
-function mutationLabel(id: MutationId, rank = 1): string {
-  const def = MUTATIONS[id];
-  const name = rank > 1 ? `${def.name} ${RANK_NUMERALS[rank - 1]}` : def.name;
-  if (def.kind === 'generic') return `${name} (Mutation)`;
-  const line = POKEMON[def.line].stages[0]!.name;
-  return `${name} (${def.kind === 'bond' ? 'Bond' : 'Signature'} · ${line})`;
-}
-
-/** "Pierce II"; single-rank augments show just the name. */
-function augmentLabel(id: AugmentId, rank: number): string {
-  const name = AUGMENTS[id].name;
-  return maxRankOf(id) > 1 ? `${name} ${RANK_NUMERALS[rank - 1]}` : name;
-}
-
 /** Owned Techniques with their rank, plus live state worth watching (D40). */
 function techniqueLine(world: World): string {
   const { moxie, endureLeft } = world.tech;
@@ -2110,25 +2088,6 @@ function techniqueLine(world: World): string {
       return label;
     })
     .join(' · ');
-}
-
-/** Pause screen: the whole build at a glance. */
-function buildPanelText(world: World): string {
-  const lines = ['PAUSED — Esc to resume', ''];
-  for (const slot of world.moves) {
-    const move = MOVES[slot.moveId];
-    lines.push(`${move.name} [${move.tags.join('·')}]`);
-    lines.push(`   ${socketLines(slot).join('   ')}`);
-  }
-  const boosts = BOOST_IDS.filter((id) => world.boosts[id] > 0).map((id) => `${BOOSTS[id].name} ${world.boosts[id]}`);
-  if (world.bigBoosts > 0) boosts.push(`${BIG_BOOST.name} ×${world.bigBoosts}`);
-  if (world.surgeLeft > 0) boosts.push(`Site surge ${Math.ceil(world.surgeLeft)} s`);
-  lines.push('');
-  lines.push(`Natures & boosts: ${boosts.length ? boosts.join(', ') : '—'}`);
-  lines.push(`Techniques: ${techniqueLine(world) || '—'}`);
-  lines.push(`Items: ${world.items.length ? world.items.map((id) => ITEMS[id].name).join(', ') : '—'}`);
-  lines.push(`Rerolls left: ${world.rerollsLeft}`);
-  return lines.join('\n');
 }
 
 function formatTime(seconds: number): string {

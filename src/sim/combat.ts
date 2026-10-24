@@ -245,6 +245,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const floor = bossHpFloor(world, enemy);
   const dealt = Math.max(0, Math.min(enemy.hp - floor, amount));
   if (sleeping) sleeping.wake += dealt;
+  world.damageDealt += dealt;
+  if (hit.slot) hit.slot.damageDealt += dealt;
   // Zapdos's Discharge channel: enough damage interrupts it.
   if (zap?.discharge?.phase === 'channel') zap.discharge.taken += dealt;
   // Machamp: damage during a pose or the Focus Punch channel fills its interrupt meter.
