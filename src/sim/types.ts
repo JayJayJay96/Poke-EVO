@@ -280,9 +280,13 @@ export interface Terrain {
 export interface Berry {
   readonly id: number;
   readonly kind: 'oran' | 'magnet';
-  readonly x: number;
-  readonly y: number;
+  x: number;
+  y: number;
   collected: boolean;
+  /** Run time at which an untouched drop vanishes; unset = never (Gluttony's arena berries). */
+  expiresAt?: number;
+  /** Pulled toward the player by a Magnet (Oran Berries only). */
+  magnetized?: boolean;
 }
 
 /** A lingering damage area (Blast Burn's crater). Never spawns further effects. */

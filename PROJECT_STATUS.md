@@ -76,6 +76,38 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-24 — Magnets stop dropping late game (bug); magnets pull berries; magnet rate up
+**Owner:** late game, magnets "not really showing up". The owner also asked: "up the rate of magnet a bit", and "magnet attracts healing orb too". **Status:** fixed, tested, committed. Not playtested by the owner.
+
+- **Cause:**
+  - Oran Berries and Magnets shared one budget of 12 drops on the ground.
+  - Berries never expired. Uncollected berries left behind as the player roams fill the budget.
+  - Once full, neither berries nor magnets could drop again.
+- **Fix:**
+  - `src/sim/combat.ts`:
+    - berries and magnets each get their own cap: berries 12, magnets 3 (`TUNING.magnet.maxMagnets`)
+    - every new drop expires after 60 s if untouched, like XP gems (`TUNING.heal.dropLifetimeSeconds`)
+    - Snorlax's Gluttony arena berries carry no expiry, so that fight is unchanged
+  - `src/sim/types.ts`: `Berry` gets an optional `expiresAt` and `magnetized`.
+- **Rate:** magnet drop chance 1% → **1.5%** per kill *(provisional)*.
+- **Magnet pulls berries:**
+  - picking up a magnet now also pulls every Oran Berry within screen range
+  - pulled berries fly in at gem speed and heal on arrival
+  - code: `pullBerries` and the expiry/movement in `pickUpBerries` (`src/sim/world.ts`)
+
+**Checks (observed)**
+- `tsc --noEmit` clean; `npx vitest run` **543/543 passed** (includes other sessions' uncommitted tests).
+- New `src/sim/drops.test.ts`:
+  - a full berry budget doesn't block magnets; the magnet cap holds
+  - drops expire and free the budget
+  - a magnet pulls in-range berries, which heal on arrival; an off-screen one stays
+- `npm run build` passed.
+- Browser: a magnet with two berries 200–250 px away; both flew in and healed, HP 40 → 90. No console errors.
+
+**Next:** owner playtest (late-game magnet frequency, berry pull feel).
+
+**Build runs:** yes.
+
 ### 2026-10-23 — Techniques + Natures built (D40); rest regen + level growth (D44)
 **Objective:** build D40 from the approved spec, then the owner's follow-up: "getting hit in early stage without berry is too punishing", with stats growing every level. **Status:** both built, tested, committed. Not playtested by the owner.
 

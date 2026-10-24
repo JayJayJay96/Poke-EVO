@@ -776,7 +776,10 @@ export const TUNING = {
   },
   /** Magnet drop (owner 2026-10-20): walking over it pulls every gem within screen range once. */
   magnet: {
-    dropChance: 0.01,
+    /** Owner 2026-10-24: "up the rate of magnet a bit" (was 0.01). */
+    dropChance: 0.015,
+    /** Magnets on the ground at once; their own cap, so leftover berries can't block them. */
+    maxMagnets: 3,
   },
   enemy: {
     hitFlashSeconds: 0.08,
@@ -814,6 +817,8 @@ export const TUNING = {
     pickupPadding: 6,
     /** Budget: new drops are skipped past this. */
     maxBerries: 12,
+    /** Untouched berries and magnets vanish like gems, so old drops can't fill the budget for good. */
+    dropLifetimeSeconds: 60,
   },
   chain: {
     /** px from the last enemy hit to the next chain target. */

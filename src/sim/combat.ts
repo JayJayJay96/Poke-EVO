@@ -9,7 +9,7 @@ import { blazeFaked, emit, healPlayer, hooksOf, mutationLeechBonus } from './hoo
 import { applyPlayerStatus } from './playerStatus';
 import { statusMult, type StatusId } from './statusResist';
 import { onTechniqueHit, onTechniqueKill, techniqueDamageMult } from './techniques';
-import type { Enemy, Gem, HitInfo, MoveSlot, MoveStats, World } from './types';
+import type { Berry, Enemy, Gem, HitInfo, MoveSlot, MoveStats, World } from './types';
 
 /** Largest horde radius. Bosses are left out so their size doesn't widen every query (D28). */
 // Elites are bigger than their species (D34).
@@ -531,17 +531,25 @@ export function updateStatuses(world: World, dt: number): void {
   }
 }
 
-/** Rolls for an Oran Berry drop (D12); skipped when the berry budget is full. */
-export function maybeDropBerry(world: World, x: number, y: number, chance: number): void {
-  if (chance <= 0 || world.berries.length >= TUNING.heal.maxBerries) return;
-  if (world.rng.next() >= chance) return;
-  world.berries.push({ id: world.nextId++, kind: 'oran', x, y, collected: false });
+function dropsOnGround(world: World, kind: Berry['kind']): number {
+  let n = 0;
+  for (const b of world.berries) if (b.kind === kind && !b.collected) n++;
+  return n;
 }
 
-/** Rare Magnet drop; shares the berry budget. */
+/** Rolls for an Oran Berry drop (D12); skipped when the berry budget is full. */
+export function maybeDropBerry(world: World, x: number, y: number, chance: number): void {
+  if (chance <= 0 || dropsOnGround(world, 'oran') >= TUNING.heal.maxBerries) return;
+  if (world.rng.next() >= chance) return;
+  const expiresAt = world.time + TUNING.heal.dropLifetimeSeconds;
+  world.berries.push({ id: world.nextId++, kind: 'oran', x, y, collected: false, expiresAt });
+}
+
+/** Rare Magnet drop, with its own cap (2026-10-24: berries filling a shared budget stopped magnets late game). */
 export function maybeDropMagnet(world: World, x: number, y: number): void {
-  if (world.berries.length >= TUNING.heal.maxBerries || world.rng.next() >= TUNING.magnet.dropChance) return;
-  world.berries.push({ id: world.nextId++, kind: 'magnet', x, y, collected: false });
+  if (dropsOnGround(world, 'magnet') >= TUNING.magnet.maxMagnets || world.rng.next() >= TUNING.magnet.dropChance) return;
+  const expiresAt = world.time + TUNING.heal.dropLifetimeSeconds;
+  world.berries.push({ id: world.nextId++, kind: 'magnet', x, y, collected: false, expiresAt });
 }
 
 export function dropGem(world: World, x: number, y: number, value: number): void {

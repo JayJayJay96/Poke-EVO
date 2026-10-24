@@ -199,7 +199,7 @@ export function step(world: World, input: InputState, dt: number): void {
   updateZones(world, dt);
   updateTerrain(world, dt);
   updateGems(world, dt);
-  pickUpBerries(world);
+  pickUpBerries(world, dt);
   applyContactDamage(world);
   removeDead(world);
   if (world.status !== 'running') return;
@@ -613,18 +613,44 @@ export function pullGems(world: World, radius: number): void {
   }
 }
 
-/** Oran Berries heal when the player walks over them (D12); Magnets pull in gems. */
-function pickUpBerries(world: World): void {
+/** Oran Berries heal when the player walks over them (D12); Magnets pull in gems and berries. */
+function pickUpBerries(world: World, dt: number): void {
   const p = world.player;
   const reach = p.radius + TUNING.heal.pickupPadding;
+  const pull = TUNING.xp.gemPullSpeed * dt;
   for (const berry of world.berries) {
     if (berry.collected) continue;
-    const dx = berry.x - p.x;
-    const dy = berry.y - p.y;
-    if (dx * dx + dy * dy > reach * reach) continue;
+    if (!berry.magnetized && berry.expiresAt !== undefined && world.time >= berry.expiresAt) {
+      berry.collected = true; // expired: removed without effect
+      continue;
+    }
+    const dx = p.x - berry.x;
+    const dy = p.y - berry.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > reach + (berry.magnetized ? pull : 0)) {
+      if (berry.magnetized) {
+        berry.x += (dx / dist) * pull;
+        berry.y += (dy / dist) * pull;
+      }
+      continue;
+    }
     berry.collected = true;
     if (berry.kind === 'oran') healPlayer(world, TUNING.heal.berryHeal);
-    else pullGems(world, world.spawnRadius);
+    else {
+      pullGems(world, world.spawnRadius);
+      pullBerries(world, world.spawnRadius);
+    }
+  }
+}
+
+/** Magnet (owner 2026-10-24): Oran Berries within `radius` fly to the player like gems. */
+function pullBerries(world: World, radius: number): void {
+  const r2 = radius * radius;
+  for (const berry of world.berries) {
+    if (berry.kind !== 'oran' || berry.collected) continue;
+    const dx = berry.x - world.player.x;
+    const dy = berry.y - world.player.y;
+    if (dx * dx + dy * dy <= r2) berry.magnetized = true;
   }
 }
 
