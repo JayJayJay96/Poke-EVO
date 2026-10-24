@@ -3,7 +3,7 @@ import { blockByRubble, holdByBlock, startZapdos, updateBoss } from './bosses';
 import { startMachamp } from './machamp';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
-import { MAX_COMBO_MOVES, comboCandidates } from './combo';
+import { boonOffer, learnBoon } from './boons';
 import { clearSpot } from './map';
 import { applyAugmentCard, applyCard, augmentPool, buildCardPool, gainXp, needsReplace } from './progression';
 import { createSeededRng, type Rng } from './rng';
@@ -221,7 +221,7 @@ export function updateArena(world: World, dt: number): void {
   if (world.spawnEnabled && next !== undefined && runClock(world) >= next) openEntrance(world);
 }
 
-/** After deaths are removed: a dead boss wins (combine step, then reward pick), an empty timer loses (nothing). */
+/** After deaths are removed: a dead boss wins (boon pick, then reward pick), an empty timer loses (nothing). */
 export function resolveArena(world: World): void {
   const fight = world.arena;
   if (!fight) return;
@@ -231,14 +231,23 @@ export function resolveArena(world: World): void {
   leaveArena(world);
   // Knocked out: back on the map with some HP instead of fainting (owner 2026-10-21).
   if (world.player.hp <= 0) world.player.hp = world.player.maxHp * ARENA_TUNING.knockoutHpPct;
-  if (won && !world.offer) {
-    const slots = comboCandidates(world);
-    world.offer = slots.length > 0 ? { kind: 'combine', slots } : rewardOffer(world, world.combo.length < MAX_COMBO_MOVES);
-  }
+  // Legendary Boons (D49) replace the combine step: pick one of the boss's boons, then the reward pick.
+  if (won && !world.offer) world.offer = boonOffer(world, fight.bossId) ?? rewardOffer(world, false);
 }
 
 function rewardOffer(world: World, combineMissed: boolean): LevelUpOffer {
   return { kind: 'arenaReward', cards: rollRewardCards(world), combineMissed };
+}
+
+/** Boon pick (D49): learn the boss's boon, then the reward pick. */
+export function chooseBoon(world: World, index: number): void {
+  const offer = world.offer;
+  if (offer?.kind !== 'boon') return;
+  const id = offer.cards[index];
+  if (!id) return;
+  learnBoon(world, id);
+  refreshStats(world);
+  world.offer = rewardOffer(world, false);
 }
 
 /** Combine step (D28): the first pick becomes the base, later picks are absorbed into it. Then the reward pick. */

@@ -1,4 +1,5 @@
 import { MAX_SOCKETS, RANK_NUMERALS } from '../data/augments';
+import { BOONS } from '../data/boons';
 import { ABILITIES, TUNING, type PokemonType } from '../data/content';
 import { MOVES } from '../data/moves';
 import { TECHNIQUES } from '../data/techniques';
@@ -199,10 +200,20 @@ function buildColumn(world: World): HTMLElement {
     h('div', { class: 'ui-card', style: 'border-left-color:#c77dff' }, h('h4', {}, ITEMS[id].name), h('p', {}, ITEMS[id].description)),
   );
   const empty = (text: string) => h('div', { class: 'ui-empty' }, text);
+  const boons = world.boons.map((id) =>
+    h(
+      'div',
+      { class: 'ui-card', style: 'border-left-color:#ffc83d' },
+      h('h4', {}, BOONS[id].name, h('small', {}, `${BOONS[id].clears ? '★ ' : ''}from ${BOONS[id].bossName}`)),
+      h('p', {}, BOONS[id].description),
+    ),
+  );
   return column(
     'Build',
     `${world.techniques.length}/5 Techniques`,
     '--orange',
+    boons.length > 0 && h('div', { class: 'ui-section' }, 'Legendary Boons'),
+    ...boons,
     h('div', { class: 'ui-section' }, 'Techniques'),
     ...(techniques.length ? techniques : [empty('None yet: Techniques come from normal level-ups.')]),
     h('div', { class: 'ui-section' }, 'Natures & boosts'),

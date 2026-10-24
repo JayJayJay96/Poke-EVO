@@ -8,10 +8,11 @@ import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '.
 import { SITE_TUNING } from '../data/sites';
 import { ARENA_BOSSES, ARENA_TUNING, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
 import { crossArms } from '../sim/machamp';
-import { chooseArenaReward, chooseCombine, skipCombine } from '../sim/arena';
+import { chooseArenaReward, chooseBoon, chooseCombine, skipCombine } from '../sim/arena';
 import { angleGap, snoreOpenings } from '../sim/bosses';
 import { bulbCapacity, hooksOf, tideFlood } from '../sim/hooks';
 import { wispCount } from '../sim/mutationDefs/ember';
+import { BOON_TUNING, BOONS } from '../data/boons';
 import { TECHNIQUES } from '../data/techniques';
 import { BIG_BOOST, BOOSTS, ITEMS, POTION_HEAL } from '../data/upgrades';
 import { bossImmune, isAbilityActive } from '../sim/combat';
@@ -687,7 +688,8 @@ export class RunScene extends Phaser.Scene {
     } else if (offer.kind === 'site') {
       if (index < offer.cards.length) this.siteNotice(chooseSiteCard(this.world, index), offer.cards[index]!);
       else skipSite(this.world);
-    } else if (offer.kind === 'combine') chooseCombine(this.world, index);
+    } else if (offer.kind === 'boon') chooseBoon(this.world, index);
+    else if (offer.kind === 'combine') chooseCombine(this.world, index);
     else if (offer.kind === 'arenaReward') chooseArenaReward(this.world, index);
   }
 
@@ -793,6 +795,16 @@ export class RunScene extends Phaser.Scene {
         footerAction = () => skipSite(this.world);
         break;
       }
+      case 'boon':
+        title = `${bossName(offer.boss)} defeated!  Pick a Legendary Boon`;
+        frame = COLORS.bond;
+        views = offer.cards.map((id) => ({
+          heading: BOONS[id].clears ? 'LEGENDARY BOON ★' : 'LEGENDARY BOON',
+          title: BOONS[id].name,
+          body: BOONS[id].description,
+          color: COLORS.bond,
+        }));
+        break;
       case 'combine':
         title = world.combo.length === 0 ? 'Combine: pick the base move' : 'Combine: absorb a move into the combo';
         frame = COLORS.bond;
@@ -1483,6 +1495,12 @@ export class RunScene extends Phaser.Scene {
       const r = fill >= 1 ? 5 : 3;
       g.fillCircle(player.x - player.radius * 0.6, player.y + player.radius * 0.3, r);
       g.fillCircle(player.x + player.radius * 0.6, player.y + player.radius * 0.3, r);
+    }
+
+    // Blizzard Aura (D49): its ring around the player.
+    if (this.world.boons.includes('blizzardAura')) {
+      g.lineStyle(2, TYPE_COLORS.Ice, 0.45);
+      g.strokeCircle(player.x, player.y, BOON_TUNING.blizzardAura.radius);
     }
 
     // HP bar above the player.

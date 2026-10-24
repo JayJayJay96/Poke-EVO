@@ -37,6 +37,7 @@ import { collideWithMap } from './map';
 import { MAP_TUNING } from '../data/map';
 import { updateSites } from './sites';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
+import { boonMoveSpeedMult, chargeBeamMult, emptyBoonState, gluttonyMult, mistBlocks, onBoonCast, restAfterSeconds, updateBoons } from './boons';
 import {
   cooldownRate,
   emptyTechniqueState,
@@ -136,6 +137,8 @@ export function createWorld({
     boosts: Object.fromEntries(BOOST_IDS.map((id) => [id, 0])) as Record<BoostId, number>,
     techniques: [],
     tech: emptyTechniqueState(),
+    boons: [],
+    boon: emptyBoonState(),
     items: [],
     bigBoosts: 0,
     surgeLeft: 0,
@@ -203,6 +206,7 @@ export function step(world: World, input: InputState, dt: number): void {
   collideWithMap(world, dt);
   updateAbilities(world, dt);
   updateTechniques(world, dt);
+  updateBoons(world, dt);
   updateMoves(world, dt);
   updateProjectiles(world, dt);
   updateZones(world, dt);
@@ -361,7 +365,7 @@ function tickTimers(world: World, dt: number): void {
   // Rest regen (D44): out of combat long enough, a share of max HP comes back.
   p.calmFor += dt;
   const rest = TUNING.restRegen;
-  if (p.calmFor >= rest.afterSeconds && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);
+  if (p.calmFor >= restAfterSeconds(world, rest.afterSeconds) && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);
   // Solar Power's drain never takes the last HP point.
   const drain = ABILITIES[p.ability].hpDrainPerSec ?? 0;
   if (drain > 0 && p.hp > 1) p.hp = Math.max(1, p.hp - drain * dt);
@@ -397,7 +401,7 @@ function movePlayer(world: World, input: InputState, dt: number): void {
   // Snorlax's Yawn cloud slows the player (D28, B2).
   // Slows don't stack: the strongest of a boss's (Yawn) and the player's statuses (D36) wins.
   const slow = Math.max(world.arena?.playerSlow ?? 0, playerStatusSlow(world), webSlow(world));
-  const speed = p.speed * mutationMoveSpeedMult(world) * (1 - slow);
+  const speed = p.speed * mutationMoveSpeedMult(world) * boonMoveSpeedMult(world) * (1 - slow);
   p.vx = mx * speed;
   p.vy = my * speed;
   p.x += p.vx * dt;
@@ -567,11 +571,14 @@ function fire(world: World, slot: MoveSlot): boolean {
   const charged = slot === world.moves[0] ? chargedShotMult(world) : 1;
   // Rollout (D40): the first cast after 2 s of moving hits harder.
   const rollout = rolloutMult(world);
-  slot.stats.damage *= charged * rollout;
+  // Charge Beam (D49): every 20th cast hits ×3.
+  const beam = chargeBeamMult(world);
+  slot.stats.damage *= charged * rollout * beam;
   const cast = hooks?.cast ? hooks.cast(world, slot) : castMove(world, slot, MOVES[slot.moveId]);
-  slot.stats.damage /= charged * rollout;
+  slot.stats.damage /= charged * rollout * beam;
   if (cast && charged > 1) world.player.charge = 0;
   if (cast && rollout > 1) world.tech.rollout = 0;
+  if (cast) onBoonCast(world, slot, beam > 1);
   return cast;
 }
 
@@ -650,7 +657,7 @@ function pickUpBerries(world: World, dt: number): void {
       continue;
     }
     berry.collected = true;
-    if (berry.kind === 'oran') healPlayer(world, TUNING.heal.berryHeal);
+    if (berry.kind === 'oran') healPlayer(world, TUNING.heal.berryHeal * gluttonyMult(world, 'heal'));
     else {
       pullGems(world, world.spawnRadius);
       pullBerries(world, world.spawnRadius);
@@ -725,6 +732,8 @@ export function hitPlayer(world: World, damage: number, enemy: Enemy): boolean {
     emit(world, 'shellBlock', damage);
     return false;
   }
+  // Mist (D49): once per cooldown, a hit is ignored.
+  if (mistBlocks(world)) return false;
   const contact =
     damage *
     (enemy.weakenLeft > 0 ? enemy.weakenMult : 1) *

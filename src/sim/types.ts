@@ -5,6 +5,7 @@ import type { ObstacleKind } from '../data/map';
 import type { MoveId, StunKind } from '../data/moves';
 import type { MutationId } from '../data/mutations';
 import type { PlayerStatusId } from '../data/playerStatus';
+import type { BoonId } from '../data/boons';
 import type { TechniqueId } from '../data/techniques';
 import type { BoostId, ItemId } from '../data/upgrades';
 import type { Rng } from './rng';
@@ -485,6 +486,20 @@ export interface OwnedTechnique {
 }
 
 /** Live Technique state (D40). */
+/** Live Legendary Boon state (D49). */
+export interface BoonState {
+  quakeLeft: number;
+  thunderLeft: number;
+  auraLeft: number;
+  bulkKills: number;
+  bulkLeft: number;
+  /** Charge Beam: casts since the last charged one. */
+  charge: number;
+  mistLeft: number;
+  /** Dynamic Punch: casts per move slot. */
+  casts: number[];
+}
+
 export interface TechniqueState {
   /** Rollout: seconds moving since the last cast. */
   rollout: number;
@@ -547,6 +562,8 @@ export type LevelUpOffer =
   /** A captured Mutation Site (D23): pick one of its cards, or skip. */
   | { readonly kind: 'site'; readonly siteId: number; readonly cards: readonly SiteCard[] }
   /** Arena boss beaten, step 1 (D28): pick the combo base, or a move to absorb into the combo; Esc skips. */
+  /** Arena boss beaten (D49): pick one of its Legendary Boons; the reward pick follows. */
+  | { readonly kind: 'boon'; readonly boss: ArenaBossId; readonly cards: readonly BoonId[] }
   | { readonly kind: 'combine'; readonly slots: readonly number[] }
   /**
    * Arena boss beaten, step 2 (D28): pick one card from the mixed level / augment / site pools.
@@ -934,6 +951,9 @@ export interface World {
   /** Owned Techniques in pick order (D40), at most MAX_TECHNIQUE_SLOTS. */
   techniques: OwnedTechnique[];
   tech: TechniqueState;
+  /** Legendary Boons from beaten arena bosses (D49). */
+  boons: BoonId[];
+  boon: BoonState;
   items: ItemId[];
   /** Power Surge picks from the augment-level fallback. */
   bigBoosts: number;

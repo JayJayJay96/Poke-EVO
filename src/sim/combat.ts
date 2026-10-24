@@ -8,6 +8,7 @@ import { CRIT_MULTIPLIER } from '../data/upgrades';
 import { blazeFaked, emit, healPlayer, hooksOf, mutationLeechBonus } from './hooks';
 import { applyPlayerStatus } from './playerStatus';
 import { statusMult, type StatusId } from './statusResist';
+import { boonDamageMult, gluttonyMult, onBoonKill, sheerColdExecutes } from './boons';
 import { onTechniqueHit, onTechniqueKill, techniqueDamageMult } from './techniques';
 import type { Berry, Enemy, Gem, HitInfo, MoveSlot, MoveStats, World } from './types';
 
@@ -226,6 +227,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     (crit ? damage * critMult : damage) *
     abilityDamageMult(world) *
     techniqueDamageMult(world, enemy, slot) *
+    boonDamageMult(world) *
     (1 + missing) *
     typeMult *
     mutationMult *
@@ -253,6 +255,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   if (champ?.bulking) champ.bulking.taken += dealt;
   if (champ?.focus?.phase === 'channel') champ.focus.taken += dealt;
   enemy.hp = floor > 0 ? enemy.hp - dealt : enemy.hp - amount;
+  // Sheer Cold (D49): a move's own hit finishes a slowed, low, non-boss enemy.
+  if (sheerColdExecutes(world, enemy, slot)) enemy.hp = 0;
   const ability = eliteAbilityOf(enemy);
   // Anger Point (Elite Tauros): a crit enrages it. Run Away (Elite Rattata): once, at low HP, it sprints off.
   if (crit && ability === 'angerPoint') enemy.rageLeft = ABILITY_TUNING.angerPoint.seconds;
@@ -287,6 +291,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
       emit(world, 'kill', 1, enemy);
     }
     onTechniqueKill(world, enemy, dealt);
+    onBoonKill(world);
     return dealt;
   }
   // Shield Dust (Elite Caterpie): statuses riding on a damaging hit barely land.
@@ -542,7 +547,7 @@ function dropsOnGround(world: World, kind: Berry['kind']): number {
 /** Rolls for an Oran Berry drop (D12); skipped when the berry budget is full. */
 export function maybeDropBerry(world: World, x: number, y: number, chance: number): void {
   if (chance <= 0 || dropsOnGround(world, 'oran') >= TUNING.heal.maxBerries) return;
-  if (world.rng.next() >= chance) return;
+  if (world.rng.next() >= chance * gluttonyMult(world, 'drop')) return;
   const expiresAt = world.time + TUNING.heal.dropLifetimeSeconds;
   world.berries.push({ id: world.nextId++, kind: 'oran', x, y, collected: false, expiresAt });
 }

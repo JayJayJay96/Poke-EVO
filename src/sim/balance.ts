@@ -4,7 +4,7 @@ import { SITE_TUNING } from '../data/sites';
 import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from './evolution';
 import { chooseAugment, chooseCard, chooseReplace, chooseSkill } from './progression';
 import { createSeededRng, type Rng } from './rng';
-import { chooseArenaReward, chooseCombine } from './arena';
+import { chooseArenaReward, chooseBoon, chooseCombine } from './arena';
 import { chooseSiteCard } from './sites';
 import { currentStage } from './stats';
 import type { World } from './types';
@@ -81,6 +81,9 @@ function autoPick(world: World, rng: Rng): void {
     // Without `sites` the bot only meets sites its circle crosses; either way it takes a random card.
     case 'site':
       chooseSiteCard(world, pick(offer.cards.length));
+      break;
+    case 'boon':
+      chooseBoon(world, pick(offer.cards.length));
       break;
     case 'combine':
       chooseCombine(world, pick(offer.slots.length));

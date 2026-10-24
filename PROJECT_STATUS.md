@@ -76,6 +76,49 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Legendary Boons replace the skill combine (D49)
+**Owner:** keeping every move separate made hordes hard, and winning a boss "didnt really do anything". The owner wants auto-fire kept and asked for a new reward. I proposed three options; the owner picked **Legendary Boons** and approved the list as written.
+
+- **Why the combine felt empty:** in code it only put the chosen moves on one shared cooldown and freed a learnset slot. There was no extra power and no new visual.
+- **New** (data `src/data/boons.ts`, effects `src/sim/boons.ts`):
+  - after a boss win, pick 1 of that boss's 3 boons (the ★ horde-clearer is always offered), then the existing reward pick
+  - the 12 boons are listed in D49
+  - effects hook into `step` (timers), `fire` (Charge Beam, Dynamic Punch), `damageEnemy` (Bulk Up and Guts damage, Sheer Cold, KO count), `hitPlayer` (Mist), `movePlayer` (Guts speed), `refreshStats` (Thick Fat, Tailwind), rest regen (Thick Fat) and berries (Gluttony)
+  - boon damage runs inside `tech.procDepth`, so it triggers no Technique, and as proc hits, so it triggers no Mutation (D29)
+- **UI:**
+  - gold "LEGENDARY BOON (★)" cards after a win
+  - an icy ring for Blizzard Aura
+  - a "Legendary Boons" section in the pause screen's Build column
+- **Snapshot:** v5 saves boons. **Balance bot:** picks boons at random.
+- **Combine:** the arena never offers the combine step now. `world.combo`, `combo.ts` and the combine UI are dead code, to be removed in a follow-up once the other session's Articuno work in the same files is committed.
+
+**Checks (observed)**
+- `tsc --noEmit` clean.
+- `npx vitest run` **584/584** in the working tree (includes other sessions' work); **570/570** on the exact staged snapshot, with `vite build` passing there too.
+- New `src/sim/boons.test.ts` (12 tests):
+  - the boon pick
+  - Quake hits within 180 px only, and its kill spreads no Kindling burn
+  - Thunder Call hits the cluster
+  - Aura slows and damages
+  - Dynamic Punch on the 5th cast
+  - Bulk Up, Guts, Charge Beam, Mist, Sheer Cold (not on bosses)
+  - Thick Fat, Tailwind, Gluttony
+  - snapshot round-trip
+- The arena tests now expect the boon pick before the reward pick.
+- **Browser** (port 5181):
+  - Articuno's boon pick showed its 3 gold cards
+  - picking Blizzard Aura led to the reward pick
+  - the ring showed, and enemies inside were slowed and KO'd
+  - the pause screen lists "Blizzard Aura ★ from Articuno"
+  - no console errors
+
+**Next:**
+1. Owner playtest: do boss wins feel worth it, and do the ★ boons fix hordes?
+2. Remove the dead combo code after the Articuno commit.
+3. Balance pass (`npm run balance`) once the boss schedule is final.
+
+**Build runs:** yes.
+
 ### 2026-10-25 — D48: horde clear without Return (skill team)
 - **Why:** owner: without Return "it's hard to clear the horde". In code, Return was unlimited pierce: a Return shot passed every enemy both ways, and each pass fired the signature's explosion and chain. It was the only augment that scaled with a crowd.
 - **Built:** `RETURN_HITS_PER_LEG = 4` (`src/data/augments.ts`; card text updated). `forms/projectile.ts`: per-leg budget `legPierce` (new `Projectile` field in `types.ts`, plus Pierce); the out leg turns home early once spent (`turnBack`) and doesn't re-hit the enemy it bounced off. Pierce ranks **2 / 4 / 6** (was 1 / 2 / 4). `moves.ts`: Flame Burst explosion **45 → 56 px**; Bubble / Water Pulse / Hydro Cannon **pierce 1**; Ice Shard / Sheer Cold **pierce 2**. `mutationDefs/bubble.ts`: Bubble Trap's bubble stops on the enemy it engulfs. Tests: new Return-cap test (hits per target `[2,2,2,1,0,0]`), Pierce tests read data. `PROJECT.md` D48 row.

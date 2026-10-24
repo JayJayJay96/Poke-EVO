@@ -1,4 +1,5 @@
 import { AUGMENTS } from '../data/augments';
+import { BOON_TUNING } from '../data/boons';
 import { ABILITIES, POKEMON, TUNING, type AbilityId, type EvolutionStage, type PokemonType } from '../data/content';
 import { MOVES, type MoveDef, type MoveId } from '../data/moves';
 import { SITE_TUNING } from '../data/sites';
@@ -221,8 +222,16 @@ export function refreshStats(world: World): void {
   m.regenPerSec += ability.regenPerSec ?? 0;
   m.moveSpeedMult += ability.moveSpeedPct ?? 0;
   m.cooldownMult *= 1 - (ability.cooldownPct ?? 0);
+  // Tailwind (D49).
+  if (world.boons.includes('tailwind')) {
+    m.moveSpeedMult += BOON_TUNING.tailwind.moveSpeedPct;
+    m.pickupMult += BOON_TUNING.tailwind.pickupPct;
+    m.cooldownMult *= 1 - BOON_TUNING.tailwind.cooldownPct;
+  }
   world.mods = m;
-  const newMax = Math.max(MIN_MAX_HP, stage.maxHp + m.maxHpBonus);
+  // Thick Fat (D49): +40% max HP.
+  const thickFat = world.boons.includes('thickFat') ? 1 + BOON_TUNING.thickFat.maxHpPct : 1;
+  const newMax = Math.max(MIN_MAX_HP, (stage.maxHp + m.maxHpBonus) * thickFat);
   // Gaining max HP (boosts or evolving) also heals by the same amount.
   p.hp = Math.min(newMax, p.hp + Math.max(0, newMax - p.maxHp));
   p.maxHp = newMax;

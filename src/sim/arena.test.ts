@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
 import { ENEMIES, TUNING } from '../data/content';
-import { arenaBossChoices, arenaSchedule, chooseArenaReward, chooseCombine, resolveArena, rollRewardCards, skipCombine } from './arena';
+import { arenaBossChoices, arenaSchedule, chooseArenaReward, chooseBoon, resolveArena, rollRewardCards } from './arena';
 import { PLAYER_STATUS } from '../data/playerStatus';
 import { playerStatusSlow } from './playerStatus';
 import { currentStage } from './stats';
@@ -148,6 +148,9 @@ describe('arena events (D28): the fight', () => {
     expect(world.enemies.some((e) => e.id === mob.id)).toBe(true);
     expect([world.player.x, world.player.y]).toEqual([stored.x, stored.y]);
     expect(world.arenaNotice?.kind).toBe('won');
+    // Legendary Boons (D49): the boss's boon pick comes first, then the reward pick.
+    expect(world.offer?.kind).toBe('boon');
+    chooseBoon(world, 0);
     expect(world.offer?.kind).toBe('arenaReward');
     if (world.offer?.kind !== 'arenaReward') return;
     expect(world.offer.cards.length).toBeLessThanOrEqual(ARENA_TUNING.rewardCards);
@@ -1417,28 +1420,15 @@ describe('skill combine (D28)', () => {
     expect(fireSpin.activeLeft).toBe(0);
   });
 
-  it('a boss win offers the combine step first (base, then absorb), then the reward; Esc skips to the reward', () => {
+  it('a boss win offers its Legendary Boons (D49) instead of a combine step; the reward pick follows', () => {
     const world = charmanderWith('scratch');
     enter(world);
     world.enemies.find((e) => e.id === world.arena!.bossEnemyId)!.hp = 0;
     step(world, IDLE, DT);
-    expect(world.offer).toEqual({ kind: 'combine', slots: [0, 1] });
-    chooseCombine(world, 0);
-    expect(world.combo).toEqual([0]);
+    expect(world.offer?.kind).toBe('boon');
+    chooseBoon(world, 0);
+    expect(world.combo).toEqual([]);
+    expect(world.boons).toHaveLength(1);
     expect(world.offer?.kind).toBe('arenaReward');
-
-    world.offer = { kind: 'combine', slots: [1] };
-    skipCombine(world);
-    expect(world.combo).toEqual([0]);
-    expect(world.offer?.kind).toBe('arenaReward');
-  });
-
-  it('with no qualifying move the win still gives the reward, flagged as a missed combine', () => {
-    const world = makeWorld();
-    enter(world);
-    world.enemies.find((e) => e.id === world.arena!.bossEnemyId)!.hp = 0;
-    step(world, IDLE, DT);
-    expect(world.offer?.kind).toBe('arenaReward');
-    if (world.offer?.kind === 'arenaReward') expect(world.offer.combineMissed).toBe(true);
   });
 });
