@@ -2,6 +2,7 @@ import { TUNING } from '../../data/content';
 import type { ProjectileMoveDef } from '../../data/moves';
 import { NO_HIT, damageEnemy, findNearestEnemy, findTarget, queryEnemies } from '../combat';
 import { chainBias, emit, hooksOf } from '../hooks';
+import { hitsObstacle } from '../map';
 import type { Enemy, MoveSlot, Projectile, World } from '../types';
 import { spawnZone } from '../zones';
 
@@ -157,6 +158,9 @@ export function updateProjectiles(world: World, dt: number): void {
       proj.lifeLeft = 0;
       // A rock Machamp holds as a shield is worn down by the shots it stops.
       if (rock.hp !== undefined) rock.hp -= proj.damage;
+    } else if (hitsObstacle(world, proj.x, proj.y, proj.radius)) {
+      // Map boulders and trees stop shots the same way (D41 extended to the main map, D47).
+      proj.lifeLeft = 0;
     }
     if (proj.lifeLeft <= 0) {
       proj.dead = true;

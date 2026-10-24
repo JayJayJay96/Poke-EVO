@@ -44,11 +44,16 @@ export const MACHAMP_KIT = {
   /** Guts (its ability): while it carries a status you put on it, it hits this much harder. */
   guts: 1.3,
   /**
-   * Bulk Up pose (owner 2026-10-23: "the opening maybe will come from the constant flex"): after `every` attacks
-   * (rolled), it poses. Deal `interruptPct` of its max HP during the pose to throw it off; otherwise it gains a
-   * stack (+`stackDamage` each, max `maxStacks`) for the rest of the fight.
+   * Flex pose (owner 2026-10-24: "the pose is just there to let user breathe a bit"): after `every` attacks (rolled)
+   * it shows off for a moment. No buff, nothing to break: a breather and a free punish window.
    */
-  pose: { every: [2, 3], seconds: 1.2, secondsPhase3: 0.8, interruptPct: 0.04, stackDamage: 0.15, maxStacks: 3 },
+  pose: { every: [2, 3], seconds: 1.2, secondsPhase3: 0.8 },
+  /**
+   * Bulk Up (owner 2026-10-24): its own move. It powers up for `seconds`; deal `interruptPct` of its max HP meanwhile
+   * to break the stance (no gain, it staggers `stagger` s). Completed, it gains a stack (+`stackDamage`, max
+   * `maxStacks`) for the rest of the fight.
+   */
+  bulkUp: { cooldown: 20, firstAfter: 6, seconds: 5, interruptPct: 0.06, stagger: 1.5, stackDamage: 0.15, maxStacks: 3 },
   /** Relative odds of each move when several are ready. */
   weights: {
     karateChop: 4,
@@ -62,6 +67,7 @@ export const MACHAMP_KIT = {
     focusBlast: 2,
     focusPunch: 2,
     closeCombat: 3,
+    bulkUp: 2,
   },
   /** Karate Chop: a string of cone chops, each re-aimed (lead 0) with a step forward; 4 chops from phase 2. */
   karateChop: { cooldown: 4, firstAfter: 1, trigger: 95, reach: 130, arcDeg: 70, chops: 3, chopsPhase2: 4, gaps: [0.7, 0.55, 0.4, 0.4], step: 30, damageFactor: 1, recover: 0.6 },
@@ -90,7 +96,8 @@ export const MACHAMP_KIT = {
     rip: 0.8,
     tell: 0.4,
     radius: 26,
-    shieldHpPct: 0.03,
+    // Owner 2026-10-24: tanky enough that moving sideways beats shooting through it (was 0.03).
+    shieldHpPct: 0.08,
     stagger: 1.5,
     /** Rocks it leaves (Rock Tomb, Strength, Rock Throw) never push the rubble past this; held rocks never crumble. */
     maxRocks: 9,
@@ -121,7 +128,7 @@ export const MACHAMP_KIT = {
     stay: 12,
     recover: 0.8,
   },
-  /** Iron Pose: the pose behind its planted rock; completed, it gives this many stacks. */
+  /** Iron Pose: Bulk Up behind its planted rock (shots from the front are blocked); completed, it gives this many stacks. */
   ironPose: { stacks: 2 },
   /** Bullet Punch (phase 2+): a priority dash when you stand just outside melee. */
   bulletPunch: { cooldown: 6, firstAfter: 0, minDistance: 120, maxDistance: 260, telegraph: 0.35, length: 260, speed: 420, width: 40, damageFactor: 1.2, recover: 0.5 },

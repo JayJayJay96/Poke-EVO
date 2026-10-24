@@ -39,6 +39,8 @@ import {
   socketsUsed,
 } from '../sim/mutations';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
+import { chunkOf, obstaclesAt } from '../sim/map';
+import { MAP_TUNING } from '../data/map';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
@@ -50,6 +52,11 @@ import { TYPE_COLORS, augmentLabel, mutationLabel } from '../ui/labels';
 // Grey-box colours until real sprites arrive in P6.
 const COLORS = {
   grid: 0x26331f,
+  // Map obstacles: docs/map/INDEX.md §5 (map.tall.*).
+  boulder: 0x6e6a63,
+  boulderRim: 0x4a4740,
+  tree: 0x1f4a24,
+  treeRim: 0x14301a,
   player: 0xff7a2f,
   flash: 0xffffff,
   projectile: 0xffb347,
@@ -253,6 +260,7 @@ export class RunScene extends Phaser.Scene {
       rng: createSeededRng(createRandomSeed()),
       pokemonId: this.pokemonId,
       mapSeed: createRandomSeed(),
+      obstacleDensity: 1,
     });
     this.announcedSites = new Set();
     if (import.meta.env.DEV) {
@@ -278,6 +286,8 @@ export class RunScene extends Phaser.Scene {
     if (this.stress) {
       const cam = this.cameras.main;
       this.world.spawnRadius = Math.hypot(cam.width, cam.height) / 2 + TUNING.spawn.ringPadding;
+      // As many obstacles as the gap rule allows (the map's worst case for collision cost, D47 M1).
+      this.world.map.density = MAP_TUNING.stressDensity;
       if (params.get('stress') === this.world.player.pokemonId) setupMutationStress(this.world);
       else setupStress(this.world);
     }
@@ -1022,6 +1032,23 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
+  /** Every obstacle in the chunks the view overlaps; obstacles stay inside their own chunk. */
+  private drawObstacles(g: Phaser.GameObjects.Graphics, left: number, top: number, width: number, height: number): void {
+    const size = MAP_TUNING.chunkSize;
+    for (let cy = chunkOf(top); cy <= chunkOf(top + height); cy++) {
+      for (let cx = chunkOf(left); cx <= chunkOf(left + width); cx++) {
+        for (const o of obstaclesAt(this.world, cx * size, cy * size)) {
+          const tree = o.kind === 'tree';
+          g.fillStyle(tree ? COLORS.tree : COLORS.boulder, 1);
+          g.fillCircle(o.x, o.y, o.radius);
+          // A darker rim so walls read as walls (docs/map/README.md §7.7).
+          g.lineStyle(3, tree ? COLORS.treeRim : COLORS.boulderRim, 1);
+          g.strokeCircle(o.x, o.y, o.radius - 1.5);
+        }
+      }
+    }
+  }
+
   private draw(): void {
     const { player, enemies, projectiles, gems, swings, moves, zones, blasts, berries } = this.world;
     const cam = this.cameras.main;
@@ -1042,6 +1069,9 @@ export class RunScene extends Phaser.Scene {
     for (let y = Math.floor(top / GRID_SIZE) * GRID_SIZE; y <= top + cam.height; y += GRID_SIZE) {
       g.lineBetween(left, y, left + cam.width, y);
     }
+
+    // Map boulders and trees (D47, grey boxes). Arenas sit on the same coordinates, so they hide during a fight.
+    if (!this.world.arena) this.drawObstacles(g, left, top, cam.width, cam.height);
 
     // Zones on the ground, fading out at the end: craters orange; status zones by their effect.
     for (const zone of zones) {

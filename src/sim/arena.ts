@@ -4,6 +4,7 @@ import { startMachamp } from './machamp';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
 import { MAX_COMBO_MOVES, comboCandidates } from './combo';
+import { clearSpot } from './map';
 import { applyAugmentCard, applyCard, augmentPool, buildCardPool, gainXp, needsReplace } from './progression';
 import { createSeededRng, type Rng } from './rng';
 import { applySiteCard, rollSiteCards } from './sites';
@@ -47,10 +48,12 @@ function openEntrance(world: World): void {
   const { min, max } = ARENA_TUNING.entranceDistance;
   const angle = rng.next() * Math.PI * 2;
   const dist = min + rng.next() * (max - min);
+  // Never on a boulder or tree (D47).
+  const { x, y } = clearSpot(world, player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist, ARENA_TUNING.entranceRadius);
   world.entrance = {
     bossId,
-    x: player.x + Math.cos(angle) * dist,
-    y: player.y + Math.sin(angle) * dist,
+    x,
+    y,
     radius: ARENA_TUNING.entranceRadius,
     closesAt: world.time + ARENA_TUNING.openSeconds,
   };

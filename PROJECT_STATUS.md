@@ -76,6 +76,78 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-24 — Map M1: obstacle core (D47)
+**Owner:** "Start building M1 (obstacle core: boulders and trees, slide, projectile blocking, spawn avoidance, stuck recycling, stress FPS)." **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner.
+
+- **Added:**
+  - `src/data/map.ts` (`MAP_TUNING`, provisional)
+  - `src/sim/map.ts`: seeded per-chunk scatter of boulders and trees; 150 px gaps and 75 px chunk-edge margins keep lanes open; push-out slide; `hitsObstacle`, `clearSpot`, `collideWithMap`
+  - `src/sim/map.test.ts`: 13 tests
+- **Changed:**
+  - `types.ts`: `Obstacle`, `MapState`, `World.map`, `Enemy.blockedFor`
+  - `world.ts`: `obstacleDensity` option (default 0); collision pass after statuses; stuck enemies recycled after 3 s of contact beyond 450 px
+  - `forms/projectile.ts`, `enemyAttacks.ts`: shots of both sides stop at obstacles (D41 extended)
+  - `sites.ts`, `arena.ts`: sites and entrances are placed clear of obstacles
+  - `RunScene.ts`: grey-box drawing (hidden in arenas); the game uses density 1, `?stress=1` uses 2.5
+  - `stress.bench.ts`: a dense-obstacle case
+  - `docs/map/README.md` §11.4 / §11.4a: what M1 built differently
+- **Commands (observed):**
+  - `npx tsc --noEmit` clean
+  - `npx vitest run` **572/572 passed**
+  - `npm run build` passed
+  - bench (`--dir src`): one sim step **1.33 ms** baseline vs **1.23 ms** with dense obstacles (no measurable cost)
+- **Browser (port 5181):**
+  - normal run: obstacles draw, and a pack wrapped round a tree with zero overlap sampled over 2.5 s
+  - `?stress=1`, moved to dense chunks: **79–80 FPS**, sim 0.64 ms, draw 0.29 ms, 500 enemies
+  - no console errors
+- **Seen but not caused by M1** (same with obstacles switched off):
+  - in `?stress=1` the "Charmander is evolving!" text stays on screen after `topUpStress` clears the evolution
+  - the projectile count reads 0 because the packed horde eats every shot in the step it's fired
+- **Not done / debt:**
+  - The balance bot still runs on an empty map (density 0); turning obstacles on there will move the D19 numbers.
+  - Enemies heading straight at a rock's centre stall until recycled or nudged; there's no "steer round" yet (check in playtest).
+  - Bench runs also pick up `.claude/worktrees/*` copies unless run with `--dir src`.
+- **Next:** owner playtest of M1 (does cover feel useful, do crowds flow?), then **M2** (biomes, set pieces, lane check).
+- **Build runs:** yes.
+
+### 2026-10-24 — Map decisions (D47)
+**Owner:** went through `docs/map/README.md` §15 one by one. **Status:** the map spec is **approved as D47**; docs updated, no code.
+
+- **Answers:**
+  - 15-1: noise + set pieces, far sites (≥ 3000 px) weight bound/rank-up ×1.5
+  - 15-2: full traversal set (Lapras ×1.0, Squirtle line ×0.85, Charizard flies, Ice bridges)
+  - 15-3: M1–M3 now, M4–M5 at P6
+  - 15-4: entrances prefer a matching biome within 800 px, else D28
+  - 15-5: Mewtwo's dome approved in principle but **deferred**; the run will grow to ~30 min, so the dome starts 30 s before Mewtwo whenever that is
+  - 15-6: **both** the player and enemies climb ledges at 30% (not one-way for the player)
+- **Changed:** `PROJECT.md` §13 (D47 row); `docs/map/README.md` (status, §4.2, §5.4, §5.5 far sites, §7.2, §7.5 ledge card, §10.3–§10.4 dome timing, §11.3, §11.5 `farSites`, §13 timing, §15 answers); `docs/map/INDEX.md` (status; `ui.map.notice.ledgeOneWay` → `ui.map.notice.ledgeClimb`; dome timing).
+- **Commands:** none (docs only).
+- **Next:** finish the Machamp/Articuno playtest and commit, then build **M1** (obstacle core, boulders and trees, stress FPS) per `docs/map/README.md` §13.
+- **Build runs:** unchanged (no code touched).
+
+### 2026-10-24 — Map design proposal (docs only)
+**Owner:** asked the map designer to propose a map that makes the game exciting, then to write it down in detail with labels the UI and art teams can use. **Status:** proposal written; approved later the same day as D47 (entry above).
+
+- **Added:** `docs/map/README.md` (the spec):
+  - rules R1–R9
+  - traversal flags (ground / swim / fly / levitate / burrow)
+  - chunk generation with biome noise, set pieces and a lane check
+  - 4 biomes and 9 feature cards
+  - 6 type reactions, 12 set-piece sketches
+  - run arc (arena foreshadowing, hordes from grass, optional Mewtwo dome)
+  - implementation design, performance budget, build steps M1–M5
+- **Added:** `docs/map/INDEX.md` (hand-off registry): every ID, display name, state, colour token, asset name, autotile set, UI string and sound ID.
+- **Decisions pending** (README §15):
+  - 15-1: macro layout
+  - 15-2: swimming and flying traversal
+  - 15-3: pull M1–M3 forward from P6
+  - 15-4: entrances prefer a matching biome
+  - 15-5: Mewtwo's dome
+  - 15-6: one-way ledges
+- **Commands:** none (docs only). **Not checked:** the obstacle collision cost is an estimate until M1's stress test.
+- **Next:** owner review of `docs/map/`. Record the answers in PROJECT.md §13 before any map code.
+- **Build runs:** unchanged (no code touched).
+
 ### 2026-10-24 — In-run HUD pass: no overlap, slimmer, louder event notices
 **Owner:** the HUD repeats what the pause screen shows, its lines overlap, and the event messages (mountain hole, dojo…) should be "more obvious". **Status:** done and checked in the browser. Not playtested by the owner.
 

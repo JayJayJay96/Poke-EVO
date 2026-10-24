@@ -33,6 +33,8 @@ import { applyPlayerStatus, emptyPlayerStatus, playerStatusSlow, updatePlayerSta
 import { gainXp, makeOffer } from './progression';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
+import { collideWithMap } from './map';
+import { MAP_TUNING } from '../data/map';
 import { updateSites } from './sites';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
 import {
@@ -59,6 +61,8 @@ export interface CreateWorldOptions {
   spawnEnabled?: boolean;
   /** Seeds Mutation Site placement (D23); the scene passes a random one. */
   mapSeed?: number;
+  /** Map obstacles (D47): 0 = an empty map (sim tests), 1 = a normal run. */
+  obstacleDensity?: number;
 }
 
 export function createWorld({
@@ -67,6 +71,7 @@ export function createWorld({
   spawnRadius = 600,
   spawnEnabled = true,
   mapSeed = 1,
+  obstacleDensity = 0,
 }: CreateWorldOptions): World {
   const def = POKEMON[pokemonId];
   const firstStage = def.stages[0]!;
@@ -114,6 +119,7 @@ export function createWorld({
     sites: [],
     siteChunks: new Set(),
     mapSeed,
+    map: { density: obstacleDensity, chunks: new Map() },
     arenaSchedule: arenaSchedule(mapSeed),
     arenaEventsDone: 0,
     arenaBossesUsed: [],
@@ -193,6 +199,8 @@ export function step(world: World, input: InputState, dt: number): void {
   moveEnemies(world, dt);
   updateEnemyAttacks(world, dt);
   updateStatuses(world, dt);
+  // After all movement and knockback: nobody ends the step inside a boulder or tree (D47).
+  collideWithMap(world, dt);
   updateAbilities(world, dt);
   updateTechniques(world, dt);
   updateMoves(world, dt);
@@ -335,6 +343,7 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     blindLeft: 0,
     wanderX: 0,
     wanderY: 0,
+    blockedFor: 0,
   };
   world.enemies.push(enemy);
   return enemy;
@@ -399,18 +408,23 @@ function movePlayer(world: World, input: InputState, dt: number): void {
 
 /**
  * Enemies left far behind reappear on the spawn ring ahead of the player, keeping HP and statuses,
- * so they don't sit out of play and fill the enemy cap (owner 2026-10-21).
+ * so they don't sit out of play and fill the enemy cap (owner 2026-10-21). So do enemies stuck behind a map
+ * obstacle for a while, once they're far enough that you can't be fighting them across it (D47).
  */
 function recycleStragglers(world: World): void {
   const { player } = world;
   const limit = world.spawnRadius * TUNING.spawn.recycleFactor;
+  const { seconds: stuckSeconds, recycleBeyond } = MAP_TUNING.stuck;
   const facing = Math.atan2(player.faceY, player.faceX);
   for (const enemy of world.enemies) {
     // A fleeing pack is meant to run off for a while (D34).
     if (enemy.fleeTo > 0 || enemy.fleeLeft > 0) continue;
     const dx = enemy.x - player.x;
     const dy = enemy.y - player.y;
-    if (dx * dx + dy * dy <= limit * limit) continue;
+    const d2 = dx * dx + dy * dy;
+    const stuck = enemy.blockedFor >= stuckSeconds && d2 > recycleBeyond * recycleBeyond;
+    if (d2 <= limit * limit && !stuck) continue;
+    enemy.blockedFor = 0;
     const angle = facing + (world.rng.next() - 0.5) * TUNING.spawn.recycleSpread;
     enemy.x = player.x + Math.cos(angle) * world.spawnRadius;
     enemy.y = player.y + Math.sin(angle) * world.spawnRadius;

@@ -1,6 +1,7 @@
 import { ENEMY_ATTACKS, ENEMY_SHOT_CAP, WEB } from '../data/enemyAttacks';
 import { BLAST_SECONDS } from './forms/projectile';
 import { eliteAbility } from './hordes';
+import { hitsObstacle } from './map';
 import { applyPlayerStatus } from './playerStatus';
 import type { Enemy, World } from './types';
 import { hitPlayer } from './world';
@@ -91,6 +92,11 @@ export function updateEnemyAttacks(world: World, dt: number): void {
     shot.x += shot.vx * dt;
     shot.y += shot.vy * dt;
     shot.left -= dt;
+    // Cover works both ways (D47): map boulders and trees stop darts too.
+    if (hitsObstacle(world, shot.x, shot.y, shot.radius)) {
+      shot.left = 0;
+      continue;
+    }
     if (!playerIn(world, shot.x, shot.y, shot.radius)) continue;
     if (strike(world, shot.owner, shot.damage) && shot.status) applyPlayerStatus(world, shot.status);
     shot.left = 0;

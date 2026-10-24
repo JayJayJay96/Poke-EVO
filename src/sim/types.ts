@@ -701,7 +701,8 @@ export type MachampMove =
   | 'dynamicPunch'
   | 'focusBlast'
   | 'focusPunch'
-  | 'closeCombat';
+  | 'closeCombat'
+  | 'bulkUp';
 
 /** Machamp (D42, BOSSES.md §4). Each move in progress is its own field; at most one runs at a time (but rocks fly). */
 export interface MachampState {
@@ -716,8 +717,10 @@ export interface MachampState {
   poseAfter: number;
   /** Bulk Up stacks (+damage for the rest of the fight). */
   bulk: number;
-  /** A pose in progress: Bulk Up (open) or Iron Pose (behind its rock); `taken` is the interrupt meter. */
-  pose: { left: number; taken: number; readonly iron: boolean } | null;
+  /** A flex pose in progress: a breather (no buff, nothing to break). */
+  pose: { left: number } | null;
+  /** Bulk Up (or Iron Pose, behind its rock) in progress; `taken` is the meter that breaks the stance. */
+  bulking: { left: number; taken: number; readonly iron: boolean } | null;
   /** Staggered (shield broken, Focus Punch interrupted): it stands open. */
   staggerLeft: number;
   /** Close Combat lowered its defences: it takes more damage while > 0. */
