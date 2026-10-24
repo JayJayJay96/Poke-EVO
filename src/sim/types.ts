@@ -1,6 +1,7 @@
 import type { ArenaBossId } from '../data/arena';
 import type { AugmentId } from '../data/augments';
 import type { AbilityId, EnemyId, PokemonId, PokemonType } from '../data/content';
+import type { ObstacleKind } from '../data/map';
 import type { MoveId, StunKind } from '../data/moves';
 import type { MutationId } from '../data/mutations';
 import type { PlayerStatusId } from '../data/playerStatus';
@@ -115,6 +116,8 @@ export interface Enemy {
   blindLeft: number;
   wanderX: number;
   wanderY: number;
+  /** Seconds pressed against map obstacles (decays while free); a long-stuck far enemy is recycled (D47). */
+  blockedFor: number;
   /** Aurora Beam: deals contactDamage × weakenMult while weakenLeft > 0. */
   weakenMult: number;
   weakenLeft: number;
@@ -597,6 +600,21 @@ export type RewardCard =
   | { readonly pool: 'site'; readonly card: SiteCard };
 
 /** An arena event's entrance on the main map (D28), open until `closesAt`. */
+/** A tall map obstacle (D47, docs/map/README.md §7.6–§7.7): blocks every mover and every projectile. */
+export interface Obstacle {
+  readonly x: number;
+  readonly y: number;
+  readonly radius: number;
+  readonly kind: ObstacleKind;
+}
+
+export interface MapState {
+  /** Obstacle count multiplier: 0 = an empty map (the default for sim tests), 1 = a normal run. */
+  density: number;
+  /** Generated chunks by `chunkKey`; each holds the obstacles placed inside it. */
+  readonly chunks: Map<number, Obstacle[]>;
+}
+
 export interface ArenaEntrance {
   readonly bossId: ArenaBossId;
   readonly x: number;
@@ -897,6 +915,8 @@ export interface World {
   siteChunks: Set<string>;
   /** Seeds site placement, independent of the gameplay RNG. */
   readonly mapSeed: number;
+  /** Main-map terrain (D47): obstacles per chunk, generated lazily from `mapSeed`. */
+  readonly map: MapState;
   /** Seconds until terrain next applies its effects (0.25 s cadence, like status ticks). */
   terrainTickLeft: number;
   swings: Swing[];
