@@ -309,7 +309,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         maxHp: 250,
         speed: 159,
         radius: 20,
-        damageMult: 1.7, // D19: 3-stage final forms out-damage Raichu and Lapras (was 1.3)
+        damageMult: 1.8, // D19: 3-stage final forms out-damage Raichu and Lapras (1.3 → 1.7 → 1.8, 2026-10-23 pass)
         signatureMove: 'hydroCannon',
         abilityChoices: ['torrentPlus', 'rainDish'],
       },
@@ -388,7 +388,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         maxHp: 105,
         speed: 165,
         radius: 11,
-        damageMult: 1.05,
+        damageMult: 1, // 1.05 → 1 so Raichu (1.05) still rises (2026-10-23 balance pass)
         signatureMove: 'thunderShock',
       },
       {
@@ -399,7 +399,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         maxHp: 170,
         speed: 175,
         radius: 15,
-        damageMult: 1.25,
+        damageMult: 1.05, // D19: Raichu ≈ Lapras at 15:00, below every 3-stage final (1.25 → 1.05, 2026-10-23 pass)
         signatureMove: 'thunderbolt',
         abilityChoices: ['staticPlus', 'lightningRod'],
       },
@@ -426,7 +426,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         maxHp: 170,
         speed: 150,
         radius: 18,
-        damageMult: 1.2,
+        damageMult: 1.4, // D19: the non-evolver leads at 5 min (1.2 → 1.4, 2026-10-23 pass)
         signatureMove: 'iceShard',
       },
     ],

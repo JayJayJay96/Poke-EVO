@@ -12,6 +12,9 @@ import { playLine } from './balance';
 
 // 8 seeds: random card picks are noisy (P4f plan).
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
+// The D19 reference (site dps) uses 24: with 8, one seed's spread (up to ~5×) leaves the mean only good to
+// about ±15%, wider than D19's 10% margins (2026-10-23 balance pass). ~6 min more per report.
+const SITE_SEEDS = Array.from({ length: 24 }, (_, i) => i + 1);
 /** Just before 15:00: the run ends at 900 s. */
 const CHECKPOINTS = [300, 540, 890];
 
@@ -19,7 +22,7 @@ test('early-vs-late gamble', { timeout: 30 * 60_000 }, () => {
   const rows: Record<string, string | number>[] = [];
   for (const id of Object.keys(POKEMON) as PokemonId[]) {
     const runs = SEEDS.map((seed) => playLine(id, seed, CHECKPOINTS));
-    const siteRuns = SEEDS.map((seed) => playLine(id, seed, CHECKPOINTS, { sites: true }));
+    const siteRuns = SITE_SEEDS.map((seed) => playLine(id, seed, CHECKPOINTS, { sites: true }));
     CHECKPOINTS.forEach((time, i) => {
       const at = runs.map((r) => r[i]!);
       const siteAt = siteRuns.map((r) => r[i]!);
@@ -34,6 +37,12 @@ test('early-vs-late gamble', { timeout: 30 * 60_000 }, () => {
         dps: Math.round(avg((c) => c.dps)),
         ehp: Math.round(avg((c) => c.effectiveHp)),
         'site dps': Math.round(avg((c) => c.dps, siteAt)),
+        // Standard error of that mean: two lines closer than ~2 s.e. aren't really ordered.
+        's.e.': Math.round(
+          Math.sqrt(
+            siteAt.reduce((s, c) => s + (c.dps - avg((x) => x.dps, siteAt)) ** 2, 0) / (siteAt.length - 1) / siteAt.length,
+          ),
+        ),
         'site level': Math.round(avg((c) => c.level, siteAt)),
         sites: avg((c) => c.sites, siteAt).toFixed(1),
         'mutation ranks': avg(ranks, siteAt).toFixed(1),
@@ -48,5 +57,6 @@ test('early-vs-late gamble', { timeout: 30 * 60_000 }, () => {
   const caveat =
     'The bot is invulnerable and never at low HP: Shell, Blaze and hit-taken / low-HP effects never fire. ' +
     'Full-HP and movement effects (Bloom, Charge) do, so those lines read high.';
-  writeFileSync('balance-report.md', `# Gamble balance (seeds ${SEEDS.join(', ')})\n\n${caveat}\n\n${table}\n`);
+  const seeds = `seeds 1–${SEEDS.length}; site columns 1–${SITE_SEEDS.length}`;
+  writeFileSync('balance-report.md', `# Gamble balance (${seeds})\n\n${caveat}\n\n${table}\n`);
 });

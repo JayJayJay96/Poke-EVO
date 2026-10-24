@@ -4,7 +4,7 @@
 Rules: [`../README.md`](../README.md). IDs and hook names: [`../INDEX.md`](../INDEX.md). Generic Mutations: [`../shared/`](../shared/).
 **Acquisition (D16):** every Mutation below comes only from map sites (`Pool = site`).
 
-**Role:** early bulldozer. Lapras is the strongest Pokémon at minute 1: best HP (170) and damage (×1.2) of the starting forms. Speed follows the official stats (D20): 150, faster than Squirtle (142), a little slower than Charmander (153).
+**Role:** early bulldozer. Lapras is the strongest Pokémon at minute 1: best HP (170) and damage (×1.4 since the 2026-10-23 balance pass; was ×1.2) of the starting forms. Speed follows the official stats (D20): 150, faster than Squirtle (142), a little slower than Charmander (153).
 **The player's goal with Lapras (owner, 2026-10-18): level fast and safe.** Its kit is built to be strongest early and
 mid game, and its ceiling at 15:00 must be **below the 3-stage lines' final forms**.
 

@@ -101,8 +101,12 @@ export interface DummyRing {
 
 const BALANCE_RING: DummyRing = { innerDist: 60, count: DUMMY_COUNT, rings: 4, step: 50 };
 
-/** Swaps the horde for a dummy ring, measures DPS, then puts everything back. */
-export function measureDps(world: World, ring: DummyRing = BALANCE_RING): number {
+/**
+ * Swaps the horde for a dummy ring, measures DPS, then puts everything back. `resolve` closes any
+ * window that opens meanwhile (a banked level-up auto-opening, a site): an open window pauses the sim,
+ * which used to read as near-zero DPS for that seed.
+ */
+export function measureDps(world: World, ring: DummyRing = BALANCE_RING, resolve?: () => void): number {
   const saved = { enemies: world.enemies, time: world.time, spawnEnabled: world.spawnEnabled };
   world.enemies = [];
   world.zones = [];
@@ -118,6 +122,7 @@ export function measureDps(world: World, ring: DummyRing = BALANCE_RING): number
   });
   const steps = Math.round(MEASURE_SECONDS / TUNING.stepSeconds);
   for (let i = 0; i < steps; i++) {
+    while (resolve && (world.offer || world.evolution)) resolve();
     world.player.invulnLeft = Infinity;
     // Pinned in place: knockback and separation don't spread the ring out.
     for (const d of dummies) {
@@ -198,7 +203,7 @@ export function playLine(
       time,
       level: world.level,
       form: `${currentStage(world).name}/${MOVES[world.moves[0]!.moveId].name}`,
-      dps: measureDps(world),
+      dps: measureDps(world, BALANCE_RING, () => autoPick(world, picks)),
       effectiveHp: world.player.maxHp / world.mods.damageTakenMult,
       kills: world.kills,
       moves: world.moves.map((m) => `${m.moveId}[${m.sockets.map((s) => s.augmentId + s.rank).join(',')}]`).join(' '),

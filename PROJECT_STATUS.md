@@ -76,6 +76,22 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-23 — Balance pass toward D19 (skill team)
+- **Bot bug found and fixed (`src/sim/balance.ts`):** an open card window pauses `step()`, and `measureDps` never closed one. Since banked level-ups (D39) auto-open after 3 banked or 30 s, a window often opened during the 10 s measurement, and that seed read ~0 DPS (per-seed values like 3, 28, 0). Every report since D39 under-read some lines. `measureDps` now takes a `resolve` callback; `playLine` passes its random picker. New `src/sim/balance.test.ts` reproduces it (without the fix < 1 DPS).
+- **Report reliability (`balance.bench.ts`):** the site columns (the D19 reference, D25) now use **24 seeds** plus an `s.e.` column. With 8, a line's per-seed spread (up to ~5×) left means only good to ~±15%, wider than D19's 10% margins. The report takes ~32 min now (was ~18).
+- **Tuning (provisional numbers):** Lapras `damageMult` 1.2 → **1.4**; Pikachu 1.05 → **1.0**; Raichu 1.25 → **1.05**; Thunderbolt chain jumps 0.8 → **0.65** of the hit; Blastoise 1.7 → **1.8**. Lapras doc line updated.
+- **Result (`npm run balance`, site dps ± s.e., 24 seeds):**
+
+  | min | Charizard | Venusaur | Blastoise | Raichu | Lapras |
+  |---|---|---|---|---|---|
+  | 5 | 241 ± 23 | 342 ± 23 | 236 ± 24 | 356 ± 35 | **358 ± 23** |
+  | 9 | 983 ± 132 | 848 ± 62 | 858 ± 94 | 677 ± 67 | 778 ± 61 |
+  | 15 | **1763 ± 175** | **1470 ± 98** | **1446 ± 99** | 1261 ± 121 | 1252 ± 70 |
+
+  D19: at 15 min every 3-stage final is above Raichu and Lapras (Blastoise +15% over Raichu), and Raichu ≈ Lapras (within 1%) ✓. At 5 min Lapras leads, but only by a hair over Pikachu and Bulbasaur (inside the noise). 9 min roughly level ✓.
+- **Checks:** `tsc --noEmit` 0 errors; `npx vitest run` **540/540 passed**.
+- **Not fixed (flag):** the no-sites `dps` columns look starved: Squirtle Lv 5 at 5 min and Lv 20 at 15 min, Charmander Lv 25 at 15 min, while the site bot reaches Lv 47–50. The circle-walking bot probably misses XP (gem expiry, D26). Not the D19 reference since D25, but worth a look. Squirtle's `form` column shows seed 1 only.
+
 ### 2026-10-24 — Machamp revision: flex = breather, Bulk Up its own move, tankier rock (D42)
 - **Objective:** owner: "the pose is just there to let user breathe"; Bulk Up should be a breakable ~5 s move; the rock "tanky enough to make user think they should move sideways". **Status:** done and tested; **not committed** (with Articuno, also uncommitted, pending the owner's playtest).
 - **Changed:** `src/data/arena.ts` (`MACHAMP_KIT.pose` a breather; new `bulkUp` 5 s / 6% / stagger 1.5 s / cooldown 20 s; `rock.shieldHpPct` 0.03 → 0.08), `src/sim/types.ts` (`MachampMove` + `bulkUp`; `pose` → breather, new `bulking`), `src/sim/machamp.ts` (`updateBulkUp`; Iron Pose = Bulk Up behind the rock, +2 stacks), `src/sim/combat.ts` (the meter fills during Bulk Up), `src/scenes/RunScene.ts` (gold flex aura vs red Bulk Up aura that fills; HUD "Bulk Up! break x%"), `src/sim/arena.test.ts` (breather test, Bulk Up complete/break test, Iron Pose 5 s). BOSSES.md, PROJECT.md D42.

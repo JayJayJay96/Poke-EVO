@@ -661,7 +661,7 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileLifetime: 1.0,
     count: 1,
     explosion: { radius: 35, damageFraction: 0.5 },
-    chain: { jumps: 3, damageFraction: 0.8 },
+    chain: { jumps: 3, damageFraction: 0.65 }, // 0.8 → 0.65 (2026-10-23 balance pass, D19)
   },
   quickAttack: {
     id: 'quickAttack',
