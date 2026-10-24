@@ -1669,12 +1669,13 @@ const ENTRANCE_NAMES: Readonly<Record<ArenaEntranceKind, string>> = {
 
 /** Machamp's state for the arena line: Bulk Up stacks, the pose and Focus Punch interrupt meters, its rock shield. */
 function machampHud(champ: MachampState, boss: Enemy): string {
-  const { pose, focusPunch } = MACHAMP_KIT;
+  const { bulkUp, focusPunch } = MACHAMP_KIT;
   const pct = (taken: number, of: number) => Math.min(100, Math.round((taken / (boss.maxHp * of)) * 100));
   const stone = champ.rock?.stone;
   return (
     (champ.bulk > 0 ? ` · Bulk Up ×${champ.bulk}` : '') +
-    (champ.pose ? ` · ${champ.pose.iron ? 'Iron Pose' : 'Posing'}! interrupt ${pct(champ.pose.taken, pose.interruptPct)}%` : '') +
+    (champ.pose ? ' · flexing (breather)' : '') +
+    (champ.bulking ? ` · ${champ.bulking.iron ? 'Iron Pose' : 'Bulk Up'}! break ${pct(champ.bulking.taken, bulkUp.interruptPct)}%` : '') +
     (champ.focus?.phase === 'channel' ? ` · Focus Punch! interrupt ${pct(champ.focus.taken, focusPunch.interruptPct)}%` : '') +
     (stone?.hp !== undefined ? ` · rock shield ${Math.max(0, Math.round((stone.hp / (boss.maxHp * MACHAMP_KIT.rock.shieldHpPct)) * 100))}%` : '') +
     (champ.staggerLeft > 0 ? ' · Staggered!' : '') +
@@ -1779,10 +1780,18 @@ function drawMachamp(g: Phaser.GameObjects.Graphics, world: World, arena: ArenaF
     const t = 1 - focus.left / kit.focusPunch.telegraph;
     line(boss.x, boss.y, boss.x + Math.cos(focus.angle) * kit.focusPunch.length, boss.y + Math.sin(focus.angle) * kit.focusPunch.length, Math.max(2, kit.focusPunch.width * t));
   }
-  // The pose: a pulsing gold aura (Iron Pose: white); staggered: a grey ring; Bulk Up stacks as pips above it.
+  // Flex pose (breather): a gold aura. Bulk Up: a pulsing red aura that fills as it powers up (Iron Pose: white).
+  // Staggered: a grey ring. Bulk Up stacks as pips above it.
   if (champ.pose) {
-    g.lineStyle(4, champ.pose.iron ? COLORS.shield : COLORS.elite, 0.6 + 0.3 * Math.sin(world.time * 12));
+    g.lineStyle(3, COLORS.elite, 0.7);
     g.strokeCircle(boss.x, boss.y, boss.radius + 8);
+  }
+  if (champ.bulking) {
+    const t = 1 - champ.bulking.left / kit.bulkUp.seconds;
+    g.lineStyle(4, champ.bulking.iron ? COLORS.shield : COLORS.telegraph, 0.5 + 0.4 * Math.sin(world.time * 10));
+    g.strokeCircle(boss.x, boss.y, boss.radius + 10);
+    g.fillStyle(COLORS.telegraph, 0.15 + 0.2 * t);
+    g.fillCircle(boss.x, boss.y, (boss.radius + 10) * t);
   }
   if (champ.staggerLeft > 0) {
     g.lineStyle(2, COLORS.chain, 0.9);

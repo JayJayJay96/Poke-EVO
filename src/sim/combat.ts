@@ -249,8 +249,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   if (hit.slot) hit.slot.damageDealt += dealt;
   // Zapdos's Discharge channel: enough damage interrupts it.
   if (zap?.discharge?.phase === 'channel') zap.discharge.taken += dealt;
-  // Machamp: damage during a pose or the Focus Punch channel fills its interrupt meter.
-  if (champ?.pose) champ.pose.taken += dealt;
+  // Machamp: damage during Bulk Up or the Focus Punch channel fills its interrupt meter.
+  if (champ?.bulking) champ.bulking.taken += dealt;
   if (champ?.focus?.phase === 'channel') champ.focus.taken += dealt;
   enemy.hp = floor > 0 ? enemy.hp - dealt : enemy.hp - amount;
   const ability = eliteAbilityOf(enemy);

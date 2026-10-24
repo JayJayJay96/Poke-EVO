@@ -1120,18 +1120,33 @@ describe('Machamp (D42)', () => {
     expect(boss.lastEffectiveness).toBe(2);
   });
 
-  it('poses after 2–3 attacks: left alone it gains a Bulk Up stack, hit hard enough it is thrown off', () => {
+  it('flexes after 2–3 attacks: a breather with no buff and nothing to break', () => {
+    const { world, boss, champ } = fight();
+    champ.attacks = 2;
+    champ.poseAfter = 2;
+    champ.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(champ.pose).not.toBeNull();
+    expect(boss.speed).toBe(0); // it stands there showing off
+    expect(damageEnemy(world, boss, 100)).toBeGreaterThan(0); // a free punish window, not immune
+    run(world, kit.pose.seconds + DT);
+    expect(champ.pose).toBeNull();
+    expect(champ.bulk).toBe(0);
+    expect(champ.staggerLeft).toBeLessThanOrEqual(0);
+  });
+
+  it('Bulk Up: 5 s of powering up; left alone it gains a stack, 6% of its HP breaks the stance and staggers it', () => {
     for (const interrupt of [false, true]) {
       const { world, boss, champ } = fight();
-      champ.attacks = 2;
-      champ.poseAfter = 2;
+      champ.cooldowns.bulkUp = 0;
       champ.moveGap = 0;
       step(world, IDLE, DT);
-      expect(champ.pose?.iron).toBe(false);
-      if (interrupt) expect(damageEnemy(world, boss, boss.maxHp * kit.pose.interruptPct * 1.2)).toBeGreaterThan(0); // not immune
-      run(world, kit.pose.seconds + DT);
-      expect(champ.pose).toBeNull();
+      expect(champ.bulking?.iron).toBe(false);
+      if (interrupt) damageEnemy(world, boss, boss.maxHp * kit.bulkUp.interruptPct * 1.05);
+      run(world, interrupt ? 2 * DT : kit.bulkUp.seconds + DT);
+      expect(champ.bulking).toBeNull();
       expect(champ.bulk).toBe(interrupt ? 0 : 1);
+      expect(champ.staggerLeft > 0).toBe(interrupt);
     }
   });
 
@@ -1152,7 +1167,7 @@ describe('Machamp (D42)', () => {
       lost.push(hp - world.player.hp);
     }
     expect(lost[0]).toBeGreaterThan(0);
-    expect(lost[1]).toBeCloseTo(lost[0]! * (1 + 2 * kit.pose.stackDamage), 0);
+    expect(lost[1]).toBeCloseTo(lost[0]! * (1 + 2 * kit.bulkUp.stackDamage), 0);
   });
 
   it('Cross Chop lands an X: on an arm you are hit, between the arms you are safe', () => {
@@ -1249,11 +1264,11 @@ describe('Machamp (D42)', () => {
     expect(atWall.length).toBeGreaterThanOrEqual(kit.strength.boulders);
   });
 
-  it('Iron Pose (rare): it poses behind its planted rock; completed, it gains two stacks and the rock stays', () => {
+  it('Iron Pose (rare): Bulk Up behind its planted rock; completed, it gains two stacks and the rock stays', () => {
     const { world, f, champ } = holdRock('iron');
     run(world, kit.rock.tell + DT);
-    expect(champ.pose?.iron).toBe(true);
-    run(world, kit.pose.seconds + DT);
+    expect(champ.bulking?.iron).toBe(true);
+    run(world, kit.bulkUp.seconds + DT);
     expect(champ.bulk).toBe(kit.ironPose.stacks);
     expect(champ.rock).toBeNull();
     expect(f.rubble.some((r) => r.hp === undefined && r.left <= kit.rockThrow.stay)).toBe(true);

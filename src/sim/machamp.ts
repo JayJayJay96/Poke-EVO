@@ -5,7 +5,7 @@ import { applyPlayerStatus } from './playerStatus';
 import type { ArenaFight, Enemy, MachampMove, MachampState, World } from './types';
 import { hitPlayer, spawnEnemy } from './world';
 
-// Machamp (D42, BOSSES.md §4): attack, attack, pose. Every aimed attack locks when its telegraph appears; cones
+// Machamp (D42, BOSSES.md §4): attack, attack, flex (a breather); Bulk Up is its own breakable move. Every aimed attack locks when its telegraph appears; cones
 // start only when a standing player is fully inside them (BOSSES.md §2). Every number lives in MACHAMP_KIT.
 
 type Follow = NonNullable<MachampState['rock']>['follow'];
@@ -36,11 +36,13 @@ export function startMachamp(world: World): MachampState {
       focusBlast: kit.focusBlast.firstAfter,
       focusPunch: kit.focusPunch.firstAfter,
       closeCombat: kit.closeCombat.firstAfter,
+      bulkUp: kit.bulkUp.firstAfter,
     },
     attacks: 0,
     poseAfter: rollPoseAfter(world),
     bulk: 0,
     pose: null,
+    bulking: null,
     staggerLeft: 0,
     openLeft: 0,
     chops: null,
@@ -62,9 +64,9 @@ export function startMachamp(world: World): MachampState {
 
 /** Machamp's hit: each Bulk Up stack adds damage, and Guts while it carries a status you put on it. */
 function punch(world: World, champ: MachampState, boss: Enemy, factor: number): boolean {
-  const { pose, guts } = MACHAMP_KIT;
+  const { bulkUp, guts } = MACHAMP_KIT;
   const statused = boss.burnLeft > 0 || boss.poisonLeft > 0 || boss.seedLeft > 0 || boss.slowLeft > 0 || boss.stunLeft > 0;
-  return strike(world, boss, factor * (1 + champ.bulk * pose.stackDamage) * (statused ? guts : 1));
+  return strike(world, boss, factor * (1 + champ.bulk * bulkUp.stackDamage) * (statused ? guts : 1));
 }
 
 function playerIn(world: World, x: number, y: number, radius: number): boolean {
@@ -189,12 +191,10 @@ function updateRock(world: World, fight: ArenaFight, champ: MachampState, boss: 
       rock.heading = toPlayer;
       rock.charged = 0;
     } else {
-      // Iron Pose: the rock stays planted in front; the pose runs it (before this in the chain).
+      // Iron Pose: Bulk Up behind the planted rock; the Bulk Up runs it (before this in the chain).
       rock.phase = 'recover';
       rock.left = 0;
-      champ.pose = { left: champ.phase >= 3 ? kit.pose.secondsPhase3 : kit.pose.seconds, taken: 0, iron: true };
-      champ.attacks = 0;
-      champ.poseAfter = rollPoseAfter(world);
+      champ.bulking = { left: kit.bulkUp.seconds, taken: 0, iron: true };
     }
   } else if (rock.phase === 'plant') {
     // Shove: the rock breaks into boulders rolling along the locked line, one after another.
@@ -208,7 +208,7 @@ function updateRock(world: World, fight: ArenaFight, champ: MachampState, boss: 
     releaseStone(fight, rock, false);
     rock.phase = 'recover';
     rock.left = s.recover;
-  } else if (rock.phase === 'recover' && !champ.pose) {
+  } else if (rock.phase === 'recover' && !champ.bulking) {
     releaseStone(fight, rock, true);
     champ.rock = null;
     endMove(champ, 'rock');
@@ -490,19 +490,25 @@ function updateFocus(world: World, champ: MachampState, boss: Enemy, dt: number)
   }
 }
 
-/** Bulk Up pose (open) or Iron Pose (behind its rock): enough damage throws it off; completed, it gains stacks. */
-function updatePose(fight: ArenaFight, champ: MachampState, boss: Enemy, dt: number): void {
+/**
+ * Bulk Up (or Iron Pose, behind its rock): enough damage breaks the stance (no gain, it staggers); completed, it
+ * gains stacks. Iron Pose's rock stays behind as ordinary rubble either way.
+ */
+function updateBulkUp(fight: ArenaFight, champ: MachampState, boss: Enemy, dt: number): void {
   const kit = MACHAMP_KIT;
-  const pose = champ.pose!;
-  pose.left -= dt;
-  const thrownOff = pose.taken >= boss.maxHp * kit.pose.interruptPct;
-  if (!thrownOff && pose.left > 0) return;
-  if (!thrownOff) champ.bulk = Math.min(kit.pose.maxStacks, champ.bulk + (pose.iron ? kit.ironPose.stacks : 1));
-  champ.pose = null;
-  if (pose.iron && champ.rock) {
+  const b = champ.bulking!;
+  b.left -= dt;
+  const broken = b.taken >= boss.maxHp * kit.bulkUp.interruptPct;
+  if (!broken && b.left > 0) return;
+  if (broken) champ.staggerLeft = kit.bulkUp.stagger;
+  else champ.bulk = Math.min(kit.bulkUp.maxStacks, champ.bulk + (b.iron ? kit.ironPose.stacks : 1));
+  champ.bulking = null;
+  if (b.iron && champ.rock) {
     releaseStone(fight, champ.rock, true);
     champ.rock = null;
-    champ.cooldowns.rock = kit.rock.cooldown;
+    endMove(champ, 'rock');
+  } else if (!b.iron) {
+    endMove(champ, 'bulkUp');
   }
 }
 
@@ -514,7 +520,7 @@ function pickMachampMove(world: World, fight: ArenaFight, champ: MachampState, b
   const kit = MACHAMP_KIT;
   const { player } = world;
   if (champ.attacks >= champ.poseAfter) {
-    champ.pose = { left: champ.phase >= 3 ? kit.pose.secondsPhase3 : kit.pose.seconds, taken: 0, iron: false };
+    champ.pose = { left: champ.phase >= 3 ? kit.pose.secondsPhase3 : kit.pose.seconds };
     champ.attacks = 0;
     champ.poseAfter = rollPoseAfter(world);
     return;
@@ -559,6 +565,7 @@ function pickMachampMove(world: World, fight: ArenaFight, champ: MachampState, b
     champ.dynamic = { x: spot.x, y: spot.y, left: s.telegraph, phase: 'windup' };
   });
   add('focusBlast', champ.phase >= 2 && champ.orbs.length === 0, () => (champ.blastCast = kit.focusBlast.cast));
+  add('bulkUp', champ.bulk < kit.bulkUp.maxStacks, () => (champ.bulking = { left: kit.bulkUp.seconds, taken: 0, iron: false }));
   add('focusPunch', champ.phase >= 3, () => (champ.focus = { left: kit.focusPunch.channel, taken: 0, angle: 0, phase: 'channel' }));
   add('closeCombat', champ.phase >= 3 && d <= kit.closeCombat.trigger, () => {
     champ.chops = { angle: toPlayer, left: kit.closeCombat.gap, index: 0, count: kit.closeCombat.hits, close: true, phase: 'windup' };
@@ -595,7 +602,7 @@ export function machamp(world: World, fight: ArenaFight, boss: Enemy, dt: number
   if (stone && stone.hp !== undefined && stone.hp <= 0) {
     releaseStone(fight, champ.rock!, false);
     champ.rock = null;
-    champ.pose = null;
+    champ.bulking = null;
     champ.staggerLeft = kit.rock.stagger;
     endMove(champ, 'rock');
   }
@@ -603,7 +610,11 @@ export function machamp(world: World, fight: ArenaFight, boss: Enemy, dt: number
   fight.goal = null;
   if (champ.transitionLeft > 0) champ.transitionLeft -= dt;
   else if (champ.staggerLeft > 0) champ.staggerLeft -= dt;
-  else if (champ.pose) updatePose(fight, champ, boss, dt);
+  else if (champ.pose) {
+    // Flex pose: a breather (owner 2026-10-24); it just shows off for a moment.
+    champ.pose.left -= dt;
+    if (champ.pose.left <= 0) champ.pose = null;
+  } else if (champ.bulking) updateBulkUp(fight, champ, boss, dt);
   else if (champ.chops) updateChops(world, fight, champ, boss, dt);
   else if (champ.crossChop) updateCrossChop(world, fight, champ, boss, dt);
   else if (champ.sweep) updateSweep(world, champ, boss, dt);
@@ -631,6 +642,7 @@ export function machamp(world: World, fight: ArenaFight, boss: Enemy, dt: number
     champ.transitionLeft > 0 ||
     champ.staggerLeft > 0 ||
     champ.pose ||
+    champ.bulking ||
     champ.chops ||
     champ.crossChop ||
     champ.sweep ||

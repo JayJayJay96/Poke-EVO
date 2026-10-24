@@ -76,6 +76,12 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-24 — Machamp revision: flex = breather, Bulk Up its own move, tankier rock (D42)
+- **Objective:** owner: "the pose is just there to let user breathe"; Bulk Up should be a breakable ~5 s move; the rock "tanky enough to make user think they should move sideways". **Status:** done and tested; **not committed** (with Articuno, also uncommitted, pending the owner's playtest).
+- **Changed:** `src/data/arena.ts` (`MACHAMP_KIT.pose` a breather; new `bulkUp` 5 s / 6% / stagger 1.5 s / cooldown 20 s; `rock.shieldHpPct` 0.03 → 0.08), `src/sim/types.ts` (`MachampMove` + `bulkUp`; `pose` → breather, new `bulking`), `src/sim/machamp.ts` (`updateBulkUp`; Iron Pose = Bulk Up behind the rock, +2 stacks), `src/sim/combat.ts` (the meter fills during Bulk Up), `src/scenes/RunScene.ts` (gold flex aura vs red Bulk Up aura that fills; HUD "Bulk Up! break x%"), `src/sim/arena.test.ts` (breather test, Bulk Up complete/break test, Iron Pose 5 s). BOSSES.md, PROJECT.md D42.
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **559/559 passed**; `npm run build` passes. Not browser-checked (the auras reuse the drawing already checked).
+- **Next:** owner playtest of Machamp and Articuno; commit when asked.
+
 ### 2026-10-24 — Map M1: obstacle core (D47)
 **Owner:** "Start building M1 (obstacle core: boulders and trees, slide, projectile blocking, spawn avoidance, stuck recycling, stress FPS)." **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner.
 

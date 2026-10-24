@@ -170,7 +170,8 @@ provisional.
 **Built 2026-10-23** (`src/sim/machamp.ts`, numbers in `MACHAMP_KIT`, entrance: a dojo door). Where the build differs
 from the text below: Low Sweep and Rock Tomb use the shared **slow** status (30%, 2 s, D36) rather than 40%; Seismic
 Toss's 6% still goes through your damage-taken modifiers (and Shell can block it); Focus Blast homes with a turn
-rate (a sharp turn shakes it); the rock shield has 3% of its max HP; Rock Throw cracks into 3 rocks.
+rate (a sharp turn shakes it); the rock shield has 8% of its max HP (owner 2026-10-24, was 3%); Rock Throw cracks
+into 3 rocks.
 Owner additions: a rock skill (grab a nearby rock or rip one from the ground, then throw it, shield-charge with it,
 or rarely shield-pose with it: "a big element of surprise"); faster than Snorlax "since he so fit"; the openings
 come from **flexing poses** between attack strings.
@@ -184,12 +185,14 @@ come from **flexing poses** between attack strings.
 | **Question it asks** | Can you read a combo string, then punish the pose, instead of kiting forever? |
 | **Rough cost** | 🟡: cones, rings, dashes, rubble and interrupt bars exist; new: the X telegraph (two lines), the held-rock shield (rubble that moves with it), the throw (a push), the lob |
 
-**Rhythm: attack, attack, pose.** After every **2–3 attacks** he stops and **flexes for 1.2 s** (0.8 s in phase 3).
-This is **Bulk Up** and the fight's main opening:
-- He never attacks straight out of a pose; every move after it still has its full telegraph.
-- **Interruptible, not immune:** deal **4% of his max HP** during the pose and he's thrown off (no stack). Leave him
-  alone and he gains a **Bulk Up stack: +15% damage, up to 3**, for the rest of the fight. The opening and the
-  damage race are the same moment.
+**Rhythm: attack, attack, flex** (owner 2026-10-24: "the pose is just there to let user breathe a bit"; he's
+aggressive in speed and skill use, but loves flexing). After every **2–3 attacks** he stops and **flexes for 1.2 s**
+(0.8 s in phase 3): a **breather**, no buff and nothing to break, a free punish window. He never attacks straight out
+of a pose; every move after it still has its full telegraph.
+
+**Bulk Up** (owner 2026-10-24) is its own move (cooldown 20 s): a red aura, **5 s** of powering up. Deal **6% of his
+max HP** in those 5 s and his **stance breaks**: no gain, and he **staggers 1.5 s**. Left alone he gains a **stack:
++15% damage, up to 3**, for the rest of the fight. A damage race.
 
 **The rock in hand (signature).** He takes a rock from within ~150 px (rubble, a Rock Tomb rock, a leftover
 boulder) in 0.5 s, or **rips one from the ground** in 0.8 s (a small crater). The held rock is a **shield in front
@@ -201,7 +204,7 @@ one twice in a row):
 |---|---|---|---|---|
 | **Rock Throw** (ammo) | 45 | Rock raised **overhead** | Lobs it at a **lead-1** ring (0.9 s). It lands and **cracks into 2–3 rocks** around the landing spot, which can box you in | Change direction during the lob; don't get walled in |
 | **Strength** (shield + charge) | 40 | Rock at the **chest**, crouched, feet scraping | Walks at you with **momentum**: ×0.6 → ×1.6 speed over 2 s, turning slowly (a sharp sidestep shakes him; running straight doesn't). Within 220 px or after 2.5 s he plants: a **locked line** (0.5 s), then the rock breaks into **3 boulders rolling along it** (5 in phase 3). They stop at the wall and **stay as rocks** (his next ammo, and cover for both of you). Recover 0.8 s | Flank him or break the shield; sidestep the line |
-| **Iron Pose** (shield + Bulk Up) | 15 (25 in phase 3) | Rock **planted in front**, arms glowing | The pose behind his rock: shots from the front are blocked. Completed, it gives **2 stacks** | Run round his side and interrupt him there, or break the rock |
+| **Iron Pose** (shield + Bulk Up) | 15 (25 in phase 3) | Rock **planted in front**, arms glowing | **Bulk Up behind his rock** (5 s, the same 6% breaks it): shots from the front are blocked. Completed, it gives **2 stacks** | Run round his side and break it there, or break the rock |
 
 The rocks he leaves feed the next grab, so the rock moves come more often as the fight goes on.
 
@@ -213,7 +216,8 @@ The rocks he leaves feed the next grab, so the rock moves come more often as the
 | **Rock Tomb** | 1+ | Throws **3 boulders** at lead 1, a ring each (0.9 s); they stay **8 s as rocks** (block you and your shots; ammo for the rock in hand). Hit = slow 2 s | Rocks can trap you; keep a lane open |
 | **Seismic Toss** | 1+, you within 90 px | A grab ring around it, 0.7 s. If you're inside when it closes: it **throws you 220 px** toward the arena wall (a push, never a stun) for **6% of your max HP** whatever your defences (lore: fixed damage) | Back off when the grab ring shows |
 | **The rock in hand** | 1+ | Above: Rock Throw / Strength / Iron Pose | Read the tell |
-| **Bulk Up pose** | after every 2–3 attacks | Above: the interruptible opening | Punish it |
+| **Flex pose** | after every 2–3 attacks | Above: a breather | Punish it freely |
+| **Bulk Up** | 1+, cooldown 20 s | Above: 5 s, broken by 6% of his HP (he staggers) | Burst him during it |
 | *Phase change 66%* | | **Immune 1.5 s:** it tears its belt (Focus Energy) | |
 | **Bullet Punch** | 2+, you 120–260 px | A priority dash: tiny 0.35 s line telegraph, 260 px at ×4 speed, lead 0 | Answers "stand just outside melee": move sideways when it flashes |
 | **Dynamic Punch** | 2+ | A charged fist: big ring (110 px) at **lead 0.5**, slow 1.2 s telegraph. Hit = heavy damage + **confusion 2 s** (lore: always confuses) | The ring is big but slow: leave early |
@@ -222,7 +226,7 @@ The rocks he leaves feed the next grab, so the rock moves come more often as the
 | **Focus Punch** | 3 | **2 s focus channel** with an **interrupt bar** (deal 5% max HP to break it; lore: fails if it's hit). If it completes: a **lead-0 line punch across the whole arena** | Go aggressive during the focus |
 | **Close Combat** | 3 | A 5-hit flurry in a 90° cone (gaps 0.35 s), lead 0. Afterwards it takes **×1.5 for 3 s** (lore: drops its defences) | Survive it, then burst |
 
-- **Picker:** weighted, never the same move twice, 0.5 s between moves (as Snorlax), and a Bulk Up pose after every
+- **Picker:** weighted, never the same move twice, 0.5 s between moves (as Snorlax), and a flex pose after every
   2–3 attacks. Melee moves weigh more when you're close; Bullet Punch, Focus Blast and the rock in hand more when
   you're far, so kiting is answered.
 - **Immune** only during the two phase-change animations (D31). The poses, the rock moves and Focus Punch are all
@@ -231,7 +235,8 @@ The rocks he leaves feed the next grab, so the rock moves come more often as the
 - **Adds:** none (a dojo duel). Machop later if batch 3 adds it.
 - **Detect** (draft) was dropped: the rock shield does the same job (a front guard you circle).
 - **Provisional, tune after the first playtest:** Seismic Toss's 6% and 220 px; Guts ×1.3; the follow-up weights;
-  the pose length and interrupt amount; the shield's HP.
+  the pose length; Bulk Up's 6% and 5 s; the shield's HP (8% of his max HP, owner 2026-10-24: "tanky enough to make
+  user think they should move sideways").
 
 #### Kangaskhan: "The Safari Zone mother"
 | | |
