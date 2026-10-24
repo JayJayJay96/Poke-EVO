@@ -76,6 +76,27 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-24 — In-run HUD pass: no overlap, slimmer, louder event notices
+**Owner:** the HUD repeats what the pause screen shows, its lines overlap, and the event messages (mountain hole, dojo…) should be "more obvious". **Status:** done and checked in the browser. Not playtested by the owner.
+
+- **Cause of the overlap:** the red warning line sat at a fixed y = 58, and the HUD's third line (Techniques) ran into it.
+- **New HUD** (`src/scenes/RunScene.ts`, presentation only):
+  - **Top-left card:** name, level, ability-active and Lapras Tide tag, then an HP bar with "HP / max" and "+regen". Glass and status warnings stack inside the card, so nothing overlaps.
+  - **Top centre:** the run clock (28 px), then "of 15:00 · KOs · on field". The arena or horde line sits under it as a framed gold banner; the boss HP bar moved down to y = 100.
+  - **Top right:** a small "Esc: build & stats" hint.
+  - **Bottom centre:** the banked level-up badge.
+  - **Gone from the HUD:** the Moves / Items / Techniques lines (the Esc screen shows them); `techniqueLine` was removed.
+- **Event notices** (entrances, boss moves, bound sites, tier-ups):
+  - 26 px gold text with a black outline on a dark panel, at about 18% of the screen height
+  - a short pop-in, and they now stay 4.5 s (was 3 s)
+
+**Checks (observed)**
+- `tsc --noEmit` clean.
+- Staged snapshot alone: **543/543** tests, `vite build` passed.
+- Browser (pane at 1024×768), with Glass, poison, a horde warning, a Machamp dojo notice, a Snorlax mountain-hole notice and a banked level-up forced on: no overlap, everything readable, no console errors.
+
+**Build runs:** yes.
+
 ### 2026-10-24 — HTML pause and select screens (D46)
 **Owner:** "the UI need a bit improvement". The owner sent two reference shots (a pause screen and a Pokémon select screen) and approved building both now: the pause screen first, then the select screen. **Status:** both built, checked in the browser, committed. Not playtested by the owner.
 

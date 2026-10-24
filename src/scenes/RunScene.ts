@@ -140,7 +140,10 @@ const GRID_SIZE = 64;
 /** Cap on simulated time per frame so a hitch never fast-forwards the run. */
 const MAX_FRAME_SECONDS = 0.25;
 /** How long the signature tier-up notice stays (ms). */
-const TIER_NOTICE_MS = 3000;
+const TIER_NOTICE_MS = 4500;
+/** HUD font and HP bar width (2026-10-24 HUD pass). */
+const HUD_FONT = "'Nunito', 'Segoe UI', system-ui, sans-serif";
+const HUD_BAR_W = 240;
 const CARD_MAX_W = 210;
 const CARD_H = 170;
 const CARD_GAP = 16;
@@ -209,8 +212,15 @@ export class RunScene extends Phaser.Scene {
   private evoStartedAt = 0;
   /** A click on the cinematic asks to skip (honoured after EVOLUTION_SKIP_AFTER_MS). */
   private skipRequested = false;
-  /** Red HUD line while a "damage taken" trade-off is active (D12). */
+  /** Red HUD lines under the HP bar: the "damage taken" trade-off (D12) and statuses on you. */
   private warnText!: Phaser.GameObjects.Text;
+  /** Run clock and counters, top centre (2026-10-24 HUD pass). */
+  private clockText!: Phaser.GameObjects.Text;
+  private countText!: Phaser.GameObjects.Text;
+  /** The arena / horde line under the clock. */
+  private arenaText!: Phaser.GameObjects.Text;
+  private hpText!: Phaser.GameObjects.Text;
+  private escHint!: Phaser.GameObjects.Text;
   /** Banked level-ups badge (owner 2026-10-23): click or Space opens them. */
   private levelBadge!: Phaser.GameObjects.Text;
   /** Floating red damage numbers on the player (D12). */
@@ -311,14 +321,19 @@ export class RunScene extends Phaser.Scene {
     this.gfx = this.add.graphics();
     this.fxGfx = this.add.graphics().setDepth(31);
     this.hudGfx = this.add.graphics().setScrollFactor(0).setDepth(9);
-    this.hud = this.add
-      .text(16, 14, '', { fontFamily: 'monospace', fontSize: '16px', color: '#ffffff', lineSpacing: 4 })
-      .setScrollFactor(0)
-      .setDepth(10);
-    this.warnText = this.add
-      .text(16, 58, '', { fontFamily: 'monospace', fontSize: '14px', color: '#ff6b6b' })
-      .setScrollFactor(0)
-      .setDepth(10);
+    // HUD (2026-10-24 pass): a compact card top-left, the clock top centre; the full build lives on the Esc screen.
+    const hudText = (x: number, y: number, size: number, color: string, bold = true) =>
+      this.add
+        .text(x, y, '', { fontFamily: HUD_FONT, fontSize: `${size}px`, color, fontStyle: bold ? 'bold' : 'normal', stroke: '#000000', strokeThickness: 3 })
+        .setScrollFactor(0)
+        .setDepth(10);
+    this.hud = hudText(26, 18, 18, '#ffffff');
+    this.hpText = hudText(26 + HUD_BAR_W / 2, 49, 12, '#ffffff').setOrigin(0.5, 0.5);
+    this.warnText = hudText(26, 64, 13, '#ff8a8a').setLineSpacing(2);
+    this.clockText = hudText(0, 10, 28, '#ffffff').setOrigin(0.5, 0);
+    this.countText = hudText(0, 44, 13, '#d7dde8', false).setOrigin(0.5, 0);
+    this.arenaText = hudText(0, 66, 15, '#ffd34d').setOrigin(0.5, 0).setBackgroundColor('#101820cc').setPadding(12, 5, 12, 5);
+    this.escHint = hudText(0, 14, 12, '#c9cfdb', false).setOrigin(1, 0).setText('Esc: build & stats');
     this.levelBadge = this.add
       .text(this.cameras.main.width / 2, 40, '', {
         fontFamily: 'monospace',
@@ -336,14 +351,19 @@ export class RunScene extends Phaser.Scene {
       .on('pointerdown', () => {
         this.world.openLevelUps = true;
       });
+    // Event notices (arena entrances, boss moves, tier-ups): big and gold so they can't be missed (2026-10-24).
     this.tierText = this.add
-      .text(this.cameras.main.width / 2, 96, '', {
-        fontFamily: 'monospace',
-        fontSize: '18px',
-        color: '#9ff3ff',
+      .text(this.cameras.main.width / 2, 120, '', {
+        fontFamily: HUD_FONT,
+        fontSize: '26px',
+        color: '#ffe28a',
         fontStyle: 'bold',
-        backgroundColor: '#000000aa',
-        padding: { x: 14, y: 8 },
+        align: 'center',
+        stroke: '#000000',
+        strokeThickness: 5,
+        backgroundColor: '#101820dd',
+        padding: { x: 22, y: 12 },
+        wordWrap: { width: Math.min(900, this.cameras.main.width - 60) },
       })
       .setOrigin(0.5, 0)
       .setScrollFactor(0)
@@ -494,7 +514,7 @@ export class RunScene extends Phaser.Scene {
     if (!show) return;
     const { autoOpenSeconds } = TUNING.levelUpBank;
     const when = arena ? 'after the fight' : `auto in ${Math.max(0, Math.ceil(autoOpenSeconds - levelUpWait))} s`;
-    this.levelBadge.setText(`LEVEL UP ×${n} · Space (${when})`).setX(this.cameras.main.width / 2);
+    this.levelBadge.setText(`LEVEL UP ×${n} · Space (${when})`).setPosition(this.cameras.main.width / 2, this.cameras.main.height - 64);
   }
 
   /** The arena line under the HUD: the entrance countdown, or the fight's state and timer (D28). */
@@ -573,7 +593,9 @@ export class RunScene extends Phaser.Scene {
     if (message) {
       this.world.signatureTierUp = null;
       this.pendingNotice = null;
-      this.tierText.setText(message).setVisible(true);
+      const cam = this.cameras.main;
+      this.tierText.setText(message).setPosition(cam.width / 2, Math.max(120, cam.height * 0.18)).setVisible(true).setScale(1.25).setAlpha(0);
+      this.tweens.add({ targets: this.tierText, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out' });
       this.tierTextUntil = time + TIER_NOTICE_MS;
     } else if (this.tierText.visible && time > this.tierTextUntil) {
       this.tierText.setVisible(false);
@@ -1446,22 +1468,14 @@ export class RunScene extends Phaser.Scene {
   }
 
   private drawHud(): void {
-    const { player, kills, status, enemies, level, xp, moves, items } = this.world;
+    const { player, kills, status, enemies, level, xp } = this.world;
     // The run clock: paused inside an arena (owner 2026-10-23).
     const time = runClock(this.world);
     const name = currentStage(this.world).name;
-    // ⛓ marks the skill combo (D28): those moves fire together.
-    const moveNames = moves.map((s, i) => `${MOVES[s.moveId].name}${this.world.combo.includes(i) ? '⛓' : ''}`).join(', ');
-    const itemNames = items.length ? items.map((id) => ITEMS[id].name).join(', ') : '—';
     const ability = ABILITIES[player.ability];
-    const abilityTag = isAbilityActive(this.world) ? `   ${ability.name.toUpperCase()}!` : '';
+    const abilityTag = isAbilityActive(this.world) ? `  ${ability.name.toUpperCase()}!` : '';
     // Lapras's Tide (D18): its Bonds are at full strength (Flood) until Lv 30, then Ebb.
-    const tide =
-      player.pokemonId === 'lapras'
-        ? tideFlood(this.world)
-          ? `   ≋ Tide: Flood (ebbs at Lv ${MUTATION_TUNING.tideLevel})`
-          : '   ~ Tide: Ebb'
-        : '';
+    const tide = player.pokemonId === 'lapras' ? (tideFlood(this.world) ? `  ≋ Flood (ebbs at Lv ${MUTATION_TUNING.tideLevel})` : '  ~ Ebb') : '';
     // Statuses on you (D36): named with their seconds left, so you know what hit you.
     const ps = this.world.playerStatus;
     const statuses = (
@@ -1478,20 +1492,20 @@ export class RunScene extends Phaser.Scene {
       .map(([label, left]) => `${label} ${left.toFixed(1)}s`)
       .join(' · ');
     // Rest regen (D44) is healing right now.
-    const resting = player.calmFor >= TUNING.restRegen.afterSeconds && player.hp < player.maxHp ? ' (resting +)' : '';
-    this.hud.setText(
-      `${name} Lv ${level}  HP ${Math.ceil(player.hp)}/${Math.round(player.maxHp)}${resting}${abilityTag}   ` +
-        `${formatTime(time)} / ${formatTime(TUNING.runSeconds)}   KOs ${kills}   on field ${enemies.length}${tide}\n` +
-        `Moves: ${moveNames}   Items: ${itemNames}   (Esc: build)` +
-        (this.world.techniques.length > 0 ? `\nTechniques: ${techniqueLine(this.world)}` : ''),
-    );
-
+    const resting = player.calmFor >= TUNING.restRegen.afterSeconds && player.hp < player.maxHp ? '  +regen' : '';
     const cam = this.cameras.main;
-
-    // Visible cost of "damage taken" trade-offs (D12).
+    // The full build (moves, items, Techniques) lives on the Esc screen; the HUD keeps what matters mid-fight.
+    this.hud.setText(`${name}  Lv ${level}${abilityTag}${tide}`);
+    this.hpText.setText(`${Math.ceil(player.hp)} / ${Math.round(player.maxHp)}${resting}`);
+    // Visible cost of "damage taken" trade-offs (D12) and statuses on you, stacked under the HP bar.
     const taken = this.world.mods.damageTakenMult;
-    const glass = taken > 1.001 ? `⚠ Glass: you take +${Math.round((taken - 1) * 100)}% damage` : '';
-    this.warnText.setText([glass, statuses, this.arenaHudLine()].filter(Boolean).join('\n'));
+    const glass = taken > 1.001 ? `⚠ Glass: +${Math.round((taken - 1) * 100)}% damage taken` : '';
+    this.warnText.setText([glass, statuses].filter(Boolean).join('\n'));
+    this.clockText.setText(formatTime(time)).setX(cam.width / 2);
+    this.countText.setText(`of ${formatTime(TUNING.runSeconds)}  ·  ${kills} KOs  ·  ${enemies.length} on field`).setX(cam.width / 2);
+    const arenaLine = this.arenaHudLine();
+    this.arenaText.setText(arenaLine).setX(cam.width / 2).setVisible(arenaLine !== '');
+    this.escHint.setX(cam.width - 16);
     this.updateLevelBadge();
 
     // XP bar across the top edge.
@@ -1501,6 +1515,16 @@ export class RunScene extends Phaser.Scene {
     h.fillRect(0, 0, cam.width, 6);
     h.fillStyle(COLORS.xpFill, 1);
     h.fillRect(0, 0, (cam.width * xp) / xpToNext(level), 6);
+
+    // The HUD card behind the name, HP bar and warnings.
+    const cardH = 52 + (this.warnText.text ? this.warnText.height + 4 : 0);
+    h.fillStyle(0x101820, 0.6);
+    h.fillRoundedRect(14, 12, HUD_BAR_W + 24, cardH, 10);
+    h.fillStyle(COLORS.hpBack, 1);
+    h.fillRoundedRect(26, 42, HUD_BAR_W, 14, 5);
+    const hpW = (HUD_BAR_W * Math.max(0, player.hp)) / player.maxHp;
+    h.fillStyle(COLORS.hpFill, 1);
+    if (hpW > 0) h.fillRoundedRect(26, 42, Math.max(10, hpW), 14, 5);
 
     // Arrows at the screen edge toward off-screen Mutation Sites in range (D23) and an open arena entrance (D28).
     if (!this.world.arena) {
@@ -1522,9 +1546,9 @@ export class RunScene extends Phaser.Scene {
       const w = Math.min(420, cam.width - 40);
       const x = (cam.width - w) / 2;
       h.fillStyle(COLORS.xpBack, 1);
-      h.fillRect(x, 70, w, 10);
+      h.fillRect(x, 100, w, 10);
       h.fillStyle(COLORS.bossBar, 1);
-      h.fillRect(x, 70, (w * Math.max(0, boss.hp)) / boss.maxHp, 10);
+      h.fillRect(x, 100, (w * Math.max(0, boss.hp)) / boss.maxHp, 10);
     }
 
     this.banner.setPosition(cam.width / 2, cam.height / 2);
@@ -2075,19 +2099,6 @@ function socketLines(slot: MoveSlot): string[] {
   while (lines.length < MAX_SOCKETS) lines.push('◇ empty');
   lines.push(slot.mutation ? `✦ ${mutationLabel(slot.mutation, slot.mutationRank)}` : '✧ no Mutation');
   return lines;
-}
-
-/** Owned Techniques with their rank, plus live state worth watching (D40). */
-function techniqueLine(world: World): string {
-  const { moxie, endureLeft } = world.tech;
-  return world.techniques
-    .map(({ id, rank }) => {
-      const label = `${TECHNIQUES[id].name} ${RANK_NUMERALS[rank - 1]}`;
-      if (id === 'moxie') return `${label} +${Math.round(moxie * 100)}%`;
-      if (id === 'endure') return `${label} ${endureLeft > 0 ? `${Math.ceil(endureLeft)} s` : 'ready'}`;
-      return label;
-    })
-    .join(' · ');
 }
 
 function formatTime(seconds: number): string {
