@@ -36,6 +36,7 @@ If documents conflict, stop and ask about that conflict. Never pick whichever re
 - 3 sockets per move. The same augment can't sit in two sockets; picking it again ranks it up to III.
 - Every augment that adds projectiles pays for it with cooldown or damage (projectiles-per-second budget).
 - No proc-from-proc.
+- New Pokémon lines, moves and Mutations follow the Bond rules 11–19 and the kit review checklist in `docs/moveset/README.md` (D55). Use the `kit-design` project skill.
 - Non-commercial fan project. No monetisation, ever.
 
 ## Scope discipline

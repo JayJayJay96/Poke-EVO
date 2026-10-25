@@ -126,6 +126,16 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Bond design rules codified (D55)
+**Owner:** asked for the D50–D54 lessons to become guidelines for future Pokémon. **Status:** docs only; committed.
+
+- `docs/moveset/README.md`: rules 11–19 and a kit review checklist with reference trigger rates.
+- `AGENTS.md`: a Design invariants line pointing to them and the skill.
+- `.claude/skills/kit-design/SKILL.md`: new project skill for designing or reviewing a line, move, Mutation or Bond.
+- PROJECT.md D55.
+- **Commands:** none needed (no code changed).
+- **Next:** owner playtest of D50–D54; the next new line uses `kit-design`.
+
 ### 2026-10-25 — Lapras Tide Bonds (D54)
 **Owner:** approved after the Lapras kit review; no balance run (owner). **Status:** built, tested; committed. Not playtested.
 
