@@ -4,7 +4,7 @@ import { startMachamp } from './machamp';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
 import { boonOffer, learnBoon } from './boons';
-import { clearSpot } from './map';
+import { clearSpot, entranceSlot } from './map';
 import { applyAugmentCard, applyCard, augmentPool, buildCardPool, gainXp, needsReplace } from './progression';
 import { createSeededRng, type Rng } from './rng';
 import { applySiteCard, rollSiteCards } from './sites';
@@ -48,8 +48,10 @@ function openEntrance(world: World): void {
   const { min, max } = ARENA_TUNING.entranceDistance;
   const angle = rng.next() * Math.PI * 2;
   const dist = min + rng.next() * (max - min);
-  // Never on a boulder or tree (D47).
-  const { x, y } = clearSpot(world, player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist, ARENA_TUNING.entranceRadius);
+  // A nearby slot in a biome that suits this boss (D47 15-4), else a spot at that distance, never on an obstacle.
+  const { x, y } =
+    entranceSlot(world, ARENA_BOSSES[bossId].entrance) ??
+    clearSpot(world, player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist, ARENA_TUNING.entranceRadius);
   world.entrance = {
     bossId,
     x,

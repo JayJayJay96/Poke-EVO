@@ -120,7 +120,7 @@ export function createWorld({
     sites: [],
     siteChunks: new Set(),
     mapSeed,
-    map: { density: obstacleDensity, chunks: new Map() },
+    map: { density: obstacleDensity, forceBiome: null, chunks: new Map() },
     arenaSchedule: arenaSchedule(mapSeed),
     arenaEventsDone: 0,
     arenaBossesUsed: [],

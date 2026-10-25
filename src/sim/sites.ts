@@ -4,7 +4,7 @@ import { SITE_TUNING } from '../data/sites';
 import { ITEM_IDS, MAX_ITEMS, MAX_LEARNSET_SLOTS } from '../data/upgrades';
 import { grantMutation, isBuilt, mutationOffers, mutationRankUps, requirementMet, type GrantResult } from './mutations';
 import { learnsetSlotsUsed } from './combo';
-import { clearSpot } from './map';
+import { clearSpot, siteSlot } from './map';
 import { healPlayer } from './hooks';
 import { createSeededRng, type Rng } from './rng';
 import { refreshStats } from './stats';
@@ -46,13 +46,10 @@ function generateChunk(world: World, cx: number, cy: number): void {
   if (rng.next() >= SITE_TUNING.chance && !guaranteed) return;
   const { chunkSize, edgeMargin } = SITE_TUNING;
   const span = chunkSize - 2 * edgeMargin;
-  // Never on a boulder or tree (D47): the spot is nudged clear of map obstacles.
-  const { x, y } = clearSpot(
-    world,
-    (cx - 0.5) * chunkSize + edgeMargin + rng.next() * span,
-    (cy - 0.5) * chunkSize + edgeMargin + rng.next() * span,
-    SITE_TUNING.radius,
-  );
+  const rx = (cx - 0.5) * chunkSize + edgeMargin + rng.next() * span;
+  const ry = (cy - 0.5) * chunkSize + edgeMargin + rng.next() * span;
+  // The chunk's set piece may reserve the spot (D47 M2); otherwise a random one, nudged clear of obstacles.
+  const { x, y } = siteSlot(world, cx, cy) ?? clearSpot(world, rx, ry, SITE_TUNING.radius);
   world.sites.push({
     id: world.nextId++,
     x,

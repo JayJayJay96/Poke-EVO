@@ -76,6 +76,37 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Map M2: biomes, set pieces, lane check (D47)
+**Owner:** "continue with the map". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner. (M1 shipped as `9f82785` + the types fix `fe65713`.)
+
+- **What it does:**
+  - Each 1000 px chunk gets a biome from seeded noise: meadow 40%, woods 21%, lakes 20%, canyon 19% (measured over 18,000 chunks); 76% of chunks match their neighbour, so biomes come in regions. The 9 start chunks are always meadow.
+  - Each chunk then gets one of 12 set pieces (README §9) in one of 8 looks (turns + mirror), plus 0–3 lone fillers.
+- **Lane rule:**
+  - Every chunk keeps two 200 px doors on each edge (tiles 2–3 and 6–7). A look is used only if every door is open and a flood fill reaches every open cell. Neighbouring doors line up, so the whole map connects without any chunk reading another.
+  - `woods.corridor`, `woods.clearing` and `canyon.pass` were redrawn to keep their doors open and stay under the caps. More pieces got `E` slots.
+- **Slots:** sites use their chunk's `S` slot; arena entrances use the nearest matching-biome `E` slot 300–800 px away (D47 15-4), else today's placement.
+- **No rules yet (laid out only):** grass, water, marsh, ledges, rocky floor, berry trees and item balls. The lane check and caps already count them; their rules and drawing come in M3/M4. A lakes chunk looks empty until M3.
+- **Changed:**
+  - `src/data/map.ts`: `BIOMES`, `SET_PIECES`, `ENTRANCE_BIOME`, new `MAP_TUNING`
+  - `src/sim/map.ts`: rewritten (noise, transforms, stamping, fillers, lane check, per-chunk lookup lists, slot queries); collision is unchanged
+  - `types.ts`: `MapChunk`, `MapSlot`, `MapState.forceBiome`
+  - `world.ts`, `sites.ts`, `arena.ts` (slots)
+  - `RunScene.ts`: biome floor colours; `?stress=1` forces woods everywhere
+  - `stress.bench.ts`, `map.test.ts` (17 tests)
+  - `docs/map/README.md` §5.3–5.4, §9, §11.4a; `docs/map/INDEX.md` slots
+- **Commands (observed):**
+  - `tsc --noEmit` clean
+  - `vitest run` **588/588 passed**
+  - `npm run build` passed
+  - bench (`--dir src`): **1.27 ms/step** on an empty map vs **1.30 ms** with every chunk woods
+- **Browser (port 5181, pane hidden):** I drove it by teleporting and taking screenshots, because the hidden pane gives no animation frames, so live FPS wasn't measured. Seen: canyon floor and boulders, a woods corridor (tree walls, two-tile gaps, a filler tree), a canyon pass, meadow/canyon floor contrast. No console errors.
+- **Open:**
+  - Entrance slots rarely match within 800 px (3/24 in the test sample); the rest fall back to today's placement. **Owner 2026-10-25: keep 800 px** (recorded in D47).
+  - Woods walls are trees 100 px apart with 0–10 px gaps; check in playtest that they read as walls.
+- **Next:** owner playtest (M1 + M2), then **M3** (water, marsh, tall grass, swim/fly traversal, the six reactions).
+- **Build runs:** yes.
+
 ### 2026-10-25 — Legendary Boons replace the skill combine (D49)
 **Owner:** keeping every move separate made hordes hard, and winning a boss "didnt really do anything". The owner wants auto-fire kept and asked for a new reward. I proposed three options; the owner picked **Legendary Boons** and approved the list as written.
 

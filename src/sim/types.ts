@@ -1,7 +1,7 @@
 import type { ArenaBossId } from '../data/arena';
 import type { AugmentId } from '../data/augments';
 import type { AbilityId, EnemyId, PokemonId, PokemonType } from '../data/content';
-import type { ObstacleKind } from '../data/map';
+import type { BiomeId, ObstacleKind, SlotKind } from '../data/map';
 import type { MoveId, StunKind } from '../data/moves';
 import type { MutationId } from '../data/mutations';
 import type { PlayerStatusId } from '../data/playerStatus';
@@ -627,11 +627,37 @@ export interface Obstacle {
   readonly kind: ObstacleKind;
 }
 
+/** A spot a set piece reserves for something placed later: a site, an arena entrance, a berry tree, an item ball. */
+export interface MapSlot {
+  readonly kind: SlotKind;
+  readonly x: number;
+  readonly y: number;
+}
+
+/** One generated 1000 px chunk (D47, README §5): its biome, set piece and what it holds. */
+export interface MapChunk {
+  readonly cx: number;
+  readonly cy: number;
+  readonly biome: BiomeId;
+  /** The set piece used (`open` when nothing fit) and its rotation/mirror (0–7). */
+  readonly piece: string;
+  readonly transform: number;
+  /** The piece's 10 rows after the transform; ledges read `v` / `<` / `>` by the side they drop to. */
+  readonly tiles: readonly string[];
+  /** Obstacles placed in this chunk (drawing, the lane check). */
+  readonly own: readonly Obstacle[];
+  /** `own` plus neighbours' obstacles within `MAP_TUNING.reach` of this chunk: what collision looks up. */
+  near: readonly Obstacle[] | null;
+  readonly slots: readonly MapSlot[];
+}
+
 export interface MapState {
-  /** Obstacle count multiplier: 0 = an empty map (the default for sim tests), 1 = a normal run. */
+  /** 0 = an empty map (the default for sim tests); anything above = the generated map. */
   density: number;
-  /** Generated chunks by `chunkKey`; each holds the obstacles placed inside it. */
-  readonly chunks: Map<number, Obstacle[]>;
+  /** Every chunk uses this biome (the stress test's densest case), or null for the normal noise. */
+  forceBiome: BiomeId | null;
+  /** Generated chunks by `chunkKey`. */
+  readonly chunks: Map<number, MapChunk>;
 }
 
 export interface ArenaEntrance {

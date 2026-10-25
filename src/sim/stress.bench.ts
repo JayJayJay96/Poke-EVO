@@ -1,6 +1,5 @@
 import { test } from 'vitest';
 import { TUNING, type PokemonId } from '../data/content';
-import { MAP_TUNING } from '../data/map';
 import { createSeededRng } from './rng';
 import { STRESS_MUTATION_BUILDS, setupMutationStress, setupStress, topUpStress } from './stress';
 import type { World } from './types';
@@ -39,9 +38,10 @@ test('stress: 500 enemies + maxed build', async ({ bench }) => {
   await bench('one sim step', stepper(stressWorld())).run();
 });
 
-// D47 M1: the same, on a map packed with as many boulders and trees as the gap rule allows.
+// D47: the same, on a map where every chunk is woods (the densest biome).
 test('stress: 500 enemies + maxed build + dense obstacles', async ({ bench }) => {
-  const world = createWorld({ rng: createSeededRng(99), spawnRadius: 800, obstacleDensity: MAP_TUNING.stressDensity });
+  const world = createWorld({ rng: createSeededRng(99), spawnRadius: 800, obstacleDensity: 1 });
+  world.map.forceBiome = 'woods';
   setupStress(world);
   await bench('one sim step (dense obstacles)', stepper(warmUp(world))).run();
 });

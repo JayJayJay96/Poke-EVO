@@ -230,16 +230,16 @@ All throttled per PROJECT.md §11.1 (the same sound at most N per 100 ms).
 
 | Set piece ID | Biome | Slots |
 |---|---|---|
-| `setpiece.meadow.grassRing` | meadow | S, I |
-| `setpiece.meadow.ledgeSteps` | meadow | I, B |
+| `setpiece.meadow.grassRing` | meadow | S, E, I |
+| `setpiece.meadow.ledgeSteps` | meadow | I, E, B |
 | `setpiece.meadow.berryCopse` | meadow | B, I, E, S |
 | `setpiece.woods.corridor` | woods | I, S |
 | `setpiece.woods.clearing` | woods | B, S, I |
 | `setpiece.lakes.pond` | lakes | E, I, S |
-| `setpiece.lakes.streamFord` | lakes | I |
-| `setpiece.lakes.marshland` | lakes | S, I |
+| `setpiece.lakes.streamFord` | lakes | I, E |
+| `setpiece.lakes.marshland` | lakes | S, I, E |
 | `setpiece.canyon.boulderField` | canyon | S, I |
-| `setpiece.canyon.ledgeTerraces` | canyon | I, S |
+| `setpiece.canyon.ledgeTerraces` | canyon | E, I, S |
 | `setpiece.canyon.pass` | canyon | I, E, S |
 | `setpiece.<biome>.open` | each | — |
 

@@ -40,8 +40,8 @@ import {
   socketsUsed,
 } from '../sim/mutations';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
-import { chunkOf, obstaclesAt } from '../sim/map';
-import { MAP_TUNING } from '../data/map';
+import { chunkOf, mapChunk } from '../sim/map';
+import { MAP_TUNING, type BiomeId } from '../data/map';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
@@ -49,6 +49,9 @@ import type { ArenaFight, AugmentCard, Card, Enemy, EvolutionState, InputState, 
 import { createWorld, runClock, step } from '../sim/world';
 import { PauseOverlay } from '../ui/pauseOverlay';
 import { TYPE_COLORS, augmentLabel, mutationLabel } from '../ui/labels';
+
+/** Biome floors: docs/map/INDEX.md §5 (map.floor.*). */
+const FLOOR_COLORS: Readonly<Record<BiomeId, number>> = { meadow: 0x2b3a24, woods: 0x22301e, lakes: 0x2a3a33, canyon: 0x3a3328 };
 
 // Grey-box colours until real sprites arrive in P6.
 const COLORS = {
@@ -287,8 +290,8 @@ export class RunScene extends Phaser.Scene {
     if (this.stress) {
       const cam = this.cameras.main;
       this.world.spawnRadius = Math.hypot(cam.width, cam.height) / 2 + TUNING.spawn.ringPadding;
-      // As many obstacles as the gap rule allows (the map's worst case for collision cost, D47 M1).
-      this.world.map.density = MAP_TUNING.stressDensity;
+      // Every chunk is woods, the densest biome: the map's worst case for collision cost (D47).
+      this.world.map.forceBiome = 'woods';
       if (params.get('stress') === this.world.player.pokemonId) setupMutationStress(this.world);
       else setupStress(this.world);
     }
@@ -1044,12 +1047,22 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
-  /** Every obstacle in the chunks the view overlaps; obstacles stay inside their own chunk. */
-  private drawObstacles(g: Phaser.GameObjects.Graphics, left: number, top: number, width: number, height: number): void {
+  /** Biome floors (D47 M2): one flat colour per chunk, so regions read at a glance (docs/map/INDEX.md §5). */
+  private drawFloors(g: Phaser.GameObjects.Graphics, left: number, top: number, width: number, height: number): void {
     const size = MAP_TUNING.chunkSize;
     for (let cy = chunkOf(top); cy <= chunkOf(top + height); cy++) {
       for (let cx = chunkOf(left); cx <= chunkOf(left + width); cx++) {
-        for (const o of obstaclesAt(this.world, cx * size, cy * size)) {
+        g.fillStyle(FLOOR_COLORS[mapChunk(this.world, cx, cy).biome], 1);
+        g.fillRect((cx - 0.5) * size, (cy - 0.5) * size, size, size);
+      }
+    }
+  }
+
+  /** Every obstacle placed in the chunks the view overlaps. */
+  private drawObstacles(g: Phaser.GameObjects.Graphics, left: number, top: number, width: number, height: number): void {
+    for (let cy = chunkOf(top); cy <= chunkOf(top + height); cy++) {
+      for (let cx = chunkOf(left); cx <= chunkOf(left + width); cx++) {
+        for (const o of mapChunk(this.world, cx, cy).own) {
           const tree = o.kind === 'tree';
           g.fillStyle(tree ? COLORS.tree : COLORS.boulder, 1);
           g.fillCircle(o.x, o.y, o.radius);
@@ -1074,6 +1087,9 @@ export class RunScene extends Phaser.Scene {
     // Ground grid, so movement reads on an empty field.
     const left = player.x - cam.width / 2;
     const top = player.y - cam.height / 2;
+    // Arenas sit on the same coordinates as the map, so the map hides during a fight.
+    const onMap = !this.world.arena && this.world.map.density > 0;
+    if (onMap) this.drawFloors(g, left, top, cam.width, cam.height);
     g.lineStyle(1, COLORS.grid, 1);
     for (let x = Math.floor(left / GRID_SIZE) * GRID_SIZE; x <= left + cam.width; x += GRID_SIZE) {
       g.lineBetween(x, top, x, top + cam.height);
@@ -1082,8 +1098,8 @@ export class RunScene extends Phaser.Scene {
       g.lineBetween(left, y, left + cam.width, y);
     }
 
-    // Map boulders and trees (D47, grey boxes). Arenas sit on the same coordinates, so they hide during a fight.
-    if (!this.world.arena) this.drawObstacles(g, left, top, cam.width, cam.height);
+    // Map boulders and trees (D47, grey boxes).
+    if (onMap) this.drawObstacles(g, left, top, cam.width, cam.height);
 
     // Zones on the ground, fading out at the end: craters orange; status zones by their effect.
     for (const zone of zones) {

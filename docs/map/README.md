@@ -149,28 +149,31 @@ Tall things are **circles** (smooth sliding). Ledges are **segments** on cell ed
 - **The start chunk and its 8 neighbours are always meadow**, with a 5% coverage cap (the first 30 s are for
   learning to move). The guaranteed near-start site (D23) stays.
 
-### 5.3 Pipeline per chunk (deterministic from `mapSeed` + chunk coords)
+### 5.3 Pipeline per chunk (deterministic from `mapSeed` + chunk coords) — as built in M2
 ```
-1. biome   = biomeAt(chunkX, chunkY)                       // §5.2
-2. piece   = pick a set piece from biome.setPieces (weighted, no repeat of a neighbour's piece)
-3. stamp     the piece in the chunk centre, mirrored/rotated at random (4 rotations × 2 mirrors)
-4. filler  = scatter biome fillers in the empty tiles (lone boulder, grass tuft, flower patch) up to the coverage cap
-5. check   = R1 lane check (§5.4); on failure drop the fillers and retry; on a 2nd failure use setpiece.<biome>.open
+1. biome   = biomeAt(chunkX, chunkY)                       // §5.2; the 9 start chunks are always meadow
+2. piece   = pick a set piece from the biome's list (weighted; start chunks only use start-safe pieces)
+3. stamp     the piece in one of its 8 looks (4 turns × mirror), tried in a seeded order
+4. check   = coverage cap (R7) and lane check (§5.4); the first look that passes wins; if none does, `open` is used
+5. filler  = up to N lone boulders/trees in clear inner tiles, kept only if the cap and the lane check still hold
 6. slots   = record the piece's S / B / I / E slots (site, berry tree, item ball, entrance)
-7. sites     the existing site roll (20% per chunk) uses the S slot if there is one, else any open spot ≥ 150 px from tall things
+7. sites     the existing site roll (20% per chunk) uses the S slot if there is one, else a random spot nudged clear
 ```
 Rotation and mirroring give each piece 8 looks, so 12 pieces read as ~96 layouts. Ledges keep their rule of never
-facing north (§7.5): a rotation that would make one face north is skipped.
+facing north (§7.5): a look that would make one face north is skipped. *(Dropped from the first draft: "no repeat of
+a neighbour's piece". It would make each chunk depend on its neighbours; the 8 looks already keep repeats rare.)*
 
-### 5.4 Lane check (R1)
-- Rasterise the chunk plus a one-cell border of each neighbour into the 50 px grid.
-- A cell is **passable for `ground`** if it is open, grass or slow, and no tall circle overlaps it.
-- Flood fill from the chunk centre. Pass if:
-  - every chunk edge has **≥ 2 runs of ≥ 3 passable cells** (150 px), and
-  - every passable cell is reached (no sealed pocket). A sealed pocket is turned into decoration and nothing (sites,
-    item balls, spawns) may use it.
-- Ledges count as passable both ways for this check (everyone can climb them, slowly; D47).
-- Cost: 484 cells per chunk, once per chunk, at generation time only.
+### 5.4 Lane check (R1) — as built in M2
+- **Doors.** Every chunk keeps the same two 200 px gaps on every edge: tiles 2–3 and 6–7. Neighbouring chunks' doors
+  line up, so if every chunk connects all its doors, **the whole map is connected**, and a chunk never has to read its
+  neighbours to know it (no generation order problems).
+- Rasterise the chunk into 50 px cells. A cell is **blocked** if it's deep water or its centre is within 10 px of a
+  tall circle (trees, boulders, and berry trunks already, though berry trees come in M4).
+- Pass if every door cell on every edge is open **and** a flood fill from a door reaches every open cell (no sealed
+  pocket). Otherwise the look is rejected (§5.3).
+- Ledges count as passable both ways (everyone can climb them, slowly; D47).
+- Cost: 400 cells per look, at generation time only. Unit-tested on 8 × 8-chunk regions (every open cell reachable
+  from every other) and over ~3,700 generated chunks for the caps.
 
 ### 5.5 What lives where
 | Thing | Placement rule |
@@ -415,6 +418,9 @@ build can't spam reactions. All counts above are caps for the budget (§12).
 
 ## 9. Set pieces (authoring sketches)
 Each sketch is the 10 × 10 tile grid of one chunk (one character = 100 px). The generator rotates and mirrors them.
+**These are the sketches as built (M2)**, copied from `src/data/map.ts` (the data is the truth). Against the first
+draft: `woods.corridor`, `woods.clearing` and `canyon.pass` were redrawn to keep the edge doors (tiles 2–3 and 6–7)
+open and woods under its 20% cap, and more pieces gained an `E` slot so boss entrances can find a matching biome.
 
 **Legend:** `.` open · `g` tall grass · `w` deep water · `m` marsh · `T` tree · `o` boulder · `v` ledge on the
 tile's south edge (drop south) · `r` rocky floor · `B` berry tree slot · `I` item ball slot · `S` site slot ·
@@ -428,25 +434,25 @@ setpiece.meadow.grassRing   setpiece.meadow.ledgeSteps   setpiece.meadow.berryCo
 .ggg..ggg.                  ..........                   ..gTBT....
 ..g....g..                  ....vvvv..                   ..gT.Tg...
 ....S.....                  .g........                   ...g.g....
-..........                  .gg..vvvv.                   .......I..
+......E...                  .gg..vvvv.                   .......I..
 ..g....g..                  ..........                   ......E...
 .ggg..ggg.                  ..vvvv..I.                   ....o.....
-.gg..I.gg.                  ..........                   .........S
+.gg..I.gg.                  ..E.......                   .........S
 ..........                  ....B.....                   ..........
 ```
 **Woods**
 ```
 setpiece.woods.corridor     setpiece.woods.clearing
-TT..TTT..T                  TT..TT..TT
-TT..TTT..T                  T........T
+T...TT...T                  TT..TT..TT
+T...TT...T                  T........T
 ..........                  ..gg..gg..
 ..........                  .g......g.
-TTTT..TTTT                  ...B..S...
-TTTT..TTTT                  .g......g.
-...I......                  ..gg..gg..
-..........                  T....I...T
-TT..TT..TT                  TT..TT..TT
-TT..TT.STT                  TT..TT..TT
+TTTT..TTTT                  T..B..S..T
+..........                  T........T
+..S.......                  .g......g.
+.......I..                  ..gg.Igg..
+T...TT...T                  T........T
+T...TT...T                  TT..TT..TT
 ```
 **Lakes**
 ```
@@ -459,22 +465,22 @@ setpiece.lakes.pond         setpiece.lakes.streamFord    setpiece.lakes.marshlan
 ..mwwwm.E.                  .I..ww....                   ..m...mm..
 ...mmm..I.                  ....mm..g.                   .mmm.mmmm.
 ..........                  ....ww..gg                   .mmw..mmm.
-.g.....S..                  ....ww....                   ..m...I...
-.gg.......                  ..........                   ..........
+.g.....S..                  ....ww.E..                   ..m...I...
+.gg.......                  ..........                   .......E..
 ```
 **Canyon**
 ```
 setpiece.canyon.boulderField  setpiece.canyon.ledgeTerraces  setpiece.canyon.pass
-r.r..rr..r                    rrrrrrrrrr                     oo.o....oo
+r.r..rr..r                    rrrrrrrrrr                     oo..oo..oo
 .o...r..o.                    vvvv..vvvv                     oo......oo
-r..rr..r..                    ..........                     o..o..o..o
-..o....o..                    ...o...o..                     .........r
+r..rr..r..                    ......E...                     ..........
+..o....o..                    ...o...o..                     ..........
 .r..S.r...                    vv..vvvv..                     r..I..E..r
 ...o.....o                    .....I....                     r........r
-.o..rr.o..                    ..vvvv..vv                     o..o..o..o
-r....o..r.                    .o.....o..                     oo......oo
-..o..I..o.                    ...S......                     oo.o..S.oo
-r..r...r..                    rrrrrrrrrr                     ..........
+.o..rr.o..                    ..vvvv..vv                     ..........
+r....o..r.                    .o.....o..                     ..........
+..o..I..o.                    ...S......                     oo......oo
+r..r...r..                    rrrrrrrrrr                     oo..oo.Soo
 ```
 `setpiece.<biome>.open` = no piece, fillers only (every biome has one; it's also the R1 fallback).
 
@@ -564,15 +570,21 @@ which keeps its HP). Stuck enemies within 450 px stay: they're usually on a shor
 point. (Contact time replaced the first draft's "distance hasn't dropped" rule: it never flags ranged enemies that
 keep their distance on purpose.)
 
-### 11.4a What M1 built differently, on purpose
-- **No lane check yet.** M1 scatters single obstacles with a **150 px gap** to each other and **75 px** to their chunk's
-  edges, which keeps every lane open by construction (R1). The flood-fill check (§5.4) arrives with set pieces in M2.
-- **No static hash.** Because of that 75 px margin, a mover narrower than 75 px only ever touches obstacles in its own
-  chunk, so a lookup is one short per-chunk list (≤ ~20). Unit-tested: every player and enemy radius stays under 75.
+### 11.4a What M1–M2 built differently, on purpose
+- **No static hash.** Each chunk keeps one lookup list: its own obstacles plus its neighbours' within 75 px of its
+  edges (`reach`). A mover narrower than 75 px can't touch anything else, so collision reads one short list.
+  Unit-tested: every player and enemy radius stays under 75.
+- **Doors instead of a border-aware lane check** (§5.4): connectivity across chunks without any chunk reading another.
 - **Spawns, recycled enemies, sites and entrances:** enemies are pushed clear by the same end-of-step pass that keeps
-  them out of obstacles; sites and arena entrances are nudged clear when they're placed (`clearSpot`).
+  them out of obstacles; sites use their S slot or are nudged clear (`clearSpot`); entrances use a matching-biome E slot
+  or are nudged clear.
+- **Tiles with no rules yet** (grass, water, marsh, ledges, rocky floor, berry trees, item balls) are laid out and
+  counted by the lane check and caps, but have no effect and aren't drawn until M3/M4. A lakes chunk looks empty
+  until M3.
+- **Entrance slots are rare within 800 px**: in a unit-test sample, 3 of 24 tries found a matching-biome slot; the rest
+  fell back to today's placement. **Owner 2026-10-25: keep 800 px**; most entrances use today's placement for now.
 - **Off by default in the sim** (`obstacleDensity: 0`), so existing tests and the balance bot are unchanged; the game
-  passes 1, `?stress=1` passes 2.5.
+  passes 1, and `?stress=1` makes every chunk woods (the densest biome).
 
 ### 11.5 Data shapes (`src/data/map.ts`; names are the contract, shapes a suggestion)
 ```ts
