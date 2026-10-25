@@ -119,25 +119,48 @@ describe('Confused (enemy status)', () => {
     expect(w.player.hp).toBe(hp);
   });
 
-  it('Confusion (the signature) Confuses what it hits', () => {
+  it('Confusion (the signature) may Confuse what it hits: 35% per enemy (D57)', () => {
     const { w, slot } = withSignature(0, null);
+    expect(slot.stats.confuseChance).toBeCloseTo(0.35);
     const e = dummy(w, 100, 0);
-    slot.cooldownLeft = 0;
-    run(w, DT);
+    let confused = false;
+    for (let i = 0; i < 40 && !confused; i++) {
+      slot.cooldownLeft = 0;
+      run(w, DT);
+      confused = e.confuseLeft > 0;
+    }
     expect(lost(e)).toBeGreaterThan(0);
+    expect(confused).toBe(true);
+  });
+
+  it('Confusion fatigue (D57): once it ends, no new Confusion for 1.5 s', () => {
+    const w = abra();
+    w.moves[0]!.cooldownLeft = 1e9;
+    const e = dummy(w, 200, 0);
+    applyConfusion(e, 0.5);
+    run(w, 0.6);
+    expect(e.confuseLeft).toBe(0);
+    applyConfusion(e, 0.5);
+    expect(e.confuseLeft).toBe(0);
+    run(w, 1.5);
+    applyConfusion(e, 0.5);
     expect(e.confuseLeft).toBeGreaterThan(0);
   });
 });
 
 describe('Abra moves', () => {
-  it('Expanding Force: the ring hits beyond the burst, for half', () => {
+  it('Expanding Force: the ring hits beyond the burst for 35% (D57); the rest of the burst splashes 60%', () => {
     const { w, slot } = withSignature(2, null);
     slot.stats.critChance = 0;
     const near = dummy(w, 200, 0);
-    const ring = dummy(w, 200, 110);
+    const splash = dummy(w, 200, 40);
+    const ring = dummy(w, 200, 85);
+    const out = dummy(w, 200, 125);
     slot.cooldownLeft = 0;
     run(w, DT);
-    expect(lost(ring)).toBeCloseTo(lost(near) * 0.5, 0);
+    expect(lost(splash)).toBeCloseTo(lost(near) * 0.6, 0);
+    expect(lost(ring)).toBeCloseTo(lost(near) * 0.35, 0);
+    expect(lost(out)).toBe(0);
   });
 
   it('Future Sight: nothing lands for 2 s, then the blast', () => {

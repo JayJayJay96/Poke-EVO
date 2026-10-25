@@ -1,7 +1,7 @@
 import type { ZoneMoveDef } from '../../data/moves';
 import { damageEnemy, findTarget, makeHitInfo, queryEnemies } from '../combat';
 import { reactArea } from '../mapReactions';
-import type { MoveSlot, World } from '../types';
+import type { Enemy, MoveSlot, World } from '../types';
 import { spawnZone, strikeZone } from '../zones';
 
 /** How long Slash's X stays visible. Presentation only. */
@@ -36,7 +36,7 @@ export function castZone(world: World, slot: MoveSlot, def: ZoneMoveDef): boolea
     return true;
   }
   if (def.instant) {
-    cutAt(world, slot, x, y, def.radius * s.area);
+    cutAt(world, slot, x, y, def.radius * s.area, s.damage, def.splashFraction ?? 1, def.splashFraction ? target : null);
     if (def.ring) ringAt(world, slot, x, y, def.radius * s.area, def.ring.radius * s.area, s.damage * def.ring.damageFraction);
     return true;
   }
@@ -86,13 +86,23 @@ export function ringAt(world: World, slot: MoveSlot, x: number, y: number, inner
 }
 
 /** One instant cut: a full hit of the move on everything in the circle (Slash). */
-export function cutAt(world: World, slot: MoveSlot, x: number, y: number, radius: number, damage = slot.stats.damage): void {
+export function cutAt(
+  world: World,
+  slot: MoveSlot,
+  x: number,
+  y: number,
+  radius: number,
+  damage = slot.stats.damage,
+  splash = 1,
+  center: Enemy | null = null,
+): void {
   const hit = makeHitInfo(slot.stats, slot);
   queryEnemies(world, x, y, radius, neighbours);
   for (const j of neighbours) {
     const e = world.enemies[j]!;
     if (e.hp <= 0 || (e.x - x) ** 2 + (e.y - y) ** 2 > (radius + e.radius) ** 2) continue;
-    damageEnemy(world, e, damage, hit);
+    // D57: a splash move hits its target in full and the rest for `splash`.
+    damageEnemy(world, e, center === null || e === center ? damage : damage * splash, hit);
   }
   world.cuts.push({ x, y, radius, lifeLeft: CUT_SECONDS });
 }

@@ -171,6 +171,8 @@ export interface ZoneMoveDef extends MoveDefBase {
   readonly target?: 'self';
   /** One instant hit on the target instead of a lingering zone (Slash's cut); duration is unused. */
   readonly instant?: boolean;
+  /** Abra signature (D57): the target takes the full hit, everything else in the burst this fraction. */
+  readonly splashFraction?: number;
   /** Expanding Force (D56): after the burst, a ring out to `radius` hits for `damageFraction`. */
   readonly ring?: ExplosionDef;
   /** Future Sight (D56): the burst lands this many seconds after it is marked. */
@@ -1030,10 +1032,11 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     damage: 11,
     range: 300,
     radius: 35,
+    splashFraction: 0.6, // D57
     duration: 0,
     tickInterval: 0,
     instant: true,
-    onHit: { confuse: 0.5 },
+    onHit: { confuse: 0.5, confuseChance: 0.35 }, // D57: was every hit
   },
   psychic: {
     id: 'psychic',
@@ -1044,11 +1047,12 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     cooldown: 1.0,
     damage: 15,
     range: 320,
-    radius: 60,
+    radius: 50,
+    splashFraction: 0.6, // D57
     duration: 0,
     tickInterval: 0,
     instant: true,
-    onHit: { confuse: 0.5 },
+    onHit: { confuse: 0.5, confuseChance: 0.35 }, // D57: was every hit
   },
   expandingForce: {
     id: 'expandingForce',
@@ -1059,12 +1063,13 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     cooldown: 1.1,
     damage: 20,
     range: 340,
-    radius: 70,
+    radius: 55,
+    splashFraction: 0.6, // D57
     duration: 0,
     tickInterval: 0,
     instant: true,
-    ring: { radius: 140, damageFraction: 0.5 },
-    onHit: { confuse: 0.5 },
+    ring: { radius: 100, damageFraction: 0.35 }, // D57: 140 px / 50%
+    onHit: { confuse: 0.5, confuseChance: 0.35 }, // D57: was every hit
   },
   psybeam: {
     id: 'psybeam',

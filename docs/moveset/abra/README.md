@@ -46,9 +46,9 @@ apply (it isn't a stun). Default 0.5 s. Psychic-type enemies resist it (×0.5, l
 ## 4. Signature tree — Confusion → Psychic → Expanding Force
 | Tier | Tags | Base *(provisional)* |
 |---|---|---|
-| **Confusion** `confusion` (Lv 1) | Psychic, Zone | Instant mind-burst on the nearest enemy: cd 0.9 s, dmg 11, **35 px**, Confuses 0.5 s, range 300 |
-| **Psychic** `psychic` (Lv 10) | + Area | Burst **60 px**, cd 1.0 s, dmg 15 |
-| **Expanding Force** `expandingForce` (Lv 25) | + Pulse | Burst **70 px** (dmg 20, cd 1.1 s), then a ring expands to **140 px** for 50% |
+| **Confusion** `confusion` (Lv 1) | Psychic, Zone | Instant mind-burst on the nearest enemy: cd 0.9 s, dmg 11, **35 px** (others in it 60%, D57), 35% chance to Confuse 0.5 s, range 300 |
+| **Psychic** `psychic` (Lv 10) | + Area | Burst **50 px** (D57: 60), cd 1.0 s, dmg 15 |
+| **Expanding Force** `expandingForce` (Lv 25) | + Pulse | Burst **55 px** (dmg 20, cd 1.1 s), then a ring expands to **100 px** for 35% (D57: 70 px, 140 px at 50%) |
 
 | Signature Mutation | Lv 1 (Confusion) | + Lv 10 (Psychic) | + Lv 25 (Expanding Force) | Cost |
 |---|---|---|---|---|
@@ -153,3 +153,9 @@ Where the build differs from the text above, and why:
 - **Comet Star** deals ×2.5 per star (one star instead of three, so it needs the boost to be worth a slot).
 - **Mind Lock** at Expanding Force adds +5% to the mark.
 - **Type chart:** Psychic hits Poison and Fighting ×2. The chart has no Bug attack row yet, so the select screen doesn't list Bug as a weakness.
+
+## D57 nerf (2026-10-26, owner playtest: "much easier to play... a bit quite OP")
+- The signature burst hits its target in full and **everything else in it for 60%** (was 100%), like the other lines' explosions.
+- Psychic 60 → **50 px**; Expanding Force 70 → **55 px**, ring 140 px at 50% → **100 px at 35%**.
+- Confusion lands on **35%** of the enemies a burst hits (was all).
+- **Confusion fatigue:** once an enemy's Confusion ends, it can't be Confused again for **1.5 s** (`MUTATION_TUNING.confuseFatigueSeconds`), so no enemy stays Confused for long. This also limits Disorient and Spoon Bender.

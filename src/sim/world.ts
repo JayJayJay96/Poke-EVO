@@ -368,6 +368,7 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     weakenLeft: 0,
     blindLeft: 0,
     confuseLeft: 0,
+    confuseFatigueLeft: 0,
     psyMarkLeft: 0,
     psyMarkPct: 0,
     wanderX: 0,

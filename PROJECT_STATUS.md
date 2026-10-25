@@ -126,6 +126,17 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-26 — Abra nerf (D57)
+**Owner:** playtested Abra: "much easier to play compared to others cuz of the confusion mechanic, and late game the area was so big". **Status:** built, tested; committed. Not playtested after the change; no balance run.
+
+- `src/data/moves.ts`: `splashFraction` 0.6 on the three signature tiers; Psychic 50 px; Expanding Force 55 px, ring 100 px at 35%; `confuseChance` 0.35.
+- `src/sim/forms/zoneCast.ts`: `cutAt` takes a splash fraction and the target (full hit on it); `src/sim/mutationDefs/confusion.ts` passes the target for Gravity Well and Psy Split.
+- Confusion fatigue: `Enemy.confuseFatigueLeft`, `MUTATION_TUNING.confuseFatigueSeconds` 1.5; `applyConfusion` refuses while it runs.
+- Docs: `docs/moveset/abra/README.md` values and a D57 section; PROJECT.md D57.
+- **Tests:** Confusion 35% chance, fatigue, splash 60% and ring 35% (`abraMoves.test.ts`). `npx tsc --noEmit` clean; `npx vitest run` **703/703 passed** (includes the map session uncommitted tests); `npm run build` passes.
+- **Next:** owner playtest of Abra; a balance run across all 7 lines.
+- **Build runs:** yes.
+
 ### 2026-10-25 — Map M3b: tall grass rules, the six reactions, ice bridges (D47)
 **Owner:** "Commit M3a…, then start M3b: tall grass rules, the six reactions and ice bridges." M3a was committed as `5b43bcd`. **Status:** M3b built, tested, browser-checked; **not committed** (owner asked to be asked first). Not playtested by the owner. M3 is complete with this.
 

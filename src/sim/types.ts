@@ -142,6 +142,8 @@ export interface Enemy {
   blindLeft: number;
   /** Confused (D56, Abra line): wanders like Blinded and deals no contact damage. */
   confuseLeft: number;
+  /** D57: after a Confusion ends, it can't be Confused again until this runs out. */
+  confuseFatigueLeft: number;
   /** Psy Mark (Mind Lock): the other moves deal +psyMarkPct to it while it lasts. */
   psyMarkLeft: number;
   psyMarkPct: number;

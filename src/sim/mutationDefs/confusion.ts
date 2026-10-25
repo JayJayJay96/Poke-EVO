@@ -2,7 +2,7 @@ import { MOVES, type ZoneMoveDef } from '../../data/moves';
 import { canTrap, findNearestEnemy, pushEnemy } from '../combat';
 import { cutAt, ringAt } from '../forms/zoneCast';
 import { defineMutation } from '../hooks';
-import type { MoveSlot, World } from '../types';
+import type { Enemy, MoveSlot, World } from '../types';
 import { dirTo, forEachEnemyIn, nearestEnemies, ranked, signatureTier } from './util';
 
 // Abra signature Mutations: Confusion → Psychic → Expanding Force (docs/moveset/abra §4, D56).
@@ -13,10 +13,11 @@ function zoneDef(slot: MoveSlot): ZoneMoveDef {
 }
 
 /** The burst at one spot, with the Expanding Force ring when the move has one. */
-function burstAt(world: World, slot: MoveSlot, x: number, y: number, damage: number, ring: boolean): void {
+function burstAt(world: World, slot: MoveSlot, target: Enemy, damage: number, ring: boolean): void {
   const def = zoneDef(slot);
   const radius = def.radius * slot.stats.area;
-  cutAt(world, slot, x, y, radius, damage);
+  const { x, y } = target;
+  cutAt(world, slot, x, y, radius, damage, def.splashFraction ?? 1, target);
   if (ring && def.ring) ringAt(world, slot, x, y, radius, def.ring.radius * slot.stats.area, damage * def.ring.damageFraction);
 }
 
@@ -57,7 +58,7 @@ defineMutation('confusion.gravityWell', {
       e.x += dx * step;
       e.y += dy * step;
     });
-    burstAt(world, slot, x, y, slot.stats.damage, true);
+    burstAt(world, slot, target, slot.stats.damage, true);
     if (tier >= 2 && def.ring) {
       forEachEnemyIn(world, x, y, def.ring.radius * slot.stats.area, (e) => {
         const [dx, dy] = dirTo(x, y, e.x, e.y);
@@ -77,7 +78,7 @@ defineMutation('confusion.psySplit', {
     const { x, y } = world.player;
     const targets = nearestEnemies(world, x, y, zoneDef(slot).range, tier >= 1 ? v.tier1.targets : v.targets);
     if (targets.length === 0) return false;
-    for (const e of targets) burstAt(world, slot, e.x, e.y, slot.stats.damage * v.burstMult, tier >= 2 && v.tier2.ringBursts);
+    for (const e of targets) burstAt(world, slot, e, slot.stats.damage * v.burstMult, tier >= 2 && v.tier2.ringBursts);
     return true;
   },
 });

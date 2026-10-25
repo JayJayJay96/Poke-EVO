@@ -111,6 +111,8 @@ export const MUTATION_TUNING = {
   scorch: { radius: 35, seconds: 3, maxAlive: 6, burnFraction: 0.2 },
   /** Applies to new effects only (D21): Mutations, Shell Burst, Flare Up, Discharge… */
   stunFatigueSeconds: 1.5,
+  /** D57: the same guard rail for Confusion (Abra line). */
+  confuseFatigueSeconds: 1.5,
   slowCap: 0.7,
   /** Traps, slips and drags only work on lighter enemies; heavier ones get this slow instead. */
   trapMaxWeightKg: 40,

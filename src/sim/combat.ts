@@ -476,8 +476,9 @@ export function enemySpeedFactor(enemy: Enemy): number {
   return Math.max(1 - MUTATION_TUNING.slowCap, (1 - slow) * soaked);
 }
 
-/** Confused (D56): resisted by type; bosses take half (D27). Not a stun, so no fatigue. */
+/** Confused (D56): resisted by type; bosses take half (D27). D57: its own fatigue blocks it for a while after. */
 export function applyConfusion(enemy: Enemy, seconds: number): void {
+  if (enemy.confuseFatigueLeft > 0) return;
   const boss = ENEMIES[enemy.kind].boss ? 0.5 : 1;
   enemy.confuseLeft = Math.max(enemy.confuseLeft, seconds * enemyStatusMult(enemy, 'confusion') * boss);
 }
@@ -566,7 +567,10 @@ export function updateStatuses(world: World, dt: number): void {
     if (enemy.vulnAllLeft > 0) enemy.vulnAllLeft = Math.max(0, enemy.vulnAllLeft - dt);
     if (enemy.weakenLeft > 0) enemy.weakenLeft = Math.max(0, enemy.weakenLeft - dt);
     if (enemy.blindLeft > 0) enemy.blindLeft = Math.max(0, enemy.blindLeft - dt);
-    if (enemy.confuseLeft > 0) enemy.confuseLeft = Math.max(0, enemy.confuseLeft - dt);
+    if (enemy.confuseLeft > 0) {
+      enemy.confuseLeft = Math.max(0, enemy.confuseLeft - dt);
+      if (enemy.confuseLeft <= 0) enemy.confuseFatigueLeft = MUTATION_TUNING.confuseFatigueSeconds;
+    } else if (enemy.confuseFatigueLeft > 0) enemy.confuseFatigueLeft = Math.max(0, enemy.confuseFatigueLeft - dt);
     if (enemy.psyMarkLeft > 0) enemy.psyMarkLeft = Math.max(0, enemy.psyMarkLeft - dt);
     if (enemy.stunFatigueLeft > 0) enemy.stunFatigueLeft = Math.max(0, enemy.stunFatigueLeft - dt);
     if (enemy.stunLeft > 0) {
