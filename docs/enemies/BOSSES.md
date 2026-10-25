@@ -292,10 +292,14 @@ unlocked, and **no more echoes**. That choice is the fight.
 | **Projectiles** | **Ice Shard:** **mixed-speed** fans (lead 1); shards hitting a pillar **split** into 3. **Icy Wind:** **boomerang** crescents that fly out and return; they slow you 1 s. Paired with Blizzard, they make the run to cover hard |
 | **Adds** | A few Seel/Dewgong in phase 3 (owner-approved) |
 
-**Full kit for building (DRAFT for owner approval, 2026-10-23).** The owner asked overnight to design "the next
-boss". Articuno is the next arena boss to build. This expands it to the D31 standard: immune phase-change
-animations, a phase gate, 10+ kinds of moves, the projectile layer (§2b), Pressure, a 6-min limit (D33), and Seel adds
-from batch 3.
+**Full kit: approved and built (owner 2026-10-24, D45); tier 2.** The owner asked overnight to design "the next
+boss". This expands it to the D31 standard: immune phase-change animations, a phase gate, 10+ kinds of moves, the
+projectile layer (§2b), Pressure, a 6-min limit (D33). Built in `src/sim/articuno.ts` (numbers in `ARTICUNO_KIT`;
+entrance: a frozen cave). Owner decisions: **only Fire wears the pillars down** (pillars block your shots like rubble,
+D41, so a Fire player's own shots melt its cover); **no Seel adds until batch 3 is approved**; the three flagged items
+below are kept as written. As built: Blizzard sweeps from a random side, and you're safe only in a standing pillar's
+shadow (drawn, the same test as the hit); Blizzard, Icy Wind and Ice Beam's strip use the shared **slow** status;
+Reflect halves projectiles whose path crosses its wall.
 
 | Move | Phase | What it does | Answer |
 |---|---|---|---|
@@ -312,12 +316,12 @@ from batch 3.
 | **Sheer Cold armour** | at 33%: **immune 1.5 s animation** (Freeze-over) | Then it takes ×0.25 until it has taken 8% of max HP in super-effective hits (Fire, Steel; Rock and Fighting later); it reforms once after 30 s | A build check |
 | **Whirlwind** | 3 | A gust pushes you ~120 px (a push, never a stun) | Mind the arena wall |
 | **Hurricane** | 3 | A slow tornado drifts across the arena for 5 s and pulls you gently toward it (a small velocity nudge) | Keep moving across its path |
-| **Adds: Seel ×3** | 3 | Batch-3 Seel (Icy Wind slows); one is an Elite with Thick Fat | Pick targets |
+| **Adds: Seel ×3** | 3 | *Not built: waits for batch-3 Seel (owner 2026-10-24).* Batch-3 Seel (Icy Wind slows); one is an Elite with Thick Fat | Pick targets |
 
 - **Types and defence:** as above. Starters: Charmander is strong here (pillars and armour) but loses its cover. Squirtle and Lapras take Freeze-Dry ×1.5. Lapras resists the slows ×0.25.
 - **Player statuses used:** slow only, from Icy Wind, Ice Beam's strip and Seel. **No freeze on the player** (README §10).
 - **Rough fight length:** about 3–4 min at the 6-min limit, assuming the pillars and armour are played right.
-- **Flagged for owner approval:**
+- **Approved as written (owner 2026-10-24), tune after the first playtest:**
   - Freeze-Dry's ×1.5 on Water starters (a player-side type twist)
   - Hurricane's pull (a push or pull, never a stun)
   - Mist's 20 s cadence

@@ -158,8 +158,8 @@ export function updateProjectiles(world: World, dt: number): void {
     const rock = rocks?.find((r) => Math.hypot(proj.x - r.x, proj.y - r.y) <= r.radius + proj.radius);
     if (rock) {
       proj.lifeLeft = 0;
-      // A rock Machamp holds as a shield is worn down by the shots it stops.
-      if (rock.hp !== undefined) rock.hp -= proj.damage;
+      // A rock with HP (Machamp's shield, Articuno's ice pillars: Fire only) is worn down by the shots it stops.
+      if (rock.hp !== undefined && (!rock.onlyType || rock.onlyType === proj.hit.attackType)) rock.hp -= proj.damage;
     } else if (hitsObstacle(world, proj.x, proj.y, proj.radius)) {
       // Map boulders and trees stop shots the same way (D41 extended to the main map, D47).
       proj.lifeLeft = 0;
@@ -181,7 +181,7 @@ export function updateProjectiles(world: World, dt: number): void {
       if (dx * dx + dy * dy > reach * reach) continue;
       proj.hit.dirX = proj.vx / proj.speed;
       proj.hit.dirY = proj.vy / proj.speed;
-      damageEnemy(world, enemy, proj.damage, proj.hit);
+      damageEnemy(world, enemy, proj.damage * wallMult(world, enemy, proj), proj.hit);
       detonate(world, proj, enemy);
       remember(proj, enemy.id);
       chain(world, proj, enemy);
@@ -201,6 +201,24 @@ export function updateProjectiles(world: World, dt: number): void {
       break;
     }
   }
+}
+
+/**
+ * Articuno's Reflect (D45): a shot hitting the boss deals less if it came through the arena wall, i.e. its path back
+ * along its heading crosses the wall segment.
+ */
+function wallMult(world: World, enemy: Enemy, proj: Projectile): number {
+  const wall = world.arena?.wall;
+  if (!wall || enemy.id !== world.arena!.bossEnemyId) return 1;
+  const sx = wall.x2 - wall.x1;
+  const sy = wall.y2 - wall.y1;
+  const denom = -proj.vx * sy + proj.vy * sx;
+  if (denom === 0) return 1;
+  const qx = wall.x1 - proj.x;
+  const qy = wall.y1 - proj.y;
+  const t = (qx * sy - qy * sx) / denom;
+  const u = (-qx * proj.vy + qy * proj.vx) / denom;
+  return t >= 0 && u >= 0 && u <= 1 ? wall.mult : 1;
 }
 
 /** Keeps or finds the nearest living enemy around the projectile. */

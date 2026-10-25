@@ -126,6 +126,16 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-24 — Articuno built (D45): tier 2 arena boss
+- **Objective:** owner: build one tier 2 boss; Articuno picked from the plan ("okay lets do that"). **Status:** built, tested, browser-checked; **not committed**.
+- **Owner decisions:** only Fire wears the ice pillars down; no Seel adds until batch 3; Freeze-Dry ×1.5 on Water, Hurricane's pull and Mist's 20 s kept as written. PROJECT.md D45.
+- **Added:** `src/sim/articuno.ts` (hover AI, ice pillars that regrow, Blizzard with pillar shadows, Ice Shard + splits, Icy Wind boomerangs, Ice Beam + frozen strip, Roost, Mist, Freeze-Dry, Reflect, Sheer Cold armour that reforms once, Whirlwind push, Hurricane pull, immune Mist / Freeze-over phase changes, phase gate).
+- **Changed:** `src/data/arena.ts` (`ARTICUNO_KIT`, tier 2, `iceCave` entrance), `src/data/content.ts` (`articuno` enemy only), `src/sim/types.ts` (`ArticunoState`, `ArenaRock.onlyType`, `ArenaFight.artic` / `wall`, notices), `src/sim/bosses.ts` (AI registered; Mean Look leash in `holdByBlock`), `src/sim/arena.ts` (start state), `src/sim/combat.ts` (immunity, phase gate, Roost loses Flying, armour ×0.25 + super-effective counter, Mist strips statuses), `src/sim/world.ts` (Pressure for Articuno), `src/sim/forms/projectile.ts` (pillars melt only from their type; Reflect wall halves shots through it), `src/scenes/RunScene.ts` (drawing, HUD, notices, colours), `src/sim/arena.test.ts` (14 Articuno tests incl. a 2-min soak with auto-fire).
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **557/557 passed**; `npm run build` passes. Browser (event 2 forced to Articuno): pillars with melt rings, Blizzard warning lanes, safe shadows and the sweep front draw; no console errors. Real-time feel not judged (owner playtest).
+- **Notes:** the event-2 damage scaling one-shots a level-1 starter, so tests use a big HP pool (real runs reach event 2 at a much higher level). Fire area moves (blasts, zones) don't melt pillars yet, only Fire projectiles. Bulbasaur hits Articuno ×0.5 (Zapdos ×0.25): tier 2 is a hard draw for Grass.
+- **Next:** owner playtest; commit when asked; then Moltres or Kangaskhan.
+- **Build runs:** yes.
+
 ### 2026-10-25 — Map M2: biomes, set pieces, lane check (D47)
 **Owner:** "continue with the map". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner. (M1 shipped as `9f82785` + the types fix `fe65713`.)
 

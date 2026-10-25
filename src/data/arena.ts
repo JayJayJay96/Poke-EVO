@@ -3,9 +3,9 @@ import type { EnemyId } from './content';
 // Arena boss events (D28): Mewtwo is the only main-map boss; every other boss is drawn at random for
 // an arena event. Every number is provisional.
 
-export type ArenaBossId = 'snorlax' | 'zapdos' | 'machamp';
+export type ArenaBossId = 'snorlax' | 'zapdos' | 'machamp' | 'articuno';
 /** Themed entrance on the main map; its entry animation is presentation (enemy design team). */
-export type ArenaEntranceKind = 'mountainHole' | 'pool' | 'whirlwind' | 'dojo';
+export type ArenaEntranceKind = 'mountainHole' | 'pool' | 'whirlwind' | 'dojo' | 'iceCave';
 
 export interface ArenaBossDef {
   readonly id: ArenaBossId;
@@ -26,7 +26,70 @@ export const ARENA_BOSSES: Readonly<Record<ArenaBossId, ArenaBossDef>> = {
   snorlax: { id: 'snorlax', enemy: 'snorlax', entrance: 'mountainHole', timeLimit: 360, tier: 1 },
   zapdos: { id: 'zapdos', enemy: 'zapdos', entrance: 'whirlwind', timeLimit: 360, tier: 2 },
   machamp: { id: 'machamp', enemy: 'machamp', entrance: 'dojo', timeLimit: 360, tier: 1 },
+  articuno: { id: 'articuno', enemy: 'articuno', entrance: 'iceCave', timeLimit: 360, tier: 2 },
 };
+
+/**
+ * Articuno's kit (BOSSES.md §4, D45): "cover that your own fire melts". Ice pillars stand round the arena; only
+ * Fire hits wear them down (your own shots melt your cover). Phase 1: Blizzard (shelter in a pillar's shadow), Ice
+ * Shard, Icy Wind, Ice Beam, Roost. Phase 2 (below 66%, after an immune Mist) adds Mist, Mean Look during Blizzard,
+ * Freeze-Dry and Reflect. Phase 3 (below 33%, after an immune Freeze-over) starts Sheer Cold armour and adds Whirlwind
+ * and Hurricane. Seel adds wait for batch 3 (owner 2026-10-24). Every number provisional.
+ */
+export const ARTICUNO_KIT = {
+  phaseAt: [0.66, 0.33],
+  /** Seconds of each phase-change animation (Mist, Freeze-over): immune. */
+  transitionSeconds: 1.5,
+  /** It flies at about this distance from you, drifting sideways (as Zapdos). */
+  hover: { distance: 240, strafeDeg: 35 },
+  moveGap: 0.6,
+  /** Pressure (its ability): your move cooldowns run this much slower during the fight. */
+  pressure: 0.15,
+  weights: { iceShard: 3, blizzard: 2, icyWind: 2, iceBeam: 3, roost: 1, freezeDry: 2, reflect: 1, whirlwind: 2, hurricane: 1 },
+  /** Ice pillars on a ring round the centre: they block you and your shots; only Fire hits wear them down. */
+  pillars: { count: 5, ringFraction: 0.55, radius: 28, hpPct: 0.05, regrow: 25 },
+  /**
+   * Blizzard: a warning on one side, then a front sweeps across the whole arena. You're safe only in a standing
+   * pillar's shadow (downwind of it, within its width, up to `shadow` px behind it).
+   */
+  blizzard: { cooldown: 12, firstAfter: 4, warning: 1.5, sweep: 0.8, shadow: 240, damageFactor: 2, slowSeconds: 2 },
+  /** Ice Shard: a fan at mixed speeds toward where you're heading; a shard hitting a pillar splits into 3. */
+  iceShard: {
+    cooldown: 4,
+    firstAfter: 1,
+    cast: 0.4,
+    shards: 5,
+    spreadDeg: 40,
+    speeds: [200, 260, 320],
+    radius: 8,
+    life: 3,
+    damageFactor: 0.8,
+    split: { count: 3, spreadDeg: 50, speed: 220, radius: 6, life: 1.2, damageFactor: 0.4 },
+  },
+  /** Icy Wind: crescents fly out, then come back to it (boomerangs); a hit slows you. */
+  icyWind: { cooldown: 7, firstAfter: 3, cast: 0.5, crescents: 2, spreadDeg: 30, speed: 260, out: 1.2, radius: 16, damageFactor: 0.7, slowSeconds: 1 },
+  /** Ice Beam: a line where you stand (lead 0); it leaves a frozen strip that slows you while you stand on it. */
+  iceBeam: { cooldown: 8, firstAfter: 2, telegraph: 0.9, width: 40, length: 900, damageFactor: 1.6, recover: 0.5, strip: { seconds: 4, width: 50, slow: 0.4 } },
+  /** Roost (once per phase, after losing `afterPct` in it): lands, heals, and loses Flying (pure Ice) meanwhile. */
+  roost: { seconds: 3, healPct: 0.15, afterPct: 0.12 },
+  /** Mist (phase 2+): every `every` s, `seconds` s in which no status lands on it. */
+  mist: { every: 20, seconds: 6 },
+  /** Mean Look (phase 2+): during a Blizzard you can't get farther than `leash` px from it. */
+  meanLook: { leash: 260 },
+  /** Freeze-Dry (phase 2+): rings on you in rhythm; Water starters take ×`waterMult` (lore: super effective on Water). */
+  freezeDry: { cooldown: 10, firstAfter: 0, gaps: [0.8, 0.6, 0.4], radius: 55, damageFactor: 1, waterMult: 1.5 },
+  /** Reflect (phase 2+): a wall in front of it for a while; your projectiles through it deal ×`mult`. */
+  reflect: { cooldown: 14, firstAfter: 2, seconds: 4, distance: 70, halfLength: 90, mult: 0.5 },
+  /**
+   * Sheer Cold armour (start of phase 3): it takes ×`damageTakenMult` until it has taken `breakPct` of its max HP in
+   * super-effective hits (counted before the armour); it reforms once, `reformAfter` s after breaking.
+   */
+  sheerCold: { breakPct: 0.08, damageTakenMult: 0.25, reformAfter: 30 },
+  /** Whirlwind (phase 3): a gust along a line toward you; caught, you're pushed away (a push, never a stun). */
+  whirlwind: { cooldown: 9, firstAfter: 1, telegraph: 0.6, length: 320, width: 120, push: 120, pushSeconds: 0.3, damageFactor: 0.5 },
+  /** Hurricane (phase 3): a tornado drifts across the arena, pulling you gently toward it; touching it hurts. */
+  hurricane: { cooldown: 15, firstAfter: 2, seconds: 5, speed: 90, radius: 40, pull: 70, pullRange: 260, hitEvery: 1, damageFactor: 0.6 },
+} as const;
 
 /**
  * Machamp's kit (BOSSES.md §4, D42). Rhythm: 2–3 attacks, then a Bulk Up pose (the opening). Its signature is the

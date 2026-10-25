@@ -39,6 +39,7 @@ export type EnemyId =
   | 'pylon'
   | 'machamp'
   | 'focusOrb'
+  | 'articuno'
   // Batch 2 (ROSTER.md, owner-approved 2026-10-21).
   | 'caterpie'
   | 'weedle'
@@ -749,6 +750,20 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {
     xp: 0,
     berryChance: 0,
     weightKg: 9999,
+  },
+  // Arena boss (D45, BOSSES.md §4): Ice/Flying, tier 2; flies and keeps its distance like Zapdos. Provisional.
+  articuno: {
+    id: 'articuno',
+    name: 'Articuno',
+    types: ['Ice', 'Flying'],
+    maxHp: 2700,
+    speed: 105,
+    radius: 32,
+    contactDamage: 26,
+    xp: 60,
+    berryChance: 0,
+    weightKg: 55.4,
+    boss: true,
   },
 };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
+import { ARENA_BOSS_IDS, ARENA_BOSSES, ARENA_TUNING, ARTICUNO_KIT, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
 import { ENEMIES, TUNING } from '../data/content';
 import { arenaBossChoices, arenaSchedule, chooseArenaReward, chooseBoon, resolveArena, rollRewardCards } from './arena';
 import { PLAYER_STATUS } from '../data/playerStatus';
@@ -1367,6 +1367,232 @@ describe('Machamp (D42)', () => {
     run(world, kit.closeCombat.gap * kit.closeCombat.hits + 0.2);
     expect(champ.openLeft).toBeGreaterThan(0);
     expect(damageEnemy(world, boss, 100)).toBeCloseTo(100 * kit.closeCombat.weakMult);
+  });
+});
+
+describe('Articuno (D45)', () => {
+  const kit = ARTICUNO_KIT;
+  function fight(pokemonId: 'charmander' | 'squirtle' = 'charmander') {
+    const world = createWorld({ rng: createSeededRng(1), spawnEnabled: true, mapSeed: 1, pokemonId });
+    world.spawnTimer = 1e9;
+    enter(world, 'articuno');
+    const f = world.arena!;
+    world.player.x = f.x;
+    world.player.y = f.y + 120;
+    world.player.invulnLeft = 999;
+    world.player.maxHp = world.player.hp = 1e5; // event-2 hits would knock a level-1 starter out
+    world.moves = [];
+    step(world, IDLE, DT); // engages
+    const boss = world.enemies.find((e) => e.id === f.bossEnemyId)!;
+    const art = f.artic!;
+    for (const id of Object.keys(art.cooldowns) as (keyof typeof art.cooldowns)[]) art.cooldowns[id] = 99;
+    art.roostPhase = 99; // no Roost unless a test opens it
+    return { world, f, boss, art };
+  }
+  const run = (world: World, seconds: number) => {
+    for (let t = 0; t < seconds; t += DT) step(world, IDLE, DT);
+  };
+  const shoot = (world: World, x: number, y: number, vx: number, vy: number, attackType: 'Fire' | 'Water' | null, damage = 50) => {
+    const shot = createProjectile();
+    Object.assign(shot, { x, y, vx, vy, speed: Math.hypot(vx, vy), radius: 6, damage, lifeLeft: 5, dead: false, hit: { ...NO_HIT, attackType } });
+    world.projectiles.push(shot);
+    for (let i = 0; i < 120 && !shot.dead; i++) updateProjectiles(world, DT);
+    return shot;
+  };
+
+  it('is a tier 2 boss; Ice/Flying: Fire and Electric hit it ×2, Grass ×0.5', () => {
+    expect(ARENA_BOSSES.articuno.tier).toBe(2);
+    const { world, boss } = fight();
+    for (const [type, mult] of [['Fire', 2], ['Electric', 2], ['Grass', 0.5]] as const) {
+      damageEnemy(world, boss, 1, { ...NO_HIT, attackType: type });
+      expect(boss.lastEffectiveness).toBe(mult);
+    }
+  });
+
+  it('ice pillars block shots; only Fire melts them; a melted pillar regrows', () => {
+    const { world, f, art } = fight();
+    expect(art.pillars).toHaveLength(kit.pillars.count);
+    const p = art.pillars[0]!;
+    const rock = p.rock!;
+    const full = rock.hp!;
+    const water = shoot(world, p.x, p.y + 100, 0, -300, 'Water');
+    expect(water.dead).toBe(true);
+    expect(rock.hp).toBe(full);
+    shoot(world, p.x, p.y + 100, 0, -300, 'Fire', full + 1);
+    expect(rock.hp).toBeLessThanOrEqual(0);
+    step(world, IDLE, DT);
+    expect(p.rock).toBeNull();
+    expect(f.rubble).not.toContain(rock);
+    run(world, kit.pillars.regrow + DT);
+    expect(p.rock).not.toBeNull();
+  });
+
+  it('Blizzard: in a pillar’s shadow you are safe; in the open you are hit', () => {
+    for (const sheltered of [true, false]) {
+      const { world, art } = fight();
+      const p = art.pillars[0]!;
+      world.player.x = p.x + (sheltered ? 0 : 120);
+      world.player.y = p.y + 60; // downwind of the pillar for a sweep heading +y
+      world.player.invulnLeft = 0;
+      art.blizzard = { dx: 0, dy: 1, left: DT, phase: 'warning', front: 0, checked: false };
+      const hp = world.player.hp;
+      run(world, kit.blizzard.sweep + 0.2);
+      expect(art.blizzard).toBeNull();
+      if (sheltered) expect(world.player.hp).toBe(hp);
+      else expect(world.player.hp).toBeLessThan(hp);
+    }
+  });
+
+  it('Mean Look (phase 2): during a Blizzard you can’t get farther than its leash', () => {
+    const { world, f, boss, art } = fight();
+    art.phase = 2;
+    art.blizzard = { dx: 0, dy: 1, left: 5, phase: 'warning', front: 0, checked: false };
+    world.player.x = boss.x;
+    world.player.y = boss.y + 400;
+    if (Math.hypot(world.player.x - f.x, world.player.y - f.y) > f.radius) world.player.y = boss.y - 400;
+    step(world, IDLE, DT);
+    expect(Math.hypot(world.player.x - boss.x, world.player.y - boss.y)).toBeLessThanOrEqual(kit.meanLook.leash + 1);
+  });
+
+  it('Ice Shard: a shard that hits a pillar splits into 3 past it', () => {
+    const { world, art } = fight();
+    const p = art.pillars[0]!;
+    art.shards.push({ x: p.x, y: p.y + 60, vx: 0, vy: -300, radius: 8, left: 3, factor: 1, split: false });
+    run(world, 0.3);
+    expect(art.shards.filter((s) => s.split).length).toBe(kit.iceShard.split.count);
+  });
+
+  it('Ice Beam hits along its line and leaves a frozen strip that slows you', () => {
+    const { world, f, art } = fight();
+    world.player.invulnLeft = 0;
+    art.cooldowns.iceBeam = 0;
+    art.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(art.beam?.phase).toBe('windup');
+    const hp = world.player.hp;
+    run(world, kit.iceBeam.telegraph + DT);
+    expect(world.player.hp).toBeLessThan(hp);
+    expect(art.strips).toHaveLength(1);
+    expect(f.playerSlow).toBeCloseTo(kit.iceBeam.strip.slow);
+  });
+
+  it('Roost: it heals and loses Flying, so Electric drops to ×1', () => {
+    const { world, boss, art } = fight();
+    art.roostPhase = 0;
+    boss.hp = boss.maxHp * 0.85;
+    art.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(art.roost).not.toBeNull();
+    damageEnemy(world, boss, 1, { ...NO_HIT, attackType: 'Electric' });
+    expect(boss.lastEffectiveness).toBe(1);
+  });
+
+  it('phase gate at 66%; the Mist animation is immune; then no status lands while Mist is up', () => {
+    const { world, boss, art } = fight();
+    damageEnemy(world, boss, boss.maxHp);
+    expect(boss.hp).toBeCloseTo(boss.maxHp * kit.phaseAt[0]);
+    art.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(art.phase).toBe(2);
+    expect(world.arenaNotice?.kind).toBe('mist');
+    expect(damageEnemy(world, boss, 100)).toBe(0);
+    run(world, kit.transitionSeconds + DT);
+    expect(art.mistLeft).toBeGreaterThan(0);
+    damageEnemy(world, boss, 1, { ...NO_HIT, burnDps: 10, slow: 0.5 });
+    expect(boss.burnLeft).toBe(0);
+    expect(boss.slowLeft).toBe(0);
+  });
+
+  it('Freeze-Dry: three rings on your spot; a Water starter takes ×1.5', () => {
+    const { world, boss, art } = fight('squirtle');
+    world.player.blockReadyLeft = 999; // no Shell block during the test
+    world.player.invulnLeft = 0;
+    art.beam = { x: boss.x, y: boss.y, angle: Math.atan2(world.player.y - boss.y, world.player.x - boss.x), left: DT, phase: 'windup' };
+    let hp = world.player.hp;
+    run(world, 2 * DT);
+    const beamLoss = hp - world.player.hp;
+    world.player.invulnLeft = 0;
+    art.phase = 2;
+    art.freezeDry = { x: world.player.x, y: world.player.y, index: 0, left: DT };
+    hp = world.player.hp;
+    run(world, 2 * DT);
+    const ringLoss = hp - world.player.hp;
+    expect(ringLoss / beamLoss).toBeCloseTo((kit.freezeDry.damageFactor * kit.freezeDry.waterMult) / kit.iceBeam.damageFactor, 2);
+  });
+
+  it('Reflect: a shot through its wall deals half; a shot from the side is full', () => {
+    const lost: number[] = [];
+    for (const through of [true, false]) {
+      const { world, f, boss, art } = fight();
+      art.phase = 2;
+      boss.x = f.x;
+      boss.y = f.y;
+      f.wall = { x1: boss.x - 90, y1: boss.y + 70, x2: boss.x + 90, y2: boss.y + 70, mult: kit.reflect.mult };
+      art.reflectLeft = 99;
+      const hp = boss.hp;
+      if (through) shoot(world, boss.x, boss.y + 150, 0, -400, null, 100);
+      else shoot(world, boss.x + 150, boss.y, -400, 0, null, 100);
+      lost.push(hp - boss.hp);
+    }
+    expect(lost[0]).toBeCloseTo(lost[1]! * kit.reflect.mult, 0);
+  });
+
+  it('Sheer Cold armour (phase 3): ×0.25 until enough super-effective damage breaks it; it reforms once', () => {
+    const { world, boss, art } = fight();
+    art.phase = 3;
+    art.armour = { taken: 0 };
+    expect(damageEnemy(world, boss, 100)).toBeCloseTo(100 * kit.sheerCold.damageTakenMult);
+    damageEnemy(world, boss, boss.maxHp * kit.sheerCold.breakPct, { ...NO_HIT, attackType: 'Fire' });
+    step(world, IDLE, DT);
+    expect(art.armour).toBeNull();
+    expect(damageEnemy(world, boss, 100)).toBeCloseTo(100);
+    run(world, kit.sheerCold.reformAfter + DT);
+    expect(art.armour).not.toBeNull();
+    expect(art.armourReformed).toBe(true);
+  });
+
+  it('Whirlwind pushes you away along its gust (a push, never a stun)', () => {
+    const { world, boss, art } = fight();
+    art.phase = 3;
+    world.player.x = boss.x;
+    world.player.y = boss.y + 100;
+    art.cooldowns.whirlwind = 0;
+    art.moveGap = 0;
+    step(world, IDLE, DT);
+    expect(art.whirl?.phase).toBe('windup');
+    const x0 = world.player.x;
+    const y0 = world.player.y;
+    run(world, kit.whirlwind.telegraph + kit.whirlwind.pushSeconds + 0.1);
+    expect(Math.hypot(world.player.x - x0, world.player.y - y0)).toBeGreaterThan(kit.whirlwind.push * 0.8);
+  });
+
+  it('Hurricane pulls you gently toward it', () => {
+    const { world, f, art } = fight();
+    art.phase = 3;
+    art.hurricane = { x: f.x - 150, y: world.player.y, vx: 0, vy: 0, left: 2, hitTimer: 99 };
+    const x0 = world.player.x;
+    run(world, 0.5);
+    expect(x0 - world.player.x).toBeGreaterThan(kit.hurricane.pull * 0.5 * 0.8);
+  });
+
+  it('a long fight with auto-fire and a circling player: no NaN, and most of the kit gets used', () => {
+    const world = makeWorld();
+    enter(world, 'articuno');
+    const f = world.arena!;
+    const used = new Set<string>();
+    world.player.maxHp = 1e5;
+    for (let t = 0; t < 120 && world.arena; t += DT) {
+      world.player.hp = world.player.maxHp;
+      const a = t * 0.8;
+      step(world, { moveX: Math.cos(a), moveY: Math.sin(a) }, DT);
+      const art = f.artic!;
+      if (art.lastMove) used.add(art.lastMove);
+      const boss = world.enemies.find((e) => e.id === f.bossEnemyId);
+      if (boss) expect(Number.isFinite(boss.x) && Number.isFinite(boss.y)).toBe(true);
+      expect(Number.isFinite(world.player.x) && Number.isFinite(world.player.y)).toBe(true);
+    }
+    expect(world.arena).not.toBeNull(); // still fighting: nothing broke the fight
+    expect(used.size).toBeGreaterThanOrEqual(4);
   });
 });
 

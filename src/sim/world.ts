@@ -1,4 +1,4 @@
-import { ZAPDOS_KIT } from '../data/arena';
+import { ARTICUNO_KIT, ZAPDOS_KIT } from '../data/arena';
 import { CONTACT_STATUS, ENEMY_ATTACKS, PHASERS } from '../data/enemyAttacks';
 import { ABILITY_TUNING, HORDE } from '../data/hordes';
 import { REROLLS_PER_RUN } from '../data/augments';
@@ -527,7 +527,9 @@ function moveEnemies(world: World, dt: number): void {
 function updateMoves(world: World, dt: number): void {
   const { combo } = world;
   // Pressure (Zapdos's ability, D32): cooldowns run slower during its fight.
-  const pressure = world.arena?.zap && world.arena.engaged ? 1 + ZAPDOS_KIT.pressure : 1;
+  // Pressure (Zapdos, Articuno): your cooldowns run slower while the fight is on.
+  const fight = world.arena?.engaged ? world.arena : null;
+  const pressure = 1 + (fight?.zap ? ZAPDOS_KIT.pressure : fight?.artic ? ARTICUNO_KIT.pressure : 0);
   const rate = cooldownRate(world);
   for (let i = 0; i < world.moves.length; i++) {
     const slot = world.moves[i]!;

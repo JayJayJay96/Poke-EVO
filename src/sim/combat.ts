@@ -1,4 +1,4 @@
-import { MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT } from '../data/arena';
+import { ARTICUNO_KIT, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT } from '../data/arena';
 import { ABILITIES, ENEMIES, TUNING, type PokemonType } from '../data/content';
 import { ABILITY_TUNING, ELITE, ELITE_ABILITY } from '../data/hordes';
 import { MUTATION_TUNING } from '../data/mutations';
@@ -159,6 +159,7 @@ export function bossImmune(world: World, enemy: Enemy): boolean {
   // Zapdos and Machamp: their phase-change animations (Charge-up, Rain Dance; Focus Energy, No Guard).
   if (f.zap) return f.zap.transitionLeft > 0;
   if (f.champ) return f.champ.transitionLeft > 0;
+  if (f.artic) return f.artic.transitionLeft > 0;
   const airborne = f.heavySlam?.phase === 'air' || f.heavySlam?.phase === 'lock';
   return f.shakeLeft > 0 || f.drumLeft > 0 || airborne;
 }
@@ -172,7 +173,9 @@ export function bossHpFloor(world: World, enemy: Enemy): number {
     ? ZAPDOS_KIT.phaseAt[f.zap.phase - 1]
     : f.champ
       ? MACHAMP_KIT.phaseAt[f.champ.phase - 1]
-      : SNORLAX_KIT.restAt[f.rest ? f.phase : f.phase - 1];
+      : f.artic
+        ? ARTICUNO_KIT.phaseAt[f.artic.phase - 1]
+        : SNORLAX_KIT.restAt[f.rest ? f.phase : f.phase - 1];
   return gate === undefined ? 0 : enemy.maxHp * gate;
 }
 
@@ -184,6 +187,12 @@ function shieldDusted(hit: Readonly<HitInfo>): Readonly<HitInfo> {
 
 /** Roosting Zapdos is grounded: it loses its Flying type until it takes off (BOSSES.md §4). */
 const ROOSTING_ZAPDOS: readonly PokemonType[] = ['Electric'];
+const ROOSTING_ARTICUNO: readonly PokemonType[] = ['Ice'];
+
+/** Articuno's Mist (D45): no status rides in on a hit while it's up (the damage still lands). */
+function misted(hit: Readonly<HitInfo>): Readonly<HitInfo> {
+  return { ...hit, burnDps: 0, poisonDps: 0, seedDps: 0, slow: 0, stun: 0 };
+}
 
 /**
  * Applies a hit and its on-hit effects (§8.8 onHit): crit roll, live multipliers
@@ -213,8 +222,9 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const def = ENEMIES[enemy.kind];
   const zap = world.arena?.bossEnemyId === enemy.id ? world.arena.zap : null;
   const champ = world.arena?.bossEnemyId === enemy.id ? world.arena.champ : null;
+  const artic = world.arena?.bossEnemyId === enemy.id ? world.arena.artic : null;
   // Type chart (D14): multiplied for dual-type enemies; typeless hits stay ×1.
-  const typeMult = effectiveness(hit.attackType, zap?.roost ? ROOSTING_ZAPDOS : def.types);
+  const typeMult = effectiveness(hit.attackType, zap?.roost ? ROOSTING_ZAPDOS : artic?.roost ? ROOSTING_ARTICUNO : def.types);
   enemy.lastEffectiveness = typeMult;
   const mutationMult = hooks?.damageMult ? hooks.damageMult(world, slot!, enemy) : 1;
   // Vulnerability debuffs (Wash Down, Acid, Nightmare...): extra damage taken, for one type or all.
@@ -240,6 +250,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     (zap && zap.overloadLeft > 0 ? ZAPDOS_KIT.overload.damageTakenMult : 1) *
     // Machamp after Close Combat: its defences are down for a moment.
     (champ && champ.openLeft > 0 ? MACHAMP_KIT.closeCombat.weakMult : 1) *
+    // Articuno's Sheer Cold armour (phase 3).
+    (artic?.armour ? ARTICUNO_KIT.sheerCold.damageTakenMult : 1) *
     // The move's own hits only (procs carry no slot): Volatility's roll and Predatory's bonus below half HP.
     (slot ? slot.volatileMult : 1) *
     (slot && slot.stats.executePct > 0 && enemy.hp < enemy.maxHp * 0.5 ? 1 + slot.stats.executePct : 1);
@@ -254,6 +266,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   // Machamp: damage during Bulk Up or the Focus Punch channel fills its interrupt meter.
   if (champ?.bulking) champ.bulking.taken += dealt;
   if (champ?.focus?.phase === 'channel') champ.focus.taken += dealt;
+  // Articuno: super-effective hits wear its Sheer Cold armour down (counted as if unarmoured).
+  if (artic?.armour && typeMult > 1) artic.armour.taken += dealt / ARTICUNO_KIT.sheerCold.damageTakenMult;
   enemy.hp = floor > 0 ? enemy.hp - dealt : enemy.hp - amount;
   // Sheer Cold (D49): a move's own hit finishes a slowed, low, non-boss enemy.
   if (sheerColdExecutes(world, enemy, slot)) enemy.hp = 0;
@@ -296,6 +310,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   }
   // Shield Dust (Elite Caterpie): statuses riding on a damaging hit barely land.
   if (ability === 'shieldDust') hit = shieldDusted(hit);
+  if (artic && artic.mistLeft > 0) hit = misted(hit);
   // Synchronize (Elite Abra): burn, poison and paralysis bounce back onto you (only these three, lore).
   if (ability === 'synchronize') {
     if (hit.burnDps > 0) applyPlayerStatus(world, 'burn', { hit: enemy.contactDamage });

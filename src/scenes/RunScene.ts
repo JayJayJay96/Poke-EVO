@@ -6,7 +6,7 @@ import { ELITE_ABILITY, ELITE_ABILITY_NAMES } from '../data/hordes';
 import { MOVES, type MoveId } from '../data/moves';
 import { MUTATION_TUNING, MUTATIONS, type MutationDef, type MutationId } from '../data/mutations';
 import { SITE_TUNING } from '../data/sites';
-import { ARENA_BOSSES, ARENA_TUNING, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
+import { ARENA_BOSSES, ARENA_TUNING, ARTICUNO_KIT, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId, type ArenaEntranceKind } from '../data/arena';
 import { crossArms } from '../sim/machamp';
 import { chooseArenaReward, chooseBoon, chooseCombine, skipCombine } from '../sim/arena';
 import { angleGap, snoreOpenings } from '../sim/bosses';
@@ -45,7 +45,7 @@ import { MAP_TUNING, type BiomeId } from '../data/map';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
-import type { ArenaFight, AugmentCard, Card, Enemy, EvolutionState, InputState, LevelUpOffer, MachampState, MoveSlot, RewardCard, SiteCard, World, ZapdosState } from '../sim/types';
+import type { ArenaFight, ArticunoState, AugmentCard, Card, Enemy, EvolutionState, InputState, LevelUpOffer, MachampState, MoveSlot, RewardCard, SiteCard, World, ZapdosState } from '../sim/types';
 import { createWorld, runClock, step } from '../sim/world';
 import { PauseOverlay } from '../ui/pauseOverlay';
 import { TYPE_COLORS, augmentLabel, mutationLabel } from '../ui/labels';
@@ -125,6 +125,7 @@ const COLORS = {
 const ENEMY_COLORS: Readonly<Record<EnemyId, number>> = {
   machamp: 0x7a8fa6,
   focusOrb: 0x7fd4ff,
+  articuno: 0x8fd8ff,
   rattata: 0x9b6bc8,
   pidgey: 0xc8a165,
   raticate: 0x8a5a2b,
@@ -548,7 +549,8 @@ export class RunScene extends Phaser.Scene {
         (stop === null ? '' : ` · Discharge! interrupt ${stop}%`) +
         (zap && zap.overloadLeft > 0 ? ` · Overloaded ${Math.ceil(zap.overloadLeft)} s` : '') +
         (zap && zap.overloadLeft <= 0 && zap.weakLeft > 0 ? ` · Weakened ${Math.ceil(zap.weakLeft)} s` : '') +
-        (arena.champ && enemy ? machampHud(arena.champ, enemy) : '');
+        (arena.champ && enemy ? machampHud(arena.champ, enemy) : '') +
+        (arena.artic && enemy ? articunoHud(arena.artic, enemy) : '');
       return `${boss}: ${formatTime(arena.timeLeft)} left${extra}`;
     }
     if (entrance) {
@@ -585,6 +587,8 @@ export class RunScene extends Phaser.Scene {
       overloaded: `${boss} is Overloaded! It takes extra damage. Hit it now`,
       focusEnergy: `${boss} used Focus Energy! Bullet Punch, Dynamic Punch and Focus Blast incoming`,
       noGuard: `${boss} takes the No Guard stance! Focus Punch and Close Combat incoming`,
+      mist: `${boss} is shrouded in Mist! For a while, no status lands on it`,
+      freezeOver: `${boss} froze over! Sheer Cold armour: break it with super-effective hits`,
     }[notice.kind];
     this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
   }
@@ -1201,6 +1205,7 @@ export class RunScene extends Phaser.Scene {
       drawSnorlaxExtras(g, this.world, arena);
       if (arena.zap) drawZapdos(g, this.world, arena, arena.zap);
       if (arena.champ) drawMachamp(g, this.world, arena, arena.champ);
+      if (arena.artic) drawArticuno(g, this.world, arena, arena.artic);
     }
 
     // Mutation Sites (D23): the ring's colour reveals the roll once you step in (gold = Pokémon-bound);
@@ -1699,7 +1704,133 @@ const ENTRANCE_NAMES: Readonly<Record<ArenaEntranceKind, string>> = {
   pool: 'A deep pool',
   whirlwind: 'A whirlwind',
   dojo: 'A dojo door',
+  iceCave: 'A frozen cave',
 };
+
+/** Articuno's state for the arena line: Roost, Mist, Reflect, the Sheer Cold armour meter. */
+function articunoHud(art: ArticunoState, boss: Enemy): string {
+  const { sheerCold } = ARTICUNO_KIT;
+  return (
+    (art.roost ? ' · roosting (no Flying)' : '') +
+    (art.mistLeft > 0 ? ` · Mist ${Math.ceil(art.mistLeft)} s` : '') +
+    (art.reflectLeft > 0 ? ' · Reflect' : '') +
+    (art.armour ? ` · Sheer Cold armour, break ${Math.min(100, Math.round((art.armour.taken / (boss.maxHp * sheerCold.breakPct)) * 100))}%` : '')
+  );
+}
+
+/**
+ * Articuno (D45): ice pillars (with their melt meter), Blizzard's warning lanes, the safe shadows and the sweeping
+ * front, Ice Shard and Icy Wind, Ice Beam's line and frozen strips, Freeze-Dry rings, Reflect's wall, the armour,
+ * Mist, Whirlwind's gust line and the Hurricane.
+ */
+function drawArticuno(g: Phaser.GameObjects.Graphics, world: World, arena: ArenaFight, art: ArticunoState): void {
+  const kit = ARTICUNO_KIT;
+  const ice = TYPE_COLORS.Ice;
+  const boss = world.enemies.find((e) => e.id === arena.bossEnemyId);
+  for (const p of art.pillars) {
+    if (!p.rock) {
+      g.lineStyle(2, ice, 0.35);
+      g.strokeCircle(p.x, p.y, kit.pillars.radius);
+      continue;
+    }
+    g.fillStyle(ice, 0.9);
+    g.fillCircle(p.x, p.y, p.rock.radius);
+    if (boss && p.rock.hp !== undefined) {
+      const share = Math.max(0, p.rock.hp / (boss.maxHp * kit.pillars.hpPct));
+      g.lineStyle(3, COLORS.shield, 0.9);
+      g.beginPath();
+      g.arc(p.x, p.y, p.rock.radius + 5, -Math.PI / 2, -Math.PI / 2 + share * Math.PI * 2, false);
+      g.strokePath();
+    }
+  }
+  const bz = art.blizzard;
+  if (bz) {
+    // The safe shadow behind each standing pillar (the same test as the hit), then the lanes or the front.
+    const { dx, dy } = bz;
+    g.fillStyle(COLORS.safe, 0.25);
+    for (const p of art.pillars) {
+      if (!p.rock) continue;
+      const r = p.rock.radius;
+      const ex = p.x + dx * kit.blizzard.shadow;
+      const ey = p.y + dy * kit.blizzard.shadow;
+      g.beginPath();
+      g.moveTo(p.x - dy * r, p.y + dx * r);
+      g.lineTo(ex - dy * r, ey + dx * r);
+      g.lineTo(ex + dy * r, ey - dx * r);
+      g.lineTo(p.x + dy * r, p.y - dx * r);
+      g.closePath();
+      g.fillPath();
+    }
+    if (bz.phase === 'warning') {
+      g.lineStyle(2, ice, 0.5);
+      for (let k = -4; k <= 4; k++) {
+        const ox = arena.x - dy * k * 100 - dx * arena.radius;
+        const oy = arena.y + dx * k * 100 - dy * arena.radius;
+        g.lineBetween(ox, oy, ox + dx * 80, oy + dy * 80);
+      }
+    } else {
+      const fx = arena.x + dx * bz.front;
+      const fy = arena.y + dy * bz.front;
+      g.lineStyle(10, ice, 0.8);
+      g.lineBetween(fx - dy * arena.radius, fy + dx * arena.radius, fx + dy * arena.radius, fy - dx * arena.radius);
+    }
+  }
+  g.fillStyle(ice, 1);
+  for (const s of art.shards) g.fillCircle(s.x, s.y, s.radius);
+  g.lineStyle(3, ice, 0.9);
+  for (const c of art.crescents) {
+    const a = Math.atan2(c.vy, c.vx);
+    g.beginPath();
+    g.arc(c.x, c.y, kit.icyWind.radius, a - 1, a + 1, false);
+    g.strokePath();
+  }
+  if (art.beam?.phase === 'windup') {
+    const t = 1 - art.beam.left / kit.iceBeam.telegraph;
+    g.lineStyle(Math.max(2, kit.iceBeam.width * t), COLORS.telegraph, 0.45);
+    g.lineBetween(art.beam.x, art.beam.y, art.beam.x + Math.cos(art.beam.angle) * kit.iceBeam.length, art.beam.y + Math.sin(art.beam.angle) * kit.iceBeam.length);
+  }
+  g.lineStyle(kit.iceBeam.strip.width, ice, 0.25);
+  for (const s of art.strips) g.lineBetween(s.x1, s.y1, s.x2, s.y2);
+  const fd = art.freezeDry;
+  if (fd) {
+    const t = 1 - fd.left / kit.freezeDry.gaps[fd.index]!;
+    g.fillStyle(COLORS.telegraph, 0.25);
+    g.fillCircle(fd.x, fd.y, kit.freezeDry.radius * t);
+    g.lineStyle(3, COLORS.telegraph, 0.9);
+    g.strokeCircle(fd.x, fd.y, kit.freezeDry.radius);
+  }
+  const wall = arena.wall;
+  if (wall) {
+    g.lineStyle(6, COLORS.shield, 0.6);
+    g.lineBetween(wall.x1, wall.y1, wall.x2, wall.y2);
+  }
+  if (art.whirl?.phase === 'windup' && boss) {
+    const t = 1 - art.whirl.left / kit.whirlwind.telegraph;
+    const a = art.whirl.angle;
+    g.lineStyle(Math.max(2, kit.whirlwind.width * t), COLORS.telegraph, 0.3);
+    g.lineBetween(boss.x, boss.y, boss.x + Math.cos(a) * kit.whirlwind.length, boss.y + Math.sin(a) * kit.whirlwind.length);
+  }
+  const h = art.hurricane;
+  if (h) {
+    g.fillStyle(COLORS.chain, 0.35);
+    g.fillCircle(h.x, h.y, kit.hurricane.radius);
+    g.lineStyle(2, COLORS.chain, 0.5);
+    g.strokeCircle(h.x, h.y, kit.hurricane.pullRange);
+  }
+  if (!boss) return;
+  if (art.armour) {
+    g.lineStyle(5, COLORS.shield, 0.85);
+    g.strokeCircle(boss.x, boss.y, boss.radius + 6);
+  }
+  if (art.mistLeft > 0) {
+    g.fillStyle(COLORS.shield, 0.12);
+    g.fillCircle(boss.x, boss.y, boss.radius + 26);
+  }
+  if (art.roost) {
+    g.lineStyle(3, COLORS.rubble, 0.9);
+    g.strokeCircle(boss.x, boss.y, boss.radius + 4);
+  }
+}
 
 /** Machamp's state for the arena line: Bulk Up stacks, the pose and Focus Punch interrupt meters, its rock shield. */
 function machampHud(champ: MachampState, boss: Enemy): string {

@@ -1,4 +1,4 @@
-import { SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
+import { ARTICUNO_KIT, SNORLAX_KIT, ZAPDOS_KIT, type ArenaBossId } from '../data/arena';
 import { addCharge } from './abilities';
 import { BLAST_SECONDS } from './forms/projectile';
 import { applyPlayerStatus } from './playerStatus';
@@ -6,6 +6,7 @@ import { spawnPuddle } from './terrain';
 import type { ArenaFight, Enemy, SnorlaxMove, World, ZapdosMove, ZapdosState } from './types';
 import { hitPlayer, spawnEnemy } from './world';
 import { machamp } from './machamp';
+import { articuno } from './articuno';
 
 // Arena boss behaviour (D28; BOSSES.md §3: telegraph → act → recover). One function per boss, run each
 // step once the fight has started. Boss attacks never proc anything; every aimed attack locks its target
@@ -361,12 +362,14 @@ function updateBlock(fight: ArenaFight, dt: number): void {
 
 /** Keeps the player within Block's leash of Snorlax (run after movement, like the arena wall). */
 export function holdByBlock(world: World, fight: ArenaFight, boss: Enemy): void {
-  if (fight.block?.phase !== 'hold') return;
+  // Snorlax's Block, or Articuno's Mean Look during a Blizzard (phase 2+, D45).
+  const meanLook = fight.artic?.blizzard && fight.artic.phase >= 2;
+  const leash = fight.block?.phase === 'hold' ? SNORLAX_KIT.block.leash : meanLook ? ARTICUNO_KIT.meanLook.leash : 0;
+  if (!leash) return;
   const { player } = world;
   const dx = player.x - boss.x;
   const dy = player.y - boss.y;
   const d = Math.hypot(dx, dy);
-  const leash = SNORLAX_KIT.block.leash;
   if (d <= leash) return;
   player.x = boss.x + (dx / d) * leash;
   player.y = boss.y + (dy / d) * leash;
@@ -1034,7 +1037,7 @@ function zapdos(world: World, fight: ArenaFight, boss: Enemy, realDt: number): v
     : fight.bossSpeed * (zap.agilityLeft > 0 ? kit.agility.speedMult : 1) * (zap.weakLeft > 0 ? kit.overload.weakSpeedMult : 1);
 }
 
-const BOSS_AI: Readonly<Record<ArenaBossId, BossAi>> = { snorlax, zapdos, machamp };
+const BOSS_AI: Readonly<Record<ArenaBossId, BossAi>> = { snorlax, zapdos, machamp, articuno };
 
 /** Runs the boss's behaviour for this step (only once the fight has started). */
 export function updateBoss(world: World, fight: ArenaFight, boss: Enemy, dt: number): void {

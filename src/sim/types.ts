@@ -751,6 +751,48 @@ export interface ArenaRock {
   readonly radius: number;
   left: number;
   hp?: number;
+  /** Only hits of this type wear its `hp` down (Articuno's ice pillars: Fire). */
+  readonly onlyType?: PokemonType;
+}
+
+export type ArticunoMove = 'iceShard' | 'blizzard' | 'icyWind' | 'iceBeam' | 'roost' | 'freezeDry' | 'reflect' | 'whirlwind' | 'hurricane';
+
+/** Articuno (D45, BOSSES.md §4). Moves in progress are their own fields; shots, rings and the tornado run alongside. */
+export interface ArticunoState {
+  phase: number;
+  /** Immune phase-change animation (Mist, Freeze-over). */
+  transitionLeft: number;
+  moveGap: number;
+  lastMove: ArticunoMove | null;
+  cooldowns: Record<Exclude<ArticunoMove, 'roost'>, number>;
+  /** The phase Roost was last used in (once per phase), and the HP it entered the phase with. */
+  roostPhase: number;
+  phaseStartHp: number;
+  roost: { left: number } | null;
+  /** Ice pillars: the rock standing there (null while melted) and the seconds until it regrows. */
+  pillars: { readonly x: number; readonly y: number; rock: ArenaRock | null; regrow: number }[];
+  /** Ice Shard / Icy Wind: it holds still while casting. */
+  cast: { readonly move: 'iceShard' | 'icyWind'; left: number } | null;
+  shards: { x: number; y: number; readonly vx: number; readonly vy: number; readonly radius: number; left: number; readonly factor: number; readonly split: boolean }[];
+  /** Icy Wind crescents: out for a while, then back to it; each hits once per pass. */
+  crescents: { x: number; y: number; vx: number; vy: number; left: number; returning: boolean; hit: boolean }[];
+  /** Blizzard: a warning on its source side, then a front sweeping along (dx, dy); `front` is its position. */
+  blizzard: { readonly dx: number; readonly dy: number; left: number; phase: 'warning' | 'sweep'; front: number; checked: boolean } | null;
+  beam: { readonly x: number; readonly y: number; readonly angle: number; left: number; phase: 'windup' | 'recover' } | null;
+  /** Frozen strips Ice Beam leaves: they slow you while you stand on them. */
+  strips: { readonly x1: number; readonly y1: number; readonly x2: number; readonly y2: number; left: number }[];
+  /** Freeze-Dry: the current ring on your spot, which ring of the three, and its time left. */
+  freezeDry: { x: number; y: number; index: number; left: number } | null;
+  /** Mist: seconds left of it, and the seconds until the next one (phase 2+). */
+  mistLeft: number;
+  mistTimer: number;
+  reflectLeft: number;
+  /** Sheer Cold armour: super-effective damage taken against it; it reforms once. */
+  armour: { taken: number } | null;
+  armourReform: number;
+  armourReformed: boolean;
+  whirl: { readonly angle: number; left: number; phase: 'windup' | 'push'; readonly vx: number; readonly vy: number } | null;
+  hurricane: { x: number; y: number; readonly vx: number; readonly vy: number; left: number; hitTimer: number } | null;
 }
 
 export type MachampMove =
@@ -899,6 +941,10 @@ export interface ArenaFight {
   zap: ZapdosState | null;
   /** Machamp's own state (D42); null when the boss is someone else. */
   champ: MachampState | null;
+  /** Articuno's own state (D45); null when the boss is someone else. */
+  artic: ArticunoState | null;
+  /** A wall your projectiles cross at reduced damage on their way to the boss (Articuno's Reflect); null if none. */
+  wall: { readonly x1: number; readonly y1: number; readonly x2: number; readonly y2: number; readonly mult: number } | null;
   /**
    * Rocks that block the player and their shots (D41) for a while. A rock with `hp` is one Machamp holds as a shield:
    * it moves with Machamp, shots that hit it wear it down, and it never crumbles from the rubble cap.
@@ -920,7 +966,7 @@ export interface ArenaFight {
 
 /** Arena news for the scene to show once (D28). */
 export interface ArenaNotice {
-  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'knockedOut' | 'rest' | 'woke' | 'bellyDrum' | 'chargeUp' | 'rainDance' | 'overloaded' | 'focusEnergy' | 'noGuard';
+  readonly kind: 'opened' | 'missed' | 'won' | 'lost' | 'knockedOut' | 'rest' | 'woke' | 'bellyDrum' | 'chargeUp' | 'rainDance' | 'overloaded' | 'focusEnergy' | 'noGuard' | 'mist' | 'freezeOver';
   readonly bossId: ArenaBossId;
 }
 
