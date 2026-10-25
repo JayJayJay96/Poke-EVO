@@ -103,6 +103,37 @@ export function transformTiles(rows: readonly string[], t: number): string[] {
   return grid.map((row) => row.join(''));
 }
 
+/** Tiles that stand tall (trees, boulders, berry-tree trunks). */
+const TALL = 'ToB';
+
+/**
+ * Breaks big groups of tall tiles (D47 amendment 2026-10-26, owner: big obstacle groups still hold mobs back even with
+ * wall-follow). A tall tile may touch at most one other, diagonals included, so a group is a pair at most and every
+ * other tall tile stands a full tile away: a ≥ 100 px gap between trunks, wide enough for any non-boss enemy. Berry
+ * trunks are kept first (they're slots); the rest are kept in reading order, and a dropped tile becomes open floor.
+ * Deterministic, so the same seed still gives the same map.
+ */
+export function thinTall(rows: readonly string[]): string[] {
+  const grid = rows.map((row) => [...row]);
+  const kept = rows.map((row) => [...row].map(() => false));
+  const keptAround = (r: number, c: number): [number, number][] => {
+    const out: [number, number][] = [];
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) if ((dr || dc) && kept[r + dr]?.[c + dc]) out.push([r + dr, c + dc]);
+    }
+    return out;
+  };
+  const visit = (r: number, c: number): void => {
+    const around = keptAround(r, c);
+    // Alone, or next to exactly one kept tile that has no other partner yet: keep it, making at most a pair.
+    if (around.length === 0 || (around.length === 1 && keptAround(...around[0]!).length === 0)) kept[r]![c] = true;
+    else grid[r]![c] = '.';
+  };
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (grid[r]![c] === 'B') visit(r, c);
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (TALL.includes(grid[r]![c]!) && grid[r]![c] !== 'B') visit(r, c);
+  return grid.map((row) => row.join(''));
+}
+
 interface Stamped {
   own: Obstacle[];
   /** Tall things with no rules yet (berry tree trunks, M4) that the lane check and caps already count. */
@@ -253,7 +284,7 @@ export function generateChunk(mapSeed: number, cx: number, cy: number, forceBiom
   }
   for (const piece of [picked, 'open']) {
     for (const transform of order) {
-      const tiles = transformTiles(SET_PIECES[piece]!.rows, transform);
+      const tiles = thinTall(transformTiles(SET_PIECES[piece]!.rows, transform));
       if (tiles.some((row) => row.includes('^'))) continue;
       const placed = stamp(tiles, cx, cy, rng);
       if (start) placed.own = placed.own.filter((o) => Math.hypot(o.x, o.y) >= MAP_TUNING.startClear + o.radius);
@@ -304,6 +335,8 @@ function fillers(
     if (start && Math.hypot(o.x, o.y) < MAP_TUNING.startClear + o.radius) continue;
     if (blocking(tiles, [...circles, ...added, o]) > cap) continue;
     added.push(o);
+    // Fillers stand alone (D47 amendment 2026-10-26): no other filler in the 8 tiles around this one.
+    for (let k = free.length - 1; k >= 0; k--) if (Math.max(Math.abs(free[k]![0] - r), Math.abs(free[k]![1] - c)) <= 1) free.splice(k, 1);
   }
   return lanesOpen(tiles, [...circles, ...added], cx, cy) ? added : [];
 }

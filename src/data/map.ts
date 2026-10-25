@@ -104,8 +104,9 @@ export const SET_PIECES: Readonly<Record<string, SetPieceDef>> = Object.fromEntr
         'T...TT...T',
       ] },
       // prettier-ignore
+      // Corners are pairs, not L's of 3 (D47 amendment 2026-10-26: at most 2 tall tiles touch).
       { id: 'woods.clearing', startSafe: false, rows: [
-        'TT..TT..TT',
+        'T...TT...T',
         'T........T',
         '..gg..gg..',
         '.g......g.',
@@ -114,7 +115,7 @@ export const SET_PIECES: Readonly<Record<string, SetPieceDef>> = Object.fromEntr
         '.g......g.',
         '..gg.Igg..',
         'T........T',
-        'TT..TT..TT',
+        'T...TT...T',
       ] },
       // prettier-ignore
       { id: 'lakes.pond', startSafe: false, rows: [

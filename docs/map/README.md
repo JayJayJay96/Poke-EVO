@@ -317,7 +317,7 @@ gradual. The art team supplies a **transition strip** per biome pair (INDEX.md �
 | Row | |
 |---|---|
 | **Question** | "Hold the corridor?" Woods make chokepoints for zone and melee builds |
-| **Shape** | Groups of circles (radius 40–60) placed on the set-piece `T` tiles; adjacent `T` tiles merge into one wall |
+| **Shape** | Circles (radius 40–60) placed on the set-piece `T` tiles. **Amended 2026-10-26 (D47):** in pairs at most; generation drops any tall tile that would touch a second neighbour (diagonals count), so no tree walls (§11.4a) |
 | **Who it blocks** | Every mover and every projectile (tall) |
 | **Rules** | Corridors between tree walls are ≥ 150 px (R1 enforces it) |
 | **States** | none |
@@ -584,6 +584,14 @@ can't leave, and since trees block shots (D41), a mob stuck there near you could
   (`lineBlocked`): you can't fight it across trees or boulders. Ponds (M3) don't block that line.
 
 ### 11.4a What M1–M2 built differently, on purpose
+- **Obstacles in pairs at most (D47 amendment 2026-10-26).** After a set piece is turned or mirrored, `thinTall`
+  walks its tiles: berry trunks first, then trees and boulders in reading order. A tall tile is kept if it touches no
+  kept tall tile (8 neighbours), or exactly one that has no other partner yet; otherwise it becomes open floor. Lone
+  fillers also keep their 8 surrounding tiles free of other fillers. Result: groups of 2 at most, ≥ 100 px between
+  groups, and the §9 sketches act as "maximum" layouts (a corridor's `TTTT..TTTT` row becomes `TT.T..TT.T`).
+  `woods.clearing` was redrawn with pair corners, because thinning its L-shaped corners sealed the corner tile off and
+  the lane check rejected all 8 looks. Tested over 800 generated chunks per biome. Across a chunk edge, two pairs can
+  still meet (a 4-block at most), since chunks never read their neighbours.
 - **No static hash.** Each chunk keeps one lookup list: its own obstacles plus its neighbours' within 75 px of its
   edges (`reach`). A mover narrower than 75 px can't touch anything else, so collision reads one short list.
   Unit-tested: every player and enemy radius stays under 75.

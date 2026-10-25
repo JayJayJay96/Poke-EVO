@@ -126,6 +126,33 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-26 — Map: obstacles in pairs at most (D47 amendment)
+**Owner:** "if theres like a big big groups of obstacles, its still gonna block them.. can we make it so that the seed generated the obstacles if they gonna be together, maybe max only 2, the others can be near it but not beside it". I proposed the rule below and its trade-off (woods lose their tree walls); owner: "ok". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner.
+
+- **What it does:**
+  - At generation, a tall tile (tree, boulder, berry trunk) may touch at most one other, diagonals included; extras become open floor (`thinTall`, deterministic, so the same seed gives the same map).
+  - Lone fillers keep the tiles around them clear of other fillers.
+  - Groups are pairs at most, with ≥ 100 px between groups: wider than the widest non-boss enemy (an Elite Tauros, ~46 px).
+- **Side effects:**
+  - Woods corridors become broken rows of pairs; woods clearings, canyon passes and the berry copse lose their 3- and 4-blocks.
+  - `woods.clearing` was redrawn with pair corners: thinning its L corners sealed the corner tile and the lane check rejected every look, so the piece was never used.
+  - Across a chunk edge two pairs can still meet (a 4-block at most).
+- **Changed:**
+  - `src/sim/map.ts`: `thinTall` in `generateChunk`; filler spacing in `fillers`
+  - `src/data/map.ts`: `woods.clearing` rows
+  - `src/sim/map.test.ts`: 2 new tests (a unit test for `thinTall`, and no group above 2 over 800 chunks per biome; it finds a group of 5 with thinning switched off)
+  - `PROJECT.md` D47 row (amendment); `docs/map/README.md` §7.7, §11.4a
+- **Commands (observed):**
+  - `tsc --noEmit` clean
+  - `vitest run` **702/702**
+  - `npm run build` passed
+  - stress bench (`--dir src`): empty map **1.36 ms/step**, every chunk woods **1.56 ms** (was ~2.1: fewer trees)
+- **Browser (port 5180):** a `woods.corridor` chunk now reads `TT.T..TT.T` in its middle row. 10 Rattata starting 500 px away on the far side reached the player in under 7 s (about their straight-line time), none stuck. Screenshot shows pairs and singles with walkable gaps. No console errors.
+- **Not checked:** balance (the bot runs on an empty map); whether woods still feel like woods (playtest).
+- **Next:** owner playtest of M1–M3 with this change.
+- **Build runs:** yes.
+
+
 ### 2026-10-26 — Abra nerf (D57)
 **Owner:** playtested Abra: "much easier to play compared to others cuz of the confusion mechanic, and late game the area was so big". **Status:** built, tested; committed. Not playtested after the change; no balance run.
 

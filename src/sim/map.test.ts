@@ -4,7 +4,7 @@ import { BIOME_IDS, BIOMES, CELL, MAP_TUNING, SET_PIECES, type BiomeId } from '.
 import { MAX_ENEMY_RADIUS, dropGem } from './combat';
 import { updateEnemyAttacks } from './enemyAttacks';
 import { createProjectile, updateProjectiles } from './forms/projectile';
-import { biomeAt, cellAt, cellsOf, chunkKey, clearSpot, entranceSlot, generateChunk, hitsObstacle, mapChunk, obstaclesAt, transformTiles } from './map';
+import { biomeAt, cellAt, cellsOf, chunkKey, clearSpot, entranceSlot, generateChunk, hitsObstacle, mapChunk, obstaclesAt, thinTall, transformTiles } from './map';
 import { createSeededRng } from './rng';
 import { updateSites } from './sites';
 import type { MapChunk, Obstacle, World } from './types';
@@ -192,6 +192,40 @@ describe('map: generation (M2)', () => {
     const playerRadius = Math.max(...Object.values(POKEMON).flatMap((line) => line.stages.map((s) => s.radius)));
     expect(MAX_ENEMY_RADIUS).toBeLessThan(MAP_TUNING.reach);
     expect(playerRadius).toBeLessThan(MAP_TUNING.reach);
+  });
+});
+
+describe('map: obstacle groups (D47 amendment 2026-10-26)', () => {
+  it('a tall tile keeps at most one tall neighbour, diagonals included', () => {
+    expect(thinTall(['TTTT......', ...Array<string>(9).fill('..........')])[0]).toBe('TT.T......');
+    // A 2 × 2 block keeps one pair; the berry trunk keeps its slot and one partner.
+    expect(thinTall(['oo........', 'oo........', ...Array<string>(8).fill('..........')]).slice(0, 2)).toEqual(['oo........', '..........']);
+    expect(thinTall(['.TBT......', '.T.T......', ...Array<string>(8).fill('..........')]).slice(0, 2)).toEqual(['.TB.......', '..........']);
+  });
+
+  it('no generated chunk holds a group of more than 2 obstacles; others leave a walkable gap', () => {
+    // Two obstacles "touch" when the gap between them is narrower than the widest non-boss enemy (an Elite).
+    const widest = 2 * MAX_ENEMY_RADIUS;
+    let biggest = 0;
+    for (const biome of BIOME_IDS) {
+      for (let cx = 2; cx < 22; cx++) {
+        for (let cy = 2; cy < 12; cy++) {
+          const chunk = generateChunk(7, cx, cy, biome);
+          const circles = [...chunk.own, ...chunk.slots.filter((s) => s.kind === 'berry').map((s) => ({ ...s, radius: MAP_TUNING.berryTreeRadius }))];
+          const group = circles.map((_, i) => i);
+          const root = (i: number): number => (group[i] === i ? i : (group[i] = root(group[i]!)));
+          circles.forEach((a, i) =>
+            circles.forEach((b, j) => {
+              if (j > i && Math.hypot(a.x - b.x, a.y - b.y) - a.radius - b.radius < widest) group[root(i)] = root(j);
+            }),
+          );
+          const sizes = new Map<number, number>();
+          circles.forEach((_, i) => sizes.set(root(i), (sizes.get(root(i)) ?? 0) + 1));
+          biggest = Math.max(biggest, ...sizes.values(), 0);
+        }
+      }
+    }
+    expect(biggest).toBeLessThanOrEqual(2);
   });
 });
 
