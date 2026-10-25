@@ -126,6 +126,17 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-26 — Abra nerf (D57)
+**Owner:** playtested Abra: "much easier to play compared to others cuz of the confusion mechanic, and late game the area was so big". **Status:** built, tested; committed. Not playtested after the change; no balance run.
+
+- `src/data/moves.ts`: `splashFraction` 0.6 on the three signature tiers; Psychic 50 px; Expanding Force 55 px, ring 100 px at 35%; `confuseChance` 0.35.
+- `src/sim/forms/zoneCast.ts`: `cutAt` takes a splash fraction and the target (full hit on it); `src/sim/mutationDefs/confusion.ts` passes the target for Gravity Well and Psy Split.
+- Confusion fatigue: `Enemy.confuseFatigueLeft`, `MUTATION_TUNING.confuseFatigueSeconds` 1.5; `applyConfusion` refuses while it runs.
+- Docs: `docs/moveset/abra/README.md` values and a D57 section; PROJECT.md D57.
+- **Tests:** Confusion 35% chance, fatigue, splash 60% and ring 35% (`abraMoves.test.ts`). `npx tsc --noEmit` clean; `npx vitest run` **703/703 passed** (includes the map session uncommitted tests); `npm run build` passes.
+- **Next:** owner playtest of Abra; a balance run across all 7 lines.
+- **Build runs:** yes.
+
 ### 2026-10-26 — Map: obstacles in pairs at most (D47 amendment)
 **Owner:** "if theres like a big big groups of obstacles, its still gonna block them.. can we make it so that the seed generated the obstacles if they gonna be together, maybe max only 2, the others can be near it but not beside it". I proposed the rule below and its trade-off (woods lose their tree walls); owner: "ok". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner.
 
@@ -150,18 +161,6 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - **Browser (port 5180):** a `woods.corridor` chunk now reads `TT.T..TT.T` in its middle row. 10 Rattata starting 500 px away on the far side reached the player in under 7 s (about their straight-line time), none stuck. Screenshot shows pairs and singles with walkable gaps. No console errors.
 - **Not checked:** balance (the bot runs on an empty map); whether woods still feel like woods (playtest).
 - **Next:** owner playtest of M1–M3 with this change.
-- **Build runs:** yes.
-
-
-### 2026-10-26 — Abra nerf (D57)
-**Owner:** playtested Abra: "much easier to play compared to others cuz of the confusion mechanic, and late game the area was so big". **Status:** built, tested; committed. Not playtested after the change; no balance run.
-
-- `src/data/moves.ts`: `splashFraction` 0.6 on the three signature tiers; Psychic 50 px; Expanding Force 55 px, ring 100 px at 35%; `confuseChance` 0.35.
-- `src/sim/forms/zoneCast.ts`: `cutAt` takes a splash fraction and the target (full hit on it); `src/sim/mutationDefs/confusion.ts` passes the target for Gravity Well and Psy Split.
-- Confusion fatigue: `Enemy.confuseFatigueLeft`, `MUTATION_TUNING.confuseFatigueSeconds` 1.5; `applyConfusion` refuses while it runs.
-- Docs: `docs/moveset/abra/README.md` values and a D57 section; PROJECT.md D57.
-- **Tests:** Confusion 35% chance, fatigue, splash 60% and ring 35% (`abraMoves.test.ts`). `npx tsc --noEmit` clean; `npx vitest run` **703/703 passed** (includes the map session uncommitted tests); `npm run build` passes.
-- **Next:** owner playtest of Abra; a balance run across all 7 lines.
 - **Build runs:** yes.
 
 ### 2026-10-25 — Map M3b: tall grass rules, the six reactions, ice bridges (D47)
@@ -192,10 +191,9 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
   - stress bench (`--dir src`): empty map **1.39–1.42 ms/step**; every chunk woods **2.07–2.25 ms** (was 1.97 after M3a: the woods grass reacts to the maxed Fire build), p99 under 2.9 ms; one run logged an 11 ms single-step max (GC-like spike, not reproduced on the next run)
 - **Browser (port 5180):** a run with Charmander. Ember fired at a Rattata across a meadow grass patch and set it burning; the fire showed spreading through the patch with a corner still green. At a pond: an Ice hit laid a 16-cell bridge across the water (reads as floor), Electric charged a marsh patch, Ice froze it, and the bridge melted on time. No console errors.
 - **Not checked:** the melee trigger has no test, because no melee move is Fire, Electric or Ice yet; balance (the bot runs on an empty map); no first-ignite or first-bridge notices yet (M5).
-- **Follow-up (same day):** 3 more tests drive the real cast functions: Thunder Wave (zone) charges a marsh, Ice Beam lays a bridge, Fire Spin (orbit) lights grass. `vitest run` **700/700**.
+- **Follow-up (same day, uncommitted):** 3 more tests drive the real cast functions: Thunder Wave (zone) charges a marsh, Ice Beam lays a bridge, Fire Spin (orbit) lights grass. `vitest run` **700/700**.
 - **Next:** owner playtest of M1–M3. M4 (ledges, berry trees, item balls) and M5 (foreshadowing, horde emergence, notices) stay at P6 per D47 15-3.
 - **Build runs:** yes.
-
 
 ### 2026-10-25 — Map M3a: water, marsh, traversal flags (D47)
 **Owner:** "lets continue with the map". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner. M3 is split into **M3a** (this: cells, traversal, water, marsh, swimming) and **M3b** (next: tall grass rules and the six reactions, with the ice bridge). D47 15-3 approved M3 as a whole, so the split is internal.
@@ -227,7 +225,6 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - **Next:** **M3b**: tall grass rules (Grass-type rest 2 s, burning), the six reactions (§8) with trigger points (§8.1), ice bridges.
 - **Build runs:** yes.
 
-
 ### 2026-10-25 — Mankey and Abra built (D56)
 **Owner:** "Build the Mankey line ... Then Abra." **Status:** built, tested, browser-checked (both lines, normal run and `?stress=` build); committed. Not playtested by the owner. Built in a worktree branch (`new-lines`) to stay clear of the map session, then fast-forwarded onto `main`.
 
@@ -239,6 +236,14 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - **Build notes / deviations:** listed at the end of `docs/moveset/mankey/README.md` and `docs/moveset/abra/README.md`.
 - **Next:** owner playtest of Mankey and Abra; `npm run balance` (two new lines + D50–D54 buffs); a visual marker for Confused enemies.
 - **Build runs:** yes.
+
+### 2026-10-25 — Mankey and Abra designed (D56)
+**Owner:** "add 2 more pokemon, mankey and abra"; approved the proposal with the recommended answers. **Status:** design docs only, no code; committed.
+
+- `docs/moveset/mankey/README.md` and `docs/moveset/abra/README.md`: stages, ability tiers, signature tiers, learnsets with base stats, every Mutation with its cost, and the Bond table with the D55 five checks.
+- PROJECT.md §6 entries and D56.
+- **Not done on purpose:** `docs/moveset/INDEX.md` rows (its sync test needs the code), shared move files (the new moves are only learned by one line each).
+- **Next (when the owner says build):** Rage/Rampage, Teleport/Echo and enemy Confused systems; new hooks; moves and lines in `src/data/`; Mutations with tests; INDEX.md rows; a starter-select entry; then a balance run.
 
 ### 2026-10-25 — Map: wall-follow for stuck enemies (D47 amendment)
 **Owner:** in a playtest, some mobs got stuck between two adjacent trees. They asked whether to let stuck mobs through or widen the gaps. I recommended wall-follow steering plus line-of-sight recycling instead, and the owner approved: "add wall-follow steering for blocked enemies, plus recycle stuck enemies at any distance when trees block line of sight. Record it as a D47 amendment". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner.
@@ -264,15 +269,6 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - **Not checked:** balance (the bot runs on an empty map); real woods corridors in a full run.
 - **Next:** owner playtest of M1, M2 and this fix, then M3.
 - **Build runs:** yes.
-
-
-### 2026-10-25 — Mankey and Abra designed (D56)
-**Owner:** "add 2 more pokemon, mankey and abra"; approved the proposal with the recommended answers. **Status:** design docs only, no code; committed.
-
-- `docs/moveset/mankey/README.md` and `docs/moveset/abra/README.md`: stages, ability tiers, signature tiers, learnsets with base stats, every Mutation with its cost, and the Bond table with the D55 five checks.
-- PROJECT.md §6 entries and D56.
-- **Not done on purpose:** `docs/moveset/INDEX.md` rows (its sync test needs the code), shared move files (the new moves are only learned by one line each).
-- **Next (when the owner says build):** Rage/Rampage, Teleport/Echo and enemy Confused systems; new hooks; moves and lines in `src/data/`; Mutations with tests; INDEX.md rows; a starter-select entry; then a balance run.
 
 ### 2026-10-25 — Bond design rules codified (D55)
 **Owner:** asked for the D50–D54 lessons to become guidelines for future Pokémon. **Status:** docs only; committed.
@@ -340,16 +336,6 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - **Tests:** replaced the Flare Up cross tests; added cross ×0.5, plain beam without Blaze, rank III 8 directions, Burn spread cone, offered without Scorch, Searing X plus no-chain.
 - **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **591/591 passed**; `npm run build` passes. No `npm run balance` run: Cornered Dragon is now much stronger at low HP, and Searing Slash gains horde clear.
 - **Next:** owner playtest of Charmeleon/Charizard with these Bonds; then the kit review of the next starter.
-- **Build runs:** yes.
-
-### 2026-10-24 — Articuno built (D45): tier 2 arena boss
-- **Objective:** owner: build one tier 2 boss; Articuno picked from the plan ("okay lets do that"). **Status:** built, tested, browser-checked; **not committed**.
-- **Owner decisions:** only Fire wears the ice pillars down; no Seel adds until batch 3; Freeze-Dry ×1.5 on Water, Hurricane's pull and Mist's 20 s kept as written. PROJECT.md D45.
-- **Added:** `src/sim/articuno.ts` (hover AI, ice pillars that regrow, Blizzard with pillar shadows, Ice Shard + splits, Icy Wind boomerangs, Ice Beam + frozen strip, Roost, Mist, Freeze-Dry, Reflect, Sheer Cold armour that reforms once, Whirlwind push, Hurricane pull, immune Mist / Freeze-over phase changes, phase gate).
-- **Changed:** `src/data/arena.ts` (`ARTICUNO_KIT`, tier 2, `iceCave` entrance), `src/data/content.ts` (`articuno` enemy only), `src/sim/types.ts` (`ArticunoState`, `ArenaRock.onlyType`, `ArenaFight.artic` / `wall`, notices), `src/sim/bosses.ts` (AI registered; Mean Look leash in `holdByBlock`), `src/sim/arena.ts` (start state), `src/sim/combat.ts` (immunity, phase gate, Roost loses Flying, armour ×0.25 + super-effective counter, Mist strips statuses), `src/sim/world.ts` (Pressure for Articuno), `src/sim/forms/projectile.ts` (pillars melt only from their type; Reflect wall halves shots through it), `src/scenes/RunScene.ts` (drawing, HUD, notices, colours), `src/sim/arena.test.ts` (14 Articuno tests incl. a 2-min soak with auto-fire).
-- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **557/557 passed**; `npm run build` passes. Browser (event 2 forced to Articuno): pillars with melt rings, Blizzard warning lanes, safe shadows and the sweep front draw; no console errors. Real-time feel not judged (owner playtest).
-- **Notes:** the event-2 damage scaling one-shots a level-1 starter, so tests use a big HP pool (real runs reach event 2 at a much higher level). Fire area moves (blasts, zones) don't melt pillars yet, only Fire projectiles. Bulbasaur hits Articuno ×0.5 (Zapdos ×0.25): tier 2 is a hard draw for Grass.
-- **Next:** owner playtest; commit when asked; then Moltres or Kangaskhan.
 - **Build runs:** yes.
 
 ### 2026-10-25 — Map M2: biomes, set pieces, lane check (D47)
@@ -440,28 +426,6 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
   D19 at 15 min ✓: all three 3-stage finals above Raichu and Lapras; Raichu ≈ Lapras (10%, inside Raichu's s.e.). At 5 min Lapras is level with Pikachu (353 vs 369, a tie inside the noise), no longer clearly ahead. Possible lever if the owner wants a clear lead: Raichu evolving at Lv 18 instead of 16 (provisional §5).
 - **Caveats:** the run snapshot included other sessions' uncommitted work in this checkout (Articuno, arena, bosses), and HEAD moved since the 10-23 pass (map obstacles, magnets), so deltas aren't all D48. **Process note:** a first D48 run was invalid. Its report was byte-for-byte the 10-23 baseline copy from the shared system `$TMP`, so another session likely copied it over `balance-report.md`. Balance runs now go in an isolated worktree, with outputs in the session scratchpad.
-
-### 2026-10-23 — Balance pass toward D19 (skill team)
-- **Bot bug found and fixed (`src/sim/balance.ts`):** an open card window pauses `step()`, and `measureDps` never closed one. Since banked level-ups (D39) auto-open after 3 banked or 30 s, a window often opened during the 10 s measurement, and that seed read ~0 DPS (per-seed values like 3, 28, 0). Every report since D39 under-read some lines. `measureDps` now takes a `resolve` callback; `playLine` passes its random picker. New `src/sim/balance.test.ts` reproduces it (without the fix < 1 DPS).
-- **Report reliability (`balance.bench.ts`):** the site columns (the D19 reference, D25) now use **24 seeds** plus an `s.e.` column. With 8, a line's per-seed spread (up to ~5×) left means only good to ~±15%, wider than D19's 10% margins. The report takes ~32 min now (was ~18).
-- **Tuning (provisional numbers):** Lapras `damageMult` 1.2 → **1.4**; Pikachu 1.05 → **1.0**; Raichu 1.25 → **1.05**; Thunderbolt chain jumps 0.8 → **0.65** of the hit; Blastoise 1.7 → **1.8**. Lapras doc line updated.
-- **Result (`npm run balance`, site dps ± s.e., 24 seeds):**
-
-  | min | Charizard | Venusaur | Blastoise | Raichu | Lapras |
-  |---|---|---|---|---|---|
-  | 5 | 241 ± 23 | 342 ± 23 | 236 ± 24 | 356 ± 35 | **358 ± 23** |
-  | 9 | 983 ± 132 | 848 ± 62 | 858 ± 94 | 677 ± 67 | 778 ± 61 |
-  | 15 | **1763 ± 175** | **1470 ± 98** | **1446 ± 99** | 1261 ± 121 | 1252 ± 70 |
-
-  D19: at 15 min every 3-stage final is above Raichu and Lapras (Blastoise +15% over Raichu), and Raichu ≈ Lapras (within 1%) ✓. At 5 min Lapras leads, but only by a hair over Pikachu and Bulbasaur (inside the noise). 9 min roughly level ✓.
-- **Checks:** `tsc --noEmit` 0 errors; `npx vitest run` **540/540 passed**.
-- **Not fixed (flag):** the no-sites `dps` columns look starved: Squirtle Lv 5 at 5 min and Lv 20 at 15 min, Charmander Lv 25 at 15 min, while the site bot reaches Lv 47–50. The circle-walking bot probably misses XP (gem expiry, D26). Not the D19 reference since D25, but worth a look. Squirtle's `form` column shows seed 1 only.
-
-### 2026-10-24 — Machamp revision: flex = breather, Bulk Up its own move, tankier rock (D42)
-- **Objective:** owner: "the pose is just there to let user breathe"; Bulk Up should be a breakable ~5 s move; the rock "tanky enough to make user think they should move sideways". **Status:** done and tested; **not committed** (with Articuno, also uncommitted, pending the owner's playtest).
-- **Changed:** `src/data/arena.ts` (`MACHAMP_KIT.pose` a breather; new `bulkUp` 5 s / 6% / stagger 1.5 s / cooldown 20 s; `rock.shieldHpPct` 0.03 → 0.08), `src/sim/types.ts` (`MachampMove` + `bulkUp`; `pose` → breather, new `bulking`), `src/sim/machamp.ts` (`updateBulkUp`; Iron Pose = Bulk Up behind the rock, +2 stacks), `src/sim/combat.ts` (the meter fills during Bulk Up), `src/scenes/RunScene.ts` (gold flex aura vs red Bulk Up aura that fills; HUD "Bulk Up! break x%"), `src/sim/arena.test.ts` (breather test, Bulk Up complete/break test, Iron Pose 5 s). BOSSES.md, PROJECT.md D42.
-- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **559/559 passed**; `npm run build` passes. Not browser-checked (the auras reuse the drawing already checked).
-- **Next:** owner playtest of Machamp and Articuno; commit when asked.
 
 ### 2026-10-24 — Map M1: obstacle core (D47)
 **Owner:** "Start building M1 (obstacle core: boulders and trees, slide, projectile blocking, spawn avoidance, stuck recycling, stress FPS)." **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner.
@@ -588,6 +552,22 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 **Build runs:** yes.
 
+### 2026-10-24 — Machamp revision: flex = breather, Bulk Up its own move, tankier rock (D42)
+- **Objective:** owner: "the pose is just there to let user breathe"; Bulk Up should be a breakable ~5 s move; the rock "tanky enough to make user think they should move sideways". **Status:** done and tested; **not committed** (with Articuno, also uncommitted, pending the owner's playtest).
+- **Changed:** `src/data/arena.ts` (`MACHAMP_KIT.pose` a breather; new `bulkUp` 5 s / 6% / stagger 1.5 s / cooldown 20 s; `rock.shieldHpPct` 0.03 → 0.08), `src/sim/types.ts` (`MachampMove` + `bulkUp`; `pose` → breather, new `bulking`), `src/sim/machamp.ts` (`updateBulkUp`; Iron Pose = Bulk Up behind the rock, +2 stacks), `src/sim/combat.ts` (the meter fills during Bulk Up), `src/scenes/RunScene.ts` (gold flex aura vs red Bulk Up aura that fills; HUD "Bulk Up! break x%"), `src/sim/arena.test.ts` (breather test, Bulk Up complete/break test, Iron Pose 5 s). BOSSES.md, PROJECT.md D42.
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **559/559 passed**; `npm run build` passes. Not browser-checked (the auras reuse the drawing already checked).
+- **Next:** owner playtest of Machamp and Articuno; commit when asked.
+
+### 2026-10-24 — Articuno built (D45): tier 2 arena boss
+- **Objective:** owner: build one tier 2 boss; Articuno picked from the plan ("okay lets do that"). **Status:** built, tested, browser-checked; **not committed**.
+- **Owner decisions:** only Fire wears the ice pillars down; no Seel adds until batch 3; Freeze-Dry ×1.5 on Water, Hurricane's pull and Mist's 20 s kept as written. PROJECT.md D45.
+- **Added:** `src/sim/articuno.ts` (hover AI, ice pillars that regrow, Blizzard with pillar shadows, Ice Shard + splits, Icy Wind boomerangs, Ice Beam + frozen strip, Roost, Mist, Freeze-Dry, Reflect, Sheer Cold armour that reforms once, Whirlwind push, Hurricane pull, immune Mist / Freeze-over phase changes, phase gate).
+- **Changed:** `src/data/arena.ts` (`ARTICUNO_KIT`, tier 2, `iceCave` entrance), `src/data/content.ts` (`articuno` enemy only), `src/sim/types.ts` (`ArticunoState`, `ArenaRock.onlyType`, `ArenaFight.artic` / `wall`, notices), `src/sim/bosses.ts` (AI registered; Mean Look leash in `holdByBlock`), `src/sim/arena.ts` (start state), `src/sim/combat.ts` (immunity, phase gate, Roost loses Flying, armour ×0.25 + super-effective counter, Mist strips statuses), `src/sim/world.ts` (Pressure for Articuno), `src/sim/forms/projectile.ts` (pillars melt only from their type; Reflect wall halves shots through it), `src/scenes/RunScene.ts` (drawing, HUD, notices, colours), `src/sim/arena.test.ts` (14 Articuno tests incl. a 2-min soak with auto-fire).
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **557/557 passed**; `npm run build` passes. Browser (event 2 forced to Articuno): pillars with melt rings, Blizzard warning lanes, safe shadows and the sweep front draw; no console errors. Real-time feel not judged (owner playtest).
+- **Notes:** the event-2 damage scaling one-shots a level-1 starter, so tests use a big HP pool (real runs reach event 2 at a much higher level). Fire area moves (blasts, zones) don't melt pillars yet, only Fire projectiles. Bulbasaur hits Articuno ×0.5 (Zapdos ×0.25): tier 2 is a hard draw for Grass.
+- **Next:** owner playtest; commit when asked; then Moltres or Kangaskhan.
+- **Build runs:** yes.
+
 ### 2026-10-24 — Magnets stop dropping late game (bug); magnets pull berries; magnet rate up
 **Owner:** late game, magnets "not really showing up". The owner also asked: "up the rate of magnet a bit", and "magnet attracts healing orb too". **Status:** fixed, tested, committed. Not playtested by the owner.
 
@@ -619,6 +599,22 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 **Next:** owner playtest (late-game magnet frequency, berry pull feel).
 
 **Build runs:** yes.
+
+### 2026-10-23 — Balance pass toward D19 (skill team)
+- **Bot bug found and fixed (`src/sim/balance.ts`):** an open card window pauses `step()`, and `measureDps` never closed one. Since banked level-ups (D39) auto-open after 3 banked or 30 s, a window often opened during the 10 s measurement, and that seed read ~0 DPS (per-seed values like 3, 28, 0). Every report since D39 under-read some lines. `measureDps` now takes a `resolve` callback; `playLine` passes its random picker. New `src/sim/balance.test.ts` reproduces it (without the fix < 1 DPS).
+- **Report reliability (`balance.bench.ts`):** the site columns (the D19 reference, D25) now use **24 seeds** plus an `s.e.` column. With 8, a line's per-seed spread (up to ~5×) left means only good to ~±15%, wider than D19's 10% margins. The report takes ~32 min now (was ~18).
+- **Tuning (provisional numbers):** Lapras `damageMult` 1.2 → **1.4**; Pikachu 1.05 → **1.0**; Raichu 1.25 → **1.05**; Thunderbolt chain jumps 0.8 → **0.65** of the hit; Blastoise 1.7 → **1.8**. Lapras doc line updated.
+- **Result (`npm run balance`, site dps ± s.e., 24 seeds):**
+
+  | min | Charizard | Venusaur | Blastoise | Raichu | Lapras |
+  |---|---|---|---|---|---|
+  | 5 | 241 ± 23 | 342 ± 23 | 236 ± 24 | 356 ± 35 | **358 ± 23** |
+  | 9 | 983 ± 132 | 848 ± 62 | 858 ± 94 | 677 ± 67 | 778 ± 61 |
+  | 15 | **1763 ± 175** | **1470 ± 98** | **1446 ± 99** | 1261 ± 121 | 1252 ± 70 |
+
+  D19: at 15 min every 3-stage final is above Raichu and Lapras (Blastoise +15% over Raichu), and Raichu ≈ Lapras (within 1%) ✓. At 5 min Lapras leads, but only by a hair over Pikachu and Bulbasaur (inside the noise). 9 min roughly level ✓.
+- **Checks:** `tsc --noEmit` 0 errors; `npx vitest run` **540/540 passed**.
+- **Not fixed (flag):** the no-sites `dps` columns look starved: Squirtle Lv 5 at 5 min and Lv 20 at 15 min, Charmander Lv 25 at 15 min, while the site bot reaches Lv 47–50. The circle-walking bot probably misses XP (gem expiry, D26). Not the D19 reference since D25, but worth a look. Squirtle's `form` column shows seed 1 only.
 
 ### 2026-10-23 — Techniques + Natures built (D40); rest regen + level growth (D44)
 **Objective:** build D40 from the approved spec, then the owner's follow-up: "getting hit in early stage without berry is too punishing", with stats growing every level. **Status:** both built, tested, committed. Not playtested by the owner.
