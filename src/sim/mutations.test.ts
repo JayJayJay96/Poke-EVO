@@ -143,7 +143,7 @@ describe('Mutation registry (docs/moveset/INDEX.md ↔ src/data/mutations.ts)', 
 
   it('every INDEX.md Mutation ID exists in mutations.ts and vice versa', () => {
     const docIds = rows.map((r) => code(r[0]!));
-    expect(docIds.length).toBe(131);
+    expect(docIds.length).toBe(152);
     expect(new Set(docIds).size).toBe(docIds.length);
     expect([...docIds].sort()).toEqual([...MUTATION_IDS].sort());
   });
@@ -188,7 +188,7 @@ describe('Mutation registry (docs/moveset/INDEX.md ↔ src/data/mutations.ts)', 
 
   it('ability tiers in INDEX.md and content.ts match exactly', () => {
     const ids = tableRows('## Ability tiers').map((r) => code(r[0]!));
-    expect(ids.length).toBe(21);
+    expect(ids.length).toBe(25);
     for (const id of ids) expect(id in ABILITIES, id).toBe(true);
     for (const id of Object.keys(ABILITIES) as AbilityId[]) expect(ids, id).toContain(id);
   });

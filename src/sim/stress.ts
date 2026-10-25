@@ -61,6 +61,7 @@ export const STRESS_MUTATION_BUILDS: Record<PokemonId, readonly MutationId[]> = 
   pikachu: ['thunderShock.ballLightning', 'spark.shower', 'electroBall.ricochet', 'thunderWave.terrain', 'thunder.afterglow'],
   lapras: ['iceShard.hail', 'iceBeam.iceWall', 'bodySlam.shockwave', 'surf.rideTheWave', 'hydroPump.pressureShell'],
   mankey: ['karateChop.vacuum', 'thrash.partingJabs', 'vacuumWave.spread', 'shadowPunch.barrage', 'seismicToss.submission'],
+  abra: ['confusion.psySplit', 'kinesis.fling', 'psybeam.signalSweep', 'swift.starStorm', 'futureSight.field'],
 };
 
 /** Augments tried, in order, for the sockets a Mutation leaves free. */

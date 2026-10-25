@@ -16,7 +16,7 @@ import {
   onShellHitTaken,
   updateAbilities,
 } from './abilities';
-import { enemySpeedFactor, pickWanderPoint, queryEnemies, updateStatuses } from './combat';
+import { damageEnemy, enemySpeedFactor, pickWanderPoint, procHit, queryEnemies, updateStatuses } from './combat';
 import { arenaSchedule, resolveArena, updateArena } from './arena';
 import { comboCooldown } from './combo';
 import { startEvolutionIfDue, upgradeSignatureByLevel } from './evolution';
@@ -113,6 +113,19 @@ export function createWorld({
       rampageLeft: 0,
       vulnLeft: 0,
       vulnPct: 0,
+      teleportLeft: 0,
+      blinkLeft: 0,
+      blinkToX: 0,
+      blinkToY: 0,
+      blinkFromX: 0,
+      blinkFromY: 0,
+      echoX: 0,
+      echoY: 0,
+      barrierLeft: 0,
+      barrierCut: 0,
+      barrierRangedCut: 0,
+      barrierThorns: 0,
+      barrierRadius: 0,
     },
     enemies: [],
     projectiles: [],
@@ -351,6 +364,9 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     weakenMult: 1,
     weakenLeft: 0,
     blindLeft: 0,
+    confuseLeft: 0,
+    psyMarkLeft: 0,
+    psyMarkPct: 0,
     wanderX: 0,
     wanderY: 0,
     blockedFor: 0,
@@ -485,8 +501,8 @@ function moveEnemies(world: World, dt: number): void {
     const enemy = enemies[i]!;
     // Stunned enemies stay put (knockback still moves them, in updateStatuses).
     if (enemy.stunLeft > 0) continue;
-    // Blinded enemies lost you: they head for their own random point instead.
-    const blind = enemy.blindLeft > 0;
+    // Blinded (and Confused, D56) enemies lost you: they head for their own random point instead.
+    const blind = enemy.blindLeft > 0 || enemy.confuseLeft > 0;
     if (blind && Math.hypot(enemy.wanderX - enemy.x, enemy.wanderY - enemy.y) < enemy.radius) pickWanderPoint(world, enemy);
     // An arena boss may head for something else (Snorlax going for a berry, D28).
     const goal = world.arena?.bossEnemyId === enemy.id ? world.arena.goal : null;
@@ -772,9 +788,14 @@ function applyContactDamage(world: World): void {
         emit(world, 'staticProc', 1);
       }
     }
-    if (hurt || wasStunned || player.invulnLeft > 0) continue;
+    // Confused enemies (D56) don't attack.
+    if (hurt || wasStunned || enemy.confuseLeft > 0 || player.invulnLeft > 0) continue;
     hurt = true; // one hit per step
-    const landed = hitPlayer(world, enemy.contactDamage * eliteContactMult(world, enemy) * attackContactMult(enemy), enemy);
+    const contact = enemy.contactDamage * eliteContactMult(world, enemy) * attackContactMult(enemy);
+    // Reflect (D56): the barrier cuts contact damage; Mirror Coat hits the attacker back.
+    const barrier = player.barrierLeft > 0;
+    const landed = hitPlayer(world, contact * (barrier ? 1 - player.barrierCut : 1), enemy);
+    if (barrier && player.barrierThorns > 0) damageEnemy(world, enemy, contact * player.barrierThorns, procHit('Psychic'));
     // Poison Sting, Lick (D37): some contact hits leave a status (not through a Shell block).
     const status = CONTACT_STATUS[enemy.kind];
     if (landed && status) applyPlayerStatus(world, status, { hit: enemy.contactDamage });

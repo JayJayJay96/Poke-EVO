@@ -1,8 +1,8 @@
 # Abra → Kadabra → Alakazam — blink mage
 
-**Status:** APPROVED design (owner, D56, 2026-10-25). **Not built.** All numbers *(provisional)*; once built,
-`src/data/` is the truth. IDs below go into [`../INDEX.md`](../INDEX.md) when the line is built (a unit test keeps
-INDEX.md and the code in sync, so rows can't be added before the code).
+**Status:** APPROVED design (owner, D56, 2026-10-25). **Built 2026-10-25** (`src/data/`, `src/sim/teleport.ts`,
+`src/sim/forms/zoneCast.ts`, `src/sim/mutationDefs/{confusion,psybeam,kinesis,psychoCut,reflect,swift,futureSight}.ts`);
+IDs are in [`../INDEX.md`](../INDEX.md). All numbers *(provisional)*; `src/data/` is the truth. See **Build notes** at the end.
 
 Checked against the Mutation rules 1–19 and the kit review checklist in [`../README.md`](../README.md).
 
@@ -12,7 +12,7 @@ Checked against the Mutation rules 1–19 and the kit review checklist in [`../R
 | Stage | Lv | Types | HP | Speed | Dmg | Radius | Signature |
 |---|---|---|---|---|---|---|---|
 | Abra | 1 | Psychic | 85 | 165 | ×1.05 | 11 | Confusion |
-| Kadabra | 10 | Psychic | 120 | 175 | ×1.2 | 14 | Psychic |
+| Kadabra | 10 | Psychic | 120 | 173 | ×1.2 | 14 | Psychic |
 | Alakazam | 25 | Psychic | 160 | 180 | ×1.4 | 17 | Expanding Force |
 
 Type notes: Psychic hits Poison (Zubat, Weedle, Oddish, Gastly) and Fighting (Machamp) ×2; Steel and Psychic (enemy
@@ -142,3 +142,14 @@ Single target: Future Sight, Prophecy, Psybeam, Comet Star.
 - The enemy **Confused** status (section 3).
 - Hooks `teleport`, `echo`, `targetConfused` (INDEX.md hook vocabulary and `HOOK_IDS`).
 - Moves above in `src/data/moves.ts`; the line in `src/data/content.ts`; Psychic player moves (the type exists as a defender).
+
+## Build notes (2026-10-25)
+Where the build differs from the text above, and why:
+- **Kadabra speed is 173**, not 175: the D20 rule (120 + ½ × official base Speed 105) rounds to 173.
+- **Confused** enemies wander to random points exactly like Blinded ones (the existing wander code) and deal no contact damage or attacks; the direction isn't re-rolled every 0.3 s. Confused enemies have no visual marker yet.
+- **Reflect** is a barrier that follows you (a ring on the player), not a zone. Enemy shots that reach it are **blocked** (destroyed), not sent back, so **Mirror Coat** has no "reflected shots ×2" part: it is thorns (50% of contact damage back) with a smaller contact cut.
+- **Light Screen** cuts telegraphed enemy attacks (cones, pulses, dives) by 40%, since Reflect already blocks shots.
+- **Magic Guard** covers enemy shots and player statuses; arena boss attacks still hurt.
+- **Comet Star** deals ×2.5 per star (one star instead of three, so it needs the boost to be worth a slot).
+- **Mind Lock** at Expanding Force adds +5% to the mark.
+- **Type chart:** Psychic hits Poison and Fighting ×2. The chart has no Bug attack row yet, so the select screen doesn't list Bug as a weakness.

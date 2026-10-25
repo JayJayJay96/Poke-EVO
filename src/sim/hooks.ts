@@ -23,7 +23,9 @@ export type HookEvent =
   | 'levelUp'
   | 'armorAbsorb'
   | 'rampage'
-  | 'rampageEnd';
+  | 'rampageEnd'
+  | 'teleport'
+  | 'echo';
 
 export interface MutationHooks {
   /** Permanent stat changes (costs, multipliers), applied whenever stats refresh. */
@@ -256,6 +258,11 @@ export function targetParalysed(enemy: Enemy): boolean {
 }
 
 /** `targetBurning` */
+/** `targetConfused` (D56): the hit target is Confused. */
+export function targetConfused(enemy: Enemy): boolean {
+  return enemy.confuseLeft > 0;
+}
+
 export function targetBurning(enemy: Enemy): boolean {
   return enemy.burnLeft > 0;
 }

@@ -2009,6 +2009,9 @@ describe('move speeds follow official base Speed (D20)', () => {
     Mankey: 70,
     Primeape: 95,
     Annihilape: 90,
+    Abra: 90,
+    Kadabra: 105,
+    Alakazam: 120,
   };
 
   it('every stage of every line', () => {

@@ -126,6 +126,18 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Mankey and Abra built (D56)
+**Owner:** "Build the Mankey line ... Then Abra." **Status:** built, tested, browser-checked (both lines, normal run and `?stress=` build); committed. Not playtested by the owner. Built in a worktree branch (`new-lines`) to stay clear of the map session, then fast-forwarded onto `main`.
+
+- **Mankey:** `src/sim/rage.ts` (Rage, Rampage, Close Combat guard drop), `src/data/content.ts` (line, Anger Point tiers, Defiant, Vital Spirit), 9 moves in `src/data/moves.ts` (`weightScaling`, `selfVuln`, `ragePowerPerPoint`, projectile `homing`), 21 Mutations in `src/sim/mutationDefs/{karateChop,lowKick,vacuumWave,seismicToss,thrash,closeCombat,shadowPunch}.ts`, Rage HUD bar, tests `mankeyMoves.test.ts` (32).
+- **Abra:** `src/sim/teleport.ts` (Teleport, telegraph, Psychic Echo, barrier timer), enemy Confused status (`applyConfusion`, wander like Blinded, no attacks), Reflect barrier + Light Screen / Mirror Coat paths, Magic Guard, zone `ring` / `delay` / `barrier` (`src/sim/forms/zoneCast.ts`), 9 moves, 21 Mutations in `src/sim/mutationDefs/{confusion,psybeam,kinesis,psychoCut,reflect,swift,futureSight}.ts`, Teleport marker and barrier ring HUD, tests `abraMoves.test.ts` (32).
+- **Shared:** hooks `rageLevel`, `rampage`, `rampageEnd`, `teleport`, `echo`, `targetConfused`; Fighting/Ghost/Psychic attack rows in the type chart; INDEX.md (152 Mutations, 25 ability tiers), RANKS.md, stress builds, D20 base speeds.
+- **Fixes found while building:** Outrage recast forever (6 s flail vs 5 s cooldown); it now also has cooldown ×1.5.
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **668/668 passed**; `npm run build` passes. Browser: both select cards, a live run each, stress at 500 enemies ~45 FPS, no console errors. No balance run.
+- **Build notes / deviations:** listed at the end of `docs/moveset/mankey/README.md` and `docs/moveset/abra/README.md`.
+- **Next:** owner playtest of Mankey and Abra; `npm run balance` (two new lines + D50–D54 buffs); a visual marker for Confused enemies.
+- **Build runs:** yes.
+
 ### 2026-10-25 — Map: wall-follow for stuck enemies (D47 amendment)
 **Owner:** in a playtest, some mobs got stuck between two adjacent trees. They asked whether to let stuck mobs through or widen the gaps. I recommended wall-follow steering plus line-of-sight recycling instead, and the owner approved: "add wall-follow steering for blocked enemies, plus recycle stuck enemies at any distance when trees block line of sight. Record it as a D47 amendment". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner.
 

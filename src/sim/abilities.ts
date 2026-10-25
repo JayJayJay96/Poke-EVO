@@ -3,6 +3,7 @@ import { applyBurn, applyNewStun, applySlow, damageEnemy, procHit, queryEnemies,
 import { BLAST_SECONDS } from './forms/projectile';
 import { bulbCapacity, chargeHeld, emit, healPlayer } from './hooks';
 import { updateRage } from './rage';
+import { updateTeleport } from './teleport';
 import { spawnScorch } from './terrain';
 import type { HitInfo, World } from './types';
 
@@ -164,4 +165,5 @@ export function updateAbilities(world: World, dt: number): void {
   if (def.bulb && p.bloomCooldownLeft <= 0 && p.bulb > 0 && p.bulb >= bulbCapacity(world)) bloom(world);
   if (def.charge?.discharge && p.charge >= def.charge.max && !chargeHeld(world)) discharge(world);
   updateRage(world, dt);
+  updateTeleport(world, dt);
 }

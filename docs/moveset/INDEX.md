@@ -78,6 +78,9 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 | `rageLevel` | gradient | Mankey Rage 0..max (Bonds read their threshold from data) |
 | `rampage` | event | Primeape+ Rampage started |
 | `rampageEnd` | event | a Rampage ended |
+| `teleport` | event | Abra Teleport blinked (from `blinkFrom` to the player) |
+| `echo` | event | Kadabra+ Psychic Echo went off (at `echoX/Y`) |
+| `targetConfused` | state | the hit target is Confused |
 
 | RequirementId | Met when |
 |---|---|
@@ -217,6 +220,27 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 | `shadowPunch.barrage` | Shadow Barrage | generic | shadowPunch | any | 0 | — | site | [mankey/](mankey/README.md) |
 | `shadowPunch.grip` | Phantom Grip | generic | shadowPunch | any | 0 | — | site | [mankey/](mankey/README.md) |
 | `shadowPunch.phantomGrudge` | Phantom Grudge | bond | shadowPunch | mankey | 2 | `rampageEnd` | site | [mankey/](mankey/README.md) |
+| `confusion.mindLock` | Mind Lock | signature | confusion → psychic → expandingForce | abra | 0 | — | site | [abra/](abra/README.md) |
+| `confusion.gravityWell` | Gravity Well | signature | confusion → psychic → expandingForce | abra | 0 | — | site | [abra/](abra/README.md) |
+| `confusion.psySplit` | Psy Split | signature | confusion → psychic → expandingForce | abra | 0 | — | site | [abra/](abra/README.md) |
+| `psybeam.signalSweep` | Signal Sweep | generic | psybeam | any | 0 | — | site | [abra/](abra/README.md) |
+| `psybeam.disorient` | Disorient | generic | psybeam | any | 0 | — | site | [abra/](abra/README.md) |
+| `psybeam.blinkBeam` | Blink Beam | bond | psybeam | abra | 0 | `teleport` | site | [abra/](abra/README.md) |
+| `kinesis.spoonGuard` | Spoon Guard | generic | kinesis | any | 0 | — | site | [abra/](abra/README.md) |
+| `kinesis.fling` | Fling Spoons | generic | kinesis | any | 0 | — | site | [abra/](abra/README.md) |
+| `kinesis.spoonBender` | Spoon Bender | bond | kinesis | abra | 0 | `targetConfused` | site | [abra/](abra/README.md) |
+| `psychoCut.keen` | Keen Psycho | generic | psychoCut | any | 0 | — | site | [abra/](abra/README.md) |
+| `psychoCut.wave` | Psycho Wave | generic | psychoCut | any | 0 | — | site | [abra/](abra/README.md) |
+| `psychoCut.flowingCut` | Flowing Cut | bond | psychoCut | abra | 0 | `moving` | site | [abra/](abra/README.md) |
+| `reflect.lightScreen` | Light Screen | generic | reflect | any | 0 | — | site | [abra/](abra/README.md) |
+| `reflect.mirrorCoat` | Mirror Coat | generic | reflect | any | 0 | — | site | [abra/](abra/README.md) |
+| `reflect.barrierEcho` | Barrier Echo | bond | reflect | abra | 0 | `hitTaken` | site | [abra/](abra/README.md) |
+| `swift.starStorm` | Star Storm | generic | swift | any | 0 | — | site | [abra/](abra/README.md) |
+| `swift.comet` | Comet Star | generic | swift | any | 0 | — | site | [abra/](abra/README.md) |
+| `swift.shootingStars` | Shooting Stars | bond | swift | abra | 0 | `kill` | site | [abra/](abra/README.md) |
+| `futureSight.field` | Foresight Field | generic | futureSight | any | 0 | — | site | [abra/](abra/README.md) |
+| `futureSight.prophecy` | Prophecy | generic | futureSight | any | 0 | — | site | [abra/](abra/README.md) |
+| `futureSight.echoSight` | Echo Sight | bond | futureSight | abra | 2 | `echo` | site | [abra/](abra/README.md) |
 
 Smokescreen, Slash and Wing Attack are proposed new moves (not in `src/data/moves.ts` yet).
 **Prerequisites:** a Hook cell marked **needs …** means the Bond is only offered when the build already has that source.
@@ -249,6 +273,10 @@ itself must be owned first, and it only unlocks at stage 2.
 | `angerPoint.thrash` | Anger Point — Thrash | ability | mankey | 1 | evolution (automatic) |
 | `defiant` | Defiant | ability | mankey | 2 | final trait pick |
 | `vitalSpirit` | Vital Spirit | ability | mankey | 2 | final trait pick |
+| `teleport` | Teleport | ability | abra | 0 | start |
+| `teleport.echo` | Teleport — Psychic Echo | ability | abra | 1 | evolution (automatic) |
+| `magicGuard` | Magic Guard | ability | abra | 2 | final trait pick |
+| `synchronize` | Synchronize | ability | abra | 2 | final trait pick |
 
 ## Counts
 | Line | Generic (its moves) | Bond | Signature | Ability tiers |
@@ -259,3 +287,4 @@ itself must be owned first, and it only unlocks at stage 2.
 | pikachu | 12 | 6 | 3 | 4 |
 | lapras | 4 (+4 shared from Surf / Hydro Pump) | 4 | 3 | 1 |
 | mankey | 12 | 6 | 3 | 4 |
+| abra | 12 | 6 | 3 | 4 |

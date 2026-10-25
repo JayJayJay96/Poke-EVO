@@ -26,7 +26,7 @@ export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' 
 export type MoveTag = PokemonType | FormTag | FlagTag;
 
 /** An evolution line, named after its first stage. */
-export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur' | 'pikachu' | 'lapras' | 'mankey';
+export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur' | 'pikachu' | 'lapras' | 'mankey' | 'abra';
 export type EnemyId =
   | 'rattata'
   | 'pidgey'
@@ -69,12 +69,17 @@ export type AbilityId =
   | 'angerPoint'
   | 'defiant'
   | 'vitalSpirit'
+  // Abra line (D56).
+  | 'teleport'
+  | 'magicGuard'
+  | 'synchronize'
   // Evolved ability tiers (docs/moveset, D21): granted automatically at the line's middle stage.
   | 'shell.tidalGuard'
   | 'blaze.flareUp'
   | 'leech.bloom'
   | 'static.discharge'
-  | 'angerPoint.thrash';
+  | 'angerPoint.thrash'
+  | 'teleport.echo';
 
 /** One form of an evolution line. Later stages: bigger and stronger (D3 early-vs-late gamble). */
 export interface EvolutionStage {
@@ -158,6 +163,23 @@ export interface AbilityDef {
   readonly rage?: RageDef;
   /** Vital Spirit: the statuses enemies inflict on the player never land. */
   readonly statusImmune?: boolean;
+  /** Teleport (Abra line, D56): blinks away when surrounded; from Kadabra, leaves a Psychic Echo. */
+  readonly teleport?: TeleportDef;
+  /** Magic Guard: enemy shots never hurt. */
+  readonly rangedImmune?: boolean;
+}
+
+export interface TeleportDef {
+  /** Blinks when at least this many enemies are within `surroundRadius` px. */
+  readonly surroundCount: number;
+  readonly surroundRadius: number;
+  readonly blinkPx: number;
+  /** Seconds between blinks. */
+  readonly recharge: number;
+  /** Seconds of glow and landing marker before the blink. */
+  readonly telegraph: number;
+  /** Psychic Echo (Kadabra+): a blast where you were, damage = the signature hit × this. */
+  readonly echo?: { readonly radius: number; readonly signatureHitMult: number };
 }
 
 export interface RageDef {
@@ -451,6 +473,54 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
     ],
   },
   // P4d (D13): non-evolver. Strongest from minute 1, no stat growth; the signature tiers up by level (D17).
+  // D56 (docs/moveset/abra): blink mage, Psychic. Numbers provisional.
+  abra: {
+    id: 'abra',
+    role: 'Blink mage: fragile, teleports out of crowds, hits again a moment later',
+    stages: [
+      {
+        name: 'Abra',
+        level: 1,
+        types: ['Psychic'],
+        maxHp: 85,
+        speed: 165,
+        radius: 11,
+        damageMult: 1.05,
+        signatureMove: 'confusion',
+      },
+      {
+        name: 'Kadabra',
+        ability: 'teleport.echo',
+        level: 10,
+        types: ['Psychic'],
+        maxHp: 120,
+        speed: 173,
+        radius: 14,
+        damageMult: 1.2,
+        signatureMove: 'psychic',
+      },
+      {
+        name: 'Alakazam',
+        level: 25,
+        types: ['Psychic'],
+        maxHp: 160,
+        speed: 180,
+        radius: 17,
+        damageMult: 1.4,
+        signatureMove: 'expandingForce',
+        abilityChoices: ['magicGuard', 'synchronize'],
+      },
+    ],
+    ability: 'teleport',
+    learnset: [
+      { move: 'psybeam', fromStage: 0 },
+      { move: 'kinesis', fromStage: 0 },
+      { move: 'psychoCut', fromStage: 0 },
+      { move: 'reflect', fromStage: 0 },
+      { move: 'swift', fromStage: 0 },
+      { move: 'futureSight', fromStage: 2 },
+    ],
+  },
   // D56 (docs/moveset/mankey): rage brawler, Fighting → Fighting/Ghost. Numbers provisional.
   mankey: {
     id: 'mankey',
@@ -562,6 +632,8 @@ const RAGE: RageDef = {
   maxCooldownCut: 0.2,
 };
 const RAMPAGE: RampageDef = { seconds: 5, damagePct: 0.3, moveSpeedPct: 0.15, confuseSeconds: 1 };
+const TELEPORT: TeleportDef = { surroundCount: 4, surroundRadius: 60, blinkPx: 150, recharge: 8, telegraph: 0.3 };
+const ECHO = { radius: 90, signatureHitMult: 2 } as const;
 
 export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
   blaze: {
@@ -709,6 +781,34 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     description: 'Anger Point + Rampage; immune to enemy statuses, each Rampage heals 10% max HP',
     rage: { ...RAGE, rampage: { ...RAMPAGE, healMaxHpFraction: 0.1 } },
     statusImmune: true,
+  },
+  // Abra line (D56, docs/moveset/abra). Numbers provisional.
+  teleport: {
+    id: 'teleport',
+    name: 'Teleport',
+    description: 'Surrounded by 4+ enemies: blink 150 px to open space (every 8 s)',
+    teleport: TELEPORT,
+  },
+  'teleport.echo': {
+    id: 'teleport.echo',
+    name: 'Teleport — Psychic Echo',
+    description: 'Teleport; each blink leaves a 90 px psychic blast where you were',
+    teleport: { ...TELEPORT, echo: ECHO },
+  },
+  magicGuard: {
+    id: 'magicGuard',
+    name: 'Magic Guard',
+    description: 'Teleport + Echo; enemy shots and statuses never hurt you; Teleport every 6 s',
+    teleport: { ...TELEPORT, recharge: 6, echo: ECHO },
+    rangedImmune: true,
+    statusImmune: true,
+  },
+  synchronize: {
+    id: 'synchronize',
+    name: 'Synchronize',
+    description: 'Teleport + Echo; Psychic moves +30% damage; the Echo is 40% wider',
+    teleport: { ...TELEPORT, echo: { ...ECHO, radius: ECHO.radius * 1.4 } },
+    typeBoost: { type: 'Psychic', damagePct: 0.3 },
   },
 };
 

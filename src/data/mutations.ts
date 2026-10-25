@@ -47,6 +47,10 @@ export const HOOK_IDS = [
   'rageLevel',
   'rampage',
   'rampageEnd',
+  // Abra line (D56).
+  'teleport',
+  'echo',
+  'targetConfused',
 ] as const;
 export type HookId = (typeof HOOK_IDS)[number];
 
@@ -1623,6 +1627,212 @@ export const MUTATIONS = {
     ranks: [{ damageMult: 1.15 }, { damageMult: 1.3, fists: 7 }],
     rankText: ['dmg ×1.15', '×1.3; ★ 7 fists (5)'],
     favoured: ['multishot', 'velocity', 'powerUp'],
+  },
+
+  // ── Abra line (D56, docs/moveset/abra) ─────────────────────────────────
+  'confusion.mindLock': {
+    ...signature('confusion', 'abra', undefined, 'Mind Lock', 'Bursts mark enemies: your other moves hit them harder', {
+      markSeconds: 3,
+      markPct: 0.15,
+      damageMult: 0.8,
+      tier1: { markSeconds: 4 },
+      tier2: { markBonus: 0.05 },
+    }),
+    ranks: [{ markPct: 0.18 }, { markPct: 0.21, damageMult: 0.9 }],
+    rankText: ['marks +18% (15%)', '+21%; ★ dmg ×0.9 (0.8)'],
+    favoured: ['enlarge', 'quickCast', 'linger'],
+  },
+  'confusion.gravityWell': {
+    ...signature('confusion', 'abra', undefined, 'Gravity Well', 'The burst pulls enemies in first', {
+      pullRadius: 60,
+      pullPx: 15,
+      cooldownMult: 1.2,
+      tier1: { pullRadius: 90, pullPx: 25 },
+      tier2: { pushPx: 20 },
+    }),
+    ranks: [{ cooldownMult: 1.1 }, { cooldownMult: 1 }],
+    rankText: ['cooldown ×1.1 (1.2)', '★ cooldown ×1.0'],
+    favoured: ['enlarge', 'wideBlast', 'powerUp'],
+  },
+  'confusion.psySplit': {
+    ...signature('confusion', 'abra', undefined, 'Psy Split', 'Bursts on several enemies at once', {
+      targets: 2,
+      burstMult: 0.6,
+      tier1: { targets: 3 },
+      tier2: { ringBursts: true },
+    }),
+    ranks: [{ burstMult: 0.68 }, { burstMult: 0.76 }],
+    rankText: ['each ×0.68 (0.6)', '×0.76'],
+    favoured: ['quickCast', 'wideBlast', 'keenEdge'],
+  },
+  'psybeam.signalSweep': {
+    ...generic('psybeam', 'Signal Sweep', 'The beam sweeps 90° while it fires', {
+      sweepDeg: 90,
+      damageMult: 0.7,
+    }),
+    ranks: [{ damageMult: 0.8 }, { damageMult: 0.9, sweepDeg: 120 }],
+    rankText: ['dmg ×0.8 (0.7)', '×0.9; ★ sweeps 120° (90)'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
+  },
+  'psybeam.disorient': {
+    ...generic('psybeam', 'Disorient', 'Every hit Confuses', {
+      confuseSeconds: 0.5,
+      damageMult: 0.8,
+    }),
+    ranks: [{ damageMult: 0.9 }, { damageMult: 1, confuseSeconds: 0.7 }],
+    rankText: ['dmg ×0.9 (0.8)', '×1.0; ★ Confused 0.7 s (0.5)'],
+    favoured: ['extend', 'quickCast', 'enlarge'],
+  },
+  'psybeam.blinkBeam': {
+    ...bond('psybeam', 'abra', 0, 'teleport', 'Blink Beam', 'Each Teleport fires a beam through where you were', {
+      damageMult: 1,
+      width: 20,
+    }),
+    ranks: [{ damageMult: 1.2 }, { damageMult: 1.4, width: 28 }],
+    rankText: ['dmg ×1.2', '×1.4; ★ 28 px wide (20)'],
+    favoured: ['powerUp', 'enlarge', 'predatory'],
+  },
+  'kinesis.spoonGuard': {
+    ...generic('kinesis', 'Spoon Guard', 'Spoons eat enemy shots', {
+      damageMult: 0.75,
+    }),
+    ranks: [{ damageMult: 0.86 }, { damageMult: 0.97 }],
+    rankText: ['dmg ×0.86 (0.75)', '×0.97'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
+  },
+  'kinesis.fling': {
+    ...generic('kinesis', 'Fling Spoons', 'At the end, spoons fly at enemies', {
+      targets: 3,
+      flingFraction: 1,
+      cooldownMult: 1.1,
+    }),
+    ranks: [{ flingFraction: 1.2 }, { flingFraction: 1.4, cooldownMult: 1 }],
+    rankText: ['spoons ×1.2 (1.0)', '×1.4; ★ cooldown ×1.0 (1.1)'],
+    favoured: ['powerUp', 'extend', 'enlarge'],
+  },
+  'kinesis.spoonBender': {
+    ...bond('kinesis', 'abra', 0, 'targetConfused', 'Spoon Bender', 'Spoons crit Confused enemies and keep them Confused', {
+      extendSeconds: 0.3,
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.1 }, { damageMult: 1.2, extendSeconds: 0.5 }],
+    rankText: ['dmg ×1.1', '×1.2; ★ +0.5 s Confusion (0.3)'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
+  },
+  'psychoCut.keen': {
+    ...generic('psychoCut', 'Keen Psycho', '+25% crit, narrower arc', {
+      critBonus: 0.25,
+      arcMult: 0.7,
+    }),
+    ranks: [{ critBonus: 0.3 }, { critBonus: 0.35, arcMult: 0.8 }],
+    rankText: ['crit +30% (25%)', '+35%; ★ arc ×0.8 (0.7)'],
+    favoured: ['keenEdge', 'powerUp', 'glass'],
+  },
+  'psychoCut.wave': {
+    ...generic('psychoCut', 'Psycho Wave', 'The slash sends a wave forward', {
+      waveLength: 120,
+      waveWidth: 26,
+      waveFraction: 0.5,
+      damageMult: 0.75,
+    }),
+    ranks: [{ waveFraction: 0.6 }, { waveFraction: 0.7, waveLength: 160 }],
+    rankText: ['wave 60% (50%)', '70%; ★ wave runs 160 px (120)'],
+    favoured: ['enlarge', 'keenEdge', 'powerUp'],
+  },
+  'psychoCut.flowingCut': {
+    ...bond('psychoCut', 'abra', 0, 'moving', 'Flowing Cut', 'Moving: the slash leaves a cutting line behind you', {
+      movingSeconds: 1,
+      lineSeconds: 1,
+      lineTick: 0.25,
+      lineFraction: 0.4,
+      lineLength: 90,
+      damageMultStill: 0.85,
+    }),
+    ranks: [{ damageMultStill: 0.95 }, { damageMultStill: 1, lineFraction: 0.5 }],
+    rankText: ['standing ×0.95 (0.85)', '×1.0; ★ line 50% (40%)'],
+    favoured: ['keenEdge', 'enlarge', 'knockback'],
+  },
+  'reflect.lightScreen': {
+    ...generic('reflect', 'Light Screen', 'The barrier also cuts telegraphed attacks', {
+      rangedCut: 0.4,
+      durationMult: 0.75,
+    }),
+    ranks: [{ rangedCut: 0.5 }, { rangedCut: 0.55, durationMult: 0.9 }],
+    rankText: ['attacks −50% (40%)', '−55%; ★ lasts ×0.9 (0.75)'],
+    favoured: ['linger', 'quickCast', 'enlarge'],
+  },
+  'reflect.mirrorCoat': {
+    ...generic('reflect', 'Mirror Coat', 'Contact attackers take damage back', {
+      thorns: 0.5,
+      contactCut: 0.25,
+    }),
+    ranks: [{ thorns: 0.7 }, { thorns: 0.9, contactCut: 0.3 }],
+    rankText: ['back 70% (50%)', '90%; ★ contact −30% (25%)'],
+    favoured: ['linger', 'quickCast', 'enlarge'],
+  },
+  'reflect.barrierEcho': {
+    ...bond('reflect', 'abra', 0, 'hitTaken', 'Barrier Echo', 'Hits on the barrier charge a psychic pulse', {
+      chargesToPulse: 5,
+      pulseRadius: 120,
+      pulseMult: 1,
+      knockback: 20,
+    }),
+    ranks: [{ pulseMult: 1.25 }, { pulseMult: 1.5, chargesToPulse: 4 }],
+    rankText: ['pulse ×1.25 (1.0)', '×1.5; ★ every 4 hits (5)'],
+    favoured: ['linger', 'enlarge', 'quickCast'],
+  },
+  'swift.starStorm': {
+    ...generic('swift', 'Star Storm', 'Five stars', {
+      stars: 5,
+      damageMult: 0.6,
+    }),
+    ranks: [{ damageMult: 0.69 }, { damageMult: 0.78 }],
+    rankText: ['each ×0.69 (0.6)', '×0.78'],
+    favoured: ['pierce', 'velocity', 'powerUp'],
+  },
+  'swift.comet': {
+    ...generic('swift', 'Comet Star', 'One big star that pierces every enemy', {
+      damageMult: 2.5,
+      cooldownMult: 1.3,
+    }),
+    ranks: [{ damageMult: 2.85 }, { damageMult: 3.2, cooldownMult: 1.15 }],
+    rankText: ['star ×2.85 (2.5)', '×3.2; ★ cooldown ×1.15 (1.3)'],
+    favoured: ['velocity', 'extend', 'powerUp'],
+  },
+  'swift.shootingStars': {
+    ...bond('swift', 'abra', 0, 'kill', 'Shooting Stars', 'Kills spawn a seeking star', {
+      minInterval: 0.3,
+      damageMult: 0.8,
+    }),
+    ranks: [{ damageMult: 0.92 }, { damageMult: 1.04, minInterval: 0.2 }],
+    rankText: ['dmg ×0.92 (0.8)', '×1.04; ★ a star every 0.2 s at most (0.3)'],
+    favoured: ['multishot', 'velocity', 'pierce'],
+  },
+  'futureSight.field': {
+    ...generic('futureSight', 'Foresight Field', 'Three smaller marks', {
+      marks: 3,
+      markFraction: 0.5,
+    }),
+    ranks: [{ markFraction: 0.58 }, { markFraction: 0.66 }],
+    rankText: ['each ×0.58 (0.5)', '×0.66'],
+    favoured: ['wideBlast', 'enlarge', 'quickCast'],
+  },
+  'futureSight.prophecy': {
+    ...generic('futureSight', 'Prophecy', 'A longer wait, a bigger blast', {
+      delay: 3,
+      damageMult: 1.6,
+    }),
+    ranks: [{ damageMult: 1.8 }, { damageMult: 2, delay: 2.7 }],
+    rankText: ['×1.8 (1.6)', '×2.0; ★ lands after 2.7 s (3)'],
+    favoured: ['powerUp', 'concentrated', 'wideBlast'],
+  },
+  'futureSight.echoSight': {
+    ...bond('futureSight', 'abra', 2, 'echo', 'Echo Sight', 'Each Psychic Echo plants a Future Sight', {
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.15 }, { damageMult: 1.3 }],
+    rankText: ['dmg ×1.15', '×1.3'],
+    favoured: ['wideBlast', 'enlarge', 'powerUp'],
   },
 } as const satisfies Record<string, MutationDef>;
 

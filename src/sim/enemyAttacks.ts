@@ -1,3 +1,4 @@
+import { ABILITIES } from '../data/content';
 import { ENEMY_ATTACKS, ENEMY_SHOT_CAP, WEB } from '../data/enemyAttacks';
 import { BLAST_SECONDS } from './forms/projectile';
 import { eliteAbility } from './hordes';
@@ -14,7 +15,7 @@ const dist2 = (x: number, y: number): number => x * x + y * y;
 
 /** Whether an enemy can't attack right now: stunned, blinded (lost you) or fleeing. */
 function disrupted(enemy: Enemy): boolean {
-  return enemy.stunLeft > 0 || enemy.blindLeft > 0 || enemy.fleeTo > 0 || enemy.fleeLeft > 0;
+  return enemy.stunLeft > 0 || enemy.blindLeft > 0 || enemy.confuseLeft > 0 || enemy.fleeTo > 0 || enemy.fleeLeft > 0;
 }
 
 /** Whether the player is inside a circle (counting their own radius). */
@@ -25,8 +26,10 @@ function playerIn(world: World, x: number, y: number, radius: number): boolean {
 
 /** A hit on the player from an enemy attack (respects invulnerability); true if it landed (not Shell-blocked). */
 function strike(world: World, enemy: Enemy, damage: number): boolean {
-  if (world.player.invulnLeft > 0) return false;
-  return hitPlayer(world, damage, enemy);
+  const p = world.player;
+  if (p.invulnLeft > 0) return false;
+  // Light Screen (D56): the barrier also cuts telegraphed attacks.
+  return hitPlayer(world, damage * (p.barrierLeft > 0 ? 1 - p.barrierRangedCut : 1), enemy);
 }
 
 /** Where a teleporter lands: ahead of where you're walking, or just beside you if you stand still. */
@@ -97,9 +100,16 @@ export function updateEnemyAttacks(world: World, dt: number): void {
       shot.left = 0;
       continue;
     }
+    // Reflect (D56): shots that reach the barrier are blocked.
+    if (player.barrierLeft > 0 && playerIn(world, shot.x, shot.y, shot.radius + player.barrierRadius - player.radius)) {
+      shot.left = 0;
+      continue;
+    }
     if (!playerIn(world, shot.x, shot.y, shot.radius)) continue;
-    if (strike(world, shot.owner, shot.damage) && shot.status) applyPlayerStatus(world, shot.status);
     shot.left = 0;
+    // Magic Guard (D56): enemy shots never hurt.
+    if (ABILITIES[player.ability].rangedImmune) continue;
+    if (strike(world, shot.owner, shot.damage) && shot.status) applyPlayerStatus(world, shot.status);
   }
   world.enemyShots = world.enemyShots.filter((shot) => shot.left > 0);
   for (const web of world.webs) web.left -= dt;

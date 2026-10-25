@@ -44,6 +44,8 @@ export const NO_HIT: Readonly<HitInfo> = {
   stunKind: null,
   poisonDps: 0,
   seedDps: 0,
+  confuse: 0,
+  confuseChance: 0,
   attackType: null,
   slot: null,
   fromProc: false,
@@ -70,6 +72,8 @@ export function makeHitInfo(stats: MoveStats, slot: MoveSlot | null = null): Hit
     poisonDps: stats.damage * stats.poisonPct,
     attackType: stats.attackType,
     seedDps: stats.damage * stats.seedPct,
+    confuse: stats.confuse,
+    confuseChance: stats.confuseChance,
     slot,
     fromProc: false,
   };
@@ -239,6 +243,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
     (crit ? damage * critMult : damage) *
     abilityDamageMult(world) *
     rampageDamageMult(world) *
+    // Psy Mark (Mind Lock): the other moves hit a marked enemy harder.
+    (enemy.psyMarkLeft > 0 && slot && slot !== world.moves[0] ? 1 + enemy.psyMarkPct : 1) *
     (slot ? ragePowerMult(world, slot) * weightMult(slot, enemy) : 1) *
     techniqueDamageMult(world, enemy, slot) *
     boonDamageMult(world) *
@@ -324,6 +330,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   }
   if (hit.burnDps > 0) applyBurn(enemy, hit.burnDps);
   applyStatuses(enemy, hit);
+  if (hit.confuse > 0 && (hit.confuseChance >= 1 || world.rng.next() < hit.confuseChance)) applyConfusion(enemy, hit.confuse);
   if (hit.seedDps > 0) {
     // Leech Seed: refreshes; a stronger seed replaces a weaker one. Grass shrugs it off (D27).
     const seeded = enemy.seedLeft > 0;
@@ -468,6 +475,12 @@ export function enemySpeedFactor(enemy: Enemy): number {
   return Math.max(1 - MUTATION_TUNING.slowCap, (1 - slow) * soaked);
 }
 
+/** Confused (D56): resisted by type; bosses take half (D27). Not a stun, so no fatigue. */
+export function applyConfusion(enemy: Enemy, seconds: number): void {
+  const boss = ENEMIES[enemy.kind].boss ? 0.5 : 1;
+  enemy.confuseLeft = Math.max(enemy.confuseLeft, seconds * enemyStatusMult(enemy, 'confusion') * boss);
+}
+
 /** Slow, stun and poison from a hit or a zone tick. Stronger effects win; durations refresh. */
 export function applyStatuses(
   enemy: Enemy,
@@ -552,6 +565,8 @@ export function updateStatuses(world: World, dt: number): void {
     if (enemy.vulnAllLeft > 0) enemy.vulnAllLeft = Math.max(0, enemy.vulnAllLeft - dt);
     if (enemy.weakenLeft > 0) enemy.weakenLeft = Math.max(0, enemy.weakenLeft - dt);
     if (enemy.blindLeft > 0) enemy.blindLeft = Math.max(0, enemy.blindLeft - dt);
+    if (enemy.confuseLeft > 0) enemy.confuseLeft = Math.max(0, enemy.confuseLeft - dt);
+    if (enemy.psyMarkLeft > 0) enemy.psyMarkLeft = Math.max(0, enemy.psyMarkLeft - dt);
     if (enemy.stunFatigueLeft > 0) enemy.stunFatigueLeft = Math.max(0, enemy.stunFatigueLeft - dt);
     if (enemy.stunLeft > 0) {
       enemy.stunLeft = Math.max(0, enemy.stunLeft - dt);

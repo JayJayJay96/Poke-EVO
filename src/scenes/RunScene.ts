@@ -1532,6 +1532,20 @@ export class RunScene extends Phaser.Scene {
     g.fillStyle(COLORS.hpFill, 1);
     g.fillRect(player.x - barW / 2, barY, (barW * player.hp) / player.maxHp, 5);
 
+    // Teleport (Abra line, D56): a glow on you and a marker where you will land; Reflect: a ring around you.
+    if (player.blinkLeft > 0) {
+      g.lineStyle(3, TYPE_COLORS.Psychic, 0.9);
+      g.strokeCircle(player.x, player.y, player.radius + 5);
+      g.lineStyle(2, TYPE_COLORS.Psychic, 0.7);
+      g.strokeCircle(player.blinkToX, player.blinkToY, player.radius + 3);
+      g.lineBetween(player.blinkToX - 6, player.blinkToY, player.blinkToX + 6, player.blinkToY);
+      g.lineBetween(player.blinkToX, player.blinkToY - 6, player.blinkToX, player.blinkToY + 6);
+    }
+    if (player.barrierLeft > 0) {
+      g.lineStyle(2, TYPE_COLORS.Psychic, 0.35 + 0.25 * Math.min(1, player.barrierLeft));
+      g.strokeCircle(player.x, player.y, player.barrierRadius);
+    }
+
     // Rage (Mankey line, D56): a bar under the HP bar; a red aura during a Rampage.
     const rage = ABILITIES[player.ability].rage;
     if (rage) {

@@ -64,7 +64,17 @@ export type MoveId =
   | 'seismicToss'
   | 'thrash'
   | 'closeCombat'
-  | 'shadowPunch';
+  | 'shadowPunch'
+  // Abra line (D56)
+  | 'confusion'
+  | 'psychic'
+  | 'expandingForce'
+  | 'psybeam'
+  | 'kinesis'
+  | 'psychoCut'
+  | 'reflect'
+  | 'swift'
+  | 'futureSight';
 
 /** Splash around the impact point. */
 export interface ExplosionDef {
@@ -101,6 +111,9 @@ export interface InnateEffects {
   readonly seedPct?: number;
   /** Blinded seconds per zone tick (Smokescreen, D20): enemies wander and hit softer; bosses immune. */
   readonly blind?: number;
+  /** Confusion seconds per hit (D56), landing with `confuseChance` (default always). */
+  readonly confuse?: number;
+  readonly confuseChance?: number;
 }
 
 interface MoveDefBase {
@@ -158,6 +171,12 @@ export interface ZoneMoveDef extends MoveDefBase {
   readonly target?: 'self';
   /** One instant hit on the target instead of a lingering zone (Slash's cut); duration is unused. */
   readonly instant?: boolean;
+  /** Expanding Force (D56): after the burst, a ring out to `radius` hits for `damageFraction`. */
+  readonly ring?: ExplosionDef;
+  /** Future Sight (D56): the burst lands this many seconds after it is marked. */
+  readonly delay?: number;
+  /** Reflect (D56): a barrier on you for `duration`: contact damage cut, enemy shots inside `radius` blocked. */
+  readonly barrier?: { readonly contactCut: number };
 }
 
 /** Lingering patches a melee swing leaves along its line (Frenzy Plant's roots, D30). */
@@ -999,5 +1018,139 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     projectileLifetime: 1.4,
     count: 1,
     homing: true,
+  },
+  // Abra line (D56, docs/moveset/abra). Numbers provisional.
+  confusion: {
+    id: 'confusion',
+    name: 'Confusion',
+    description: 'An instant mind-burst on the nearest enemy that Confuses it',
+    tags: ['Psychic', 'Zone'],
+    form: 'zone',
+    cooldown: 0.9,
+    damage: 11,
+    range: 300,
+    radius: 35,
+    duration: 0,
+    tickInterval: 0,
+    instant: true,
+    onHit: { confuse: 0.5 },
+  },
+  psychic: {
+    id: 'psychic',
+    name: 'Psychic',
+    description: 'A wider mind-burst that Confuses',
+    tags: ['Psychic', 'Zone', 'Area'],
+    form: 'zone',
+    cooldown: 1.0,
+    damage: 15,
+    range: 320,
+    radius: 60,
+    duration: 0,
+    tickInterval: 0,
+    instant: true,
+    onHit: { confuse: 0.5 },
+  },
+  expandingForce: {
+    id: 'expandingForce',
+    name: 'Expanding Force',
+    description: 'A mind-burst, then a ring that expands from it',
+    tags: ['Psychic', 'Zone', 'Area', 'Pulse'],
+    form: 'zone',
+    cooldown: 1.1,
+    damage: 20,
+    range: 340,
+    radius: 70,
+    duration: 0,
+    tickInterval: 0,
+    instant: true,
+    ring: { radius: 140, damageFraction: 0.5 },
+    onHit: { confuse: 0.5 },
+  },
+  psybeam: {
+    id: 'psybeam',
+    name: 'Psybeam',
+    description: 'A psychic beam that may Confuse',
+    tags: ['Psychic', 'Beam'],
+    form: 'beam',
+    cooldown: 2.6,
+    damage: 7,
+    range: 300,
+    length: 280,
+    width: 14,
+    duration: 0.6,
+    tickInterval: 0.2,
+    onHit: { confuse: 0.5, confuseChance: 0.2 },
+  },
+  kinesis: {
+    id: 'kinesis',
+    name: 'Kinesis',
+    description: 'Bent spoons orbit you',
+    tags: ['Psychic', 'Orbit'],
+    form: 'orbit',
+    cooldown: 5,
+    damage: 9,
+    count: 3,
+    orbitRadius: 70,
+    ballRadius: 8,
+    angularSpeed: 4.5,
+    duration: 3.5,
+    hitInterval: 0.4,
+  },
+  psychoCut: {
+    id: 'psychoCut',
+    name: 'Psycho Cut',
+    description: 'A psychic spoon slash',
+    tags: ['Psychic', 'Melee', 'Slicing'],
+    form: 'melee',
+    cooldown: 1.1,
+    damage: 14,
+    reach: 70,
+    arcDegrees: 110,
+    critChance: 0.15,
+  },
+  reflect: {
+    id: 'reflect',
+    name: 'Reflect',
+    description: 'A barrier on you: less contact damage, enemy shots blocked',
+    tags: ['Psychic', 'Zone'],
+    form: 'zone',
+    cooldown: 9,
+    damage: 0,
+    // Provisional: cast once an enemy is this close.
+    range: 150,
+    radius: 70,
+    duration: 4,
+    tickInterval: 0,
+    target: 'self',
+    barrier: { contactCut: 0.4 },
+  },
+  swift: {
+    id: 'swift',
+    name: 'Swift',
+    description: 'Homing stars',
+    tags: ['Normal', 'Projectile'],
+    form: 'projectile',
+    cooldown: 1.3,
+    damage: 7,
+    range: 320,
+    projectileSpeed: 420,
+    projectileRadius: 6,
+    projectileLifetime: 1.2,
+    count: 3,
+    homing: true,
+  },
+  futureSight: {
+    id: 'futureSight',
+    name: 'Future Sight',
+    description: 'Marks an area that explodes 2 s later',
+    tags: ['Psychic', 'Zone', 'Area'],
+    form: 'zone',
+    cooldown: 4,
+    damage: 45,
+    range: 340,
+    radius: 70,
+    duration: 0,
+    tickInterval: 0,
+    delay: 2,
   },
 };

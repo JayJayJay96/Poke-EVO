@@ -164,6 +164,8 @@ export function computeMoveStats(
     stunKind: def.onHit?.stunKind ?? null,
     poisonPct: def.onHit?.poisonPct ?? 0,
     seedPct: def.onHit?.seedPct ?? 0,
+    confuse: def.onHit?.confuse ?? 0,
+    confuseChance: def.onHit?.confuseChance ?? 1,
     attackType: moveType(def.tags),
     reachMult: 1,
     orbitRadiusMult: 1,

@@ -170,6 +170,27 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | `shadowPunch.barrage` Shadow Barrage | each ×0.52 (0.45) | ×0.58 | `velocity`, `pierce`, `powerUp` |
 | `shadowPunch.grip` Phantom Grip | dmg ×0.98 (0.85) | ×1.1; ★ held 0.55 s (0.4) | `velocity`, `extend`, `multishot` |
 | `shadowPunch.phantomGrudge` Phantom Grudge | dmg ×1.15 | ×1.3; ★ 7 fists (5) | `multishot`, `velocity`, `powerUp` |
+| `confusion.mindLock` Mind Lock (signature) | marks +18% (15%) | +21%; ★ dmg ×0.9 (0.8) | `enlarge`, `quickCast`, `linger` |
+| `confusion.gravityWell` Gravity Well (signature) | cooldown ×1.1 (1.2) | ★ cooldown ×1.0 | `enlarge`, `wideBlast`, `powerUp` |
+| `confusion.psySplit` Psy Split (signature) | each ×0.68 (0.6) | ×0.76 | `quickCast`, `wideBlast`, `keenEdge` |
+| `psybeam.signalSweep` Signal Sweep | dmg ×0.8 (0.7) | ×0.9; ★ sweeps 120° (90) | `extend`, `enlarge`, `quickCast` |
+| `psybeam.disorient` Disorient | dmg ×0.9 (0.8) | ×1.0; ★ Confused 0.7 s (0.5) | `extend`, `quickCast`, `enlarge` |
+| `psybeam.blinkBeam` Blink Beam | dmg ×1.2 | ×1.4; ★ 28 px wide (20) | `powerUp`, `enlarge`, `predatory` |
+| `kinesis.spoonGuard` Spoon Guard | dmg ×0.86 (0.75) | ×0.97 | `extend`, `enlarge`, `quickCast` |
+| `kinesis.fling` Fling Spoons | spoons ×1.2 (1.0) | ×1.4; ★ cooldown ×1.0 (1.1) | `powerUp`, `extend`, `enlarge` |
+| `kinesis.spoonBender` Spoon Bender | dmg ×1.1 | ×1.2; ★ +0.5 s Confusion (0.3) | `extend`, `enlarge`, `powerUp` |
+| `psychoCut.keen` Keen Psycho | crit +30% (25%) | +35%; ★ arc ×0.8 (0.7) | `keenEdge`, `powerUp`, `glass` |
+| `psychoCut.wave` Psycho Wave | wave 60% (50%) | 70%; ★ wave runs 160 px (120) | `enlarge`, `keenEdge`, `powerUp` |
+| `psychoCut.flowingCut` Flowing Cut | standing ×0.95 (0.85) | ×1.0; ★ line 50% (40%) | `keenEdge`, `enlarge`, `knockback` |
+| `reflect.lightScreen` Light Screen | attacks −50% (40%) | −55%; ★ lasts ×0.9 (0.75) | `linger`, `quickCast`, `enlarge` |
+| `reflect.mirrorCoat` Mirror Coat | back 70% (50%) | 90%; ★ contact −30% (25%) | `linger`, `quickCast`, `enlarge` |
+| `reflect.barrierEcho` Barrier Echo | pulse ×1.25 (1.0) | ×1.5; ★ every 4 hits (5) | `linger`, `enlarge`, `quickCast` |
+| `swift.starStorm` Star Storm | each ×0.69 (0.6) | ×0.78 | `pierce`, `velocity`, `powerUp` |
+| `swift.comet` Comet Star | star ×2.85 (2.5) | ×3.2; ★ cooldown ×1.15 (1.3) | `velocity`, `extend`, `powerUp` |
+| `swift.shootingStars` Shooting Stars | dmg ×0.92 (0.8) | ×1.04; ★ a star every 0.2 s at most (0.3) | `multishot`, `velocity`, `pierce` |
+| `futureSight.field` Foresight Field | each ×0.58 (0.5) | ×0.66 | `wideBlast`, `enlarge`, `quickCast` |
+| `futureSight.prophecy` Prophecy | ×1.8 (1.6) | ×2.0; ★ lands after 2.7 s (3) | `powerUp`, `concentrated`, `wideBlast` |
+| `futureSight.echoSight` Echo Sight | dmg ×1.15 | ×1.3 | `wideBlast`, `enlarge`, `powerUp` |
 
 ## Open points for the owner
 1. **Twist count:** 75 of 110 rank III entries carry a ★. Is that the right amount of "where natural"?

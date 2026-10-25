@@ -47,3 +47,11 @@ import './seismicToss';
 import './thrash';
 import './closeCombat';
 import './shadowPunch';
+// Abra line (D56).
+import './confusion';
+import './psybeam';
+import './kinesis';
+import './psychoCut';
+import './reflect';
+import './swift';
+import './futureSight';

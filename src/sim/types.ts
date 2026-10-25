@@ -65,6 +65,22 @@ export interface Player {
   /** Close Combat: seconds the player takes `vulnPct` more damage. */
   vulnLeft: number;
   vulnPct: number;
+  /** Abra line (D56): Teleport recharge, the telegraph before a blink, and where it goes / went. */
+  teleportLeft: number;
+  blinkLeft: number;
+  blinkToX: number;
+  blinkToY: number;
+  blinkFromX: number;
+  blinkFromY: number;
+  /** Where the last Psychic Echo went off (Echo Sight). */
+  echoX: number;
+  echoY: number;
+  /** Reflect: seconds left, contact cut, ranged cut (Light Screen), thorns (Mirror Coat), radius. */
+  barrierLeft: number;
+  barrierCut: number;
+  barrierRangedCut: number;
+  barrierThorns: number;
+  barrierRadius: number;
 }
 
 export interface Enemy {
@@ -122,6 +138,11 @@ export interface Enemy {
   vulnAllLeft: number;
   /** Blinded (Smokescreen, D20): wanders toward (wanderX, wanderY) instead of you and hits softer. */
   blindLeft: number;
+  /** Confused (D56, Abra line): wanders like Blinded and deals no contact damage. */
+  confuseLeft: number;
+  /** Psy Mark (Mind Lock): the other moves deal +psyMarkPct to it while it lasts. */
+  psyMarkLeft: number;
+  psyMarkPct: number;
   wanderX: number;
   wanderY: number;
   /**
@@ -280,6 +301,9 @@ export interface HitInfo {
   attackType: PokemonType | null;
   /** Leech Seed damage per second to apply (0 = none). */
   seedDps: number;
+  /** Confusion seconds to apply (0 = none), with this chance per hit (D56). */
+  confuse: number;
+  confuseChance: number;
   /** The move that hit, for Mutation hooks (null for zone, status and proc hits). */
   slot: MoveSlot | null;
   /** Spawned by a Mutation or ability effect: plain damage only, never triggers anything (no proc-from-proc). */
@@ -425,6 +449,9 @@ export interface MoveStats {
   attackType: PokemonType | null;
   /** Leech Seed damage per second as a fraction of the hit. */
   seedPct: number;
+  /** Confusion seconds per hit, and the chance it lands (D56). */
+  confuse: number;
+  confuseChance: number;
   /** Beam length / melee reach multiplier (Mutations); area still scales both. */
   reachMult: number;
   /** Orbit radius multiplier (Spiral Spin); area still scales it. */
