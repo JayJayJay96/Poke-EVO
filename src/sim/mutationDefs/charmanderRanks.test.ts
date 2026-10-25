@@ -3,7 +3,6 @@ import { TUNING } from '../../data/content';
 import type { MoveId } from '../../data/moves';
 import { MUTATION_TUNING, rankedValues, type MutationId } from '../../data/mutations';
 import { CRIT_MULTIPLIER } from '../../data/upgrades';
-import { emit } from '../hooks';
 import { grantMutation } from '../mutations';
 import { createSeededRng } from '../rng';
 import { createSlot, refreshStats } from '../stats';
@@ -64,17 +63,17 @@ describe('Charmander ranks (P4h-4)', () => {
     expect(slot.stats.damage).toBe(9 + 3);
   });
 
-  it('Cornered Dragon III: the Flare Up cross hits ×1.5', () => {
-    const crossHit = (rank: number) => {
+  it('Cornered Dragon III: 8 directions, side arms ×0.75', () => {
+    const diagonalHit = (rank: number) => {
       const { w } = withRank('dragonRage', 'dragonRage.corneredDragon', rank, 1);
-      const up = dummy(w, 0, -150);
-      run(w, DT); // builds the spatial hash
-      const before = lost(up);
-      emit(w, 'flareUp', 1);
-      return lost(up) - before;
+      w.player.hp = w.player.maxHp * 0.2;
+      const target = dummy(w, 150, 0);
+      const diag = dummy(w, 110, -110);
+      run(w, DT);
+      return lost(diag) / lost(target);
     };
-    // Rank III also drops the cooldown cost, which doesn't touch the cross's damage.
-    expect(crossHit(3)).toBeCloseTo(crossHit(1) * 1.5, 0);
+    expect(diagonalHit(1)).toBe(0);
+    expect(diagonalHit(3)).toBeCloseTo(0.75);
   });
 
   it('Vortex III: the burst reaches 130 px (110 at rank I)', () => {

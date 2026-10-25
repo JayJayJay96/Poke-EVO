@@ -1,15 +1,13 @@
 import { MOVES, type BeamMoveDef } from '../../data/moves';
 import { MUTATIONS } from '../../data/mutations';
 import { applyNewStun, damageEnemy, findNearestEnemy, makeHitInfo } from '../combat';
-import { ARC_SECONDS } from '../forms/projectile';
-import { defineMutation } from '../hooks';
+import { blazeActive, defineMutation } from '../hooks';
 import type { MoveSlot, World } from '../types';
-import { dirTo, entitiesOf, forEachEnemyIn, forEachEnemyOnSegment, ranked, spawnEntity } from './util';
+import { dirTo, entitiesOf, forEachEnemyIn, ranked, spawnEntity } from './util';
 
 // Dragon Rage Mutations (docs/moveset/shared/dragon-rage.md, charmander/README.md).
 
 const dragonRage = MOVES.dragonRage as BeamMoveDef;
-const TICKS_PER_CAST = Math.round(dragonRage.duration / dragonRage.tickInterval);
 
 /**
  * Fixed Rage (generic): like the real move, each tick deals fixed damage that grows with your level.
@@ -76,35 +74,23 @@ defineMutation('dragonRage.dragonBreath', {
 });
 
 /**
- * Cornered Dragon (Bond, Flare Up, Charmeleon+): every Flare Up fires Dragon Rage at once in a cross,
- * each beam a full cast's damage, and resets its cooldown. It uses Dragon Rage's stat augments,
- * never another Mutation (no hooks run for these hits).
+ * Cornered Dragon (Bond, Blaze active, Charmeleon+; D50): while Blaze is on, every Dragon Rage beam fans
+ * into a cross. The arm toward the target hits in full, the others for `sideArmMult`. A Flare Up resets it.
  */
 const cornered = ranked('dragonRage.corneredDragon');
 defineMutation('dragonRage.corneredDragon', {
-  stats: (s, _world, slot) => {
-    s.cooldown *= cornered(slot).cooldownMult;
-  },
-  onEvent: (world, slot, event) => {
-    if (event !== 'flareUp') return;
-    const { player } = world;
-    const length = dragonRage.length * slot.stats.area * slot.stats.reachMult;
-    const width = dragonRage.width * slot.stats.area;
-    const hit = makeHitInfo(slot.stats); // no slot: augments apply, Mutations don't
+  beamDirs: (world, slot) => {
+    if (!blazeActive(world)) return [[slot.dirX, slot.dirY]];
     const v = cornered(slot);
+    const base = Math.atan2(slot.dirY, slot.dirX);
+    const dirs: [number, number, number][] = [];
     for (let i = 0; i < v.directions; i++) {
-      const a = (i / v.directions) * Math.PI * 2;
-      const dx = Math.cos(a);
-      const dy = Math.sin(a);
-      hit.dirX = dx;
-      hit.dirY = dy;
-      const x2 = player.x + dx * length;
-      const y2 = player.y + dy * length;
-      forEachEnemyOnSegment(world, player.x, player.y, x2, y2, width, (e) =>
-        damageEnemy(world, e, slot.stats.damage * TICKS_PER_CAST * v.crossDamageMult, hit),
-      );
-      world.arcs.push({ x1: player.x, y1: player.y, x2, y2, lifeLeft: ARC_SECONDS });
+      const a = base + (i / v.directions) * Math.PI * 2;
+      dirs.push([Math.cos(a), Math.sin(a), i === 0 ? 1 : v.sideArmMult]);
     }
-    slot.cooldownLeft = 0;
+    return dirs;
+  },
+  onEvent: (_world, slot, event) => {
+    if (event === 'flareUp') slot.cooldownLeft = 0;
   },
 });

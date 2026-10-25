@@ -1,8 +1,10 @@
 import { MOVES, type ZoneMoveDef } from '../../data/moves';
-import { damageEnemy, makeHitInfo, procHit } from '../combat';
+import { applyBurn, damageEnemy, makeHitInfo, procHit } from '../combat';
+import { ARC_SECONDS } from '../forms/projectile';
 import { CUT_SECONDS } from '../forms/zoneCast';
 import { defineMutation, targetBurning } from '../hooks';
-import { entitiesOf, forEachEnemyIn, nearestEnemies, ranked, spawnEntity } from './util';
+import type { Enemy, MoveSlot, World } from '../types';
+import { entitiesOf, forEachEnemyIn, forEachEnemyOnSegment, nearestEnemies, ranked, spawnEntity } from './util';
 
 // Slash Mutations (docs/moveset/shared/slash.md, charmander/README.md).
 
@@ -53,16 +55,43 @@ defineMutation('slash.flurry', {
   },
 });
 
-/** Searing Slash (Bond, target Burning, Charmeleon+): always crits Burning enemies and cashes in the whole Burn. */
+/**
+ * Searing Slash (Bond, target Burning, Charmeleon+): always crits Burning enemies and cashes in the whole Burn.
+ * D50: a Burning enemy the Slash kills (cash-in included) explodes in an X. The X is a proc: its kills never explode.
+ */
 const searing = ranked('slash.searingSlash');
+const xHit = new Set<Enemy>();
 defineMutation('slash.searingSlash', {
   forceCrit: (_world, _slot, enemy) => targetBurning(enemy),
   damageMult: (_world, slot, enemy) => (targetBurning(enemy) ? 1 : searing(slot).damageMultNotBurning),
   onHit: (world, slot, enemy) => {
-    if (!targetBurning(enemy) || enemy.hp <= 0) return;
-    const rest = enemy.burnDps * enemy.burnLeft * searing(slot).cashInMult;
-    enemy.burnLeft = 0;
-    enemy.burnDps = 0;
-    damageEnemy(world, enemy, rest, procHit('Fire'));
+    if (!targetBurning(enemy)) return;
+    const v = searing(slot);
+    if (enemy.hp > 0) {
+      const rest = enemy.burnDps * enemy.burnLeft * v.cashInMult;
+      enemy.burnLeft = 0;
+      enemy.burnDps = 0;
+      damageEnemy(world, enemy, rest, procHit('Fire'));
+    }
+    if (enemy.hp <= 0) searingX(world, slot, enemy);
   },
 });
+
+function searingX(world: World, slot: MoveSlot, at: Enemy): void {
+  const v = searing(slot);
+  const damage = slot.stats.damage * v.xDamageFraction;
+  const hit = procHit('Fire');
+  const d = v.xArmLength * Math.SQRT1_2;
+  xHit.clear();
+  for (const [dx, dy] of [[d, d], [d, -d]] as const) {
+    forEachEnemyOnSegment(world, at.x - dx, at.y - dy, at.x + dx, at.y + dy, v.xWidth, (e) => {
+      if (xHit.has(e)) return; // the centre sits on both lines
+      xHit.add(e);
+      hit.dirX = Math.sign(e.x - at.x) || 1;
+      hit.dirY = 0;
+      damageEnemy(world, e, damage, hit);
+      if (v.xBurnPct > 0 && e.hp > 0) applyBurn(e, damage * v.xBurnPct);
+    });
+    world.arcs.push({ x1: at.x - dx, y1: at.y - dy, x2: at.x + dx, y2: at.y + dy, lifeLeft: ARC_SECONDS });
+  }
+}

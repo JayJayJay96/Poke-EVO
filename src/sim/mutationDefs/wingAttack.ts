@@ -1,9 +1,9 @@
 import { MOVES, type MeleeMoveDef } from '../../data/moves';
 import { MUTATION_TUNING } from '../../data/mutations';
-import { MAX_ENEMY_RADIUS, applyNewStun, canTrap, findNearestEnemy, pushEnemy } from '../combat';
+import { MAX_ENEMY_RADIUS, applyBurn, applyNewStun, canTrap, findNearestEnemy, pushEnemy } from '../combat';
 import { swingArc } from '../forms/melee';
-import { defineMutation } from '../hooks';
-import { dirTo, entitiesOf, ranked, spawnEntity } from './util';
+import { defineMutation, targetBurning } from '../hooks';
+import { dirTo, entitiesOf, forEachEnemyIn, ranked, spawnEntity } from './util';
 
 // Wing Attack Mutations (docs/moveset/shared/wing-attack.md, charmander/README.md).
 
@@ -50,11 +50,30 @@ defineMutation('wingAttack.backdraft', {
   },
 });
 
-/** Fan the Flames (Bond, your Scorch, Charizard): Scorch patches the gusts touch flare, grow and drift. */
+/**
+ * Fan the Flames (Bond, target Burning, Charizard; D50): a gust on a Burning enemy blows its Burn into a cone
+ * behind it. Spread Burn is a status, not a hit, so it never spreads on by itself. Scorch patches the gusts
+ * touch also flare, grow and drift.
+ */
 const fan = ranked('wingAttack.fanTheFlames');
 defineMutation('wingAttack.fanTheFlames', {
   stats: (s, _world, slot) => {
     s.damage *= fan(slot).damageMult;
+  },
+  onHit: (world, slot, enemy) => {
+    if (!targetBurning(enemy)) return;
+    const v = fan(slot);
+    const [dirX, dirY] = dirTo(world.player.x, world.player.y, enemy.x, enemy.y);
+    const cosHalf = Math.cos((v.spreadConeDeg * Math.PI) / 360);
+    const dps = enemy.burnDps * v.spreadFraction;
+    forEachEnemyIn(world, enemy.x, enemy.y, v.spreadLength, (e) => {
+      if (e === enemy) return;
+      const dx = e.x - enemy.x;
+      const dy = e.y - enemy.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > e.radius && (dx * dirX + dy * dirY) / dist < cosHalf) return;
+      applyBurn(e, dps);
+    });
   },
   onCast: (world, slot) => {
     const { player } = world;

@@ -115,7 +115,7 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 | `fireSpin.tailFlame` | Tail Flame | bond | fireSpin | charmander | 0 | `missingHp` | site | [charmander/](charmander/README.md) |
 | `dragonRage.fixedRage` | Fixed Rage | generic | dragonRage | any | 0 | — | site | [shared/dragon-rage.md](shared/dragon-rage.md) |
 | `dragonRage.dragonBreath` | Dragon Breath | generic | dragonRage | any | 0 | — | site | [shared/dragon-rage.md](shared/dragon-rage.md) |
-| `dragonRage.corneredDragon` | Cornered Dragon | bond | dragonRage | charmander | 1 | `flareUp` | site | [charmander/](charmander/README.md) |
+| `dragonRage.corneredDragon` | Cornered Dragon | bond | dragonRage | charmander | 1 | `blazeActive` | site | [charmander/](charmander/README.md) |
 | `airSlash.crosscut` | Crosscut | generic | airSlash | any | 0 | — | site | [shared/air-slash.md](shared/air-slash.md) |
 | `airSlash.tailwind` | Tailwind | generic | airSlash | any | 0 | — | site | [shared/air-slash.md](shared/air-slash.md) |
 | `airSlash.aerialAce` | Aerial Ace | bond | airSlash | charmander | 2 | `moving` | site | [charmander/](charmander/README.md) |
@@ -130,7 +130,7 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 | `slash.searingSlash` | Searing Slash | bond | slash | charmander | 1 | `targetBurning` | site | [charmander/](charmander/README.md) |
 | `wingAttack.updraft` | Updraft | generic | wingAttack | any | 0 | — | site | [shared/wing-attack.md](shared/wing-attack.md) |
 | `wingAttack.backdraft` | Backdraft | generic | wingAttack | any | 0 | — | site | [shared/wing-attack.md](shared/wing-attack.md) |
-| `wingAttack.fanTheFlames` | Fan the Flames | bond | wingAttack | charmander | 2 | `ownScorch` (requires `scorchSource`) | site | [charmander/](charmander/README.md) |
+| `wingAttack.fanTheFlames` | Fan the Flames | bond | wingAttack | charmander | 2 | `targetBurning` | site | [charmander/](charmander/README.md) |
 | `ember.kindle` | Kindle | signature | ember → flameBurst → blastBurn | charmander | 0 | `blazeActive` | site | [charmander/](charmander/README.md) |
 | `ember.flamethrower` | Flamethrower | signature | ember → flameBurst → blastBurn | charmander | 0 | `blazeActive` | site | [charmander/](charmander/README.md) |
 | `ember.wisp` | Will-o-Wisp | signature | ember → flameBurst → blastBurn | charmander | 0 | `blazeActive` | site | [charmander/](charmander/README.md) |

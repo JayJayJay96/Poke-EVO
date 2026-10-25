@@ -44,8 +44,8 @@ export interface MutationHooks {
   onChainJump?(world: World, slot: MoveSlot, from: Enemy, to: Enemy): void;
   /** One of this move projectiles ran out of range without dying on a hit. */
   onProjectileExpire?(world: World, slot: MoveSlot, proj: Projectile): void;
-  /** Beam directions this tick (unit vectors), instead of the cast direction; empty = no beam. */
-  beamDirs?(world: World, slot: MoveSlot): readonly (readonly [number, number])[];
+  /** Beam directions this tick (unit vectors, optional damage factor), instead of the cast direction; empty = no beam. */
+  beamDirs?(world: World, slot: MoveSlot): readonly (readonly [number, number, number?])[];
   /** This move chain finished on `last` (also when it found nowhere to jump). */
   onChainEnd?(world: World, slot: MoveSlot, last: Enemy): void;
   onKill?(world: World, slot: MoveSlot, enemy: Enemy): void;

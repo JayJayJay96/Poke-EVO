@@ -517,13 +517,13 @@ export const MUTATIONS = {
     favoured: ['enlarge', 'quickCast', 'extend'],
   },
   'dragonRage.corneredDragon': {
-    ...bond('dragonRage', 'charmander', 1, 'flareUp', 'Cornered Dragon', 'Flare Up fires Dragon Rage in a cross', {
+    // D50: was a Flare Up cross (rare: Flare Up only re-arms above 30% HP) with a ×1.3 cooldown tax.
+    ...bond('dragonRage', 'charmander', 1, 'blazeActive', 'Cornered Dragon', 'Blaze active: Dragon Rage fires in a cross', {
       directions: 4,
-      cooldownMult: 1.3,
-      crossDamageMult: 1,
+      sideArmMult: 0.5,
     }),
-    ranks: [{ cooldownMult: 1.15 }, { cooldownMult: 1, crossDamageMult: 1.5 }],
-    rankText: ['cooldown ×1.15 (1.3)', '×1.0; ★ the cross hits ×1.5'],
+    ranks: [{ sideArmMult: 0.6 }, { sideArmMult: 0.75, directions: 8 }],
+    rankText: ['side arms ×0.6 (0.5)', 'side arms ×0.75; ★ 8 directions (4)'],
     favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'airSlash.crosscut': {
@@ -643,12 +643,17 @@ export const MUTATIONS = {
     favoured: ['keenEdge', 'quickCast', 'lifesteal'],
   },
   'slash.searingSlash': {
-    ...bond('slash', 'charmander', 1, 'targetBurning', 'Searing Slash', 'Crits Burning enemies and cashes in the Burn', {
+    ...bond('slash', 'charmander', 1, 'targetBurning', 'Searing Slash', 'Crits Burning enemies, cashes in the Burn; kills explode in an X', {
       damageMultNotBurning: 0.8,
       cashInMult: 1,
+      // D50: the X on a Burning kill (two 180 px diagonals through the body).
+      xArmLength: 90,
+      xWidth: 24,
+      xDamageFraction: 0.5,
+      xBurnPct: 0,
     }),
-    ranks: [{ damageMultNotBurning: 0.9 }, { damageMultNotBurning: 1, cashInMult: 1.25 }],
-    rankText: ['not Burning ×0.9 (0.8)', '×1.0; ★ the cash-in deals ×1.25 the remaining Burn'],
+    ranks: [{ damageMultNotBurning: 0.9 }, { damageMultNotBurning: 1, cashInMult: 1.25, xBurnPct: 0.2 }],
+    rankText: ['not Burning ×0.9 (0.8)', '×1.0; ★ the cash-in deals ×1.25 the remaining Burn; the X Burns'],
     favoured: ['keenEdge', 'concentrated', 'glass'],
   },
   'wingAttack.updraft': {
@@ -672,13 +677,17 @@ export const MUTATIONS = {
     favoured: ['knockback', 'enlarge', 'quickCast'],
   },
   'wingAttack.fanTheFlames': {
-    ...bond('wingAttack', 'charmander', 2, 'ownScorch', 'Fan the Flames', 'Gusts flare and push your Scorch', {
+    // D50: was Scorch-only (offered only with a Scorch source); the Burn spread works in any Fire build.
+    ...bond('wingAttack', 'charmander', 2, 'targetBurning', 'Fan the Flames', 'Gusts spread Burn behind the target and fan your Scorch', {
+      spreadConeDeg: 60,
+      spreadLength: 70,
+      /** Spread Burn per second, as a fraction of the gusted enemy's Burn. */
+      spreadFraction: 0.5,
       refreshSeconds: 3,
       growPct: 0.5,
       driftPx: 40,
       damageMult: 0.8,
     }),
-    requires: ['scorchSource'],
     ranks: [{ damageMult: 0.92 }, { damageMult: 1.04, growPct: 0.75 }],
     rankText: ['dmg ×0.92 (0.8)', '×1.04; ★ patches grow to ×1.75 (1.5)'],
     favoured: ['enlarge', 'quickCast', 'powerUp'],

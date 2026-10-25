@@ -212,6 +212,31 @@ describe('Slash Mutations', () => {
     expect(lost(e)).toBeCloseTo(slot.stats.damage * CRIT_MULTIPLIER + 4 * (2 - DT), 1);
   });
 
+  it('Searing Slash: a Burning kill explodes in an X; X kills never explode again', () => {
+    const v = MUTATIONS['slash.searingSlash'].values;
+    const { w, slot } = withMove('slash', 'slash.searingSlash', 1);
+    slot.stats.critChance = 0;
+    const e = dummy(w, 100, 0);
+    e.burnDps = 4;
+    e.burnLeft = 2;
+    e.burnTickLeft = 1; // no burn tick in this step
+    e.hp = 1;
+    const onX = dummy(w, 140, 40);
+    const offX = dummy(w, 160, 0);
+    const chained = dummy(w, 140, -40);
+    chained.burnDps = 4;
+    chained.burnLeft = 2;
+    chained.burnTickLeft = 1;
+    chained.hp = 1;
+    const pastChained = dummy(w, 170, -10); // on the chained enemy's own X, off the first one
+    run(w, DT);
+    expect(e.hp).toBeLessThanOrEqual(0);
+    expect(lost(onX)).toBeCloseTo(slot.stats.damage * v.xDamageFraction, 1);
+    expect(lost(offX)).toBe(0);
+    expect(chained.hp).toBeLessThanOrEqual(0);
+    expect(lost(pastChained)).toBe(0);
+  });
+
   it('Searing Slash: −20% against enemies that are not Burning', () => {
     const v = MUTATIONS['slash.searingSlash'].values;
     const { w, slot } = withMove('slash', 'slash.searingSlash', 1);
@@ -264,10 +289,23 @@ describe('Wing Attack Mutations', () => {
     expect(away.radius).toBe(MUTATION_TUNING.scorch.radius);
   });
 
-  it('Fan the Flames is only offered when the build makes Scorch', () => {
+  it('Fan the Flames: a gust on a Burning enemy spreads half its Burn into a cone behind it', () => {
+    const v = MUTATIONS['wingAttack.fanTheFlames'].values;
+    const { w, slot } = withMove('wingAttack', 'wingAttack.fanTheFlames', 2);
+    const e = dummy(w, 0, -60);
+    e.burnDps = 4;
+    e.burnLeft = 2;
+    const behind = dummy(w, 0, -115);
+    const aside = dummy(w, 60, -60);
+    run(w, DT);
+    slot.cooldownLeft = 1e9;
+    expect(behind.burnLeft).toBeGreaterThan(0);
+    expect(behind.burnDps).toBeCloseTo(4 * v.spreadFraction);
+    expect(aside.burnLeft).toBe(0);
+  });
+
+  it('Fan the Flames is offered without a Scorch source (D50)', () => {
     const { w } = withMove('wingAttack', null, 2);
-    expect(mutationOffers(w)).not.toContain('wingAttack.fanTheFlames');
-    expect(grantMutation(w, 'ember.kindle')).toBe('granted');
     expect(mutationOffers(w)).toContain('wingAttack.fanTheFlames');
   });
 });

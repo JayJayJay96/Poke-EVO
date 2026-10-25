@@ -13,12 +13,12 @@ Each Bond uses a different hook (rule 9).
 |---|---|---|
 | **Blaze is active** (HP below 30%/40%) | ability state | Scratch — Blaze Claws |
 | **Missing HP** (gradient) | player HP | Fire Spin — Tail Flame |
-| **Flare Up** (Charmeleon+) | ability event | Dragon Rage — Cornered Dragon |
+| **Flare Up** (Charmeleon+) | ability event | — (Cornered Dragon moved to Blaze active, D50) |
 | **Moving** (Charizard flies) | player movement, stage 2 | Air Slash — Aerial Ace |
 | **Kills** | enemy faints | Hurricane — Inferno Storm |
 | **Standing in your own smoke** | player position | Smokescreen — Hidden Flame |
-| **Enemy is Burning** | Fire status on the target | Slash — Searing Slash |
-| **Your Scorch patches** | shared Fire terrain you made | Wing Attack — Fan the Flames |
+| **Enemy is Burning** | Fire status on the target | Slash — Searing Slash · Wing Attack — Fan the Flames |
+| **Your Scorch patches** | shared Fire terrain you made | Wing Attack — Fan the Flames (bonus) |
 
 Blaze state and missing HP are related but play differently: one is a switch at the threshold, the other grows the
 whole way down.
@@ -75,7 +75,7 @@ Fire Spin ────┬─ Vortex           `fireSpin.vortex`           collap
               └─ ★ Tail Flame     `fireSpin.tailFlame`        (Bond: missing HP)
 Dragon Rage ──┬─ Fixed Rage       `dragonRage.fixedRage`      fixed damage, ignores types
               ├─ Dragon Breath    `dragonRage.dragonBreath`   short cone, paralysis chance
-              └─ ★ Cornered Dragon `dragonRage.corneredDragon` (Bond: Flare Up · Charmeleon+)
+              └─ ★ Cornered Dragon `dragonRage.corneredDragon` (Bond: Blaze active · Charmeleon+)
 Air Slash ────┬─ Crosscut         `airSlash.crosscut`         blades cross, the 2nd hit crits
  (Charizard)  ├─ Tailwind         `airSlash.tailwind`         hits give move speed
               └─ ★ Aerial Ace     `airSlash.aerialAce`        (Bond: moving · Charizard)
@@ -90,7 +90,7 @@ Slash ────────┬─ Afterimage       `slash.afterimage`        
               └─ ★ Searing Slash  `slash.searingSlash`        (Bond: enemy Burning · Charmeleon+)
 Wing Attack ──┬─ Updraft          `wingAttack.updraft`        lifts light enemies off the ground
  (NEW)        ├─ Backdraft        `wingAttack.backdraft`      rear gust guards your escape
-              └─ ★ Fan the Flames `wingAttack.fanTheFlames`   (Bond: your Scorch · Charizard)
+              └─ ★ Fan the Flames `wingAttack.fanTheFlames`   (Bond: enemy Burning · Charizard)
 ```
 Smokescreen, Slash and Wing Attack are **new moves** (listed in `PROJECT.md` §6 but not built). Proposed base
 stats are in their shared files. With them the learnset is 8 moves (template: 6–8).
@@ -100,12 +100,12 @@ stats are in their shared files. With them the learnset is 8 moves (template: 6�
 |---|---|---|---|---|
 | **Blaze Claws** `scratch.blazeClaws` | Scratch | Charmander | While Blaze is active, Scratch turns **Fire-type** (gets STAB, Burns 30%/s for 3 s) and reach +30%. | −15% damage while Blaze is off. |
 | **Tail Flame** `fireSpin.tailFlame` | Fire Spin | Charmander | Like Charmander's tail: the flames grow as HP drops. +1 flame below 70% HP, +2 below 40%, and below 40% the flames Burn. | −25% damage. Weak at full HP. |
-| **Cornered Dragon** `dragonRage.corneredDragon` | Dragon Rage | Charmeleon | Every Flare Up also fires Dragon Rage instantly in 4 directions (a cross) at full damage, and resets its cooldown. Uses Dragon Rage's stat augments, never another Mutation. | Dragon Rage's own cooldown ×1.3. |
+| **Cornered Dragon** `dragonRage.corneredDragon` | Dragon Rage | Charmeleon | **D50:** while Blaze is active (or faked by Hidden Flame), every Dragon Rage beam fans into a 4-way cross aimed at the target: the target arm hits in full, the other 3 arms ×0.5. A Flare Up also resets Dragon Rage's cooldown. | Side arms deal half damage. (Was: a Flare Up-only cross with Dragon Rage cooldown ×1.3; Flare Up re-arms only above 30% HP, so it rarely fired.) |
 | **Aerial Ace** `airSlash.aerialAce` | Air Slash | Charizard | Charizard flies: after 1 s of continuous movement the blades **home** and get +20% crit chance. | Standing still: −25% damage. |
 | **Inferno Storm** `hurricane.infernoStorm` | Hurricane | Charizard | Each kill during the storm adds +0.25 s (max +1.5 s). After **30 kills** in one cast (kills by *any* of your moves while the storm is up) the storm turns **Fire-type** and Burns for the rest of that cast *(owner, 2026-10-18: kills come easily)*. | −15% damage. |
 | **Hidden Flame** `smokescreen.hiddenFlame` | Smokescreen | Charmander | While you stand inside your own smoke, **Blaze counts as active** (whichever Blaze you have), so every Blaze-linked bonus turns on without the HP risk. | Cloud radius −40%, cooldown ×1.4: a small cloud you have to stand still in. |
-| **Searing Slash** `slash.searingSlash` | Slash | Charmeleon | Slash always crits **Burning** enemies and consumes the Burn, dealing all its remaining burn damage at once. Pays off every other Fire source (Fire Spin, Flamethrower, Scorch). | −20% damage vs enemies that aren't Burning. |
-| **Fan the Flames** `wingAttack.fanTheFlames` | Wing Attack | Charizard | Each of your Scorch patches the gusts touch **flares**: it refreshes to 3 s, grows +50% (capped at ×1.5 the normal Scorch size, so repeat flares don't stack), and drifts 40 px in the gust's direction. **Only offered if the build already makes Scorch** (Kindle, Flamethrower, Flame Trail or Solar Power). | −20% damage. |
+| **Searing Slash** `slash.searingSlash` | Slash | Charmeleon | Slash always crits **Burning** enemies and consumes the Burn, dealing all its remaining burn damage at once. **D50:** a Burning enemy the Slash kills (cash-in included) explodes in an X (two 180 px diagonals, 50% of the Slash hit). The X is a proc, so its kills never explode. Pays off every other Fire source (Fire Spin, Flamethrower, Scorch). | −20% damage vs enemies that aren't Burning. |
+| **Fan the Flames** `wingAttack.fanTheFlames` | Wing Attack | Charizard | **D50:** a gust that hits a **Burning** enemy spreads Burn into a 60°, 70 px cone behind it (away from you) at 50% of that enemy's Burn. Spread Burn is a status, not a hit, so it never spreads on by itself. Each of your Scorch patches the gusts touch also **flares**: it refreshes to 3 s, grows +50% (capped at ×1.5 the normal Scorch size), and drifts 40 px in the gust's direction. No longer needs a Scorch source to be offered. | −20% damage. |
 
 Balance notes:
 - Rule 4 (±15% vs Power Up I, condition true about half the time). E.g. Tail Flame: 2 flames ×0.75 = 1.5 at full HP,
@@ -114,7 +114,7 @@ Balance notes:
   and it's still capped by Scratch's tiny reach.
 - **Hidden Flame** is +50% damage only while you stand in a small cloud: ~4 s out of every ~11 s, if you stay put.
   It deliberately fights Aerial Ace (which wants you moving), so the two lead to different builds.
-- **Fan the Flames** is the first Bond with a **prerequisite** (Hades-style): it only appears when the build can use it.
+- **Fan the Flames** was the first Bond with a **prerequisite** (Hades-style); D50 dropped it, since the Burn spread works in any Fire build. The `scorchSource` requirement stays in code, unused.
   A map site or card offering it must check this too (`INDEX.md` notes it).
 - Charmander has no Bond on "hit taken". Getting hit is already Blaze's price, so paying for it twice would
   make the line too swingy.

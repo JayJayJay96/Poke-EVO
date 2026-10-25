@@ -59,7 +59,7 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | `fireSpin.tailFlame` Tail Flame | dmg ×0.86 (0.75) | ×0.97; ★ flames at 80% / 50% HP (70% / 40%) | `burn`, `extend`, `glass` |
 | `dragonRage.fixedRage` Fixed Rage | fixed 8 (7) | fixed 9; ★ +1 per 3 levels (4) | `quickCast`, `extend`, `enlarge` |
 | `dragonRage.dragonBreath` Dragon Breath | dmg ×0.69 (0.6) | ×0.78; ★ paralysis chance 15% (10%) | `enlarge`, `quickCast`, `extend` |
-| `dragonRage.corneredDragon` Cornered Dragon | cooldown ×1.15 (1.3) | ×1.0; ★ the cross hits ×1.5 | `extend`, `enlarge`, `powerUp` |
+| `dragonRage.corneredDragon` Cornered Dragon | side arms ×0.6 (0.5) | side arms ×0.75; ★ 8 directions (4) | `extend`, `enlarge`, `powerUp` |
 | `airSlash.crosscut` Crosscut | dmg ×0.98 (0.85) | ×1.1 | `keenEdge`, `velocity`, `pierce` |
 | `airSlash.tailwind` Tailwind | dmg ×0.92 (0.8); speed cap +20% (15%) | ×1.04; cap +25% | `multishot`, `pierce`, `velocity` |
 | `airSlash.aerialAce` Aerial Ace | crit +25% (20%); still ×0.85 (0.75) | +30%; still ×0.95; ★ homing after 0.7 s moving (1) | `keenEdge`, `velocity`, `pierce` |
@@ -71,7 +71,7 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | `smokescreen.hiddenFlame` Hidden Flame | radius ×0.7 (0.6); cooldown ×1.25 (1.4) | ×0.8; cooldown ×1.1 | `linger`, `enlarge`, `quickCast` |
 | `slash.afterimage` Afterimage | re-cut 60% (50%); innate crit 20% (15%); move dmg ×1.1 | 70%; crit 25%; move dmg ×1.2; ★ mark lasts 0.9 s (0.6) | `keenEdge`, `enlarge`, `wideBlast` |
 | `slash.flurry` Flurry | cuts 115% (100%) | cuts 130% | `keenEdge`, `quickCast`, `lifesteal` |
-| `slash.searingSlash` Searing Slash | not Burning ×0.9 (0.8) | ×1.0; ★ the cash-in deals ×1.25 the remaining Burn | `keenEdge`, `concentrated`, `glass` |
+| `slash.searingSlash` Searing Slash | not Burning ×0.9 (0.8) | ×1.0; ★ the cash-in deals ×1.25 the remaining Burn; the X Burns | `keenEdge`, `concentrated`, `glass` |
 | `wingAttack.updraft` Updraft | dmg ×0.86 (0.75) | ×0.97; ★ lift 0.8 s (0.6) | `enlarge`, `knockback`, `quickCast` |
 | `wingAttack.backdraft` Backdraft | move dmg ×1.15 | move dmg ×1.05; ★ rear arc 200° (160) | `knockback`, `enlarge`, `quickCast` |
 | `wingAttack.fanTheFlames` Fan the Flames | dmg ×0.92 (0.8) | ×1.04; ★ patches grow to ×1.75 (1.5) | `enlarge`, `quickCast`, `powerUp` |

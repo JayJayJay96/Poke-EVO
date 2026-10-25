@@ -36,11 +36,11 @@ export function updateBeam(world: World, slot: MoveSlot, def: BeamMoveDef, dt: n
     beamTick(world, slot, def, slot.dirX, slot.dirY);
     return;
   }
-  for (const [dx, dy] of dirs) beamTick(world, slot, def, dx, dy);
+  for (const [dx, dy, mult] of dirs) beamTick(world, slot, def, dx, dy, mult);
 }
 
 /** One damage tick along one beam direction. */
-function beamTick(world: World, slot: MoveSlot, def: BeamMoveDef, dirX: number, dirY: number): void {
+function beamTick(world: World, slot: MoveSlot, def: BeamMoveDef, dirX: number, dirY: number, mult = 1): void {
   const { player, enemies } = world;
   const length = beamLength(slot, def);
   const halfWidth = (def.width * slot.stats.area * slot.stats.widthMult) / 2;
@@ -61,6 +61,6 @@ function beamTick(world: World, slot: MoveSlot, def: BeamMoveDef, dirX: number, 
     const cy = ey - dirY * along;
     const reach = halfWidth + enemy.radius;
     if (cx * cx + cy * cy > reach * reach) continue;
-    damageEnemy(world, enemy, slot.stats.damage, hit);
+    damageEnemy(world, enemy, slot.stats.damage * mult, hit);
   }
 }

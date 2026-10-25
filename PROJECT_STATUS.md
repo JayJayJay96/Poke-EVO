@@ -126,6 +126,18 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Charmander Bond reworks (D50)
+**Owner:** playtested Charmander; Cornered Dragon "feels very inferior". After a kit review the owner approved three reworks. **Status:** built, tested; committed. Not browser-checked, not playtested.
+
+- **Cornered Dragon** (`src/sim/mutationDefs/dragonRage.ts`): hook `flareUp` → `blazeActive`. While Blaze is on (or Hidden Flame fakes it), the beam fans into a 4-way cross via `beamDirs` (target arm ×1, side arms ×0.5; rank III 8 arms ×0.75). No cooldown tax. Flare Up resets its cooldown. `beamDirs` entries now take an optional damage factor (`src/sim/hooks.ts`, `src/sim/forms/beam.ts`); the renderer already draws every `beamDirs` arm.
+- **Fan the Flames** (`wingAttack.ts`): hook → `targetBurning`, `requires: ['scorchSource']` dropped. A gust on a Burning enemy spreads 50% of its Burn into a 60°, 70 px cone behind it (`applyBurn`, a status, so it can't chain). The Scorch flare is unchanged. The `scorchSource` requirement code stays, now unused.
+- **Searing Slash** (`slash.ts`): a Burning enemy the Slash kills (cash-in included) explodes in an X (two 180 px diagonals, 24 px wide, 50% of the Slash hit, `procHit` so X kills never explode). Rank III: the X Burns (20%).
+- **Data/docs:** `src/data/mutations.ts` values, ranks, rank text; `docs/moveset/INDEX.md` hooks; `RANKS.md`; `charmander/README.md`; PROJECT.md D50.
+- **Tests:** replaced the Flare Up cross tests; added cross ×0.5, plain beam without Blaze, rank III 8 directions, Burn spread cone, offered without Scorch, Searing X plus no-chain.
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **591/591 passed**; `npm run build` passes. No `npm run balance` run: Cornered Dragon is now much stronger at low HP, and Searing Slash gains horde clear.
+- **Next:** owner playtest of Charmeleon/Charizard with these Bonds; then the kit review of the next starter.
+- **Build runs:** yes.
+
 ### 2026-10-24 — Articuno built (D45): tier 2 arena boss
 - **Objective:** owner: build one tier 2 boss; Articuno picked from the plan ("okay lets do that"). **Status:** built, tested, browser-checked; **not committed**.
 - **Owner decisions:** only Fire wears the ice pillars down; no Seel adds until batch 3; Freeze-Dry ×1.5 on Water, Hurricane's pull and Mist's 20 s kept as written. PROJECT.md D45.

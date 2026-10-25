@@ -142,15 +142,28 @@ describe('Dragon Rage', () => {
     expect(lost(far)).toBe(0); // beyond the 140 px cone
   });
 
-  it('Cornered Dragon: each Flare Up fires Dragon Rage in a cross at once and resets it', () => {
+  it('Cornered Dragon: with Blaze active the beam fans into a cross; side arms hit ×0.5', () => {
+    const v = MUTATIONS['dragonRage.corneredDragon'].values;
+    const { w } = withMove('dragonRage', 'dragonRage.corneredDragon', 1);
+    w.player.hp = w.player.maxHp * 0.2;
+    const target = dummy(w, 150, 0);
+    const up = dummy(w, 0, -160);
+    const back = dummy(w, -160, 0);
+    run(w, DT); // the first tick lands on cast
+    expect(lost(target)).toBeGreaterThan(0);
+    expect(lost(up)).toBeCloseTo(lost(target) * v.sideArmMult);
+    expect(lost(back)).toBeCloseTo(lost(target) * v.sideArmMult);
+  });
+
+  it('Cornered Dragon: without Blaze it is a plain beam; a Flare Up resets its cooldown', () => {
     const { w, slot } = withMove('dragonRage', 'dragonRage.corneredDragon', 1);
-    const up = dummy(w, 0, -150);
-    const left = dummy(w, -150, 0);
+    const target = dummy(w, 150, 0);
+    const up = dummy(w, 0, -160);
+    run(w, DT);
+    expect(lost(target)).toBeGreaterThan(0);
+    expect(lost(up)).toBe(0);
     slot.cooldownLeft = 5;
-    run(w, DT); // builds the spatial hash
     emit(w, 'flareUp', 1);
-    expect(lost(up)).toBeGreaterThan(0);
-    expect(lost(left)).toBeGreaterThan(0);
     expect(slot.cooldownLeft).toBe(0);
   });
 });
