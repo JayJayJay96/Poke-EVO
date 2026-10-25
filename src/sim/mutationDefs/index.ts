@@ -39,3 +39,11 @@ import './ember';
 import './vineWhip';
 import './thunderShock';
 import './iceShard';
+// Mankey line (D56).
+import './karateChop';
+import './lowKick';
+import './vacuumWave';
+import './seismicToss';
+import './thrash';
+import './closeCombat';
+import './shadowPunch';

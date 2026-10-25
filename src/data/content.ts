@@ -26,7 +26,7 @@ export type FlagTag = 'Slicing' | 'Punch' | 'Bite' | 'Pulse' | 'Sound' | 'Wind' 
 export type MoveTag = PokemonType | FormTag | FlagTag;
 
 /** An evolution line, named after its first stage. */
-export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur' | 'pikachu' | 'lapras';
+export type PokemonId = 'charmander' | 'squirtle' | 'bulbasaur' | 'pikachu' | 'lapras' | 'mankey';
 export type EnemyId =
   | 'rattata'
   | 'pidgey'
@@ -65,11 +65,16 @@ export type AbilityId =
   | 'staticPlus'
   | 'lightningRod'
   | 'shellArmor'
+  // Mankey line (D56).
+  | 'angerPoint'
+  | 'defiant'
+  | 'vitalSpirit'
   // Evolved ability tiers (docs/moveset, D21): granted automatically at the line's middle stage.
   | 'shell.tidalGuard'
   | 'blaze.flareUp'
   | 'leech.bloom'
-  | 'static.discharge';
+  | 'static.discharge'
+  | 'angerPoint.thrash';
 
 /** One form of an evolution line. Later stages: bigger and stronger (D3 early-vs-late gamble). */
 export interface EvolutionStage {
@@ -149,6 +154,36 @@ export interface AbilityDef {
   readonly bulb?: BulbDef;
   /** Charge (Pikachu line): running fills it; full, a Charged shot or (Raichu) a Discharge. */
   readonly charge?: ChargeDef;
+  /** Anger Point (Mankey line, D56): the Rage meter; from Primeape, full Rage starts a Rampage. */
+  readonly rage?: RageDef;
+  /** Vital Spirit: the statuses enemies inflict on the player never land. */
+  readonly statusImmune?: boolean;
+}
+
+export interface RageDef {
+  readonly max: number;
+  readonly perHitTaken: number;
+  /** Per hit dealt by a Contact move, at most `maxContactPerCast` per cast. */
+  readonly perContactHit: number;
+  readonly maxContactPerCast: number;
+  /** Rage lost per second once `drainAfter` seconds pass with no hit dealt or taken. */
+  readonly drainPerSec: number;
+  readonly drainAfter: number;
+  /** All cooldowns run up to this much faster at full Rage (scales with the meter). */
+  readonly maxCooldownCut: number;
+  readonly rampage?: RampageDef;
+}
+
+export interface RampageDef {
+  readonly seconds: number;
+  readonly damagePct: number;
+  readonly moveSpeedPct: number;
+  /** When it ends: Rage empties and the player is Confused this long. */
+  readonly confuseSeconds: number;
+  /** Defiant: hits taken fill Rage this much faster. */
+  readonly hitRageMult?: number;
+  /** Vital Spirit: each Rampage heals this fraction of max HP. */
+  readonly healMaxHpFraction?: number;
 }
 
 export interface ShellDef {
@@ -416,6 +451,54 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
     ],
   },
   // P4d (D13): non-evolver. Strongest from minute 1, no stat growth; the signature tiers up by level (D17).
+  // D56 (docs/moveset/mankey): rage brawler, Fighting → Fighting/Ghost. Numbers provisional.
+  mankey: {
+    id: 'mankey',
+    role: 'Rage brawler: melee that grows stronger the longer it stays in the fight',
+    stages: [
+      {
+        name: 'Mankey',
+        level: 1,
+        types: ['Fighting'],
+        maxHp: 105,
+        speed: 155,
+        radius: 12,
+        damageMult: 1,
+        signatureMove: 'karateChop',
+      },
+      {
+        name: 'Primeape',
+        ability: 'angerPoint.thrash',
+        level: 10,
+        types: ['Fighting'],
+        maxHp: 150,
+        speed: 168,
+        radius: 15,
+        damageMult: 1.15,
+        signatureMove: 'crossChop',
+      },
+      {
+        name: 'Annihilape',
+        level: 25,
+        types: ['Fighting', 'Ghost'],
+        maxHp: 210,
+        speed: 165,
+        radius: 19,
+        damageMult: 1.35,
+        signatureMove: 'rageFist',
+        abilityChoices: ['defiant', 'vitalSpirit'],
+      },
+    ],
+    ability: 'angerPoint',
+    learnset: [
+      { move: 'lowKick', fromStage: 0 },
+      { move: 'vacuumWave', fromStage: 0 },
+      { move: 'seismicToss', fromStage: 0 },
+      { move: 'thrash', fromStage: 0 },
+      { move: 'closeCombat', fromStage: 1 },
+      { move: 'shadowPunch', fromStage: 2 },
+    ],
+  },
   lapras: {
     id: 'lapras',
     role: 'Early bulldozer: strong and tough from the start, no evolution',
@@ -468,6 +551,17 @@ const BULB: BulbDef = {
 const CHARGE: ChargeDef = { pxPerCharge: 20, perParalysis: 15, max: 100, chargedShotMult: 2 };
 const DISCHARGE = { radius: 150, signatureHitMult: 3, paralyseSeconds: 0.4 } as const;
 const RAICHU_CHARGE: ChargeDef = { pxPerCharge: 20, perParalysis: 15, max: 100, discharge: DISCHARGE };
+
+const RAGE: RageDef = {
+  max: 100,
+  perHitTaken: 6,
+  perContactHit: 1,
+  maxContactPerCast: 5,
+  drainPerSec: 5,
+  drainAfter: 3,
+  maxCooldownCut: 0.2,
+};
+const RAMPAGE: RampageDef = { seconds: 5, damagePct: 0.3, moveSpeedPct: 0.15, confuseSeconds: 1 };
 
 export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
   blaze: {
@@ -590,6 +684,32 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
     charge: { ...RAICHU_CHARGE, discharge: { ...DISCHARGE, radius: DISCHARGE.radius * 1.4 } },
   },
   shellArmor: { id: 'shellArmor', name: 'Shell Armor', description: 'Take 15% less damage', damageTakenPct: -0.15 },
+  // Mankey line (D56, docs/moveset/mankey). Numbers provisional.
+  angerPoint: {
+    id: 'angerPoint',
+    name: 'Anger Point',
+    description: 'Hits taken and Contact hits fill Rage; Rage speeds every cooldown up to 20%',
+    rage: RAGE,
+  },
+  'angerPoint.thrash': {
+    id: 'angerPoint.thrash',
+    name: 'Anger Point — Thrash',
+    description: 'Anger Point; full Rage starts a 5 s Rampage (+30% damage, +15% speed), then 1 s Confused',
+    rage: { ...RAGE, rampage: RAMPAGE },
+  },
+  defiant: {
+    id: 'defiant',
+    name: 'Defiant',
+    description: 'Anger Point + Rampage; Rampage +50% damage, hits taken fill Rage 50% faster',
+    rage: { ...RAGE, rampage: { ...RAMPAGE, damagePct: 0.5, hitRageMult: 1.5 } },
+  },
+  vitalSpirit: {
+    id: 'vitalSpirit',
+    name: 'Vital Spirit',
+    description: 'Anger Point + Rampage; immune to enemy statuses, each Rampage heals 10% max HP',
+    rage: { ...RAGE, rampage: { ...RAMPAGE, healMaxHpFraction: 0.1 } },
+    statusImmune: true,
+  },
 };
 
 export const ENEMIES: Readonly<Record<EnemyId, EnemyDef>> = {

@@ -1532,6 +1532,19 @@ export class RunScene extends Phaser.Scene {
     g.fillStyle(COLORS.hpFill, 1);
     g.fillRect(player.x - barW / 2, barY, (barW * player.hp) / player.maxHp, 5);
 
+    // Rage (Mankey line, D56): a bar under the HP bar; a red aura during a Rampage.
+    const rage = ABILITIES[player.ability].rage;
+    if (rage) {
+      g.fillStyle(COLORS.hpBack, 1);
+      g.fillRect(player.x - barW / 2, barY + 6, barW, 3);
+      g.fillStyle(TYPE_COLORS.Fighting, player.rampageLeft > 0 ? 1 : 0.8);
+      g.fillRect(player.x - barW / 2, barY + 6, (barW * player.rage) / rage.max, 3);
+      if (player.rampageLeft > 0) {
+        g.lineStyle(3, TYPE_COLORS.Fighting, 0.5 + 0.3 * Math.sin(this.world.time * 20));
+        g.strokeCircle(player.x, player.y, player.radius + 6);
+      }
+    }
+
     this.drawEvolutionFx();
     this.drawHud();
   }

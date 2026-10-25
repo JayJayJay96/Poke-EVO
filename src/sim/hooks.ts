@@ -21,7 +21,9 @@ export type HookEvent =
   | 'chainJump'
   | 'discharge'
   | 'levelUp'
-  | 'armorAbsorb';
+  | 'armorAbsorb'
+  | 'rampage'
+  | 'rampageEnd';
 
 export interface MutationHooks {
   /** Permanent stat changes (costs, multipliers), applied whenever stats refresh. */
@@ -63,6 +65,8 @@ export interface MutationHooks {
   forceCrit?(world: World, slot: MoveSlot, enemy: Enemy): boolean;
   /** Player move-speed factor while this Mutation is owned. */
   moveSpeedMult?(world: World, slot: MoveSlot): number;
+  /** Rage drains this many times as fast out of combat (Rage Release). */
+  rageDrainMult?(world: World, slot: MoveSlot): number;
   /** Player damage-taken factor while this Mutation is owned. */
   damageTakenMult?(world: World, slot: MoveSlot): number;
 }

@@ -149,7 +149,7 @@ export function computeMoveStats(
     zoneDamageMult: 1 + zoneDamagePct,
     missingHpBonus,
     pierce,
-    homing,
+    homing: homing || (def.form === 'projectile' && def.homing === true),
     returns,
     burnPct,
     lifesteal,
@@ -195,6 +195,7 @@ export function createSlot(moveId: MoveId): MoveSlot {
     baseStats: { ...stats },
     volatileMult: 1,
     focusReady: false,
+    rageGain: 0,
     damageDealt: 0,
   };
 }

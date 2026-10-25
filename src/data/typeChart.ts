@@ -44,6 +44,21 @@ export const TYPE_CHART: Chart = {
   Dragon: { Dragon: SUPER, Steel: NOT_VERY },
   Dark: { Dark: NOT_VERY, Ghost: SUPER, Psychic: SUPER, Fighting: NOT_VERY },
   Steel: { Fire: NOT_VERY, Water: NOT_VERY, Electric: NOT_VERY, Ice: SUPER, Steel: NOT_VERY, Rock: SUPER },
+  // Player attack rows for the Mankey and Abra lines (D56).
+  Fighting: {
+    Normal: SUPER,
+    Ice: SUPER,
+    Rock: SUPER,
+    Dark: SUPER,
+    Steel: SUPER,
+    Poison: NOT_VERY,
+    Flying: NOT_VERY,
+    Psychic: NOT_VERY,
+    Bug: NOT_VERY,
+    Ghost: IMMUNE,
+  },
+  Ghost: { Ghost: SUPER, Psychic: SUPER, Dark: NOT_VERY, Normal: IMMUNE },
+  Psychic: { Fighting: SUPER, Poison: SUPER, Psychic: NOT_VERY, Steel: NOT_VERY, Dark: IMMUNE },
 };
 
 const POKEMON_TYPES: ReadonlySet<string> = new Set<PokemonType>([

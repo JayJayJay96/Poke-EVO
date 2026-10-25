@@ -1,3 +1,4 @@
+import { ABILITIES } from '../data/content';
 import { PLAYER_STATUS, type PlayerStatusId } from '../data/playerStatus';
 import { currentStage } from './stats';
 import { powderMult, statusMult } from './statusResist';
@@ -19,6 +20,8 @@ export interface ApplyOptions {
 /** Lands a status on the player, resisted by their stage's types; nothing while that status is fatigued. */
 export function applyPlayerStatus(world: World, id: PlayerStatusId, opts: ApplyOptions = {}): boolean {
   const s = world.playerStatus;
+  // Vital Spirit (D56): statuses never land.
+  if (ABILITIES[world.player.ability].statusImmune) return false;
   if (s.fatigue[id] > 0) return false;
   const types = currentStage(world).types;
   const mult = statusMult(types, id) * (opts.powder ? powderMult(types) : 1);

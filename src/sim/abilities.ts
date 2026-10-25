@@ -2,6 +2,7 @@ import { ABILITIES, type AbilityDef } from '../data/content';
 import { applyBurn, applyNewStun, applySlow, damageEnemy, procHit, queryEnemies, soak } from './combat';
 import { BLAST_SECONDS } from './forms/projectile';
 import { bulbCapacity, chargeHeld, emit, healPlayer } from './hooks';
+import { updateRage } from './rage';
 import { spawnScorch } from './terrain';
 import type { HitInfo, World } from './types';
 
@@ -162,4 +163,5 @@ export function updateAbilities(world: World, dt: number): void {
   const def = ability(world);
   if (def.bulb && p.bloomCooldownLeft <= 0 && p.bulb > 0 && p.bulb >= bulbCapacity(world)) bloom(world);
   if (def.charge?.discharge && p.charge >= def.charge.max && !chargeHeld(world)) discharge(world);
+  updateRage(world, dt);
 }

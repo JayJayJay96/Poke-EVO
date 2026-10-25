@@ -26,6 +26,7 @@ import { castOrbit, updateOrbit } from './forms/orbit';
 import { castProjectile, updateProjectiles } from './forms/projectile';
 import { castZone } from './forms/zoneCast';
 import { emit, healPlayer, hooksOf, mutationDamageTakenMult, mutationMoveSpeedMult } from './hooks';
+import { applySelfVuln, onRageHitTaken, playerVulnMult, rageCooldownRate, rampageSpeedMult } from './rage';
 import './mutationDefs';
 import { attackContactMult, attackVelocity, updateEnemyAttacks, webSlow } from './enemyAttacks';
 import { eliteAbility, eliteContactMult, nextSpawnAngle, spawnRateMult, updateHordes } from './hordes';
@@ -107,6 +108,11 @@ export function createWorld({
       bloomCooldownLeft: 0,
       emergencyCooldownLeft: 0,
       charge: 0,
+      rage: 0,
+      rageIdle: 0,
+      rampageLeft: 0,
+      vulnLeft: 0,
+      vulnPct: 0,
     },
     enemies: [],
     projectiles: [],
@@ -408,7 +414,7 @@ function movePlayer(world: World, input: InputState, dt: number): void {
   // Snorlax's Yawn cloud slows the player (D28, B2).
   // Slows don't stack: the strongest of a boss's (Yawn) and the player's statuses (D36) wins.
   const slow = Math.max(world.arena?.playerSlow ?? 0, playerStatusSlow(world), webSlow(world));
-  const speed = p.speed * mutationMoveSpeedMult(world) * boonMoveSpeedMult(world) * (1 - slow);
+  const speed = p.speed * mutationMoveSpeedMult(world) * boonMoveSpeedMult(world) * rampageSpeedMult(world) * (1 - slow);
   p.vx = mx * speed;
   p.vy = my * speed;
   p.x += p.vx * dt;
@@ -583,7 +589,7 @@ function updateMoves(world: World, dt: number): void {
   // Pressure (Zapdos, Articuno): your cooldowns run slower while the fight is on.
   const fight = world.arena?.engaged ? world.arena : null;
   const pressure = 1 + (fight?.zap ? ZAPDOS_KIT.pressure : fight?.artic ? ARTICUNO_KIT.pressure : 0);
-  const rate = cooldownRate(world);
+  const rate = cooldownRate(world) * rageCooldownRate(world);
   for (let i = 0; i < world.moves.length; i++) {
     const slot = world.moves[i]!;
     const def = MOVES[slot.moveId];
@@ -603,9 +609,14 @@ function updateMoves(world: World, dt: number): void {
           slot.cooldownLeft = comboCooldown(world);
           for (const j of fired) hooksOf(world.moves[j]!)?.onCast?.(world, world.moves[j]!);
         }
-      } else if (fire(world, slot)) {
-        slot.cooldownLeft = slot.stats.cooldown;
-        hooks?.onCast?.(world, slot);
+      } else {
+        const gain = slot.rageGain;
+        slot.rageGain = 0;
+        if (fire(world, slot)) {
+          slot.cooldownLeft = slot.stats.cooldown;
+          applySelfVuln(world, slot);
+          hooks?.onCast?.(world, slot);
+        } else slot.rageGain = gain;
       }
     }
     // Orbits and beams act from the step they are cast.
@@ -793,9 +804,10 @@ export function hitPlayer(world: World, damage: number, enemy: Enemy): boolean {
     damage *
     (enemy.weakenLeft > 0 ? enemy.weakenMult : 1) *
     (enemy.blindLeft > 0 ? TUNING.status.blindContactMult : 1);
-  const taken = contact * world.mods.damageTakenMult * mutationDamageTakenMult(world);
+  const taken = contact * world.mods.damageTakenMult * mutationDamageTakenMult(world) * playerVulnMult(world);
   const hpBefore = player.hp;
   player.hp = Math.max(0, player.hp - taken);
+  onRageHitTaken(world);
   player.calmFor = 0;
   onShellHitTaken(world);
   onLowHpHit(world, hpBefore);
@@ -820,7 +832,7 @@ export function hitPlayer(world: World, damage: number, enemy: Enemy): boolean {
 export function drainPlayer(world: World, amount: number): void {
   const { player } = world;
   if (amount <= 0 || player.hp <= 0) return;
-  player.hp = Math.max(0, player.hp - amount * world.mods.damageTakenMult * mutationDamageTakenMult(world));
+  player.hp = Math.max(0, player.hp - amount * world.mods.damageTakenMult * mutationDamageTakenMult(world) * playerVulnMult(world));
   player.calmFor = 0;
   if (player.hp <= 0 && !endureSaves(world)) {
     if (world.arena) world.arena.knockedOut = true;

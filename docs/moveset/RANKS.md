@@ -149,6 +149,27 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | `iceShard.hail` Hail (signature) | shards 70% (60%) | 80% | `wideBlast`, `keenEdge`, `quickCast` |
 | `iceShard.frostLance` Frost Lance (signature) | cooldown ×1.2 (1.4) | ×1.02; ★ slow 40% (30%) | `velocity`, `concentrated`, `keenEdge` |
 | `iceShard.song` Song of the Sea (signature) | move dmg ×1.15; sleep 1.2 s (1) | ×1.3; 1.4 s | `enlarge`, `quickCast`, `multishot` |
+| `karateChop.combo` Combo Chain (signature) | +7.5% per stack (6%) | +8.5%; ★ up to 6 stacks (5) | `quickCast`, `keenEdge`, `lifesteal` |
+| `karateChop.vacuum` Vacuum Chop (signature) | wave 60% (50%) | 70%; ★ wave runs 190 px (150) | `enlarge`, `powerUp`, `keenEdge` |
+| `karateChop.rageRelease` Rage Release (signature) | up to +46% (40%) | +52%; ★ drains ×1.5 (×2) | `glass`, `keenEdge`, `wideBlast` |
+| `lowKick.trip` Trip | dmg ×0.92 (0.8) | ×1.04; ★ down for 0.55 s (0.4) | `enlarge`, `quickCast`, `knockback` |
+| `lowKick.heavyHitter` Heavy Hitter | heavy ×2.3 (2) | ×2.6; ★ light ×0.6 (0.5) | `powerUp`, `keenEdge`, `concentrated` |
+| `lowKick.brawlersRhythm` Brawler's Rhythm | dmg ×1.0 (0.9) | ×1.1; ★ up to +60% radius (40%) | `enlarge`, `lifesteal`, `quickCast` |
+| `vacuumWave.auraWave` Aura Wave | dmg ×1.15 | ×1.3 | `velocity`, `multishot`, `extend` |
+| `vacuumWave.spread` Spread Wave | each ×0.52 (0.45) | ×0.58 | `pierce`, `extend`, `powerUp` |
+| `vacuumWave.shockfist` Shockfist | wave 70% (60%) | 80%; ★ every 0.6 s at most (0.8) | `pierce`, `velocity`, `powerUp` |
+| `seismicToss.submission` Submission | dmg ×0.98 (0.85) | ×1.1 | `enlarge`, `powerUp`, `quickCast` |
+| `seismicToss.levelToss` Level Toss | fixed 13 (10) | 16; ★ +1.2 per level (1) | `quickCast`, `enlarge`, `linger` |
+| `seismicToss.runningThrow` Running Throw | standing ×0.95 (0.85) | ×1.0; ★ ×1.45 wider (1.3) | `enlarge`, `powerUp`, `quickCast` |
+| `thrash.outrage` Outrage | Confused 0.7 s (1) | 0.4 s; ★ lasts ×2.2 (2) | `extend`, `enlarge`, `powerUp` |
+| `thrash.partingJabs` Parting Jabs | jabs 65% (50%) | 80%; ★ cooldown ×1.0 (1.1) | `extend`, `enlarge`, `quickCast` |
+| `thrash.berserkFlurry` Berserk Flurry | dmg ×1.15 | ×1.3; ★ triple fists (double) | `extend`, `enlarge`, `powerUp` |
+| `closeCombat.brickBreak` Brick Break | Elites and bosses ×1.45 (1.3) | ×1.6; ★ arc ×0.8 (0.67) | `powerUp`, `concentrated`, `keenEdge` |
+| `closeCombat.armThrust` Arm Thrust | hits 45% (40%) | 50%; ★ reach ×0.9 (0.8) | `keenEdge`, `lifesteal`, `knockback` |
+| `closeCombat.furyCombat` Fury Combat | +35% (25%) | +45%; ★ from 40 Rage (50) | `powerUp`, `glass`, `keenEdge` |
+| `shadowPunch.barrage` Shadow Barrage | each ×0.52 (0.45) | ×0.58 | `velocity`, `pierce`, `powerUp` |
+| `shadowPunch.grip` Phantom Grip | dmg ×0.98 (0.85) | ×1.1; ★ held 0.55 s (0.4) | `velocity`, `extend`, `multishot` |
+| `shadowPunch.phantomGrudge` Phantom Grudge | dmg ×1.15 | ×1.3; ★ 7 fists (5) | `multishot`, `velocity`, `powerUp` |
 
 ## Open points for the owner
 1. **Twist count:** 75 of 110 rank III entries carry a ★. Is that the right amount of "where natural"?

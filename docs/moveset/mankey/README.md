@@ -1,8 +1,8 @@
 # Mankey → Primeape → Annihilape — rage brawler
 
-**Status:** APPROVED design (owner, D56, 2026-10-25). **Not built.** All numbers *(provisional)*; once built,
-`src/data/` is the truth. IDs below go into [`../INDEX.md`](../INDEX.md) when the line is built (a unit test keeps
-INDEX.md and the code in sync, so rows can't be added before the code).
+**Status:** APPROVED design (owner, D56, 2026-10-25). **Built 2026-10-25** (`src/data/`, `src/sim/rage.ts`,
+`src/sim/mutationDefs/{karateChop,lowKick,vacuumWave,seismicToss,thrash,closeCombat,shadowPunch}.ts`); IDs are in
+[`../INDEX.md`](../INDEX.md). All numbers *(provisional)*; `src/data/` is the truth. See **Build notes** at the end.
 
 Checked against the Mutation rules 1–19 and the kit review checklist in [`../README.md`](../README.md).
 
@@ -99,7 +99,7 @@ Shadow Punch ──┬─ Shadow Barrage    (generic) 3 fists
 | **Spread Wave** `vacuumWave.spread` | 3 waves in a 40° fan. | Each ×0.45 |
 | **Submission** `seismicToss.submission` | The thrown enemy lands on the densest cluster within 200 px. | Damage ×0.85 |
 | **Level Toss** `seismicToss.levelToss` | Fixed damage = 10 + 1 per level; ignores types and damage augments (as in the games). | Falls behind a built-up toss late |
-| **Outrage** `thrash.outrage` | Lasts ×2 (6 s). | You are Confused 1 s when it ends |
+| **Outrage** `thrash.outrage` | Lasts ×2 (6 s). | Cooldown ×1.5; you are Confused 1 s when it ends |
 | **Parting Jabs** `thrash.partingJabs` | At the end the fists fly outward 150 px (50%). | Cooldown ×1.1 |
 | **Brick Break** `closeCombat.brickBreak` | Breaks shields and armour (Articuno, Machamp rock…) and deals ×1.3 to Elites and bosses. | Arc 150° → 100° |
 | **Arm Thrust** `closeCombat.armThrust` | 3 quick hits at 40% each (better crits and on-hits). | Reach −20% |
@@ -139,3 +139,13 @@ Single target: Heavy Hitter, Brick Break, Close Combat, Rage Fist.
 - The **Rage** meter and **Rampage** state (like Charge on Pikachu), shown on the HUD.
 - Hooks `rageLevel`, `rampage`, `rampageEnd` (INDEX.md hook vocabulary and `HOOK_IDS`).
 - Moves above in `src/data/moves.ts`; the line in `src/data/content.ts`; Fighting/Ghost player moves (types already exist as defenders).
+
+## Build notes (2026-10-25)
+Where the build differs from the text above, and why:
+- **Rampage's Confusion** uses the existing player `confusion` status (your moves aim at random enemies for 1 s), not a speed cut.
+- **Seismic Toss** is an instant 60 px slam on the nearest enemy; the lift is not animated yet, and the weight rule doesn't change it.
+- **Brick Break** deals ×1.3 to Elites and bosses; it doesn't break boss shields or armour (no shared hook for that yet).
+- **Outrage** also multiplies Thrash's cooldown ×1.5. Without it the 6 s flail outlasted the 5 s cooldown, recast forever and never Confused you.
+- **Combo Chain's** full-combo shockwave is centred on you (90 px).
+- **Type chart:** Fighting, Ghost and Psychic attack rows were added (real chart, immunities ×0.5). Fighting hits Normal enemies ×2.
+- **Rage Fist** carries every earlier tier's tags (Melee, Slicing, Area) plus Ghost, Projectile and Punch; its attack type stays Fighting.

@@ -2006,6 +2006,9 @@ describe('move speeds follow official base Speed (D20)', () => {
     Pikachu: 90,
     Raichu: 110,
     Lapras: 60,
+    Mankey: 70,
+    Primeape: 95,
+    Annihilape: 90,
   };
 
   it('every stage of every line', () => {

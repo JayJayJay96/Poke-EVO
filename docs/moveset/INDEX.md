@@ -75,6 +75,9 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 | `levelBelow` | state | player level below the Bond's threshold (Lapras: `tideLevel` = 30) |
 | `xpGem` | state | XP gems on the ground (positions) |
 | `armorAbsorb` | event | damage Shell Armor just prevented (amount) |
+| `rageLevel` | gradient | Mankey Rage 0..max (Bonds read their threshold from data) |
+| `rampage` | event | Primeape+ Rampage started |
+| `rampageEnd` | event | a Rampage ended |
 
 | RequirementId | Met when |
 |---|---|
@@ -193,6 +196,27 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 | `iceShard.hail` | Hail | signature | iceShard → sheerCold (Lv 25) | lapras | 0 | — | site | [lapras/](lapras/README.md) |
 | `iceShard.frostLance` | Frost Lance | signature | iceShard → sheerCold (Lv 25) | lapras | 0 | — | site | [lapras/](lapras/README.md) |
 | `iceShard.song` | Song of the Sea | signature | iceShard → sheerCold (Lv 25) | lapras | 0 | — | site | [lapras/](lapras/README.md) |
+| `karateChop.combo` | Combo Chain | signature | karateChop → crossChop → rageFist | mankey | 0 | — | site | [mankey/](mankey/README.md) |
+| `karateChop.vacuum` | Vacuum Chop | signature | karateChop → crossChop → rageFist | mankey | 0 | — | site | [mankey/](mankey/README.md) |
+| `karateChop.rageRelease` | Rage Release | signature | karateChop → crossChop → rageFist | mankey | 0 | `rageLevel` | site | [mankey/](mankey/README.md) |
+| `lowKick.trip` | Trip | generic | lowKick | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `lowKick.heavyHitter` | Heavy Hitter | generic | lowKick | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `lowKick.brawlersRhythm` | Brawler's Rhythm | bond | lowKick | mankey | 0 | `kill` | site | [mankey/](mankey/README.md) |
+| `vacuumWave.auraWave` | Aura Wave | generic | vacuumWave | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `vacuumWave.spread` | Spread Wave | generic | vacuumWave | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `vacuumWave.shockfist` | Shockfist | bond | vacuumWave | mankey | 0 | `hitTaken` | site | [mankey/](mankey/README.md) |
+| `seismicToss.submission` | Submission | generic | seismicToss | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `seismicToss.levelToss` | Level Toss | generic | seismicToss | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `seismicToss.runningThrow` | Running Throw | bond | seismicToss | mankey | 0 | `moving` | site | [mankey/](mankey/README.md) |
+| `thrash.outrage` | Outrage | generic | thrash | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `thrash.partingJabs` | Parting Jabs | generic | thrash | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `thrash.berserkFlurry` | Berserk Flurry | bond | thrash | mankey | 1 | `rampage` | site | [mankey/](mankey/README.md) |
+| `closeCombat.brickBreak` | Brick Break | generic | closeCombat | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `closeCombat.armThrust` | Arm Thrust | generic | closeCombat | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `closeCombat.furyCombat` | Fury Combat | bond | closeCombat | mankey | 1 | `rageLevel` | site | [mankey/](mankey/README.md) |
+| `shadowPunch.barrage` | Shadow Barrage | generic | shadowPunch | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `shadowPunch.grip` | Phantom Grip | generic | shadowPunch | any | 0 | — | site | [mankey/](mankey/README.md) |
+| `shadowPunch.phantomGrudge` | Phantom Grudge | bond | shadowPunch | mankey | 2 | `rampageEnd` | site | [mankey/](mankey/README.md) |
 
 Smokescreen, Slash and Wing Attack are proposed new moves (not in `src/data/moves.ts` yet).
 **Prerequisites:** a Hook cell marked **needs …** means the Bond is only offered when the build already has that source.
@@ -221,6 +245,10 @@ itself must be owned first, and it only unlocks at stage 2.
 | `staticPlus` | Static+ | ability | pikachu | 1 | final trait pick |
 | `lightningRod` | Lightning Rod | ability | pikachu | 1 | final trait pick |
 | `shellArmor` | Shell Armor | ability | lapras | 0 | start (no upgrade, no trait) |
+| `angerPoint` | Anger Point | ability | mankey | 0 | start |
+| `angerPoint.thrash` | Anger Point — Thrash | ability | mankey | 1 | evolution (automatic) |
+| `defiant` | Defiant | ability | mankey | 2 | final trait pick |
+| `vitalSpirit` | Vital Spirit | ability | mankey | 2 | final trait pick |
 
 ## Counts
 | Line | Generic (its moves) | Bond | Signature | Ability tiers |
@@ -230,3 +258,4 @@ itself must be owned first, and it only unlocks at stage 2.
 | bulbasaur | 16 | 8 | 3 | 4 |
 | pikachu | 12 | 6 | 3 | 4 |
 | lapras | 4 (+4 shared from Surf / Hydro Pump) | 4 | 3 | 1 |
+| mankey | 12 | 6 | 3 | 4 |

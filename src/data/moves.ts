@@ -54,7 +54,17 @@ export type MoveId =
   | 'bodySlam'
   // Shared / other lines
   | 'tackle'
-  | 'iceBeam';
+  | 'iceBeam'
+  // Mankey line (D56)
+  | 'karateChop'
+  | 'crossChop'
+  | 'rageFist'
+  | 'lowKick'
+  | 'vacuumWave'
+  | 'seismicToss'
+  | 'thrash'
+  | 'closeCombat'
+  | 'shadowPunch';
 
 /** Splash around the impact point. */
 export interface ExplosionDef {
@@ -105,6 +115,8 @@ interface MoveDefBase {
   /** Innate crit chance, added to the Crit augment (Slash). */
   readonly critChance?: number;
   readonly onHit?: InnateEffects;
+  /** Rage Fist (D56): +this damage per point of Rage. */
+  readonly ragePowerPerPoint?: number;
 }
 
 /** Lightning that jumps from the first enemy hit to nearby ones (Pikachu, D13: ≤ 3 jumps). */
@@ -129,6 +141,8 @@ export interface ProjectileMoveDef extends MoveDefBase {
   readonly chain?: ChainDef;
   /** Innate pierce (adds to the Pierce augment), e.g. Flash Cannon. */
   readonly pierce?: number;
+  /** Shadow Punch (D56): homes like the Homing augment. */
+  readonly homing?: boolean;
 }
 
 /** Drops a lingering zone on the nearest enemy (Poison Powder, Sleep Powder…). */
@@ -180,6 +194,10 @@ export interface MeleeMoveDef extends MoveDefBase {
    * nearest enemy (Wing Attack's two wing beats). Cast while an enemy is within reach.
    */
   readonly sides?: readonly number[];
+  /** Low Kick (D56): damage scales with the target's weight, ×minMult (0 kg) … ×maxMult (at maxKg or more). */
+  readonly weightScaling?: { readonly minMult: number; readonly maxMult: number; readonly maxKg: number };
+  /** Close Combat (D56): after a cast the player takes +pct damage for `seconds`. */
+  readonly selfVuln?: { readonly seconds: number; readonly pct: number };
 }
 
 /** Balls circling the player for a while after each cast. */
@@ -853,5 +871,133 @@ export const MOVES: Readonly<Record<MoveId, MoveDef>> = {
     arcDegrees: 100,
     sides: [90, -90],
     onHit: { knockback: 20 },
+  },
+  // Mankey line (D56, docs/moveset/mankey). Numbers provisional.
+  karateChop: {
+    id: 'karateChop',
+    name: 'Karate Chop',
+    description: 'A fast chop in front; often crits',
+    tags: ['Fighting', 'Melee', 'Slicing'],
+    form: 'melee',
+    cooldown: 0.8,
+    damage: 13,
+    reach: 60,
+    arcDegrees: 120,
+    critChance: 0.2,
+  },
+  crossChop: {
+    id: 'crossChop',
+    name: 'Cross Chop',
+    description: 'A crossing chop whose edge bursts into a shockwave',
+    tags: ['Fighting', 'Melee', 'Slicing', 'Area'],
+    form: 'melee',
+    cooldown: 1.0,
+    damage: 17,
+    reach: 70,
+    arcDegrees: 120,
+    critChance: 0.2,
+    tipBurst: { radius: 50, damageFraction: 0.6 },
+  },
+  rageFist: {
+    id: 'rageFist',
+    name: 'Rage Fist',
+    description: 'A phantom fist that explodes; stronger the angrier you are',
+    tags: ['Fighting', 'Melee', 'Slicing', 'Area', 'Ghost', 'Projectile', 'Punch'],
+    form: 'projectile',
+    cooldown: 1.1,
+    damage: 22,
+    range: 300,
+    projectileSpeed: 420,
+    projectileRadius: 9,
+    projectileLifetime: 0.8,
+    count: 1,
+    explosion: { radius: 60, damageFraction: 0.7 },
+    critChance: 0.2,
+    ragePowerPerPoint: 0.004,
+  },
+  lowKick: {
+    id: 'lowKick',
+    name: 'Low Kick',
+    description: 'A 360° sweep; heavier enemies take more',
+    tags: ['Fighting', 'Melee', 'Contact'],
+    form: 'melee',
+    cooldown: 1.6,
+    damage: 12,
+    reach: 55,
+    arcDegrees: 360,
+    onHit: { knockback: 15 },
+    weightScaling: { minMult: 0.8, maxMult: 1.5, maxKg: 100 },
+  },
+  vacuumWave: {
+    id: 'vacuumWave',
+    name: 'Vacuum Wave',
+    description: 'A fast, short wave of air that pierces',
+    tags: ['Fighting', 'Projectile'],
+    form: 'projectile',
+    cooldown: 1.2,
+    damage: 9,
+    range: 220,
+    projectileSpeed: 600,
+    projectileRadius: 7,
+    projectileLifetime: 0.4,
+    count: 1,
+    pierce: 3,
+  },
+  seismicToss: {
+    id: 'seismicToss',
+    name: 'Seismic Toss',
+    description: 'Slams down onto the nearest enemy',
+    tags: ['Fighting', 'Zone'],
+    form: 'zone',
+    cooldown: 4,
+    damage: 20,
+    range: 250,
+    radius: 60,
+    duration: 0,
+    tickInterval: 0,
+    instant: true,
+  },
+  thrash: {
+    id: 'thrash',
+    name: 'Thrash',
+    description: 'Flailing fists whirl around you',
+    tags: ['Normal', 'Orbit', 'Contact'],
+    form: 'orbit',
+    cooldown: 5,
+    damage: 9,
+    count: 3,
+    orbitRadius: 60,
+    ballRadius: 10,
+    angularSpeed: 5,
+    duration: 3,
+    hitInterval: 0.4,
+    onHit: { knockback: 10 },
+  },
+  closeCombat: {
+    id: 'closeCombat',
+    name: 'Close Combat',
+    description: 'A heavy flurry; your guard drops for a moment after',
+    tags: ['Fighting', 'Melee', 'Contact', 'Punch'],
+    form: 'melee',
+    cooldown: 2.5,
+    damage: 30,
+    reach: 75,
+    arcDegrees: 150,
+    selfVuln: { seconds: 2, pct: 0.15 },
+  },
+  shadowPunch: {
+    id: 'shadowPunch',
+    name: 'Shadow Punch',
+    description: 'A homing shadow fist that never misses',
+    tags: ['Ghost', 'Projectile', 'Punch'],
+    form: 'projectile',
+    cooldown: 1.4,
+    damage: 18,
+    range: 340,
+    projectileSpeed: 380,
+    projectileRadius: 8,
+    projectileLifetime: 1.4,
+    count: 1,
+    homing: true,
   },
 };

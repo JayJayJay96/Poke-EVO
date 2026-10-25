@@ -1,12 +1,14 @@
 import { ARTICUNO_KIT, MACHAMP_KIT, SNORLAX_KIT, ZAPDOS_KIT } from '../data/arena';
 import { ABILITIES, ENEMIES, TUNING, type PokemonType } from '../data/content';
 import { ABILITY_TUNING, ELITE, ELITE_ABILITY } from '../data/hordes';
+import { MOVES } from '../data/moves';
 import { MUTATION_TUNING } from '../data/mutations';
 import { TECHNIQUE_TUNING } from '../data/techniques';
 import { effectiveness } from '../data/typeChart';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
 import { blazeFaked, emit, healPlayer, hooksOf, mutationLeechBonus } from './hooks';
 import { applyPlayerStatus } from './playerStatus';
+import { onRageHitDealt, ragePowerMult, rampageDamageMult } from './rage';
 import { statusMult, type StatusId } from './statusResist';
 import { boonDamageMult, gluttonyMult, onBoonKill, sheerColdExecutes } from './boons';
 import { onTechniqueHit, onTechniqueKill, techniqueDamageMult } from './techniques';
@@ -236,6 +238,8 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   const amount =
     (crit ? damage * critMult : damage) *
     abilityDamageMult(world) *
+    rampageDamageMult(world) *
+    (slot ? ragePowerMult(world, slot) * weightMult(slot, enemy) : 1) *
     techniqueDamageMult(world, enemy, slot) *
     boonDamageMult(world) *
     (1 + missing) *
@@ -261,6 +265,7 @@ export function damageEnemy(world: World, enemy: Enemy, damage: number, hit: Rea
   if (sleeping) sleeping.wake += dealt;
   world.damageDealt += dealt;
   if (hit.slot) hit.slot.damageDealt += dealt;
+  if (slot) onRageHitDealt(world, slot);
   // Zapdos's Discharge channel: enough damage interrupts it.
   if (zap?.discharge?.phase === 'channel') zap.discharge.taken += dealt;
   // Machamp: damage during Bulk Up or the Focus Punch channel fills its interrupt meter.
@@ -408,6 +413,14 @@ export function pickWanderPoint(world: World, enemy: Enemy): void {
 }
 
 /** Traps, slips and drags only work on light, non-boss enemies. */
+/** Low Kick (D56): the move's weight scaling for this target (×1 for moves without one). */
+export function weightMult(slot: MoveSlot, enemy: Enemy): number {
+  const def = MOVES[slot.moveId];
+  const w = def.form === 'melee' ? def.weightScaling : undefined;
+  if (!w) return 1;
+  return w.minMult + (w.maxMult - w.minMult) * Math.min(1, ENEMIES[enemy.kind].weightKg / w.maxKg);
+}
+
 export function canTrap(enemy: Enemy): boolean {
   const def = ENEMIES[enemy.kind];
   return !def.boss && def.weightKg < MUTATION_TUNING.trapMaxWeightKg;

@@ -43,6 +43,10 @@ export const HOOK_IDS = [
   'levelBelow',
   'xpGem',
   'armorAbsorb',
+  // Mankey line (D56).
+  'rageLevel',
+  'rampage',
+  'rampageEnd',
 ] as const;
 export type HookId = (typeof HOOK_IDS)[number];
 
@@ -1411,6 +1415,214 @@ export const MUTATIONS = {
     ranks: [{ damageMult: 1.15, sleepSeconds: 1.2 }, { damageMult: 1.3, sleepSeconds: 1.4 }],
     rankText: ['move dmg ×1.15; sleep 1.2 s (1)', '×1.3; 1.4 s'],
     favoured: ['enlarge', 'quickCast', 'multishot'],
+  },
+
+  // ── Mankey line (D56, docs/moveset/mankey) ─────────────────────────────
+  'karateChop.combo': {
+    ...signature('karateChop', 'mankey', undefined, 'Combo Chain', 'Quick hits stack damage; full combos burst', {
+      stackWindow: 1.5,
+      stackPct: 0.06,
+      maxStacks: 5,
+      damageMult: 0.85,
+      tier1: { shockRadius: 90, shockFraction: 0.5 },
+      tier2: { extraFists: 1 },
+    }),
+    ranks: [{ stackPct: 0.075 }, { stackPct: 0.085, maxStacks: 6 }],
+    rankText: ['+7.5% per stack (6%)', '+8.5%; ★ up to 6 stacks (5)'],
+    favoured: ['quickCast', 'keenEdge', 'lifesteal'],
+  },
+  'karateChop.vacuum': {
+    ...signature('karateChop', 'mankey', undefined, 'Vacuum Chop', 'Chops send a slicing wave forward', {
+      waveLength: 150,
+      waveWidth: 30,
+      waveFraction: 0.5,
+      damageMult: 0.8,
+      tier1: { xWaveDeg: 30 },
+      tier2: { trailSeconds: 1.5, trailTick: 0.5, trailFraction: 0.2 },
+    }),
+    ranks: [{ waveFraction: 0.6 }, { waveFraction: 0.7, waveLength: 190 }],
+    rankText: ['wave 60% (50%)', '70%; ★ wave runs 190 px (150)'],
+    favoured: ['enlarge', 'powerUp', 'keenEdge'],
+  },
+  'karateChop.rageRelease': {
+    ...signature('karateChop', 'mankey', 'rageLevel', 'Rage Release', 'Up to +40% damage with Rage', {
+      perRage: 0.004,
+      drainMult: 2,
+      tier1: { fullRageCrit: true },
+      tier2: { maxBlastMult: 1.5 },
+    }),
+    ranks: [{ perRage: 0.0046 }, { perRage: 0.0052, drainMult: 1.5 }],
+    rankText: ['up to +46% (40%)', '+52%; ★ drains ×1.5 (×2)'],
+    favoured: ['glass', 'keenEdge', 'wideBlast'],
+  },
+  'lowKick.trip': {
+    ...generic('lowKick', 'Trip', 'Light enemies fall down', {
+      tripSeconds: 0.4,
+      damageMult: 0.8,
+    }),
+    ranks: [{ damageMult: 0.92 }, { damageMult: 1.04, tripSeconds: 0.55 }],
+    rankText: ['dmg ×0.92 (0.8)', '×1.04; ★ down for 0.55 s (0.4)'],
+    favoured: ['enlarge', 'quickCast', 'knockback'],
+  },
+  'lowKick.heavyHitter': {
+    ...generic('lowKick', 'Heavy Hitter', 'Heavier targets take far more', {
+      lightMult: 0.5,
+      heavyMult: 2,
+    }),
+    ranks: [{ heavyMult: 2.3 }, { heavyMult: 2.6, lightMult: 0.6 }],
+    rankText: ['heavy ×2.3 (2)', '×2.6; ★ light ×0.6 (0.5)'],
+    favoured: ['powerUp', 'keenEdge', 'concentrated'],
+  },
+  'lowKick.brawlersRhythm': {
+    ...bond('lowKick', 'mankey', 0, 'kill', "Brawler's Rhythm", 'Kills widen your next kick', {
+      radiusPerKill: 0.1,
+      maxBonus: 0.4,
+      damageMult: 0.9,
+    }),
+    ranks: [{ damageMult: 1 }, { damageMult: 1.1, maxBonus: 0.6 }],
+    rankText: ['dmg ×1.0 (0.9)', '×1.1; ★ up to +60% radius (40%)'],
+    favoured: ['enlarge', 'lifesteal', 'quickCast'],
+  },
+  'vacuumWave.auraWave': {
+    ...generic('vacuumWave', 'Aura Wave', 'Waves home in', {
+      pierceLoss: 2,
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.15 }, { damageMult: 1.3 }],
+    rankText: ['dmg ×1.15', '×1.3'],
+    favoured: ['velocity', 'multishot', 'extend'],
+  },
+  'vacuumWave.spread': {
+    ...generic('vacuumWave', 'Spread Wave', 'Three waves in a fan', {
+      waves: 3,
+      damageMult: 0.45,
+    }),
+    ranks: [{ damageMult: 0.52 }, { damageMult: 0.58 }],
+    rankText: ['each ×0.52 (0.45)', '×0.58'],
+    favoured: ['pierce', 'extend', 'powerUp'],
+  },
+  'vacuumWave.shockfist': {
+    ...bond('vacuumWave', 'mankey', 0, 'hitTaken', 'Shockfist', 'Getting hit fires a wave back', {
+      fraction: 0.6,
+      minInterval: 0.8,
+    }),
+    ranks: [{ fraction: 0.7 }, { fraction: 0.8, minInterval: 0.6 }],
+    rankText: ['wave 70% (60%)', '80%; ★ every 0.6 s at most (0.8)'],
+    favoured: ['pierce', 'velocity', 'powerUp'],
+  },
+  'seismicToss.submission': {
+    ...generic('seismicToss', 'Submission', 'Slams onto the densest crowd', {
+      searchRange: 200,
+      damageMult: 0.85,
+    }),
+    ranks: [{ damageMult: 0.98 }, { damageMult: 1.1 }],
+    rankText: ['dmg ×0.98 (0.85)', '×1.1'],
+    favoured: ['enlarge', 'powerUp', 'quickCast'],
+  },
+  'seismicToss.levelToss': {
+    ...generic('seismicToss', 'Level Toss', 'Fixed damage that grows with your level', {
+      fixedDamage: 10,
+      perLevel: 1,
+    }),
+    ranks: [{ fixedDamage: 13 }, { fixedDamage: 16, perLevel: 1.2 }],
+    rankText: ['fixed 13 (10)', '16; ★ +1.2 per level (1)'],
+    favoured: ['quickCast', 'enlarge', 'linger'],
+  },
+  'seismicToss.runningThrow': {
+    ...bond('seismicToss', 'mankey', 0, 'moving', 'Running Throw', 'Moving: a wider slam', {
+      movingSeconds: 1,
+      areaMult: 1.3,
+      damageMultStill: 0.85,
+    }),
+    ranks: [{ damageMultStill: 0.95 }, { damageMultStill: 1, areaMult: 1.45 }],
+    rankText: ['standing ×0.95 (0.85)', '×1.0; ★ ×1.45 wider (1.3)'],
+    favoured: ['enlarge', 'powerUp', 'quickCast'],
+  },
+  'thrash.outrage': {
+    ...generic('thrash', 'Outrage', 'Lasts twice as long, then you are Confused', {
+      durationMult: 2,
+      /** Keeps the cooldown longer than the flail, so it ends (and Confuses) instead of recasting forever. */
+      cooldownMult: 1.5,
+      confuseSeconds: 1,
+    }),
+    ranks: [{ confuseSeconds: 0.7 }, { confuseSeconds: 0.4, durationMult: 2.2 }],
+    rankText: ['Confused 0.7 s (1)', '0.4 s; ★ lasts ×2.2 (2)'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
+  },
+  'thrash.partingJabs': {
+    ...generic('thrash', 'Parting Jabs', 'Fists fly out at the end', {
+      jabRange: 150,
+      jabWidth: 20,
+      jabFraction: 0.5,
+      cooldownMult: 1.1,
+    }),
+    ranks: [{ jabFraction: 0.65 }, { jabFraction: 0.8, cooldownMult: 1 }],
+    rankText: ['jabs 65% (50%)', '80%; ★ cooldown ×1.0 (1.1)'],
+    favoured: ['extend', 'enlarge', 'quickCast'],
+  },
+  'thrash.berserkFlurry': {
+    ...bond('thrash', 'mankey', 1, 'rampage', 'Berserk Flurry', 'A Rampage starts a double-fist Thrash', {
+      fistMult: 2,
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.15 }, { damageMult: 1.3, fistMult: 3 }],
+    rankText: ['dmg ×1.15', '×1.3; ★ triple fists (double)'],
+    favoured: ['extend', 'enlarge', 'powerUp'],
+  },
+  'closeCombat.brickBreak': {
+    ...generic('closeCombat', 'Brick Break', '×1.3 against Elites and bosses', {
+      eliteMult: 1.3,
+      arcMult: 0.67,
+    }),
+    ranks: [{ eliteMult: 1.45 }, { eliteMult: 1.6, arcMult: 0.8 }],
+    rankText: ['Elites and bosses ×1.45 (1.3)', '×1.6; ★ arc ×0.8 (0.67)'],
+    favoured: ['powerUp', 'concentrated', 'keenEdge'],
+  },
+  'closeCombat.armThrust': {
+    ...generic('closeCombat', 'Arm Thrust', 'Three quick hits', {
+      hits: 3,
+      hitFraction: 0.4,
+      reachMult: 0.8,
+    }),
+    ranks: [{ hitFraction: 0.45 }, { hitFraction: 0.5, reachMult: 0.9 }],
+    rankText: ['hits 45% (40%)', '50%; ★ reach ×0.9 (0.8)'],
+    favoured: ['keenEdge', 'lifesteal', 'knockback'],
+  },
+  'closeCombat.furyCombat': {
+    ...bond('closeCombat', 'mankey', 1, 'rageLevel', 'Fury Combat', 'At 50+ Rage: no guard drop, +25% damage', {
+      rageThreshold: 50,
+      damageBonus: 0.25,
+    }),
+    ranks: [{ damageBonus: 0.35 }, { damageBonus: 0.45, rageThreshold: 40 }],
+    rankText: ['+35% (25%)', '+45%; ★ from 40 Rage (50)'],
+    favoured: ['powerUp', 'glass', 'keenEdge'],
+  },
+  'shadowPunch.barrage': {
+    ...generic('shadowPunch', 'Shadow Barrage', 'Three fists', {
+      fists: 3,
+      damageMult: 0.45,
+    }),
+    ranks: [{ damageMult: 0.52 }, { damageMult: 0.58 }],
+    rankText: ['each ×0.52 (0.45)', '×0.58'],
+    favoured: ['velocity', 'pierce', 'powerUp'],
+  },
+  'shadowPunch.grip': {
+    ...generic('shadowPunch', 'Phantom Grip', 'The target is held in place', {
+      holdSeconds: 0.4,
+      damageMult: 0.85,
+    }),
+    ranks: [{ damageMult: 0.98 }, { damageMult: 1.1, holdSeconds: 0.55 }],
+    rankText: ['dmg ×0.98 (0.85)', '×1.1; ★ held 0.55 s (0.4)'],
+    favoured: ['velocity', 'extend', 'multishot'],
+  },
+  'shadowPunch.phantomGrudge': {
+    ...bond('shadowPunch', 'mankey', 2, 'rampageEnd', 'Phantom Grudge', 'A Rampage ending fires 5 fists', {
+      fists: 5,
+      damageMult: 1,
+    }),
+    ranks: [{ damageMult: 1.15 }, { damageMult: 1.3, fists: 7 }],
+    rankText: ['dmg ×1.15', '×1.3; ★ 7 fists (5)'],
+    favoured: ['multishot', 'velocity', 'powerUp'],
   },
 } as const satisfies Record<string, MutationDef>;
 

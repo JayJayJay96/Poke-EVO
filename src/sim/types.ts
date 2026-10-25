@@ -58,6 +58,13 @@ export interface Player {
   emergencyCooldownLeft: number;
   /** Pikachu's Charge, 0..max. */
   charge: number;
+  /** Mankey's Rage, 0..max; seconds since the last hit dealt or taken; seconds of Rampage left. */
+  rage: number;
+  rageIdle: number;
+  rampageLeft: number;
+  /** Close Combat: seconds the player takes `vulnPct` more damage. */
+  vulnLeft: number;
+  vulnPct: number;
 }
 
 export interface Enemy {
@@ -470,6 +477,8 @@ export interface MoveSlot {
   volatileMult: number;
   /** Focus Energy (D40): this move's next own hit is a forced ×2 crit. */
   focusReady: boolean;
+  /** Rage gained from this cast's Contact hits (capped per cast, D56). */
+  rageGain: number;
   /** Damage this move's own hits dealt this run (pause screen share). */
   damageDealt: number;
 }
