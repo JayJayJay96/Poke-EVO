@@ -153,7 +153,8 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
   - `npm run build` passed
   - stress bench (`--dir src`): empty map **1.39–1.42 ms/step**; every chunk woods **2.07–2.25 ms** (was 1.97 after M3a: the woods grass reacts to the maxed Fire build), p99 under 2.9 ms; one run logged an 11 ms single-step max (GC-like spike, not reproduced on the next run)
 - **Browser (port 5180):** a run with Charmander. Ember fired at a Rattata across a meadow grass patch and set it burning; the fire showed spreading through the patch with a corner still green. At a pond: an Ice hit laid a 16-cell bridge across the water (reads as floor), Electric charged a marsh patch, Ice froze it, and the bridge melted on time. No console errors.
-- **Not checked:** zone, beam, melee and orbit triggers are wired but have no dedicated tests (only projectiles and direct hits do); balance (the bot runs on an empty map); no first-ignite or first-bridge notices yet (M5).
+- **Not checked:** the melee trigger has no test, because no melee move is Fire, Electric or Ice yet; balance (the bot runs on an empty map); no first-ignite or first-bridge notices yet (M5).
+- **Follow-up (same day):** 3 more tests drive the real cast functions: Thunder Wave (zone) charges a marsh, Ice Beam lays a bridge, Fire Spin (orbit) lights grass. `vitest run` **700/700**.
 - **Next:** owner playtest of M1–M3. M4 (ledges, berry trees, item balls) and M5 (foreshadowing, horde emergence, notices) stay at P6 per D47 15-3.
 - **Build runs:** yes.
 

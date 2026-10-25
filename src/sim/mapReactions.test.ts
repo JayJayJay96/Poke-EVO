@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING, type PokemonId } from '../data/content';
 import { CELL, MAP_TUNING } from '../data/map';
+import { MOVES, type BeamMoveDef, type OrbitMoveDef, type ZoneMoveDef } from '../data/moves';
+import { castBeam } from './forms/beam';
+import { castOrbit, updateOrbit } from './forms/orbit';
+import { castZone } from './forms/zoneCast';
 import { createProjectile, updateProjectiles } from './forms/projectile';
 import { cellAt, cellsOf, chunkKey, generateChunk } from './map';
-import { grassPhase, marshFrozen, reactAt, restsInGrass } from './mapReactions';
+import { grassPhase, marshFrozen, patchCharged, reactAt, restsInGrass } from './mapReactions';
 import { createSeededRng } from './rng';
+import { createSlot } from './stats';
 import type { Enemy, World } from './types';
 import { createWorld, spawnEnemy, step } from './world';
 
@@ -232,6 +237,37 @@ describe('reaction triggers (README §8.1)', () => {
     for (let i = 0; i < 90; i++) updateProjectiles(w, DT);
     expect(shot.reacts).toBe(MAP_TUNING.trigger.projectile);
     expect(grassPhase(w, -475, 25)).toBe('burning');
+  });
+
+  it('a zone reacts where it is cast (Thunder Wave charges the marsh)', () => {
+    const w = world(MARSH);
+    spawnEnemy(w, 'rattata', M.x, M.y);
+    w.player.x = M.x + 200;
+    w.player.y = M.y;
+    expect(castZone(w, createSlot('thunderWave'), MOVES.thunderWave as ZoneMoveDef)).toBe(true);
+    expect(patchCharged(w, M.x, M.y)).toBe(true);
+  });
+
+  it('a beam reacts along its length (Ice Beam bridges the water)', () => {
+    const w = world(LAKE);
+    w.player.x = -300;
+    w.player.y = 25;
+    spawnEnemy(w, 'rattata', 0, 25);
+    expect(castBeam(w, createSlot('iceBeam'), MOVES.iceBeam as BeamMoveDef)).toBe(true);
+    expect(w.map.bridges).toHaveLength(1);
+  });
+
+  it('an orbit reacts at its balls (Fire Spin lights the grass around you)', () => {
+    const w = world(Array<string>(10).fill('gggggggggg'));
+    const slot = createSlot('fireSpin');
+    const def = MOVES.fireSpin as OrbitMoveDef;
+    castOrbit(w, slot, def);
+    updateOrbit(w, slot, def, DT);
+    const burning = [0, 90, 180, 270].some((deg) => {
+      const a = (deg * Math.PI) / 180;
+      return grassPhase(w, Math.cos(a) * def.orbitRadius, Math.sin(a) * def.orbitRadius) === 'burning';
+    });
+    expect(burning).toBe(true);
   });
 
   it('hits on open floor never count toward the cap', () => {
