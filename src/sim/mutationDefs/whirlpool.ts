@@ -95,21 +95,24 @@ defineMutation('whirlpool.moat', {
   },
 });
 
-/** Eye of the Storm (Bond, Shell Burst, Wartortle+): every Shell Burst drops a half-size whirlpool at your feet (III: it pulls). */
+/**
+ * Eye of the Storm (Bond, Shell blocks, Wartortle+; D51): every Shell block drops a full whirlpool at your feet.
+ * A block that also releases a Shell Burst (emitted just before the block) makes it pull (III: every one pulls).
+ */
 const eye = ranked('whirlpool.eyeOfTheStorm');
 defineMutation('whirlpool.eyeOfTheStorm', {
-  stats: (s, _world, slot) => {
-    s.cooldown *= eye(slot).cooldownMult;
-  },
   onEvent: (world, slot, event) => {
-    if (event !== 'shellBurst') return;
+    if (event === 'shellBurst') slot.mutState.burstPending = 1;
+    if (event !== 'shellBlock') return;
     const s = slot.stats;
     const v = eye(slot);
+    slot.mutState.eyePull = v.alwaysPull || slot.mutState.burstPending ? 1 : 0;
+    slot.mutState.burstPending = 0;
     const zone = spawnZone(
       world,
       world.player.x,
       world.player.y,
-      whirlpool.radius * s.area * v.sizeMult,
+      whirlpool.radius * s.area,
       v.seconds * s.zoneDurationMult,
       whirlpool.tickInterval,
       s.damage * s.zoneDamageMult,
@@ -120,9 +123,8 @@ defineMutation('whirlpool.eyeOfTheStorm', {
     if (zone) slot.mutState.eyeZone = zone.id;
   },
   update: (world, slot, dt) => {
-    const speed = eye(slot).pullSpeed;
-    if (speed <= 0 || !slot.mutState.eyeZone) return;
+    if (!slot.mutState.eyePull || !slot.mutState.eyeZone) return;
     const zone = world.zones.find((z) => z.id === slot.mutState.eyeZone && z.lifeLeft > 0);
-    if (zone) pullIn(world, zone, speed, dt);
+    if (zone) pullIn(world, zone, eye(slot).pullSpeed, dt);
   },
 });

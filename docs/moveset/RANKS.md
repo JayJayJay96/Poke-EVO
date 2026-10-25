@@ -34,13 +34,13 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | `waterGun.steadyAim` Steady Aim | length ×1.5 (1.4); Shell down ×0.85 (0.75); Shell up +10% damage | length ×1.6; Shell down ×0.95; ★ Shell up: +20% damage | `extend`, `enlarge`, `powerUp` |
 | `whirlpool.maelstrom` Maelstrom | collapse ×1.85 (1.6); cooldown ×1.25 (1.4) | collapse ×2.1; cooldown ×1.15; ★ pull 45 px/s (30) | `linger`, `enlarge`, `concentrated` |
 | `whirlpool.moat` Moat | dmg ×0.58 (0.5) | dmg ×0.65; ★ enemies crossing the ring are Soaked | `enlarge`, `linger`, `powerUp` |
-| `whirlpool.eyeOfTheStorm` Eye of the Storm | size ×0.6 (0.5); 2.5 s (2) | size ×0.7; 3 s; ★ it pulls like Maelstrom (30 px/s) | `linger`, `enlarge`, `quickCast` |
+| `whirlpool.eyeOfTheStorm` Eye of the Storm | 2.5 s (2) | 3 s; ★ every one pulls | `linger`, `enlarge`, `quickCast` |
 | `surf.rideTheWave` Ride the Wave | wave dmg ×1.15; travel 250 px (220) | wave dmg ×1.3; ★ speed boost 2 s (1) | `enlarge`, `quickCast`, `knockback` |
 | `surf.backwash` Backwash | return 50% (30%) | return 70%; ★ the return wave Soaks | `enlarge`, `knockback`, `quickCast` |
 | `surf.lastWave` Last Wave | above-threshold dmg ×0.9 (0.8); threshold 50% HP (40%) | ×1.0; threshold 60% | `enlarge`, `quickCast`, `glass` |
 | `hydroPump.splitStream` Split Stream | 38% per beam (33%) | 43% per beam | `extend`, `enlarge`, `powerUp` |
 | `hydroPump.pressureBuild` Pressure Build | ramp +15% per tick (12%); cooldown ×1.35 (1.5) | ramp +20%; ★ cooldown ×1.3 | `extend`, `concentrated`, `keenEdge` |
-| `hydroPump.rainCannon` Rain Cannon | dmg ×0.115 (0.1); heal cap 5/s (4) | dmg ×0.13; cap 6/s; ★ the rain Soaks | `enlarge`, `extend`, `lifesteal` |
+| `hydroPump.rainCannon` Rain Cannon | dmg ×0.115 (0.1); heal cap 12/s (10) | dmg ×0.13; ★ heal cap 15/s | `enlarge`, `extend`, `lifesteal` |
 | `flashCannon.shrapnel` Shrapnel | shards 40% (35%); cooldown ×1.15 (1.3) | 45%; cooldown ×1.0; ★ shards pierce 1 | `pierce`, `velocity`, `multishot` |
 | `flashCannon.railgun` Railgun | dmg ×1.5 (1.3) | dmg ×1.7 | `velocity`, `concentrated`, `keenEdge` |
 | `flashCannon.armorRounds` Armor Rounds | second round 70% (60%); dmg ×0.92 (0.8) | 80%; dmg ×1.04 | `velocity`, `powerUp`, `homing` |

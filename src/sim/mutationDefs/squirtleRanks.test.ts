@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING } from '../../data/content';
-import { MOVES, type MoveId, type ZoneMoveDef } from '../../data/moves';
+import type { MoveId } from '../../data/moves';
 import { rankedValues, type MutationId } from '../../data/mutations';
 import { emit, hooksOf } from '../hooks';
 import { grantMutation } from '../mutations';
@@ -90,25 +90,15 @@ describe('Squirtle ranks (P4h-3)', () => {
     expect(e.soakLeft).toBeGreaterThan(0);
   });
 
-  it('Eye of the Storm III: the Shell Burst whirlpool pulls light enemies in', () => {
+  it('Eye of the Storm III: every block whirlpool pulls, Burst or not', () => {
     const { w } = withRank('whirlpool', 'whirlpool.eyeOfTheStorm', 3);
-    emit(w, 'shellBurst', 1);
+    emit(w, 'shellBlock', 1);
     const zone = w.zones.find((z) => z.source === 'whirlpool')!;
+    expect(zone.lifeLeft).toBeCloseTo(rankedValues('whirlpool.eyeOfTheStorm', 3).seconds);
     const e = dummy(w, zone.x + zone.radius * 0.6, zone.y, 'rattata');
     const before = Math.hypot(e.x - zone.x, e.y - zone.y);
     run(w, 0.5);
     expect(Math.hypot(e.x - zone.x, e.y - zone.y)).toBeLessThan(before - 5);
-  });
-
-  it('Eye of the Storm I: no pull', () => {
-    const { w } = withRank('whirlpool', 'whirlpool.eyeOfTheStorm', 1);
-    emit(w, 'shellBurst', 1);
-    const zone = w.zones.find((z) => z.source === 'whirlpool')!;
-    expect(zone.radius).toBeCloseTo((MOVES.whirlpool as ZoneMoveDef).radius * rankedValues('whirlpool.eyeOfTheStorm', 1).sizeMult);
-    const e = dummy(w, zone.x + zone.radius * 0.6, zone.y, 'rattata');
-    const x = e.x;
-    run(w, 0.5);
-    expect(e.x).toBeCloseTo(x, 0);
   });
 
   it('Backwash III: the return wave Soaks', () => {
@@ -118,11 +108,12 @@ describe('Squirtle ranks (P4h-3)', () => {
     expect(e.soakLeft).toBeGreaterThan(0);
   });
 
-  it('Rain Cannon III: the rain Soaks', () => {
-    const { w } = withRank('hydroPump', 'hydroPump.rainCannon', 3);
+  it('Rain Cannon I: the rain Soaks from rank I (D51); III caps the heal at 15/s', () => {
+    const { w } = withRank('hydroPump', 'hydroPump.rainCannon', 1);
     const e = dummy(w, 60, 0);
     run(w, 0.5);
     expect(e.soakLeft).toBeGreaterThan(0);
+    expect(rankedValues('hydroPump.rainCannon', 3).maxHealPerSec).toBe(15);
   });
 
   it('Shrapnel III: a shard passes through one enemy; at rank I it stops', () => {

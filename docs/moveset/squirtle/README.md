@@ -14,7 +14,7 @@ Each Bond uses a different hook (rule 9), so the line has several builds, not on
 | Shell **blocks** | ability event | Withdraw — Counter Shell |
 | Shell **recharge** | ability timer | Rapid Spin — Shell Spin |
 | **Hit taken** | contact damage | Flash Cannon — Armor Rounds |
-| **Shell Burst** (Wartortle+) | ability event | Whirlpool — Eye of the Storm |
+| **Shell blocks** + **Shell Burst** (Wartortle+) | ability events | Whirlpool — Eye of the Storm (D51: blocks drop it, a Burst makes it pull) |
 | **HP level** | player HP (pairs with Torrent+) | Surf — Last Wave |
 | **Healing / Blastoise's cannons** | stage 2 (pairs with Rain Dish) | Hydro Pump — Rain Cannon |
 
@@ -63,7 +63,7 @@ Water Gun ─────┬─ Slick              (generic) puddle line, light 
                └─ ★ Steady Aim       (Bond: Shell is ready)
 Whirlpool ─────┬─ Maelstrom          (generic) pulls in, collapses into a burst
                ├─ Moat               (generic) ring around you that follows you
-               └─ ★ Eye of the Storm (Bond: Shell Burst · Wartortle+)
+               └─ ★ Eye of the Storm (Bond: Shell blocks · Wartortle+)
 Surf ──────────┬─ Ride the Wave      (generic) a wall rolling the way you move
                ├─ Backwash           (generic) the wave rolls back in and pulls
                └─ ★ Last Wave        (Bond: HP level)
@@ -81,9 +81,9 @@ Flash Cannon ──┬─ Shrapnel           (generic) shatters into 6 shards
 | **Counter Shell** `withdraw.counterShell` | Withdraw | Squirtle | Withdraw's cooldown resets every time Shell blocks, and that bash staggers ×2. | −20% damage. Only good if you're getting hit. |
 | **Shell Spin** `rapidSpin.shellSpin` | Rapid Spin | Squirtle | Each enemy the shells hit cuts Shell's recharge by 0.25 s (max 1.5 s per cast). | −20% damage. |
 | **Steady Aim** `waterGun.steadyAim` | Water Gun | Squirtle | While Shell is **ready**: beam length +40%, push ×2. Rewards *not* getting hit. | While Shell is down: −25% damage. |
-| **Eye of the Storm** `whirlpool.eyeOfTheStorm` | Whirlpool | Wartortle | Every Shell Burst also drops a half-size Whirlpool at your feet for 2 s. It uses Whirlpool's stat augments, never another Mutation. | Whirlpool's own cooldown ×1.3. |
+| **Eye of the Storm** `whirlpool.eyeOfTheStorm` | Whirlpool | Wartortle | **D51:** every Shell block drops a full-size Whirlpool at your feet for 2 s; a block that also releases a Shell Burst makes it pull (30 px/s, like Maelstrom). It uses Whirlpool's stat augments, never another Mutation. | Only fires when you get hit. (Was: a half-size pool on Shell Burst only, every 3rd block, with Whirlpool cooldown ×1.3.) |
 | **Last Wave** `surf.lastWave` | Surf | Squirtle | Below 40% HP: Surf cooldown −50%, radius +30%. A tank's last stand (pairs with Torrent+). | Above 40% HP: −20% damage. |
-| **Rain Cannon** `hydroPump.rainCannon` | Hydro Pump | Blastoise | Blastoise fires the pump straight up; it rains on a 130 px circle around you for the beam's duration. Each tick heals you 1 HP per enemy hit (max 4 HP/s). Pairs with Rain Dish. | −90% damage (it hits the whole circle every tick), no push, only around you. |
+| **Rain Cannon** `hydroPump.rainCannon` | Hydro Pump | Blastoise | Blastoise fires the pump straight up; it rains on a 130 px circle around you for the beam's duration. Each tick heals you 1 HP per enemy hit (max 10 HP/s, D51) and Soaks what it hits (D51: from rank I). Pairs with Rain Dish. | −90% damage (it hits the whole circle every tick), no push, only around you. |
 | **Armor Rounds** `flashCannon.armorRounds` | Flash Cannon | Blastoise | If you took a hit since the last Flash Cannon, it also fires a second steel round at 60% damage. | Main shot −20% damage. |
 
 Balance notes:

@@ -126,6 +126,17 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Squirtle Bond reworks (D51)
+**Owner:** approved after the Squirtle kit review. **Status:** built, tested; committed. Not browser-checked, not playtested.
+
+- **Eye of the Storm** (`src/sim/mutationDefs/whirlpool.ts`): hook `shellBurst` → `shellBlock`. Every block drops a full-size Whirlpool for 2 s. A Shell Burst in the same block (`onShellBlock` emits it just before `shellBlock`, see `world.ts:733`) sets `burstPending` and makes the pool pull. Rank III: every pool pulls. Cooldown ×1.3 tax removed.
+- **Rain Cannon** (`src/data/mutations.ts` only): heal cap 4 → 10 HP/s (ranks 12 / ★ 15); `rainSoaks` true from rank I.
+- **Docs:** PROJECT.md D51, `docs/moveset/INDEX.md` hook, `RANKS.md`, `squirtle/README.md`.
+- **Tests:** `squirtleMoves.test.ts` (Eye full size, no tax; pull only with a Burst), `squirtleRanks.test.ts` (Eye III always pulls; Rain Cannon soaks at rank I).
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **591/591 passed**; `npm run build` passes. No balance run.
+- **Next:** owner playtest of Wartortle/Blastoise with these Bonds.
+- **Build runs:** yes.
+
 ### 2026-10-25 — Charmander Bond reworks (D50)
 **Owner:** playtested Charmander; Cornered Dragon "feels very inferior". After a kit review the owner approved three reworks. **Status:** built, tested; committed. Not browser-checked, not playtested.
 

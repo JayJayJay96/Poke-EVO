@@ -135,14 +135,29 @@ describe('Whirlpool', () => {
     expect(w.entities.some((e) => e.owner === 'whirlpool.moat')).toBe(true);
   });
 
-  it('Eye of the Storm: every Shell Burst drops a half-size whirlpool at your feet', () => {
-    const v = MUTATIONS['whirlpool.eyeOfTheStorm'].values;
-    const { w } = withMove('whirlpool', 'whirlpool.eyeOfTheStorm');
-    emit(w, 'shellBurst', 1);
+  it('Eye of the Storm: every Shell block drops a full whirlpool at your feet; no cooldown cost', () => {
+    const { w, slot } = withMove('whirlpool', 'whirlpool.eyeOfTheStorm');
+    emit(w, 'shellBlock', 1);
     const zone = w.zones.find((z) => z.source === 'whirlpool');
     expect(zone).toBeDefined();
-    expect(zone!.radius).toBeCloseTo((MOVES.whirlpool as ZoneMoveDef).radius * v.sizeMult);
+    expect(zone!.radius).toBeCloseTo((MOVES.whirlpool as ZoneMoveDef).radius);
     expect(zone!.x).toBe(w.player.x);
+    expect(slot.stats.cooldown).toBeCloseTo(slot.baseStats.cooldown);
+  });
+
+  it('Eye of the Storm: a plain block does not pull; a block with a Shell Burst does', () => {
+    const pulled = (burst: boolean) => {
+      const { w } = withMove('whirlpool', 'whirlpool.eyeOfTheStorm');
+      if (burst) emit(w, 'shellBurst', 1); // the sim emits the Burst just before the block
+      emit(w, 'shellBlock', 1);
+      const zone = w.zones.find((z) => z.source === 'whirlpool')!;
+      const e = dummy(w, zone.x + zone.radius * 0.6, zone.y, 'rattata');
+      const before = Math.hypot(e.x - zone.x, e.y - zone.y);
+      run(w, 0.5);
+      return before - Math.hypot(e.x - zone.x, e.y - zone.y);
+    };
+    expect(pulled(false)).toBeCloseTo(0, 0);
+    expect(pulled(true)).toBeGreaterThan(5);
   });
 });
 

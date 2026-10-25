@@ -94,7 +94,7 @@ current stage ≥ `fromStage` · every `requires` is met · that move has no Mut
 | `waterGun.steadyAim` | Steady Aim | bond | waterGun | squirtle | 0 | `shellReady` | site | [squirtle/](squirtle/README.md) |
 | `whirlpool.maelstrom` | Maelstrom | generic | whirlpool | any | 0 | — | site | [shared/whirlpool.md](shared/whirlpool.md) |
 | `whirlpool.moat` | Moat | generic | whirlpool | any | 0 | — | site | [shared/whirlpool.md](shared/whirlpool.md) |
-| `whirlpool.eyeOfTheStorm` | Eye of the Storm | bond | whirlpool | squirtle | 1 | `shellBurst` | site | [squirtle/](squirtle/README.md) |
+| `whirlpool.eyeOfTheStorm` | Eye of the Storm | bond | whirlpool | squirtle | 1 | `shellBlock` | site | [squirtle/](squirtle/README.md) |
 | `surf.rideTheWave` | Ride the Wave | generic | surf | any | 0 | — | site | [shared/surf.md](shared/surf.md) |
 | `surf.backwash` | Backwash | generic | surf | any | 0 | — | site | [shared/surf.md](shared/surf.md) |
 | `surf.lastWave` | Last Wave | bond | surf | squirtle | 0 | `hpBelow` | site | [squirtle/](squirtle/README.md) |

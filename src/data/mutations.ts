@@ -263,14 +263,14 @@ export const MUTATIONS = {
     favoured: ['enlarge', 'linger', 'powerUp'],
   },
   'whirlpool.eyeOfTheStorm': {
-    ...bond('whirlpool', 'squirtle', 1, 'shellBurst', 'Eye of the Storm', 'Shell Burst drops a whirlpool at your feet', {
-      sizeMult: 0.5,
+    // D51: was a half-size pool on Shell Burst only (every 3rd block) with Whirlpool cooldown ×1.3.
+    ...bond('whirlpool', 'squirtle', 1, 'shellBlock', 'Eye of the Storm', 'Shell blocks drop a whirlpool at your feet; Shell Burst makes it pull', {
       seconds: 2,
-      cooldownMult: 1.3,
-      pullSpeed: 0,
+      pullSpeed: 30,
+      alwaysPull: false,
     }),
-    ranks: [{ sizeMult: 0.6, seconds: 2.5 }, { sizeMult: 0.7, seconds: 3, pullSpeed: 30 }],
-    rankText: ['size ×0.6 (0.5); 2.5 s (2)', 'size ×0.7; 3 s; ★ it pulls like Maelstrom (30 px/s)'],
+    ranks: [{ seconds: 2.5 }, { seconds: 3, alwaysPull: true }],
+    rankText: ['2.5 s (2)', '3 s; ★ every one pulls'],
     favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'surf.rideTheWave': {
@@ -336,13 +336,13 @@ export const MUTATIONS = {
     ...bond('hydroPump', 'squirtle', 2, 'healing', 'Rain Cannon', 'Rains around you; heals per enemy hit', {
       radius: 130,
       healPerEnemy: 1,
-      maxHealPerSec: 4,
+      maxHealPerSec: 10, // D51: 4 → 10, the heal is the point
       damageMult: 0.1, // P4f-6 rule-4 tuning (doc: 0.7; a 130 px rain every tick instead of one beam line, 7.3x)
       pushMult: 0,
-      rainSoaks: false,
+      rainSoaks: true, // D51: from rank I (was the rank III twist)
     }),
-    ranks: [{ damageMult: 0.115, maxHealPerSec: 5 }, { damageMult: 0.13, maxHealPerSec: 6, rainSoaks: true }],
-    rankText: ['dmg ×0.115 (0.1); heal cap 5/s (4)', 'dmg ×0.13; cap 6/s; ★ the rain Soaks'],
+    ranks: [{ damageMult: 0.115, maxHealPerSec: 12 }, { damageMult: 0.13, maxHealPerSec: 15 }],
+    rankText: ['dmg ×0.115 (0.1); heal cap 12/s (10)', 'dmg ×0.13; ★ heal cap 15/s'],
     favoured: ['enlarge', 'extend', 'lifesteal'],
   },
   'flashCannon.shrapnel': {
