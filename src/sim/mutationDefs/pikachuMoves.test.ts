@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING } from '../../data/content';
-import { MOVES, type MoveId, type OrbitMoveDef } from '../../data/moves';
+import { MOVES, type MoveId, type OrbitMoveDef, type ZoneMoveDef } from '../../data/moves';
 import { MUTATIONS, type MutationId } from '../../data/mutations';
 import { applyStatuses } from '../combat';
 import { orbitBalls } from '../forms/orbit';
@@ -210,6 +210,16 @@ describe('Thunder Wave', () => {
     for (let i = 0; i < 60 && w.arcs.length === 0; i++) step(w, IDLE, DT);
     expect(w.arcs[0]!.x2).toBeCloseTo(inField.x); // the first jump went to the field, not the nearer enemy
   });
+
+  it('Conductor: Thunder Wave fields last 4 s and keep their 0.6 s paralysis (D53)', () => {
+    const def = MOVES.thunderWave as ZoneMoveDef;
+    const { w, slot } = withMove('thunderWave', 'thunderWave.conductor');
+    expect(slot.stats.duration * def.duration).toBeCloseTo(def.duration * 2);
+    expect(slot.stats.stun).toBeCloseTo(def.onHit!.stun!);
+    dummy(w, 150, 0);
+    run(w, DT);
+    expect(w.zones.find((z) => z.source === 'thunderWave')!.lifeLeft).toBeGreaterThan(def.duration * 2 - 0.1);
+  });
 });
 
 describe('Iron Tail', () => {
@@ -274,5 +284,6 @@ describe('Thunder (Raichu)', () => {
     emit(w, 'discharge', 1);
     run(w, 0.6);
     expect(lost(tough)).toBeGreaterThan(0);
+    expect(slot.stats.cooldown).toBeCloseTo(slot.baseStats.cooldown); // D53: no tax
   });
 });

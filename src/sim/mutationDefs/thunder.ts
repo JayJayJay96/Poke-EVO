@@ -66,9 +66,6 @@ defineMutation('thunder.afterglow', {
 /** Thunderstorm (Bond, Discharge, Raichu): every Discharge also calls a Thunder strike on the toughest enemy in range. */
 const storming = ranked('thunder.thunderstorm');
 defineMutation('thunder.thunderstorm', {
-  stats: (s, _world, slot) => {
-    s.cooldown *= storming(slot).cooldownMult;
-  },
   onEvent: (world, slot, event) => {
     if (event !== 'discharge') return;
     let toughest: Enemy | null = null;

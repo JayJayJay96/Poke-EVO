@@ -1138,10 +1138,10 @@ export const MUTATIONS = {
     ...bond('electroBall', 'pikachu', 0, 'moveSpeed', 'Velocity Ball', 'Damage scales with how much faster you are', {
       bonusPerSpeedRatio: 1,
       maxBonus: 0.8,
-      damageMult: 0.6,
+      damageMult: 0.75, // D53: 0.6 → 0.75 (at 0.6 it netted ×1.08 on the horde and lost to flankers)
     }),
-    ranks: [{ damageMult: 0.66, maxBonus: 0.9 }, { damageMult: 0.72, maxBonus: 1 }],
-    rankText: ['dmg ×0.66 (0.6); cap +90% (80%)', '×0.72; cap +100%'],
+    ranks: [{ damageMult: 0.81, maxBonus: 0.9 }, { damageMult: 0.87, maxBonus: 1 }],
+    rankText: ['dmg ×0.81 (0.75); cap +90% (80%)', '×0.87; cap +100%'],
     favoured: ['velocity', 'quickCast', 'pierce'],
   },
   'thunderWave.pulse': {
@@ -1167,13 +1167,14 @@ export const MUTATIONS = {
     favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'thunderWave.conductor': {
-    ...bond('thunderWave', 'pikachu', 0, 'chainJump', 'Conductor', 'Your chain prefers Thunder Wave fields', {
+    // D53: fields last ×2 (4 s), +15% from rank I, and Thunder Wave keeps its own 0.6 s paralysis (was cut to 0.4).
+    ...bond('thunderWave', 'pikachu', 0, 'chainJump', 'Conductor', 'Longer Thunder Wave fields; your chain prefers them', {
       jumpRangeMult: 1.6,
-      paralyseSeconds: 0.4,
-      chainDamageMult: 1,
+      fieldDurationMult: 2,
+      chainDamageMult: 1.15,
     }),
-    ranks: [{ jumpRangeMult: 1.8, chainDamageMult: 1.15 }, { jumpRangeMult: 2, chainDamageMult: 1.3 }],
-    rankText: ['jump range ×1.8 (1.6); jumps between fields +15% dmg', '×2.0; +30%'],
+    ranks: [{ jumpRangeMult: 1.8, chainDamageMult: 1.3 }, { jumpRangeMult: 2, chainDamageMult: 1.45 }],
+    rankText: ['jump range ×1.8 (1.6); jumps between fields +30% dmg (15%)', '×2.0; +45%'],
     favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'ironTail.spin': {
@@ -1232,12 +1233,12 @@ export const MUTATIONS = {
     favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'thunder.thunderstorm': {
+    // D53: the Thunder cooldown ×1.3 tax is gone from rank I.
     ...bond('thunder', 'pikachu', 1, 'discharge', 'Thunderstorm', 'Each Discharge calls a Thunder strike', {
-      cooldownMult: 1.3,
       strikeRadiusMult: 1,
     }),
-    ranks: [{ cooldownMult: 1.15 }, { cooldownMult: 1, strikeRadiusMult: 1.5 }],
-    rankText: ['cooldown ×1.15 (1.3)', '×1.0; ★ the Discharge strike is ×1.5 wider'],
+    ranks: [{ strikeRadiusMult: 1.25 }, { strikeRadiusMult: 1.5 }],
+    rankText: ['the Discharge strike is ×1.25 wider', '★ ×1.5 wider'],
     favoured: ['enlarge', 'powerUp', 'quickCast'],
   },
   'thunderShock.liveWire': {

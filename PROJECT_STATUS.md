@@ -126,6 +126,19 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Pikachu Bond reworks (D53)
+**Owner:** approved after the Pikachu kit review. **Status:** built, tested; committed. Not browser-checked, not playtested.
+
+- **Conductor** (`src/sim/mutationDefs/thunderWave.ts`): `s.duration *= fieldDurationMult` (2) instead of overriding `s.stun` to 0.4. Rank I chain damage between fields ×1.15.
+- **Thunderstorm** (`thunder.ts`): cooldown tax removed. Ranks: strike ×1.25 / ★ ×1.5 wider.
+- **Velocity Ball:** data only, base ×0.75.
+- **Volt Tackle:** no change. The review wrongly said it blocks Discharge; it already fires the Discharge at the end of the dash (existing test "Volt Tackle on Raichu").
+- **Data/docs:** `src/data/mutations.ts`, `RANKS.md`, `pikachu/README.md`, PROJECT.md D53.
+- **Tests:** Conductor field 4 s and 0.6 s paralysis kept; Thunderstorm no tax; the ranks test title updated.
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **592/592 passed**; `npm run build` passes. No balance run.
+- **Next:** owner playtest; Lapras kit review.
+- **Build runs:** yes.
+
 ### 2026-10-25 — Bulbasaur Bond reworks (D52)
 **Owner:** approved after the Bulbasaur kit review. **Status:** built, tested; committed. Not browser-checked, not playtested.
 

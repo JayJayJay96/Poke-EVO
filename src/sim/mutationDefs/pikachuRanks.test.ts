@@ -66,7 +66,7 @@ function field(w: World, x: number, y: number): void {
 }
 
 describe('Pikachu ranks (P4h-6)', () => {
-  it('Conductor: jumps between two fields deal ×1.15 (II) / ×1.3 (III); elsewhere ×1', () => {
+  it('Conductor: jumps between two fields deal ×1.15 / ×1.3 / ×1.45 (D53); elsewhere ×1', () => {
     for (const rank of [1, 2, 3]) {
       const { w } = withRank('thunderWave', 'thunderWave.conductor', rank);
       field(w, 300, 0);

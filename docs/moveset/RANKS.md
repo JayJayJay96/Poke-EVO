@@ -121,16 +121,16 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | `spark.staticSpark` Static Spark | sparks last 2.5 s (2); cooldown ×1.1 (1.2) | 3 s; ×1.0; ★ up to 4 extra sparks (3) | `extend`, `enlarge`, `powerUp` |
 | `electroBall.ricochet` Ricochet | dmg ×0.92 (0.8) | ★ 3 bounces (2, inside the chain cap) at dmg ×0.8 | `velocity`, `homing`, `keenEdge` |
 | `electroBall.plasma` Plasma Orb | grows to +55% (+40%); move dmg ×1.15 | +70%; move dmg ×1.27; ★ speed ×0.8 (0.7) | `extend`, `enlarge`, `pierce` |
-| `electroBall.velocityBall` Velocity Ball | dmg ×0.66 (0.6); cap +90% (80%) | ×0.72; cap +100% | `velocity`, `quickCast`, `pierce` |
+| `electroBall.velocityBall` Velocity Ball | dmg ×0.81 (0.75); cap +90% (80%) | ×0.87; cap +100% | `velocity`, `quickCast`, `pierce` |
 | `thunderWave.pulse` Static Pulse | move dmg ×1.15; paralysis 0.45 s (0.4) | move dmg ×1.08; 0.5 s; ★ ring 165 px (150) | `enlarge`, `quickCast`, `powerUp` |
 | `thunderWave.terrain` Electric Terrain | Electric +30% (25%) | +35%; ★ field 6 s (5) | `linger`, `enlarge`, `quickCast` |
-| `thunderWave.conductor` Conductor | jump range ×1.8 (1.6); jumps between fields +15% dmg | ×2.0; +30% | `linger`, `enlarge`, `quickCast` |
+| `thunderWave.conductor` Conductor | jump range ×1.8 (1.6); jumps between fields +30% dmg (15%) | ×2.0; +45% | `linger`, `enlarge`, `quickCast` |
 | `ironTail.spin` Iron Spin | dmg ×0.92 (0.8) | ×0.9; ★ reach ×0.85 (0.8) | `enlarge`, `knockback`, `powerUp` |
 | `ironTail.slam` Iron Slam | cooldown ×1.4 (1.6) | ×1.25; ★ radius 75 px (60) | `enlarge`, `concentrated`, `keenEdge` |
 | `ironTail.shockShatter` Shock Shatter | shatter ×2.0 (1.8); not paralysed ×0.9 (0.8) | ×2.2; ×1.0; ★ leap 75% (50%) | `keenEdge`, `glass`, `concentrated` |
 | `thunder.storm` Storm Call | strikes 92% (80%) | 105%; ★ strike radius 34 px (30) | `enlarge`, `quickCast`, `powerUp` |
 | `thunder.afterglow` Afterglow | dmg ×0.92 (0.8); field 2.5 s (2) | ×1.04; 3 s | `linger`, `enlarge`, `quickCast` |
-| `thunder.thunderstorm` Thunderstorm | cooldown ×1.15 (1.3) | ×1.0; ★ the Discharge strike is ×1.5 wider | `enlarge`, `powerUp`, `quickCast` |
+| `thunder.thunderstorm` Thunderstorm | the Discharge strike is ×1.25 wider | ★ ×1.5 wider | `enlarge`, `powerUp`, `quickCast` |
 | `thunderShock.liveWire` Live Wire (signature) | wires 27% (20%); jumps ×0.82 (0.7) | 32%; ×0.93 | `keenEdge`, `velocity`, `homing` |
 | `thunderShock.ballLightning` Ball Lightning (signature) | zaps 75% (65%) | 85%; ★ orb lasts 2 s (1.6) | `extend`, `enlarge`, `velocity` |
 | `thunderShock.returnArc` Return Arc (signature) | dmg ×0.85 (0.8); +5 Charge per jump (4) | ×0.95; +6 | `velocity`, `keenEdge`, `homing` |

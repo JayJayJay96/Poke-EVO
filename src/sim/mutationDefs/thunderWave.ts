@@ -57,7 +57,10 @@ defineMutation('thunderWave.terrain', {
   },
 });
 
-/** Conductor (Bond, chain jump): your signature chain prefers enemies in Thunder Wave fields and jumps further between them. */
+/**
+ * Conductor (Bond, chain jump; D53): Thunder Wave fields last twice as long; your signature chain prefers
+ * enemies in them and jumps further, and harder, between them.
+ */
 const conductor = ranked('thunderWave.conductor');
 
 function inField(world: World, e: Enemy): boolean {
@@ -68,7 +71,7 @@ function inField(world: World, e: Enemy): boolean {
 
 defineMutation('thunderWave.conductor', {
   stats: (s, _world, slot) => {
-    s.stun = conductor(slot).paralyseSeconds;
+    s.duration *= conductor(slot).fieldDurationMult;
   },
   chainBias: (world, slot, from, to) => {
     const v = conductor(slot);

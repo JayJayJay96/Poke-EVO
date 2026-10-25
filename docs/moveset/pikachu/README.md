@@ -102,13 +102,13 @@ Thunder ──────┬─ Storm Call       `thunder.storm`             3 
 |---|---|---|---|---|
 | **Volt Tackle** `quickAttack.voltTackle` | Quick Attack | Pikachu | At full Charge, the next Quick Attack becomes **Volt Tackle**: a 120 px electric dash-strike toward the nearest enemy for ×3 damage that spends the Charge. It replaces the Charged shot; on Raichu the Discharge fires at the end of the dash. You land **invulnerable for 0.8 s** (owner playtest 2026-10-23: the dash ends inside the crowd). | Recoil, like the real move: you lose 5% max HP (never below 1 HP). |
 | **Static Spark** `spark.staticSpark` | Spark | Pikachu | Each Static paralysis adds an extra spark to your orbit for 2 s (max +3). Touching Pikachu gets more dangerous. | Spark's own cooldown ×1.2. |
-| **Velocity Ball** `electroBall.velocityBall` | Electro Ball | Pikachu | Like the real move: damage scales with how much faster you are than the target, +1% per 1% faster (max +80%). Speed boosts become damage. | −40% base damage. |
-| **Conductor** `thunderWave.conductor` | Thunder Wave | Pikachu | Your signature chain prefers enemies inside a Thunder Wave field, and jump range is +60% between them. The cap stays 3 jumps. | Thunder Wave's paralysis 0.6 s → 0.4 s. |
+| **Velocity Ball** `electroBall.velocityBall` | Electro Ball | Pikachu | Like the real move: damage scales with how much faster you are than the target, +1% per 1% faster (max +80%). Speed boosts become damage. | −25% base damage (D53; was −40%). |
+| **Conductor** `thunderWave.conductor` | Thunder Wave | Pikachu | Your signature chain prefers enemies inside a Thunder Wave field, and jump range is +60% and jump damage +15% between them (D53). Thunder Wave fields last twice as long (4 s). The cap stays 3 jumps. | None beyond needing fields. (D53: no longer cuts Thunder Wave's paralysis to 0.4 s.) |
 | **Shock Shatter** `ironTail.shockShatter` | Iron Tail | Pikachu | Hitting a **paralysed** enemy shatters the paralysis: ×1.8 damage, and the shock leaps to 1 enemy within 100 px. | −20% damage vs enemies that aren't paralysed. |
-| **Thunderstorm** `thunder.thunderstorm` | Thunder | Raichu | Every Discharge also calls a Thunder strike on the toughest enemy in range. Uses Thunder's stat augments, never another Mutation. | Thunder's own cooldown ×1.3. |
+| **Thunderstorm** `thunder.thunderstorm` | Thunder | Raichu | Every Discharge also calls a Thunder strike on the toughest enemy in range. Uses Thunder's stat augments, never another Mutation. | None beyond the trigger. (D53: the Thunder cooldown ×1.3 tax is gone.) |
 
 Balance notes:
-- **Velocity Ball:** Pikachu (165) vs Rattata (75) is ~2.2× faster → capped +80% → 0.6 × 1.8 ≈ 1.08×. Vs fast Pidgey it drops to ~0.8×.
+- **Velocity Ball:** Pikachu (165) vs Rattata (75) is ~2.2× faster → capped +80% → 0.75 × 1.8 ≈ 1.35× (D53). Vs fast flankers it is about 0.9–1.0×.
 - **Volt Tackle** is the line's only self-damage. Like Blaze, it pays HP for a big hit, but on a timer you control by running.
 - **Conductor** respects the chain cap. It changes *where* the chain goes, not how far it goes.
 
