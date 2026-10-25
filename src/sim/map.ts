@@ -1,7 +1,7 @@
 import type { ArenaEntranceKind } from '../data/arena';
 import { BIOME_IDS, BIOMES, ENTRANCE_BIOME, MAP_TUNING, SET_PIECES, type BiomeId, type ObstacleKind, type SlotKind } from '../data/map';
 import { createSeededRng, type Rng } from './rng';
-import type { MapChunk, MapSlot, Obstacle, World } from './types';
+import type { Enemy, MapChunk, MapSlot, Obstacle, World } from './types';
 
 // Main map (D47, docs/map/README.md), build step M2. Each 1000 px chunk gets a biome from seeded noise, then one
 // hand-made set piece (rotated or mirrored) plus a few lone fillers. A layout is kept only if it passes the lane
@@ -396,17 +396,64 @@ export function hitsObstacle(world: World, x: number, y: number, radius: number)
 }
 
 /**
+ * Whether an obstacle stands on the straight line between two points: you can't shoot across it (stuck recycling,
+ * D47 amendment). shortcut: sampled every 20 px, so a line that only clips the very edge of a circle can slip past;
+ * fine for obstacles 30+ px in radius, use a segment test if smaller ones arrive.
+ */
+export function lineBlocked(world: World, x1: number, y1: number, x2: number, y2: number, radius = 0): boolean {
+  const n = Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 20);
+  for (let i = 1; i < n; i++) {
+    const t = i / n;
+    if (hitsObstacle(world, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, radius)) return true;
+  }
+  return false;
+}
+
+/**
  * Keeps the player and every enemy out of obstacles, after all movement and knockback this step. An enemy spawned or
- * recycled onto an obstacle is pushed clear here too. Enemies pressed against one build up `blockedFor`.
+ * recycled onto an obstacle is pushed clear here too. An enemy pushed while getting nowhere builds up `blockedFor`;
+ * every pushed enemy records which way is out of the wall, and a wall-follower touching it keeps following.
  */
 export function collideWithMap(world: World, dt: number): void {
   if (world.arena || world.map.density <= 0) return;
   const { player } = world;
   pushOut(world, player, player.radius);
+  const { progress } = MAP_TUNING.stuck;
   for (const enemy of world.enemies) {
-    if (pushOut(world, enemy, enemy.radius)) enemy.blockedFor += dt;
+    const pushed = pushOut(world, enemy, enemy.radius);
+    if (pushed) {
+      wallNormal(world, enemy);
+      if (enemy.followSign !== 0) enemy.followLeft = MAP_TUNING.follow.hold;
+    }
+    const moved = Math.hypot(enemy.x - enemy.prevX, enemy.y - enemy.prevY);
+    if (pushed && moved < progress * enemy.speed * dt) enemy.blockedFor += dt;
     else enemy.blockedFor = Math.max(0, enemy.blockedFor - dt);
+    enemy.prevX = enemy.x;
+    enemy.prevY = enemy.y;
   }
+}
+
+/** Sum of the outward directions of every obstacle the enemy touches: between two trees it points out of the gap. */
+function wallNormal(world: World, enemy: Enemy): void {
+  let nx = 0;
+  let ny = 0;
+  let touches = 0;
+  for (const o of obstaclesAt(world, enemy.x, enemy.y)) {
+    const dx = enemy.x - o.x;
+    const dy = enemy.y - o.y;
+    const reach = o.radius + enemy.radius + 1;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > reach * reach) continue;
+    const d = Math.sqrt(d2) || 1;
+    nx += dx / d;
+    ny += dy / d;
+    touches++;
+  }
+  const n = Math.hypot(nx, ny);
+  if (n === 0) return;
+  enemy.wallX = nx / n;
+  enemy.wallY = ny / n;
+  enemy.wallTouches = touches;
 }
 
 function smooth(t: number): number {

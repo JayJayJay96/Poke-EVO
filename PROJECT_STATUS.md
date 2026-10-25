@@ -126,6 +126,32 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Map: wall-follow for stuck enemies (D47 amendment)
+**Owner:** in a playtest, some mobs got stuck between two adjacent trees. They asked whether to let stuck mobs through or widen the gaps. I recommended wall-follow steering plus line-of-sight recycling instead, and the owner approved: "add wall-follow steering for blocked enemies, plus recycle stuck enemies at any distance when trees block line of sight. Record it as a D47 amendment". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner.
+
+- **Cause:** woods walls are trees 100 px apart, radius 45–50 (0–10 px seams). Two touching circles form a pocket a straight chaser slides into and can't leave. Trees block shots, and stuck recycling only fired beyond 450 px, so a mob wedged near you could be neither reached nor hit.
+- **What it does:**
+  - **Stuck** = pushed by an obstacle while moving less than 25% of its speed that step (was: any contact).
+  - **Wall-follow:** after 0.3 s stuck, the enemy picks a side and walks along the wall. It leaves once the way to its target is clear for 150 px and turns round every 1 s it stays stuck (followers meeting head-on).
+  - **Recycle:** after 3 s stuck, beyond 450 px **or** with an obstacle on the line to you (`lineBlocked`).
+- **Changed:**
+  - `src/data/map.ts`: `MAP_TUNING.stuck.progress`, new `MAP_TUNING.follow`, both provisional
+  - `src/sim/map.ts`: `lineBlocked`; `collideWithMap` records the wall normal, the touch count and progress
+  - `src/sim/world.ts`: `followWall` in `moveEnemies`; LOS check in `recycleStragglers`
+  - `src/sim/types.ts`: Enemy `wallX/wallY/wallTouches/prevX/prevY/followSign/followLeft`
+  - `src/sim/map.test.ts`: the 2 old stuck tests rewritten; 6 new
+  - `PROJECT.md` D47 row (amendment); `docs/map/README.md` R4, §11.4
+- **Commands (observed):**
+  - `tsc --noEmit` clean
+  - `vitest run` **598/598**. With `flip` set to 99, the pack test fails, so it covers the head-on case.
+  - `npm run build` passed
+  - stress bench (`--dir src`): **1.33 ms/step** empty map, **1.40 ms** with every chunk woods (the M2 entry had 1.27/1.30)
+- **Browser (port 5181):** I staged a 6-tree wall with 5 Rattata wedged in its seams. Before the turn-round fix, 3 of 5 got round and 2 locked head-on in one seam. After it, all 5 reached the player within about 15 s. Screenshot: the pack splitting up and down along the wall. No console errors.
+- **Not checked:** balance (the bot runs on an empty map); real woods corridors in a full run.
+- **Next:** owner playtest of M1, M2 and this fix, then M3.
+- **Build runs:** yes.
+
+
 ### 2026-10-25 — Mankey and Abra designed (D56)
 **Owner:** "add 2 more pokemon, mankey and abra"; approved the proposal with the recommended answers. **Status:** design docs only, no code; committed.
 

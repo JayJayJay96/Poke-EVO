@@ -277,6 +277,15 @@ export const MAP_TUNING = {
   reach: 75,
   /** Arena entrances (D47 15-4): the nearest matching-biome slot this far from you, else today's placement. */
   entranceSlot: { min: 300, max: 800 },
-  /** Stuck enemies (README §11.4): this long pressed against obstacles and this far from you, they're recycled. */
-  stuck: { seconds: 3, recycleBeyond: 450 },
+  /**
+   * Stuck enemies (README §11.4): a step counts as stuck when an obstacle pushed the enemy and it moved less than
+   * `progress` × its speed. This long stuck, and either this far from you or with an obstacle between you, it's recycled.
+   */
+  stuck: { seconds: 3, recycleBeyond: 450, progress: 0.25 },
+  /**
+   * Wall-follow (D47 amendment, README §11.4): stuck this long, an enemy walks along the wall, leaning in by `hug` so it
+   * stays on it, until the way to you points off the wall and is clear for `look` px, or it's been off the wall for
+   * `hold` s. Stuck while following (two followers meeting head-on), it turns round every `flip` s.
+   */
+  follow: { after: 0.3, hold: 0.6, hug: 0.3, look: 150, flip: 1 },
 } as const;

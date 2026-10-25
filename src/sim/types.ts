@@ -117,8 +117,21 @@ export interface Enemy {
   blindLeft: number;
   wanderX: number;
   wanderY: number;
-  /** Seconds pressed against map obstacles (decays while free); a long-stuck far enemy is recycled (D47). */
+  /**
+   * Seconds pressed against map obstacles without getting anywhere (decays otherwise). It starts a wall-follow, and a
+   * long-stuck enemy that's far or behind an obstacle is recycled (D47).
+   */
   blockedFor: number;
+  /** Wall-follow (D47 amendment): direction out of the last obstacle touched, and where the enemy was last step. */
+  wallX: number;
+  wallY: number;
+  /** How many obstacles it touched then: 2+ means it's in the seam between them. */
+  wallTouches: number;
+  prevX: number;
+  prevY: number;
+  /** Which way it walks along the wall (+1/−1, 0 = not following), and how long it keeps doing so off the wall. */
+  followSign: number;
+  followLeft: number;
   /** Aurora Beam: deals contactDamage × weakenMult while weakenLeft > 0. */
   weakenMult: number;
   weakenLeft: number;

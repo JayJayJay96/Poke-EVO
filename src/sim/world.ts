@@ -33,7 +33,7 @@ import { applyPlayerStatus, emptyPlayerStatus, playerStatusSlow, updatePlayerSta
 import { gainXp, makeOffer } from './progression';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
-import { collideWithMap } from './map';
+import { collideWithMap, lineBlocked } from './map';
 import { MAP_TUNING } from '../data/map';
 import { updateSites } from './sites';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
@@ -348,6 +348,13 @@ export function spawnEnemy(world: World, kind: EnemyId, x: number, y: number, hp
     wanderX: 0,
     wanderY: 0,
     blockedFor: 0,
+    wallX: 0,
+    wallY: 0,
+    wallTouches: 0,
+    prevX: x,
+    prevY: y,
+    followSign: 0,
+    followLeft: 0,
   };
   world.enemies.push(enemy);
   return enemy;
@@ -413,7 +420,8 @@ function movePlayer(world: World, input: InputState, dt: number): void {
 /**
  * Enemies left far behind reappear on the spawn ring ahead of the player, keeping HP and statuses,
  * so they don't sit out of play and fill the enemy cap (owner 2026-10-21). So do enemies stuck behind a map
- * obstacle for a while, once they're far enough that you can't be fighting them across it (D47).
+ * obstacle for a while, once they're far enough or the obstacle stands between you, so you can't be fighting them
+ * across it (D47 and its amendment).
  */
 function recycleStragglers(world: World): void {
   const { player } = world;
@@ -426,7 +434,7 @@ function recycleStragglers(world: World): void {
     const dx = enemy.x - player.x;
     const dy = enemy.y - player.y;
     const d2 = dx * dx + dy * dy;
-    const stuck = enemy.blockedFor >= stuckSeconds && d2 > recycleBeyond * recycleBeyond;
+    const stuck = enemy.blockedFor >= stuckSeconds && (d2 > recycleBeyond * recycleBeyond || lineBlocked(world, enemy.x, enemy.y, player.x, player.y));
     if (d2 <= limit * limit && !stuck) continue;
     enemy.blockedFor = 0;
     const angle = facing + (world.rng.next() - 0.5) * TUNING.spawn.recycleSpread;
@@ -496,6 +504,11 @@ function moveEnemies(world: World, dt: number): void {
     const speed = enemy.speed * enemySpeedFactor(enemy) * sprint;
     let vx = attack && !fleeing ? attack.vx : (dx / dist) * speed;
     let vy = attack && !fleeing ? attack.vy : (dy / dist) * speed;
+    // Wall-follow (D47 amendment): a plain chase (or flight) stuck on an obstacle walks along it instead.
+    if (!(attack && !fleeing) && followWall(world, enemy, vx / (speed || 1), vy / (speed || 1), dist, dt)) {
+      vx = wallDir.x * speed;
+      vy = wallDir.y * speed;
+    }
 
     // Push apart from overlapping neighbours so the horde spreads instead of stacking. Phasers drift through (D37).
     if (PHASERS.has(enemy.kind)) neighbours.length = 0;
@@ -522,6 +535,46 @@ function moveEnemies(world: World, dt: number): void {
     enemy.x += vx * dt;
     enemy.y += vy * dt;
   }
+}
+
+const wallDir = { x: 0, y: 0 };
+
+/**
+ * Wall-follow (D47 amendment, README §11.4): an enemy stuck on an obstacle picks the side closer to where it wants to
+ * go and walks along the wall, leaning in so it stays on it. It leaves once the way it wants points off the wall and
+ * is clear for `look` px (a tree's bulge alone isn't enough: the next trunk is right there). It keeps its side until
+ * `hold` s off the wall (collideWithMap refreshes it on contact), so the next seam doesn't flip it back.
+ * Sets `wallDir`; true while following.
+ */
+function followWall(world: World, enemy: Enemy, dirX: number, dirY: number, dist: number, dt: number): boolean {
+  const { after, hold, hug, flip } = MAP_TUNING.follow;
+  enemy.followLeft = Math.max(0, enemy.followLeft - dt);
+  if (enemy.followLeft <= 0) enemy.followSign = 0;
+  // Stalled while following (another follower coming the other way, a dead end): turn round every `flip` s stuck.
+  const b = enemy.blockedFor;
+  if (enemy.followSign !== 0 && b >= flip && Math.floor(b / flip) > Math.floor((b - dt) / flip)) {
+    enemy.followSign = -enemy.followSign;
+  }
+  const into = dirX * enemy.wallX + dirY * enemy.wallY < 0;
+  if (enemy.followSign === 0) {
+    if (enemy.blockedFor < after || !into) return false;
+    // How far the wanted way runs along the wall's +1 side, (−wallY, wallX); head-on, the id decides.
+    const along = -dirX * enemy.wallY + dirY * enemy.wallX;
+    enemy.followSign = along > 0 ? 1 : along < 0 ? -1 : enemy.id % 2 ? 1 : -1;
+    enemy.followLeft = hold;
+  }
+  if (!into) {
+    const look = Math.min(dist, MAP_TUNING.follow.look);
+    if (!lineBlocked(world, enemy.x, enemy.y, enemy.x + dirX * look, enemy.y + dirY * look, enemy.radius)) return false;
+  }
+  // Leaning in keeps it on a round trunk; in a seam it would only wedge it deeper.
+  const lean = enemy.wallTouches > 1 ? 0 : hug;
+  const x = -enemy.wallY * enemy.followSign - lean * enemy.wallX;
+  const y = enemy.wallX * enemy.followSign - lean * enemy.wallY;
+  const len = Math.hypot(x, y);
+  wallDir.x = x / len;
+  wallDir.y = y / len;
+  return true;
 }
 
 function updateMoves(world: World, dt: number): void {

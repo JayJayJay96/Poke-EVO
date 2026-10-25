@@ -40,6 +40,10 @@ function boulder(x: number, y: number, radius: number): Obstacle {
   return { x, y, radius, kind: 'boulder' };
 }
 
+function tree(x: number, y: number, radius: number): Obstacle {
+  return { x, y, radius, kind: 'tree' };
+}
+
 function inside(o: Obstacle, x: number, y: number, radius: number): boolean {
   return Math.hypot(x - o.x, y - o.y) < o.radius + radius - 0.01;
 }
@@ -271,33 +275,98 @@ describe('map obstacles: movement (M1)', () => {
     world.moves = [];
   }
 
-  it('an enemy stuck behind a boulder far from you is recycled to the spawn ring ahead of you', () => {
+  /** One step with `enemy` already stuck long enough; true if it was moved onto the spawn ring. */
+  function recycledWhenStuck(world: World, enemy: ReturnType<typeof spawnEnemy>): boolean {
+    enemy.blockedFor = MAP_TUNING.stuck.seconds;
+    step(world, IDLE, DT);
+    return Math.abs(Math.hypot(enemy.x - world.player.x, enemy.y - world.player.y) - world.spawnRadius) < 10;
+  }
+
+  it('a stuck enemy far from you is recycled to the spawn ring ahead of you', () => {
     const world = makeWorld();
     quietSpawner(world);
     world.player.x = -400;
     world.player.faceX = -1; // ahead = away from the rock
-    place(world, boulder(200, 0, 60));
-    const stuck = spawnEnemy(world, 'rattata', 400, 0); // head-on: it can't slide off
-    let recycled = false;
-    for (let i = 0; i < 6 / DT && !recycled; i++) {
-      step(world, IDLE, DT);
-      recycled = stuck.x < world.player.x;
-    }
-    expect(recycled).toBe(true);
-    expect(Math.hypot(stuck.x - world.player.x, stuck.y - world.player.y)).toBeCloseTo(world.spawnRadius, -1);
+    place(world, boulder(400, -80, 60)); // beside it, not between you
+    const stuck = spawnEnemy(world, 'rattata', 400, 0);
+    expect(recycledWhenStuck(world, stuck)).toBe(true);
+    expect(stuck.x).toBeLessThan(world.player.x);
     expect(stuck.blockedFor).toBeLessThan(MAP_TUNING.stuck.seconds);
   });
 
-  it('a stuck enemy near you stays where it is (you can fight it across the rock)', () => {
+  it('a stuck enemy near you with a clear line stays (you can fight it)', () => {
     const world = makeWorld();
     quietSpawner(world);
-    place(world, boulder(200, 0, 60));
-    const near = spawnEnemy(world, 'rattata', 330, 0);
-    for (let i = 0; i < 6 / DT; i++) {
+    place(world, boulder(300, -80, 60));
+    const near = spawnEnemy(world, 'rattata', 300, 0);
+    expect(recycledWhenStuck(world, near)).toBe(false);
+  });
+
+  it('a stuck enemy near you with a tree between you is recycled (D47 amendment)', () => {
+    const world = makeWorld();
+    quietSpawner(world);
+    place(world, tree(200, 0, 48));
+    const behind = spawnEnemy(world, 'rattata', 300, 0);
+    expect(recycledWhenStuck(world, behind)).toBe(true);
+  });
+
+  it('an enemy that keeps getting somewhere along a wall never counts as stuck', () => {
+    const world = makeWorld();
+    quietSpawner(world);
+    place(world, ...[-300, -200, -100, 0, 100, 200, 300].map((y) => tree(200, y, 48)));
+    const walker = spawnEnemy(world, 'rattata', 300, 50);
+    let most = 0;
+    for (let i = 0; i < 3 / DT; i++) {
       step(world, IDLE, DT);
-      expect(Math.hypot(near.x - world.player.x, near.y - world.player.y)).toBeLessThan(MAP_TUNING.stuck.recycleBeyond);
+      most = Math.max(most, walker.blockedFor);
     }
-    expect(near.blockedFor).toBeGreaterThan(MAP_TUNING.stuck.seconds);
+    expect(most).toBeLessThan(MAP_TUNING.stuck.seconds);
+  });
+});
+
+describe('map obstacles: wall-follow (D47 amendment)', () => {
+  /** Lets `enemy` chase an idle, unhittable player with no moves for `seconds`; returns its closest distance. */
+  function chase(world: World, enemy: ReturnType<typeof spawnEnemy>, seconds: number): number {
+    world.player.invulnLeft = 999;
+    world.moves = [];
+    let closest = Infinity;
+    for (let i = 0; i < seconds / DT; i++) {
+      step(world, IDLE, DT);
+      closest = Math.min(closest, Math.hypot(enemy.x - world.player.x, enemy.y - world.player.y));
+    }
+    return closest;
+  }
+
+  it('an enemy wedged between two trees of a wall walks round the wall to you', () => {
+    const world = makeWorld();
+    place(world, ...[-200, -100, 0, 100, 200].map((y) => tree(200, y, 48)));
+    const wedged = spawnEnemy(world, 'rattata', 330, 50); // straight at you is the seam between two trees
+    expect(chase(world, wedged, 16)).toBeLessThan(wedged.radius + world.player.radius + 5);
+  });
+
+  it('a pack wedged along a tree wall all get round it, even followers meeting head-on', () => {
+    const world = makeWorld();
+    place(world, ...[-250, -150, -50, 50, 150, 250].map((y) => tree(200, y, 48)));
+    const pack = [-200, -100, 0, 100, 200].map((y) => spawnEnemy(world, 'rattata', 330, y + 50));
+    world.player.invulnLeft = 999;
+    world.moves = [];
+    for (let i = 0; i < 25 / DT; i++) step(world, IDLE, DT);
+    for (const e of pack) expect(Math.hypot(e.x - world.player.x, e.y - world.player.y)).toBeLessThan(60);
+  });
+
+  it('an enemy head-on behind a boulder gets round it', () => {
+    const world = makeWorld();
+    place(world, boulder(200, 0, 60));
+    const headOn = spawnEnemy(world, 'rattata', 400, 0);
+    expect(chase(world, headOn, 8)).toBeLessThan(headOn.radius + world.player.radius + 5);
+  });
+
+  it('with no wall in the way it stops following and chases straight', () => {
+    const world = makeWorld();
+    place(world, boulder(200, 0, 60));
+    const e = spawnEnemy(world, 'rattata', 400, 0);
+    chase(world, e, 8);
+    expect(e.followSign).toBe(0);
   });
 });
 

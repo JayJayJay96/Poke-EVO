@@ -62,7 +62,7 @@ It also unlocks things that are approved but waiting on terrain:
 | **R1** | **Lanes always stay open.** Every chunk edge has ≥ 2 openings ≥ 150 px wide, and nothing walkable is enclosed. Checked by the generator (§5.4), not by hand | The player must never be boxed in by the map |
 | **R2** | **Terrain never hides an enemy.** Tall grass shows enemies through it; nothing walks under a canopy. Only the Ambusher hides, and it keeps its wobble tell | Pillar 3 |
 | **R3** | **Danger colours belong to enemies.** Red/orange outlines and flashing are enemy telegraphs only. Terrain is muted; player-owned reactions use soft fills with no red rim. **Enemy telegraphs draw above all terrain** | Pillar 3: a fire you lit must not read as a fire that hurts you |
-| **R4** | **No pathfinding** (PROJECT.md §11.1). Movers walk straight and **slide** along obstacles. Obstacles are cells, circles or segments, all convex enough to slide off. Stuck enemies get recycled (§11.4) | Performance budget |
+| **R4** | **No pathfinding** (PROJECT.md §11.1). Movers walk straight and **slide** along obstacles. Obstacles are cells, circles or segments, all convex enough to slide off. Stuck enemies wall-follow, and get recycled if that fails (§11.4, D47 amendment) | Performance budget |
 | **R5** | **Terrain triggers nothing further.** A reaction (burning grass, charged marsh) applies statuses through the normal status code and never triggers hooks, Techniques or other reactions | No proc-from-proc |
 | **R6** | **The player is never hurt by their own reaction.** Your burning grass, your charged marsh and your melting ice don't damage you | Readable, fair |
 | **R7** | **Coverage caps.** Blocking area ≤ 20% of a chunk (meadow ≤ 8%, the start area ≤ 5%) | Survivor-likes need room to kite |
@@ -569,6 +569,19 @@ farther than **450 px** from the player, it's moved onto the spawn ring (the exi
 which keeps its HP). Stuck enemies within 450 px stay: they're usually on a shore you can shoot across, which is the
 point. (Contact time replaced the first draft's "distance hasn't dropped" rule: it never flags ranged enemies that
 keep their distance on purpose.)
+
+**Amended 2026-10-25 (D47 amendment), after a playtest showed mobs wedged in the seams of tree walls.** Trees 100 px
+apart with radius 45–50 leave 0–10 px seams: two touching circles make a pocket a straight chaser slides into and
+can't leave, and since trees block shots (D41), a mob stuck there near you could be neither reached nor hit.
+- **Stuck** now means an obstacle pushed the enemy *and* it moved less than 25% of its speed that step
+  (`MAP_TUNING.stuck.progress`). Ranged enemies holding their distance aren't pushed, so they still never count.
+- **Wall-follow** (`MAP_TUNING.follow`, still no pathfinding): stuck 0.3 s, the enemy picks the side closer to where it
+  wants to go and walks along the wall (normal = sum of the touched obstacles' normals, so a seam reads as one wall),
+  leaning in by 0.3 on a single trunk so it stays on it. It leaves when the way it wants points off the wall *and* is
+  clear for 150 px, keeps its side until it has been off the wall 0.6 s, and turns round every 1 s it stays stuck
+  while following (two followers meeting head-on).
+- **Recycling** also fires within 450 px when an obstacle stands on the line between the enemy and you
+  (`lineBlocked`): you can't fight it across trees or boulders. Ponds (M3) don't block that line.
 
 ### 11.4a What M1–M2 built differently, on purpose
 - **No static hash.** Each chunk keeps one lookup list: its own obstacles plus its neighbours' within 75 px of its
