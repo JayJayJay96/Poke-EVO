@@ -126,6 +126,14 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Mankey and Abra designed (D56)
+**Owner:** "add 2 more pokemon, mankey and abra"; approved the proposal with the recommended answers. **Status:** design docs only, no code; committed.
+
+- `docs/moveset/mankey/README.md` and `docs/moveset/abra/README.md`: stages, ability tiers, signature tiers, learnsets with base stats, every Mutation with its cost, and the Bond table with the D55 five checks.
+- PROJECT.md §6 entries and D56.
+- **Not done on purpose:** `docs/moveset/INDEX.md` rows (its sync test needs the code), shared move files (the new moves are only learned by one line each).
+- **Next (when the owner says build):** Rage/Rampage, Teleport/Echo and enemy Confused systems; new hooks; moves and lines in `src/data/`; Mutations with tests; INDEX.md rows; a starter-select entry; then a balance run.
+
 ### 2026-10-25 — Bond design rules codified (D55)
 **Owner:** asked for the D50–D54 lessons to become guidelines for future Pokémon. **Status:** docs only; committed.
 
