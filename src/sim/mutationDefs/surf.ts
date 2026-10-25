@@ -91,12 +91,15 @@ defineMutation('surf.lastWave', {
   },
 });
 
-/** Ferry Wave (Bond, XP gems, Tide): Surf pulls the XP gems around you in; in Flood from further, with a burst of speed. */
+/**
+ * Ferry Wave (Bond, XP gems, Tide): Surf pulls the XP gems around you in; in Flood from further, with a burst of speed.
+ * D54: the damage cost applies only in Flood; it ebbs with the benefit.
+ */
 const ferry = ranked('surf.ferryWave');
 const ferryTide = (slot: MoveSlot) => rankedTide('surf.ferryWave', slot.mutationRank);
 defineMutation('surf.ferryWave', {
-  stats: (s, _world, slot) => {
-    s.damage *= ferry(slot).damageMult;
+  live: (s, world, slot) => {
+    if (tideFlood(world)) s.damage *= ferry(slot).damageMult;
   },
   onCast: (world, slot) => {
     const tide = tideFlood(world) ? ferryTide(slot).flood : ferryTide(slot).ebb;

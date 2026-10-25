@@ -87,9 +87,9 @@ Hydro Pump ───┬─ Split Stream     `hydroPump.splitStream`     (shared 
 ### Bond details (Flood = before Lv 30 · Ebb = Lv 30+)
 | Bond | Move | What changes — **Flood** | **Ebb** | Cost |
 |---|---|---|---|---|
-| **Surging Slam** `bodySlam.surge` | Body Slam | Each level-up empowers the next **3** Body Slams: 360°, paralysis 0.5 s (a new effect, fixed D29: bosses are immune and stun fatigue applies). | Next **1** Body Slam only. | −15% damage. |
+| **Surging Slam** `bodySlam.surge` | Body Slam | Each level-up empowers the next **3** Body Slams: 360°, paralysis 0.5 s (a new effect, fixed D29: bosses are immune and stun fatigue applies). | Next **1** Body Slam only. | −15% damage, Flood only (D54: no cost from Lv 30, when the benefit ebbs). |
 | **Flash Freeze** `iceBeam.flashFreeze` | Ice Beam | Ice Beam **freezes** (stun 0.6 s, once per beam, stun fatigue applies) instead of slowing. Bosses are immune to the freeze, and the beam doesn't slow them either. | Back to slowing (60% instead of 50%), beam +20% wider. | −20% damage. |
-| **Ferry Wave** `surf.ferryWave` | Surf | Lapras carries you: Surf pulls every XP gem in its radius ×1.5 to you and gives +30% move speed for 1.5 s. Level fast. | Pulls gems in its normal radius; no speed. | −20% damage. |
+| **Ferry Wave** `surf.ferryWave` | Surf | Lapras carries you: Surf pulls every XP gem in its radius ×1.5 to you and gives +30% move speed for 1.5 s. Level fast. | Pulls gems in its normal radius; no speed. | −20% damage, Flood only (D54: no cost from Lv 30, when the benefit ebbs). |
 | **Pressure Shell** `hydroPump.pressureShell` | Hydro Pump | Damage Shell Armor prevents is stored (cap **60**); the next Hydro Pump adds it as bonus damage spread over its ticks. | Cap **30**. | Hydro Pump cooldown ×1.2. |
 
 Balance notes:

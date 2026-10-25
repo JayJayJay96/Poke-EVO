@@ -70,21 +70,22 @@ defineMutation('bodySlam.shockwave', {
   },
 });
 
-/** Surging Slam (Bond, level-up, Tide): each level-up empowers the next Body Slams: 360° and a longer paralysis. */
+/**
+ * Surging Slam (Bond, level-up, Tide): each level-up empowers the next Body Slams: 360° and a longer paralysis.
+ * D54: the damage cost applies only in Flood; it ebbs with the benefit.
+ */
 const surge = ranked('bodySlam.surge');
 defineMutation('bodySlam.surge', {
-  stats: (s, _world, slot) => {
-    s.damage *= surge(slot).damageMult;
+  live: (s, world, slot) => {
+    if (tideFlood(world)) s.damage *= surge(slot).damageMult;
+    if (!slot.mutState.empowered) return;
+    s.arcMult *= 360 / bodySlam.arcDegrees;
   },
   onEvent: (world, slot, event) => {
     if (event !== 'levelUp') return;
     const t = rankedTide('bodySlam.surge', slot.mutationRank);
     const tide = tideFlood(world) ? t.flood : t.ebb;
     slot.mutState.empowered = (slot.mutState.empowered ?? 0) + tide.empoweredSlams;
-  },
-  live: (s, _world, slot) => {
-    if (!slot.mutState.empowered) return;
-    s.arcMult *= 360 / bodySlam.arcDegrees;
   },
   // The paralysis is a new effect (D21 guard rails): bosses are immune and stun fatigue applies.
   onHit: (_world, slot, enemy) => {

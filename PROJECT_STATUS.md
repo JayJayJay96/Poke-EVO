@@ -126,6 +126,16 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Lapras Tide Bonds (D54)
+**Owner:** approved after the Lapras kit review; no balance run (owner). **Status:** built, tested; committed. Not playtested.
+
+- **Ferry Wave** (`src/sim/mutationDefs/surf.ts`) and **Surging Slam** (`bodySlam.ts`): the damage multiplier moved from `stats` to `live` and applies only while `tideFlood`.
+- **Docs:** `lapras/README.md` costs; PROJECT.md D54.
+- **Tests:** `laprasMoves.test.ts`: Ebb no cost and Flood ×0.85 (Surging Slam); Ebb no cost (Ferry Wave).
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **592/592 passed**; `npm run build` passes.
+- **Next:** owner playtest of D50–D54. Balance (`npm run balance`) not run since D49; every change since was a buff.
+- **Build runs:** yes.
+
 ### 2026-10-25 — Pikachu Bond reworks (D53)
 **Owner:** approved after the Pikachu kit review. **Status:** built, tested; committed. Not browser-checked, not playtested.
 

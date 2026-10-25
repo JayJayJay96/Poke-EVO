@@ -110,6 +110,12 @@ describe('Body Slam', () => {
     w.level = MUTATION_TUNING.tideLevel;
     emit(w, 'levelUp', 1);
     expect(slot.mutState.empowered).toBe(v.tide.ebb.empoweredSlams);
+    // D54: no damage cost in Ebb (in Flood it is ×damageMult).
+    run(w, DT);
+    expect(slot.stats.damage).toBeCloseTo(slot.baseStats.damage);
+    w.level = 1;
+    run(w, DT);
+    expect(slot.stats.damage).toBeCloseTo(slot.baseStats.damage * v.values.damageMult);
   });
 });
 
@@ -210,6 +216,7 @@ describe('Surf', () => {
     run(w, DT);
     expect(beyond.magnetized).toBe(false);
     expect(mutationMoveSpeedMult(w)).toBe(1);
+    expect(slot.stats.damage).toBeCloseTo(slot.baseStats.damage); // D54: no damage cost in Ebb
   });
 });
 
