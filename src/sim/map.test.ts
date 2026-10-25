@@ -35,6 +35,7 @@ function place(world: World, ...obstacles: Obstacle[]): void {
     slots: [],
     cells: cellsOf(SET_PIECES.open!.rows),
     water: false,
+    patches: null,
   };
   world.map.chunks.set(chunkKey(0, 0), chunk);
 }
@@ -410,7 +411,7 @@ describe('map terrain: water and marsh (M3)', () => {
   function tiles(world: World, rows: string[]): void {
     place(world);
     const chunk = world.map.chunks.get(chunkKey(0, 0))!;
-    world.map.chunks.set(chunkKey(0, 0), { ...chunk, tiles: rows, cells: cellsOf(rows), water: rows.some((r) => r.includes('w')) });
+    world.map.chunks.set(chunkKey(0, 0), { ...chunk, tiles: rows, cells: cellsOf(rows), water: rows.some((r) => r.includes('w')), patches: null });
   }
   const column = (ch: string, from: number): string[] => Array.from({ length: 10 }, () => '.'.repeat(from) + ch.repeat(10 - from));
   /** Water from x = 200 to the chunk edge. */

@@ -592,9 +592,9 @@ can't leave, and since trees block shots (D41), a mob stuck there near you could
   them out of obstacles; sites use their S slot or are nudged clear (`clearSpot`); entrances use a matching-biome E slot
   or are nudged clear.
 - **Tiles with no rules yet** (ledges, rocky floor, berry trees, item balls) are laid out and counted by the lane
-  check and caps, but have no effect and aren't drawn until M4. Tall grass is drawn but has no rules until M3b.
-- **M3 is built in two steps.** **M3a** (built 2026-10-25): cells, traversal flags, water and marsh (below).
-  **M3b** (next): tall grass rules and the six reactions (§8), with the ice bridge.
+  check and caps, but have no effect and aren't drawn until M4.
+- **M3 is built in two steps.** **M3a** (built 2026-10-25): cells, traversal flags, water and marsh. **M3b** (built
+  2026-10-25): tall grass rules and the six reactions (§8), with the ice bridge. Both are described below.
 - **M3a as built:**
   - Each chunk stores its 20 × 20 cells (`MapChunk.cells`, one `CELL` byte each) from its tiles, plus a `water` flag;
     `cellAt` is one chunk lookup and an array read.
@@ -609,6 +609,24 @@ can't leave, and since trees block shots (D41), a mob stuck there near you could
     marsh) with `nearestCell`, searching up to 12 cells out.
   - Not built yet: the swimming HUD chip and first-swim notice (M5 notices), and the spec's "try 4 more spawn angles"
     (spawns in water are lifted out instead).
+- **M3b as built** (`src/sim/mapReactions.ts`):
+  - **Patches** are 4-connected same-class cells inside one chunk (labels built on first use). Shortcut: a patch stops
+    at a chunk edge; set pieces rarely put grass, marsh or water on a door.
+  - **State** lives per patch in `world.map.patches` (fire start and spread distances, charge and freeze times,
+    per-kind cooldowns) and in `world.map.bridges`. A grass cell's phase (grass, burning, ash, regrow) is computed from
+    its spread distance and the time, so nothing ticks per cell.
+  - **Triggers** (§8.1): a projectile in each feature cell it enters (at most 4 counted); a zone at its centre plus up
+    to 8 covered cells, once when cast; a beam every 50 px (at most 8), once when cast; a melee swipe at its tip (wing
+    beats at each tip); an orbit at each ball every 0.5 s (per slot, not per ball). Blasts and explosions add none:
+    their projectile already reacted on the way.
+  - **Effects** run on the 0.25 s cadence, and only while something burns or is frozen: burning cells Burn enemies
+    through `applyBurn`; frozen marsh makes grounded enemies slip; the marsh charge uses `applyNewStun` and a proc
+    hit. Nothing reaches hooks, Techniques or other reactions (R5), and nothing touches the player (R6).
+  - **Ice bridge**: the strip runs along the hit's heading (away from the player for hits without one), plus one cell
+    to its right; water under it reads as open floor in `cellAt`, so movement, collision and drawing need nothing else.
+    When it melts, grounded enemies on it are stunned and the water push-out lifts everyone ashore.
+  - **Charged water** only shows (2 s); it will matter once swimming enemies exist.
+  - Not built yet: the first-ignite and first-bridge notices (M5), and the rustle / horde-from-grass tell (M5).
 - **Entrance slots are rare within 800 px**: in a unit-test sample, 3 of 24 tries found a matching-biome slot; the rest
   fell back to today's placement. **Owner 2026-10-25: keep 800 px**; most entrances use today's placement for now.
 - **Off by default in the sim** (`obstacleDensity: 0`), so existing tests and the balance bot are unchanged; the game

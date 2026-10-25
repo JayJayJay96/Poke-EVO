@@ -1,9 +1,11 @@
+import { MAP_TUNING } from '../../data/map';
 import { RETURN_HITS_PER_LEG } from '../../data/augments';
 import { TUNING } from '../../data/content';
 import type { ProjectileMoveDef } from '../../data/moves';
 import { NO_HIT, damageEnemy, findNearestEnemy, findTarget, queryEnemies } from '../combat';
 import { chainBias, emit, hooksOf } from '../hooks';
-import { hitsObstacle } from '../map';
+import { cellKey, hitsObstacle } from '../map';
+import { reactAt, reacts } from '../mapReactions';
 import type { Enemy, MoveSlot, Projectile, World } from '../types';
 import { spawnZone } from '../zones';
 
@@ -41,6 +43,8 @@ export function createProjectile(): Projectile {
     chainJumps: 0,
     chainFraction: 0,
     hit: { ...NO_HIT },
+    lastCell: -1,
+    reacts: 0,
     pierceLeft: 0,
     legPierce: 0,
     homing: false,
@@ -117,6 +121,8 @@ export function castProjectile(world: World, slot: MoveSlot, def: ProjectileMove
     // Return: fly out for half the lifetime, then come back.
     p.turnAt = s.returns ? lifetime / 2 : 0;
     p.hitIds.length = 0;
+    p.lastCell = -1;
+    p.reacts = 0;
     p.tag = 0;
     p.lifeLeft = lifetime;
     p.dead = false;
@@ -142,6 +148,14 @@ export function updateProjectiles(world: World, dt: number): void {
     proj.x += proj.vx * dt;
     proj.y += proj.vy * dt;
     proj.lifeLeft -= dt;
+    // Map reactions (README §8.1): once per cell the shot enters, at most `trigger.projectile` times.
+    if (proj.reacts < MAP_TUNING.trigger.projectile && reacts(proj.hit.attackType)) {
+      const cell = cellKey(Math.floor(proj.x / MAP_TUNING.cellSize), Math.floor(proj.y / MAP_TUNING.cellSize));
+      if (cell !== proj.lastCell) {
+        proj.lastCell = cell;
+        if (reactAt(world, proj.x, proj.y, proj.hit.attackType, proj.damage, proj.vx / proj.speed, proj.vy / proj.speed)) proj.reacts++;
+      }
+    }
 
     if (proj.returning) {
       const dx = player.x - proj.x;

@@ -50,6 +50,7 @@ import {
 } from './techniques';
 import type { Enemy, InputState, MoveSlot, World } from './types';
 import { updateTerrain } from './terrain';
+import { restsInGrass, updateMapReactions } from './mapReactions';
 import { updateZones } from './zones';
 
 const ENEMY_IDS = Object.keys(ENEMIES) as EnemyId[];
@@ -140,7 +141,7 @@ export function createWorld({
     sites: [],
     siteChunks: new Set(),
     mapSeed,
-    map: { density: obstacleDensity, forceBiome: null, chunks: new Map() },
+    map: { density: obstacleDensity, forceBiome: null, chunks: new Map(), patches: new Map(), bridges: [], tickLeft: 0, activeUntil: -Infinity },
     arenaSchedule: arenaSchedule(mapSeed),
     arenaEventsDone: 0,
     arenaBossesUsed: [],
@@ -231,6 +232,7 @@ export function step(world: World, input: InputState, dt: number): void {
   updateProjectiles(world, dt);
   updateZones(world, dt);
   updateTerrain(world, dt);
+  updateMapReactions(world, dt);
   updateGems(world, dt);
   pickUpBerries(world, dt);
   applyContactDamage(world);
@@ -397,7 +399,7 @@ function tickTimers(world: World, dt: number): void {
   const rest = TUNING.restRegen;
   // Swimming (D47, docs/map/README.md §7.2): no rest regen in deep water, so a lake isn't a safe room.
   p.swimFor = cellAt(world, p.x, p.y) === CELL.water ? p.swimFor + dt : 0;
-  if (p.swimFor === 0 && p.calmFor >= restAfterSeconds(world, rest.afterSeconds) && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);
+  if (p.swimFor === 0 && p.calmFor >= restAfterSeconds(world, restsInGrass(world) ? MAP_TUNING.grass.restDelayGrassType : rest.afterSeconds) && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);
   // Solar Power's drain never takes the last HP point.
   const drain = ABILITIES[p.ability].hpDrainPerSec ?? 0;
   if (drain > 0 && p.hp > 1) p.hp = Math.max(1, p.hp - drain * dt);

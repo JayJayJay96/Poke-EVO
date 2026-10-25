@@ -1,5 +1,6 @@
 import type { ZoneMoveDef } from '../../data/moves';
 import { damageEnemy, findTarget, makeHitInfo, queryEnemies } from '../combat';
+import { reactArea } from '../mapReactions';
 import type { MoveSlot, World } from '../types';
 import { spawnZone, strikeZone } from '../zones';
 
@@ -22,6 +23,8 @@ export function castZone(world: World, slot: MoveSlot, def: ZoneMoveDef): boolea
     raiseBarrier(world, slot, def);
     return true;
   }
+  // Map reactions (README §8.1): a zone reacts once, when cast, at its centre and the cells it covers.
+  reactArea(world, x, y, def.radius * s.area, s.attackType, s.damage);
   if (def.delay !== undefined) {
     // Future Sight (D56): a telegraphed circle that bursts after the delay.
     strikeZone(world, x, y, def.radius * s.area, def.delay, s.damage, s.critChance, {

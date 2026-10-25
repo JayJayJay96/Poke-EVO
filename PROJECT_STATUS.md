@@ -126,6 +126,38 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Map M3b: tall grass rules, the six reactions, ice bridges (D47)
+**Owner:** "Commit M3a…, then start M3b: tall grass rules, the six reactions and ice bridges." M3a was committed as `5b43bcd`. **Status:** M3b built, tested, browser-checked; **not committed** (owner asked to be asked first). Not playtested by the owner. M3 is complete with this.
+
+- **What it does (README §7–§8):**
+  - **Tall grass:** a Grass-type player rests after 2 s (not 5) while standing in living grass. Fire ignites a patch: it spreads 3 cells/s from where it landed, each cell burns 4 s (enemies in it Burn at 30% of the igniting hit per second, flyers at half), then lies as ash for 60 s and regrows. At most 2 patches burn at once; a patch can't re-ignite until it regrows.
+  - **Marsh:** Electric charges the patch, paralysing every grounded enemy in it for 0.4 s (stun fatigue applies) for 20% of the hit, with a 4 s cooldown per patch. Ice freezes it for 6 s: no slow, and grounded enemies may slip.
+  - **Water:** Ice lays a bridge up to 8 × 2 cells along the hit that anyone can walk on. It lasts 6 s, flickers for 1 s while cracking, then melts: grounded enemies on it are stunned 0.5 s and everyone is put ashore (the player is never stunned). At most 3 bridges, oldest melts first. Fire cracks a bridge at once; Ice refreshes it. Electric shows a 2 s charge on water (no effect until swimming enemies exist).
+  - **Rules kept:** reactions apply statuses through the normal status code with proc hits (R5), never touch the player (R6), and each patch has a 1 s cooldown per reaction kind.
+  - **Triggers:** projectiles in each feature cell they enter (at most 4), zones at cast (centre plus up to 8 cells), beams at cast (every 50 px, at most 8), melee at the tip, orbits every 0.5 s.
+  - **Drawing:** burning grass is a soft orange fill, ash is grey-brown, regrowing grass is faint, frozen marsh is a pale glaze, charged marsh or water a soft yellow, and an ice bridge is pale blue that flickers while cracking. No red rims (R3).
+- **Changed:**
+  - `src/sim/mapReactions.ts` (new): reactions, grass phases, bridges, the effect pass
+  - `src/sim/mapReactions.test.ts` (new): 16 tests
+  - `src/data/map.ts`: `MAP_TUNING.marsh.charge`/`freeze`, `grass`, `iceBridge`, `waterCharge`, `reactionCooldown`, `trigger`, all provisional
+  - `src/sim/map.ts`: `cellKey`, `onBridge`, `groundAt`, `patchAt`, `patchLabels`, `patchCells`, `cellCentre`; bridges in `cellAt`; frozen marsh in `terrainSpeed`
+  - `src/sim/types.ts`: `PatchState`, `IceBridge`, `MapState.patches`/`bridges`/`tickLeft`/`activeUntil`, `MapChunk.patches`, `Projectile.lastCell`/`reacts`
+  - `src/sim/world.ts`: `updateMapReactions` in `step`; grass rest delay
+  - `src/sim/forms/projectile.ts`, `zoneCast.ts`, `beam.ts`, `melee.ts`, `orbit.ts`: triggers
+  - `src/scenes/RunScene.ts`: reaction states in `drawCells`
+  - `src/sim/map.test.ts`: chunk helpers gain `patches`
+  - `docs/map/README.md` §11.4a
+- **Commands (observed):**
+  - `tsc --noEmit` clean
+  - `vitest run` **697/697**
+  - `npm run build` passed
+  - stress bench (`--dir src`): empty map **1.39–1.42 ms/step**; every chunk woods **2.07–2.25 ms** (was 1.97 after M3a: the woods grass reacts to the maxed Fire build), p99 under 2.9 ms; one run logged an 11 ms single-step max (GC-like spike, not reproduced on the next run)
+- **Browser (port 5180):** a run with Charmander. Ember fired at a Rattata across a meadow grass patch and set it burning; the fire showed spreading through the patch with a corner still green. At a pond: an Ice hit laid a 16-cell bridge across the water (reads as floor), Electric charged a marsh patch, Ice froze it, and the bridge melted on time. No console errors.
+- **Not checked:** zone, beam, melee and orbit triggers are wired but have no dedicated tests (only projectiles and direct hits do); balance (the bot runs on an empty map); no first-ignite or first-bridge notices yet (M5).
+- **Next:** owner playtest of M1–M3. M4 (ledges, berry trees, item balls) and M5 (foreshadowing, horde emergence, notices) stay at P6 per D47 15-3.
+- **Build runs:** yes.
+
+
 ### 2026-10-25 — Map M3a: water, marsh, traversal flags (D47)
 **Owner:** "lets continue with the map". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner. M3 is split into **M3a** (this: cells, traversal, water, marsh, swimming) and **M3b** (next: tall grass rules and the six reactions, with the ice bridge). D47 15-3 approved M3 as a whole, so the split is internal.
 

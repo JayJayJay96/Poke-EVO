@@ -1,5 +1,6 @@
 import type { MeleeMoveDef, TipDef } from '../../data/moves';
 import { damageEnemy, makeHitInfo, queryEnemies } from '../combat';
+import { reactAt } from '../mapReactions';
 import type { Enemy, MoveSlot, World } from '../types';
 import { spawnZone } from '../zones';
 import { BLAST_SECONDS } from './projectile';
@@ -33,6 +34,7 @@ export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): bool
     for (const deg of def.sides) {
       const [dx, dy] = turned(player.faceX, player.faceY, deg);
       swingArc(world, slot, dx, dy, arcDegrees, reach);
+      reactAt(world, player.x + dx * reach, player.y + dy * reach, slot.stats.attackType, slot.stats.damage, dx, dy);
     }
     return true;
   }
@@ -44,6 +46,8 @@ export function castMelee(world: World, slot: MoveSlot, def: MeleeMoveDef): bool
   const dirY = tdist > 0 ? ty / tdist : 0;
   swingArc(world, slot, dirX, dirY, arcDegrees, reach, slot.stats.damage, def.tip);
   const s = slot.stats;
+  // Map reactions (README §8.1): a swipe lands at its tip.
+  reactAt(world, player.x + dirX * reach, player.y + dirY * reach, s.attackType, s.damage, dirX, dirY);
 
   // Power Whip (D30): the end of the lash cracks into a burst (part of the move, not a proc).
   const burstRadius = tipBurstRadius(slot, def);

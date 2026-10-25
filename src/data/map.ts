@@ -307,8 +307,34 @@ export const MAP_TUNING = {
    * water, the spawner weights Flying species ×`flyerTiltWeight` until you leave. No rest regen while swimming.
    */
   swim: { speed: { lapras: 1, squirtle: 0.85 }, flyerTiltAfter: 3, flyerTiltWeight: 2 },
-  /** Marsh (README §7.4): `ground` movers lose this share of their speed in it. */
-  marsh: { slow: 0.3 },
+  /**
+   * Marsh (README §7.4): `ground` movers lose `slow` of their speed in it. An Electric hit charges the patch (grounded
+   * enemies in it are paralysed and take a share of the hit; per-patch cooldown); an Ice hit freezes it (no slow,
+   * grounded enemies may slip).
+   */
+  marsh: {
+    slow: 0.3,
+    charge: { paralyse: 0.4, damageFraction: 0.2, cooldown: 4, shows: 1 },
+    freeze: { seconds: 6, slipPerSec: 0.2, slipStun: 0.3 },
+  },
+  /**
+   * Tall grass (README §7.1): Grass-type players rest sooner in it. Fire ignites a patch: the fire spreads
+   * `spreadCellsPerSec` from where it landed, each cell burns `burnSeconds` (enemies in it Burn at `burnFraction` of
+   * the igniting hit per second, flyers at `flyerBurnMult`), then lies as ash and regrows. At most `maxBurning` patches.
+   */
+  grass: { restDelayGrassType: 2, burnSeconds: 4, spreadCellsPerSec: 3, burnFraction: 0.3, flyerBurnMult: 0.5, ashSeconds: 60, regrowSeconds: 1, maxBurning: 2 },
+  /** Ice bridges (README §7.3): an Ice hit on water freezes a strip `cells` long and `width` wide. */
+  iceBridge: { cells: 8, width: 2, seconds: 6, crack: 1, pushStun: 0.5, max: 3 },
+  /** Electric on deep water: a 2 s charge that only shows (no swimming enemies exist yet). */
+  waterCharge: { seconds: 2 },
+  /** Each patch's cooldown per reaction kind (README §8.1); the marsh charge uses its own. */
+  reactionCooldown: 1,
+  /**
+   * Trigger caps per hit (README §8.1): a projectile reacts in each cell it enters, at most `projectile` times; a
+   * zone at its centre and up to `zoneCells` cells it covers; a beam every 50 px, at most `beamSamples`; an orbit at
+   * each ball every `orbitEvery` s.
+   */
+  trigger: { projectile: 4, zoneCells: 8, beamSamples: 8, orbitEvery: 0.5 },
   /** How many cells out to look for dry ground when something lands in water (pickups, a mover, a site). */
   shoreSearch: 12,
 } as const;

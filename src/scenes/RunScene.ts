@@ -40,7 +40,8 @@ import {
   socketsUsed,
 } from '../sim/mutations';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
-import { cellAt, chunkOf, mapChunk } from '../sim/map';
+import { cellKey, chunkOf, groundAt, mapChunk } from '../sim/map';
+import { grassPhase, marshFrozen, patchCharged } from '../sim/mapReactions';
 import { CELL, MAP_TUNING, type BiomeId } from '../data/map';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
@@ -66,6 +67,11 @@ const COLORS = {
   deepWater: 0x2f6f9f,
   waterFoam: 0xd8eef7,
   marsh: 0x4a5a3a,
+  // Reactions: docs/map/INDEX.md §5 (map.reaction.*, map.floor.ash). Soft fills, never a red rim (R3).
+  ash: 0x4a4440,
+  burning: 0xe8833a,
+  charged: 0xe8d86a,
+  ice: 0xbfe3f2,
   player: 0xff7a2f,
   flash: 0xffffff,
   projectile: 0xffb347,
@@ -1068,25 +1074,56 @@ export class RunScene extends Phaser.Scene {
   }
 
   /**
-   * Water, marsh and tall grass cells in view (D47 M3), flat fills under everything else. Every shore gets the 3 px
-   * foam edge so the boundary is unmistakable (docs/map/README.md §7.2).
+   * Water, marsh and tall grass cells in view (D47 M3), flat fills under everything else, with their reaction states
+   * (M3b): burning grass and ash, charged or frozen marsh, charged water, ice bridges (flickering while they crack).
+   * Every shore gets the 3 px foam edge so the boundary is unmistakable (docs/map/README.md §7.2).
    */
   private drawCells(g: Phaser.GameObjects.Graphics, left: number, top: number, width: number, height: number): void {
     const s = MAP_TUNING.cellSize;
-    const fill: Partial<Record<number, number>> = { [CELL.grass]: COLORS.tallGrass, [CELL.slow]: COLORS.marsh, [CELL.water]: COLORS.deepWater };
+    const w = this.world;
+    const bridges = w.map.bridges;
+    const flicker = Math.floor(this.time.now / 100) % 2 === 0;
     for (let y = Math.floor(top / s) * s; y < top + height; y += s) {
       for (let x = Math.floor(left / s) * s; x < left + width; x += s) {
-        const cell = cellAt(this.world, x + s / 2, y + s / 2);
-        const color = fill[cell];
-        if (color === undefined) continue;
-        g.fillStyle(color, cell === CELL.grass ? 0.6 : 1);
+        const cx = x + s / 2;
+        const cy = y + s / 2;
+        const cell = groundAt(w, cx, cy);
+        if (cell === CELL.open) continue;
+        if (cell === CELL.grass) {
+          const phase = grassPhase(w, cx, cy);
+          if (phase === 'ash') g.fillStyle(COLORS.ash, 1);
+          else g.fillStyle(COLORS.tallGrass, phase === 'regrow' ? 0.3 : 0.6);
+          g.fillRect(x, y, s, s);
+          if (phase === 'burning') {
+            g.fillStyle(COLORS.burning, 0.5);
+            g.fillRect(x, y, s, s);
+          }
+          continue;
+        }
+        g.fillStyle(cell === CELL.slow ? COLORS.marsh : COLORS.deepWater, 1);
         g.fillRect(x, y, s, s);
+        if (cell === CELL.slow && marshFrozen(w, cx, cy)) {
+          g.fillStyle(COLORS.ice, 0.55);
+          g.fillRect(x, y, s, s);
+        }
+        if (patchCharged(w, cx, cy)) {
+          g.fillStyle(COLORS.charged, 0.4);
+          g.fillRect(x, y, s, s);
+        }
         if (cell !== CELL.water) continue;
+        const key = cellKey(Math.floor(cx / s), Math.floor(cy / s));
+        const bridge = bridges.length > 0 ? bridges.find((b) => b.cells.has(key)) : undefined;
+        if (bridge) {
+          // Cracking (the 1 s telegraph): flickers, so walkers know to get off.
+          g.fillStyle(COLORS.ice, bridge.frozenLeft > 0 ? 0.9 : flicker ? 0.9 : 0.45);
+          g.fillRect(x, y, s, s);
+          continue;
+        }
         g.fillStyle(COLORS.waterFoam, 0.9);
-        if (cellAt(this.world, x + s / 2, y - s / 2) !== CELL.water) g.fillRect(x, y, s, 3);
-        if (cellAt(this.world, x + s / 2, y + s * 1.5) !== CELL.water) g.fillRect(x, y + s - 3, s, 3);
-        if (cellAt(this.world, x - s / 2, y + s / 2) !== CELL.water) g.fillRect(x, y, 3, s);
-        if (cellAt(this.world, x + s * 1.5, y + s / 2) !== CELL.water) g.fillRect(x + s - 3, y, 3, s);
+        if (groundAt(w, cx, y - s / 2) !== CELL.water) g.fillRect(x, y, s, 3);
+        if (groundAt(w, cx, y + s * 1.5) !== CELL.water) g.fillRect(x, y + s - 3, s, 3);
+        if (groundAt(w, x - s / 2, cy) !== CELL.water) g.fillRect(x, y, 3, s);
+        if (groundAt(w, x + s * 1.5, cy) !== CELL.water) g.fillRect(x + s - 3, y, 3, s);
       }
     }
   }

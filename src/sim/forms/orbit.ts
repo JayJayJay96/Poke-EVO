@@ -1,9 +1,13 @@
 import type { OrbitMoveDef } from '../../data/moves';
 import { damageEnemy, makeHitInfo, queryEnemies } from '../combat';
 import { hooksOf } from '../hooks';
+import { MAP_TUNING } from '../../data/map';
+import { reactAt, reacts } from '../mapReactions';
 import type { MoveSlot, Player, World } from '../types';
 
 const neighbours: number[] = [];
+/** Seconds until each orbit's balls next react with the map (README §8.1). shortcut: per slot, not per ball. */
+const reactLeft = new WeakMap<MoveSlot, number>();
 
 export interface OrbitBall {
   x: number;
@@ -41,6 +45,11 @@ export function updateOrbit(world: World, slot: MoveSlot, def: OrbitMoveDef, dt:
   slot.activeLeft -= dt;
   if (slot.activeLeft <= 0) hooksOf(slot)?.onExpire?.(world, slot);
   slot.angle += def.angularSpeed * slot.stats.spinMult * dt;
+  if (reacts(slot.stats.attackType)) {
+    const left = (reactLeft.get(slot) ?? 0) - dt;
+    reactLeft.set(slot, left > 0 ? left : MAP_TUNING.trigger.orbitEvery);
+    if (left <= 0) for (const ball of orbitBalls(slot, def, world.player)) reactAt(world, ball.x, ball.y, slot.stats.attackType, slot.stats.damage);
+  }
 
   for (const [enemyId, left] of slot.hitCooldowns) {
     if (left - dt <= 0) slot.hitCooldowns.delete(enemyId);

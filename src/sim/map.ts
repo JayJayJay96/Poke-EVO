@@ -15,6 +15,7 @@ import {
   type Traversal,
 } from '../data/map';
 import { ELITE_ABILITY } from '../data/hordes';
+import { marshFrozen } from './mapReactions';
 import { createSeededRng, type Rng } from './rng';
 import type { Enemy, MapChunk, MapSlot, Obstacle, World } from './types';
 
@@ -260,7 +261,7 @@ export function generateChunk(mapSeed: number, cx: number, cy: number, forceBiom
       if (blocking(tiles, circles) > cap || !lanesOpen(tiles, circles, cx, cy)) continue;
       const own = [...placed.own, ...fillers(rng, tiles, circles, cap, def.filler, cx, cy, start)];
       const cells = cellsOf(tiles);
-      return { cx, cy, biome, piece, transform, tiles, own, near: null, slots: placed.slots, cells, water: cells.includes(CELL.water) };
+      return { cx, cy, biome, piece, transform, tiles, own, near: null, slots: placed.slots, cells, water: cells.includes(CELL.water), patches: null };
     }
   }
   throw new Error(`map: no layout fits chunk ${cx},${cy}`); // `open` always fits, so this can't happen
@@ -387,12 +388,100 @@ const CELL_SIZE = MAP_TUNING.cellSize;
 /** Enemy species that fly over low terrain (README §4.2: Flying types). */
 const FLYING_KINDS = new Set(Object.values(ENEMIES).filter((e) => e.types.includes('Flying')).map((e) => e.id));
 
-/** Class of global cell (gx, gy); cell 0 spans 0…50 px, and chunk edges fall on cell edges. */
+/** Numeric key of global cell (gx, gy); unique within ±1M cells. */
+export function cellKey(gx: number, gy: number): number {
+  return (gx + 1048576) * 2097152 + (gy + 1048576);
+}
+
+/**
+ * Class of global cell (gx, gy); cell 0 spans 0…50 px, and chunk edges fall on cell edges. Water under a standing ice
+ * bridge reads as open floor (M3b).
+ */
 function cellAtCell(world: World, gx: number, gy: number): CellClass {
   const cx = chunkOf(gx * CELL_SIZE + CELL_SIZE / 2);
   const cy = chunkOf(gy * CELL_SIZE + CELL_SIZE / 2);
   const chunk = mapChunk(world, cx, cy);
-  return chunk.cells[(gy - cy * CELLS + CELLS / 2) * CELLS + (gx - cx * CELLS + CELLS / 2)] as CellClass;
+  const cell = chunk.cells[(gy - cy * CELLS + CELLS / 2) * CELLS + (gx - cx * CELLS + CELLS / 2)] as CellClass;
+  if (cell === CELL.water && world.map.bridges.length > 0 && onBridge(world, gx, gy)) return CELL.open;
+  return cell;
+}
+
+/** Whether global cell (gx, gy) lies under a standing ice bridge. */
+export function onBridge(world: World, gx: number, gy: number): boolean {
+  const key = cellKey(gx, gy);
+  return world.map.bridges.some((b) => b.cells.has(key));
+}
+
+/** The ground's own class at (x, y), ignoring ice bridges: what a reaction sees. */
+export function groundAt(world: World, x: number, y: number): CellClass {
+  if (world.arena || world.map.density <= 0) return CELL.open;
+  const gx = Math.floor(x / CELL_SIZE);
+  const gy = Math.floor(y / CELL_SIZE);
+  const cx = chunkOf(gx * CELL_SIZE + CELL_SIZE / 2);
+  const cy = chunkOf(gy * CELL_SIZE + CELL_SIZE / 2);
+  return mapChunk(world, cx, cy).cells[(gy - cy * CELLS + CELLS / 2) * CELLS + (gx - cx * CELLS + CELLS / 2)] as CellClass;
+}
+
+/**
+ * Where (x, y) sits in a terrain patch: the patch's key (0 on open floor), and the cell's index inside its chunk.
+ * A patch is a 4-connected group of same-class cells inside one chunk. shortcut: patches stop at chunk edges (a set
+ * piece rarely puts water, marsh or grass on a door); join them across chunks if a playtest shows a seam.
+ */
+export function patchAt(world: World, x: number, y: number): { key: number; index: number; chunk: MapChunk | null } {
+  if (world.arena || world.map.density <= 0) return { key: 0, index: 0, chunk: null };
+  const gx = Math.floor(x / CELL_SIZE);
+  const gy = Math.floor(y / CELL_SIZE);
+  const cx = chunkOf(gx * CELL_SIZE + CELL_SIZE / 2);
+  const cy = chunkOf(gy * CELL_SIZE + CELL_SIZE / 2);
+  const chunk = mapChunk(world, cx, cy);
+  if (!chunk.patches) chunk.patches = patchLabels(chunk.cells);
+  const index = (gy - cy * CELLS + CELLS / 2) * CELLS + (gx - cx * CELLS + CELLS / 2);
+  const label = chunk.patches[index]!;
+  return { key: label === 0 ? 0 : chunkKey(cx, cy) * 1024 + label, index, chunk };
+}
+
+/** Labels each non-open cell with its patch (1, 2, …) by flood fill; open cells stay 0. */
+export function patchLabels(cells: Uint8Array): Uint16Array {
+  const labels = new Uint16Array(cells.length);
+  let next = 0;
+  for (let start = 0; start < cells.length; start++) {
+    if (cells[start] === CELL.open || labels[start]) continue;
+    labels[start] = ++next;
+    const queue = [start];
+    while (queue.length > 0) {
+      const cell = queue.pop()!;
+      const i = Math.floor(cell / CELLS);
+      const j = cell % CELLS;
+      for (const [ni, nj] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]] as const) {
+        if (ni < 0 || nj < 0 || ni >= CELLS || nj >= CELLS) continue;
+        const n = ni * CELLS + nj;
+        if (!labels[n] && cells[n] === cells[start]) {
+          labels[n] = next;
+          queue.push(n);
+        }
+      }
+    }
+  }
+  return labels;
+}
+
+/** Every cell index in `chunk` that shares the patch of cell `index` (call `patchAt` first, it builds the labels). */
+export function patchCells(chunk: MapChunk, index: number): number[] {
+  const label = chunk.patches![index]!;
+  const out: number[] = [];
+  if (label === 0) return out;
+  chunk.patches!.forEach((l, i) => {
+    if (l === label) out.push(i);
+  });
+  return out;
+}
+
+/** World centre of cell `index` of `chunk`. */
+export function cellCentre(chunk: MapChunk, index: number): { x: number; y: number } {
+  return {
+    x: (chunk.cx - 0.5) * MAP_TUNING.chunkSize + ((index % CELLS) + 0.5) * CELL_SIZE,
+    y: (chunk.cy - 0.5) * MAP_TUNING.chunkSize + (Math.floor(index / CELLS) + 0.5) * CELL_SIZE,
+  };
 }
 
 /** What the ground holds at (x, y): water, marsh, tall grass or open. Always open in an arena or on an empty map. */
@@ -420,7 +509,7 @@ function waterBlocks(flag: Traversal): boolean {
 export function terrainSpeed(world: World, x: number, y: number, flag: Traversal, swimSpeed = 1): number {
   if (flag === 'fly' || flag === 'levitate') return 1;
   const cell = cellAt(world, x, y);
-  if (cell === CELL.slow) return flag === 'ground' ? 1 - MAP_TUNING.marsh.slow : 1;
+  if (cell === CELL.slow) return flag === 'ground' && !marshFrozen(world, x, y) ? 1 - MAP_TUNING.marsh.slow : 1;
   return cell === CELL.water && flag === 'swim' ? swimSpeed : 1;
 }
 

@@ -257,6 +257,9 @@ export interface Projectile {
   chainFraction: number;
   /** On-hit effects carried to every enemy this projectile hits. */
   hit: HitInfo;
+  /** Map reactions (README §8.1): the global cell it was last in, and how many reactions it has triggered. */
+  lastCell: number;
+  reacts: number;
   /** Enemies it may still pass through. */
   pierceLeft: number;
   /** Pass-throughs per leg for a Return projectile; `pierceLeft` refills to this when it turns (D48). */
@@ -703,7 +706,34 @@ export interface MapChunk {
   readonly cells: Uint8Array;
   /** Any deep water in `cells`: a mover wholly inside a dry chunk skips the water test. */
   readonly water: boolean;
+  /** Patch label per cell (0 = open floor): 4-connected cells of one class in this chunk; built on first use (M3b). */
+  patches: Uint16Array | null;
   readonly slots: readonly MapSlot[];
+}
+
+/**
+ * A terrain patch's reaction state (README §8; M3b): fire in tall grass, a charged or frozen marsh, charged water.
+ * Times are `world.time` seconds; a field nobody set is −Infinity.
+ */
+export interface PatchState {
+  /** When fire landed, the burn per second it deals, and each cell's spread distance (in cells) from that point. */
+  igniteAt: number;
+  burnDps: number;
+  readonly dist: Map<number, number>;
+  maxDist: number;
+  chargedUntil: number;
+  frozenUntil: number;
+  /** Earliest time each reaction kind may fire again on this patch. */
+  readonly readyAt: Map<string, number>;
+}
+
+/** An ice bridge over deep water (README §7.3): walkable cells that crack, then melt back into water. */
+export interface IceBridge {
+  /** Global cell keys (`cellKey`). */
+  readonly cells: Set<number>;
+  /** Seconds left frozen, then cracking. */
+  frozenLeft: number;
+  crackLeft: number;
 }
 
 export interface MapState {
@@ -713,6 +743,14 @@ export interface MapState {
   forceBiome: BiomeId | null;
   /** Generated chunks by `chunkKey`. */
   readonly chunks: Map<number, MapChunk>;
+  /** Reaction state of patches that have reacted, by `patchKey` (M3b). */
+  readonly patches: Map<number, PatchState>;
+  /** Ice bridges alive, oldest first (at most `MAP_TUNING.iceBridge.max`). */
+  readonly bridges: IceBridge[];
+  /** Seconds until burning grass and frozen marsh next apply their effects (0.25 s cadence). */
+  tickLeft: number;
+  /** Until when any patch is burning or frozen, so the effect pass can skip quiet maps. */
+  activeUntil: number;
 }
 
 export interface ArenaEntrance {

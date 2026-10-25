@@ -1,6 +1,7 @@
 import type { BeamMoveDef } from '../../data/moves';
 import { damageEnemy, findTarget, makeHitInfo, queryEnemies } from '../combat';
 import { hooksOf } from '../hooks';
+import { reactLine } from '../mapReactions';
 import type { MoveSlot, World } from '../types';
 
 const neighbours: number[] = [];
@@ -16,6 +17,8 @@ export function castBeam(world: World, slot: MoveSlot, def: BeamMoveDef): boolea
   slot.dirY = dist > 0 ? dy / dist : 0;
   slot.activeLeft = def.duration * slot.stats.duration;
   slot.tickLeft = 0; // first tick lands immediately
+  // Map reactions (README §8.1): sample points along the beam, once per cast.
+  reactLine(world, world.player.x, world.player.y, slot.dirX, slot.dirY, beamLength(slot, def), slot.stats.attackType, slot.stats.damage);
   return true;
 }
 
