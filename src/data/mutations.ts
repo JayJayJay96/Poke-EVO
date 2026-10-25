@@ -787,14 +787,16 @@ export const MUTATIONS = {
     favoured: ['keenEdge', 'multishot', 'velocity'],
   },
   'razorLeaf.healthyGrowth': {
-    ...bond('razorLeaf', 'bulbasaur', 0, 'fullHp', 'Healthy Growth', 'Full HP: +1 leaf, pierce 1', {
+    // D52: was exact full HP, which a horde almost never allows (Leech can't outheal contact damage).
+    ...bond('razorLeaf', 'bulbasaur', 0, 'fullHp', 'Healthy Growth', 'Above 80% HP: +1 leaf, pierce 1', {
+      hpThreshold: 0.8,
       extraLeaves: 1,
       pierce: 1,
       damageMultHurt: 0.6, // P4f-6 rule-4 tuning (doc: 0.8; 1.74x at full HP, so the hurt side pays more)
       damageMultFull: 1,
     }),
     ranks: [{ damageMultHurt: 0.7, damageMultFull: 1.1 }, { damageMultHurt: 0.8, damageMultFull: 1.15, pierce: 2 }],
-    rankText: ['hurt ×0.7 (0.6); full HP +10% damage', 'hurt ×0.8; full HP +15%; ★ pierce 2 (1)'],
+    rankText: ['hurt ×0.7 (0.6); above 80% HP +10% damage', 'hurt ×0.8; above 80% HP +15%; ★ pierce 2 (1)'],
     favoured: ['multishot', 'pierce', 'lifesteal'],
   },
   'leechSeed.spread': {
@@ -849,14 +851,13 @@ export const MUTATIONS = {
     favoured: ['linger', 'enlarge', 'powerUp'],
   },
   'poisonPowder.sporeSac': {
+    // D52: was a half-size cloud with Poison Powder cooldown ×1.3.
     ...bond('poisonPowder', 'bulbasaur', 0, 'hitTaken', 'Spore Sac', 'Getting hit puffs a poison cloud', {
-      sizeMult: 0.5,
       cloudSeconds: 1.5,
       minInterval: 2,
-      cooldownMult: 1.3,
     }),
-    ranks: [{ sizeMult: 0.6, minInterval: 1.5 }, { sizeMult: 0.7, minInterval: 1 }],
-    rankText: ['cloud size ×0.6 (0.5); every 1.5 s at most (2)', '×0.7; every 1 s'],
+    ranks: [{ minInterval: 1.5 }, { minInterval: 1, cloudSeconds: 2 }],
+    rankText: ['every 1.5 s at most (2)', 'every 1 s; ★ clouds last 2 s (1.5)'],
     favoured: ['linger', 'enlarge', 'quickCast'],
   },
   'sleepPowder.drowsy': {
@@ -949,13 +950,13 @@ export const MUTATIONS = {
     favoured: ['extend', 'lifesteal', 'enlarge'],
   },
   'petalDance.petalBlizzard': {
+    // D52: the Petal Dance cooldown ×1.3 tax is gone from rank I.
     ...bond('petalDance', 'bulbasaur', 1, 'bloom', 'Petal Blizzard', 'Each Bloom launches double petals', {
       petalMult: 2,
       seconds: 2,
-      cooldownMult: 1.3,
     }),
-    ranks: [{ cooldownMult: 1.15 }, { cooldownMult: 1, seconds: 3 }],
-    rankText: ['cooldown ×1.15 (1.3)', '×1.0; ★ lasts 3 s (2)'],
+    ranks: [{ seconds: 2.5 }, { seconds: 3 }],
+    rankText: ['lasts 2.5 s (2)', '★ lasts 3 s'],
     favoured: ['extend', 'enlarge', 'powerUp'],
   },
   'solarBeam.fullCharge': {

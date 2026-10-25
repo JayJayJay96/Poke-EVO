@@ -126,6 +126,18 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Bulbasaur Bond reworks (D52)
+**Owner:** approved after the Bulbasaur kit review. **Status:** built, tested; committed. Not browser-checked, not playtested.
+
+- **Spore Sac** (`src/sim/mutationDefs/poisonPowder.ts`): full-size cloud, no Poison Powder cooldown tax. Ranks: every 1.5 s / every 1 s + ★ 2 s clouds.
+- **Healthy Growth** (`razorLeaf.ts`): `hpFraction >= hpThreshold` (0.8) instead of `atFullHp`. The hook ID stays `fullHp`.
+- **Petal Blizzard** (`petalDance.ts`): cooldown tax removed. Ranks: 2.5 s / ★ 3 s.
+- **Data/docs:** `src/data/mutations.ts`, `docs/moveset/RANKS.md`, `bulbasaur/README.md`, PROJECT.md D52.
+- **Tests:** `bulbasaurMoves.test.ts` (Spore Sac full size + no tax; Healthy Growth at 85% vs 70%; Petal Blizzard no tax).
+- **Commands:** `npx tsc --noEmit` clean; `npx vitest run` **591/591 passed**; `npm run build` passes. No balance run.
+- **Next:** owner playtest; then the Pikachu kit review.
+- **Build runs:** yes.
+
 ### 2026-10-25 — Squirtle Bond reworks (D51)
 **Owner:** approved after the Squirtle kit review. **Status:** built, tested; committed. Not browser-checked, not playtested.
 

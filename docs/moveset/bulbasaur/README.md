@@ -26,7 +26,7 @@ Each Bond uses a different hook (rule 9).
 | Hook | Comes from | Used by |
 |---|---|---|
 | **Bulb fill** (gradient, Ivysaur+) | ability meter | Tackle — Bulb Bash |
-| **At full HP** | player HP | Razor Leaf — Healthy Growth |
+| **Near full HP** (above 80%, D52) | player HP | Razor Leaf — Healthy Growth |
 | **Leech strength** (move feeds the ability) | Seeded enemies alive | Leech Seed — Seed Network |
 | **Hit taken** | contact damage | Poison Powder — Spore Sac |
 | **Enemy asleep** + Leech | Sleep status | Sleep Powder — Sweet Dreams |
@@ -124,7 +124,7 @@ Tackle ───────┬─ Rollout          `tackle.rollout`            
               └─ ★ Bulb Bash      `tackle.bulbBash`           (Bond: Bulb fill · Ivysaur+)
 Razor Leaf ───┬─ Leaf Spiral      `razorLeaf.spiral`          360° spiral of leaves
               ├─ Embed            `razorLeaf.embed`           leaves stick, then rip out
-              └─ ★ Healthy Growth `razorLeaf.healthyGrowth`   (Bond: at full HP)
+              └─ ★ Healthy Growth `razorLeaf.healthyGrowth`   (Bond: above 80% HP)
 Leech Seed ───┬─ Spreading Seed   `leechSeed.spread`          seed jumps on death (once)
               ├─ Seed Bomb        `leechSeed.seedBomb`        seeds a 50 px area
               └─ ★ Seed Network   `leechSeed.seedNetwork`     (Bond: feeds Leech)
@@ -149,12 +149,12 @@ Solar Beam ───┬─ Full Charge      `solarBeam.fullCharge`      1 s char
 | Bond | Move | Offered from | What changes | Cost |
 |---|---|---|---|---|
 | **Bulb Bash** `tackle.bulbBash` | Tackle | Ivysaur | Tackle hits with the bulb: up to +80% damage, scaling with how full the Bulb is. | −20% damage at an empty Bulb. |
-| **Healthy Growth** `razorLeaf.healthyGrowth` | Razor Leaf | Bulbasaur | While you're at **full HP**: +1 leaf and the leaves pierce 1 enemy. | −40% damage when you're not at full HP. |
+| **Healthy Growth** `razorLeaf.healthyGrowth` | Razor Leaf | Bulbasaur | While you're **above 80% HP** (D52; was exact full HP, which a horde almost never allows): +1 leaf and the leaves pierce 1 enemy. | −40% damage below 80% HP. |
 | **Seed Network** `leechSeed.seedNetwork` | Leech Seed | Bulbasaur | The move feeds the ability: every Seeded enemy alive adds +0.5% to Leech (max +3%, doubling it). | Seed damage −30%. |
-| **Spore Sac** `poisonPowder.sporeSac` | Poison Powder | Bulbasaur | Each hit you take puffs a small Poison Powder cloud at your feet (half size, 1.5 s; at most once per 2 s). Touching Bulbasaur hurts. | Poison Powder's own cooldown ×1.3. |
+| **Spore Sac** `poisonPowder.sporeSac` | Poison Powder | Bulbasaur | Each hit you take puffs a **full-size** Poison Powder cloud at your feet (1.5 s; at most once per 2 s). Touching Bulbasaur hurts. | Only fires when you get hit. (D52: was half size with Poison Powder cooldown ×1.3.) |
 | **Sweet Dreams** `sleepPowder.sweetDreams` | Sleep Powder | Bulbasaur | Damage you deal to **sleeping** enemies heals through Leech at ×3 (9%). Like Dream Eater. | Sleep duration −25%. |
 | **Sludge Bomb** `sludge.sludgeBomb` | Sludge | Bulbasaur | Below 50% HP the glob becomes a Sludge Bomb: it bursts in a 50 px splash and poisons ×2. Pairs with Overgrow+. | −15% damage above 50% HP. |
-| **Petal Blizzard** `petalDance.petalBlizzard` | Petal Dance | Ivysaur | Every Bloom also launches Petal Dance instantly with double petals for 2 s. Uses Petal Dance's stat augments, never another Mutation. | Petal Dance's own cooldown ×1.3. |
+| **Petal Blizzard** `petalDance.petalBlizzard` | Petal Dance | Ivysaur | Every Bloom also launches Petal Dance instantly with double petals for 2 s. Uses Petal Dance's stat augments, never another Mutation. | None beyond the trigger. (D52: the Petal Dance cooldown ×1.3 tax is gone from rank I.) |
 | **Ingrain** `solarBeam.ingrain` | Solar Beam | Venusaur | After 1 s standing still, Venusaur takes root: Solar Beam's cooldown runs 2× faster and you take −15% damage. | Moving: −20% damage. |
 
 Balance notes:

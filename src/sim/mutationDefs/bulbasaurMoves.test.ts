@@ -104,7 +104,10 @@ describe('Razor Leaf', () => {
     run(w, DT);
     expect(slot.stats.extraCount).toBe(v.extraLeaves);
     expect(slot.stats.pierce).toBe(v.pierce);
-    w.player.hp -= 5;
+    w.player.hp = w.player.maxHp * 0.85; // D52: still above the 80% line
+    run(w, DT);
+    expect(slot.stats.extraCount).toBe(v.extraLeaves);
+    w.player.hp = w.player.maxHp * 0.7;
     run(w, DT);
     expect(slot.stats.damage).toBeCloseTo(slot.baseStats.damage * v.damageMultHurt);
   });
@@ -164,12 +167,15 @@ describe('Poison Powder', () => {
     expect(e.poisonStacks).toBeGreaterThan(1);
   });
 
-  it('Spore Sac: getting hit puffs a small poison cloud at your feet, at most once per 2 s', () => {
-    const { w } = withMove('poisonPowder', 'poisonPowder.sporeSac');
+  it('Spore Sac: getting hit puffs a full poison cloud at your feet, at most once per 2 s', () => {
+    const { w, slot } = withMove('poisonPowder', 'poisonPowder.sporeSac');
     emit(w, 'hitTaken', 5);
     emit(w, 'hitTaken', 5);
     expect(w.zones.filter((z) => z.source === 'poisonPowder').length).toBe(1);
     expect(w.zones[0]!.x).toBe(w.player.x);
+    // D52: a full-size cloud, and no cooldown cost on Poison Powder.
+    expect(w.zones[0]!.radius).toBeCloseTo((MOVES.poisonPowder as ZoneMoveDef).radius);
+    expect(slot.stats.cooldown).toBeCloseTo(slot.baseStats.cooldown);
   });
 });
 
@@ -277,6 +283,7 @@ describe('Petal Dance', () => {
     run(w, DT);
     expect(slot.activeLeft).toBeGreaterThan(0);
     expect(slot.stats.extraCount).toBe(def.count);
+    expect(slot.stats.cooldown).toBeCloseTo(slot.baseStats.cooldown); // D52: no tax at rank I
   });
 });
 

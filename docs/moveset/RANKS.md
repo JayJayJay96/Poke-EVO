@@ -87,13 +87,13 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | `tackle.bulbBash` Bulb Bash | full Bulb +95% (80%); empty ×0.9 (0.8) | +110%; empty ×1.0 | `powerUp`, `glass`, `keenEdge` |
 | `razorLeaf.spiral` Leaf Spiral | dmg ×0.92 (0.8) | ×1.04 | `multishot`, `pierce`, `enlarge` |
 | `razorLeaf.embed` Embed | rip 66% (45%) | 85%; ★ rips after 1.2 s (1.5) | `keenEdge`, `multishot`, `velocity` |
-| `razorLeaf.healthyGrowth` Healthy Growth | hurt ×0.7 (0.6); full HP +10% damage | hurt ×0.8; full HP +15%; ★ pierce 2 (1) | `multishot`, `pierce`, `lifesteal` |
+| `razorLeaf.healthyGrowth` Healthy Growth | hurt ×0.7 (0.6); above 80% HP +10% damage | hurt ×0.8; above 80% HP +15%; ★ pierce 2 (1) | `multishot`, `pierce`, `lifesteal` |
 | `leechSeed.spread` Spreading Seed | duration ×0.9 (0.75) | ×1.0; ★ jumps twice (1) | `homing`, `extend`, `lifesteal` |
 | `leechSeed.seedBomb` Seed Bomb | strength 15.5% (10%) | 16%; ★ radius 65 px (50) | `enlarge`, `extend`, `quickCast` |
 | `leechSeed.seedNetwork` Seed Network | seed dmg ×0.83 (0.7); Leech cap +4% (3%) | ×0.95; cap +5% | `lifesteal`, `homing`, `multishot` |
 | `poisonPowder.drift` Drift Cloud | move dmg ×1.15 | ×1.3; ★ drifts 45 px/s (30) | `linger`, `enlarge`, `quickCast` |
 | `poisonPowder.toxic` Toxic | +31% per stack (20%) | +28% with ★ duration ×0.85 (0.7) | `linger`, `enlarge`, `powerUp` |
-| `poisonPowder.sporeSac` Spore Sac | cloud size ×0.6 (0.5); every 1.5 s at most (2) | ×0.7; every 1 s | `linger`, `enlarge`, `quickCast` |
+| `poisonPowder.sporeSac` Spore Sac | every 1.5 s at most (2) | every 1 s; ★ clouds last 2 s (1.5) | `linger`, `enlarge`, `quickCast` |
 | `sleepPowder.drowsy` Drowsy Haze | move dmg ×1.15; sleep after 1.2 s (1.5) | ×1.3; 1 s; ★ slow 60% (50%) | `linger`, `enlarge`, `quickCast` |
 | `sleepPowder.nightmare` Nightmare | sleepers take +30% (25%) | +35%; ★ sleep 0.8 s (0.6) | `linger`, `enlarge`, `quickCast` |
 | `sleepPowder.sweetDreams` Sweet Dreams | sleep ×0.85 (0.75) | ×0.95; ★ Leech ×4 (3) | `linger`, `lifesteal`, `enlarge` |
@@ -102,7 +102,7 @@ Every Mutation ranks I → III at Mutation Sites (D24). Rank I is the Mutation a
 | `sludge.sludgeBomb` Sludge Bomb | above ×0.95 (0.85); threshold 60% HP (50%) | ×1.05; 70% | `multishot`, `glass`, `enlarge` |
 | `petalDance.frenzy` Frenzy Dance | spin ramp 0.35/s (0.3); move ×0.9 (0.85); move dmg ×1.1 | 0.4/s; ×0.95; move dmg ×1.2; ★ petals fly 200 px (150) | `extend`, `enlarge`, `quickCast` |
 | `petalDance.pollen` Pollen Ring | dmg ×0.86 (0.75); heal cap 6/s (5) | ×0.97; cap 7/s | `extend`, `lifesteal`, `enlarge` |
-| `petalDance.petalBlizzard` Petal Blizzard | cooldown ×1.15 (1.3) | ×1.0; ★ lasts 3 s (2) | `extend`, `enlarge`, `powerUp` |
+| `petalDance.petalBlizzard` Petal Blizzard | lasts 2.5 s (2) | ★ lasts 3 s | `extend`, `enlarge`, `powerUp` |
 | `solarBeam.fullCharge` Full Charge | dmg ×1.38 (1.2) | ×1.56; ★ charges in 0.75 s (1) | `concentrated`, `extend`, `keenEdge` |
 | `solarBeam.prism` Prism | 46% per beam (40%); main beam ×0.95 (0.85) | 52%; main beam ×1.05 | `extend`, `enlarge`, `powerUp` |
 | `solarBeam.ingrain` Ingrain | moving ×0.9 (0.8); recharge ×2.3 (2) | ×1.0; ×2.6; ★ roots after 0.7 s (1) | `extend`, `quickCast`, `concentrated` |

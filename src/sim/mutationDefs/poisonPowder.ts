@@ -64,12 +64,9 @@ defineMutation('poisonPowder.toxic', {
   },
 });
 
-/** Spore Sac (Bond, hit taken): getting hit puffs a small poison cloud at your feet (rate-limited). */
+/** Spore Sac (Bond, hit taken; D52): getting hit puffs a full poison cloud at your feet (rate-limited). */
 const sac = ranked('poisonPowder.sporeSac');
 defineMutation('poisonPowder.sporeSac', {
-  stats: (s, _world, slot) => {
-    s.cooldown *= sac(slot).cooldownMult;
-  },
   onEvent: (world, slot, event) => {
     if (event !== 'hitTaken' || world.time < (slot.mutState.next ?? 0)) return;
     const v = sac(slot);
@@ -79,7 +76,7 @@ defineMutation('poisonPowder.sporeSac', {
       world,
       world.player.x,
       world.player.y,
-      poisonPowder.radius * s.area * v.sizeMult,
+      poisonPowder.radius * s.area,
       v.cloudSeconds,
       poisonPowder.tickInterval,
       s.damage * s.zoneDamageMult,

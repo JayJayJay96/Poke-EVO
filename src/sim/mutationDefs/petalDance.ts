@@ -79,9 +79,6 @@ defineMutation('petalDance.pollen', {
  */
 const blizzard = ranked('petalDance.petalBlizzard');
 defineMutation('petalDance.petalBlizzard', {
-  stats: (s, _world, slot) => {
-    s.cooldown *= blizzard(slot).cooldownMult;
-  },
   onEvent: (_world, slot, event) => {
     if (event !== 'bloom') return;
     const seconds = blizzard(slot).seconds;

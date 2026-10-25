@@ -1,7 +1,7 @@
 import { MOVES, type ProjectileMoveDef } from '../../data/moves';
 import { damageEnemy, procHit } from '../combat';
 import { castProjectile } from '../forms/projectile';
-import { atFullHp, defineMutation } from '../hooks';
+import { defineMutation, hpFraction } from '../hooks';
 import { entitiesOf, ranked, spawnEntity } from './util';
 
 // Razor Leaf Mutations (docs/moveset/shared/razor-leaf.md, bulbasaur/README.md).
@@ -60,12 +60,12 @@ defineMutation('razorLeaf.embed', {
   },
 });
 
-/** Healthy Growth (Bond, full HP): at full HP, one more leaf and the leaves pierce; weaker when hurt. */
+/** Healthy Growth (Bond, near-full HP; D52): above 80% HP, one more leaf and the leaves pierce; weaker below. */
 const growth = ranked('razorLeaf.healthyGrowth');
 defineMutation('razorLeaf.healthyGrowth', {
   live: (s, world, slot) => {
     const v = growth(slot);
-    if (atFullHp(world)) {
+    if (hpFraction(world) >= v.hpThreshold) {
       s.extraCount += v.extraLeaves;
       s.pierce += v.pierce;
       s.damage *= v.damageMultFull;
