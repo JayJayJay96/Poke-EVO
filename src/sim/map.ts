@@ -1,5 +1,20 @@
 import type { ArenaEntranceKind } from '../data/arena';
-import { BIOME_IDS, BIOMES, ENTRANCE_BIOME, MAP_TUNING, SET_PIECES, type BiomeId, type ObstacleKind, type SlotKind } from '../data/map';
+import { ENEMIES, POKEMON } from '../data/content';
+import {
+  BIOME_IDS,
+  BIOMES,
+  CELL,
+  CELL_OF_TILE,
+  ENTRANCE_BIOME,
+  MAP_TUNING,
+  SET_PIECES,
+  type BiomeId,
+  type CellClass,
+  type ObstacleKind,
+  type SlotKind,
+  type Traversal,
+} from '../data/map';
+import { ELITE_ABILITY } from '../data/hordes';
 import { createSeededRng, type Rng } from './rng';
 import type { Enemy, MapChunk, MapSlot, Obstacle, World } from './types';
 
@@ -244,10 +259,20 @@ export function generateChunk(mapSeed: number, cx: number, cy: number, forceBiom
       const circles = [...placed.own, ...placed.future];
       if (blocking(tiles, circles) > cap || !lanesOpen(tiles, circles, cx, cy)) continue;
       const own = [...placed.own, ...fillers(rng, tiles, circles, cap, def.filler, cx, cy, start)];
-      return { cx, cy, biome, piece, transform, tiles, own, near: null, slots: placed.slots };
+      const cells = cellsOf(tiles);
+      return { cx, cy, biome, piece, transform, tiles, own, near: null, slots: placed.slots, cells, water: cells.includes(CELL.water) };
     }
   }
   throw new Error(`map: no layout fits chunk ${cx},${cy}`); // `open` always fits, so this can't happen
+}
+
+/** The chunk's 50 px cells from its 100 px tiles (each tile is 2 × 2 cells). */
+export function cellsOf(tiles: readonly string[]): Uint8Array {
+  const cells = new Uint8Array(CELLS * CELLS);
+  for (let i = 0; i < CELLS; i++) {
+    for (let j = 0; j < CELLS; j++) cells[i * CELLS + j] = CELL_OF_TILE[tiles[i >> 1]![j >> 1]!] ?? CELL.open;
+  }
+  return cells;
 }
 
 /** Lone fillers in clear tiles, kept only if the cap and the lane check still hold with them. */
@@ -356,6 +381,129 @@ export function entranceSlot(world: World, kind: ArenaEntranceKind): MapSlot | n
   return best;
 }
 
+// ---- Terrain cells (M3) ----------------------------------------------------------------------------------------
+
+const CELL_SIZE = MAP_TUNING.cellSize;
+/** Enemy species that fly over low terrain (README §4.2: Flying types). */
+const FLYING_KINDS = new Set(Object.values(ENEMIES).filter((e) => e.types.includes('Flying')).map((e) => e.id));
+
+/** Class of global cell (gx, gy); cell 0 spans 0…50 px, and chunk edges fall on cell edges. */
+function cellAtCell(world: World, gx: number, gy: number): CellClass {
+  const cx = chunkOf(gx * CELL_SIZE + CELL_SIZE / 2);
+  const cy = chunkOf(gy * CELL_SIZE + CELL_SIZE / 2);
+  const chunk = mapChunk(world, cx, cy);
+  return chunk.cells[(gy - cy * CELLS + CELLS / 2) * CELLS + (gx - cx * CELLS + CELLS / 2)] as CellClass;
+}
+
+/** What the ground holds at (x, y): water, marsh, tall grass or open. Always open in an arena or on an empty map. */
+export function cellAt(world: World, x: number, y: number): CellClass {
+  if (world.arena || world.map.density <= 0) return CELL.open;
+  return cellAtCell(world, Math.floor(x / CELL_SIZE), Math.floor(y / CELL_SIZE));
+}
+
+/** The player's traversal flag, from the current stage (Charizard flies; the Squirtle line and Lapras swim). */
+export function playerTraversal(world: World): Traversal {
+  return POKEMON[world.player.pokemonId].stages[world.player.stage]!.traversal ?? 'ground';
+}
+
+/** An enemy's traversal flag: Flying types fly, an Elite Gastly levitates, the rest walk (README §4.2). */
+export function enemyTraversal(enemy: Enemy): Traversal {
+  if (FLYING_KINDS.has(enemy.kind)) return 'fly';
+  return enemy.elite && ELITE_ABILITY[enemy.kind] === 'levitate' ? 'levitate' : 'ground';
+}
+
+function waterBlocks(flag: Traversal): boolean {
+  return flag === 'ground' || flag === 'levitate';
+}
+
+/** Speed factor of the ground under (x, y) for a mover: marsh slows walkers, swimmers move at their water speed. */
+export function terrainSpeed(world: World, x: number, y: number, flag: Traversal, swimSpeed = 1): number {
+  if (flag === 'fly' || flag === 'levitate') return 1;
+  const cell = cellAt(world, x, y);
+  if (cell === CELL.slow) return flag === 'ground' ? 1 - MAP_TUNING.marsh.slow : 1;
+  return cell === CELL.water && flag === 'swim' ? swimSpeed : 1;
+}
+
+/** The player's water speed (D47 15-2: Lapras ×1.0, Squirtle line ×0.85). */
+export function playerSwimSpeed(world: World): number {
+  return (MAP_TUNING.swim.speed as Partial<Record<string, number>>)[world.player.pokemonId] ?? 1;
+}
+
+/**
+ * Centre of the nearest cell whose class passes `ok`, searching outward up to `MAP_TUNING.shoreSearch` cells; (x, y)
+ * itself when its own cell passes, null when nothing within reach does.
+ */
+export function nearestCell(world: World, x: number, y: number, ok: (cell: CellClass) => boolean): { x: number; y: number } | null {
+  const gx = Math.floor(x / CELL_SIZE);
+  const gy = Math.floor(y / CELL_SIZE);
+  if (ok(cellAtCell(world, gx, gy))) return { x, y };
+  for (let ring = 1; ring <= MAP_TUNING.shoreSearch; ring++) {
+    let best: { x: number; y: number } | null = null;
+    let bestD = Infinity;
+    for (let dy = -ring; dy <= ring; dy++) {
+      for (let dx = -ring; dx <= ring; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring || !ok(cellAtCell(world, gx + dx, gy + dy))) continue;
+        const cx = (gx + dx + 0.5) * CELL_SIZE;
+        const cy = (gy + dy + 0.5) * CELL_SIZE;
+        const d = (cx - x) ** 2 + (cy - y) ** 2;
+        if (d < bestD) {
+          bestD = d;
+          best = { x: cx, y: cy };
+        }
+      }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+
+const notWater = (cell: CellClass): boolean => cell !== CELL.water;
+const dryFloor = (cell: CellClass): boolean => cell === CELL.open || cell === CELL.grass;
+
+/** Where a pickup dropped at (x, y) comes to rest: the nearest dry cell if it fell in water (README §5.5). */
+export function shore(world: World, x: number, y: number): { x: number; y: number } {
+  return (cellAt(world, x, y) === CELL.water && nearestCell(world, x, y, notWater)) || { x, y };
+}
+
+/**
+ * Moves a circle out of every deep-water cell it overlaps, for a mover water stops (README §11.1); says whether it
+ * moved. Like the circles, only the part of the motion that went in is undone, so movers slide along the shore. A
+ * centre that ends up inside water (a spawn, a recycle) is lifted to the nearest dry cell.
+ */
+export function pushOutOfWater(world: World, body: { x: number; y: number }, radius: number, flag: Traversal): boolean {
+  if (!waterBlocks(flag) || world.map.density <= 0) return false;
+  // Fast path: wholly inside a chunk with no water (the common case, and every woods or canyon chunk).
+  const cx = chunkOf(body.x);
+  const cy = chunkOf(body.y);
+  const half = MAP_TUNING.chunkSize / 2;
+  const inside = Math.abs(body.x - cx * MAP_TUNING.chunkSize) < half - radius && Math.abs(body.y - cy * MAP_TUNING.chunkSize) < half - radius;
+  if (inside && !mapChunk(world, cx, cy).water) return false;
+  if (cellAt(world, body.x, body.y) === CELL.water) {
+    const dry = nearestCell(world, body.x, body.y, notWater);
+    if (!dry) return false;
+    body.x = dry.x;
+    body.y = dry.y;
+    return true;
+  }
+  let moved = false;
+  for (let gy = Math.floor((body.y - radius) / CELL_SIZE); gy <= Math.floor((body.y + radius) / CELL_SIZE); gy++) {
+    for (let gx = Math.floor((body.x - radius) / CELL_SIZE); gx <= Math.floor((body.x + radius) / CELL_SIZE); gx++) {
+      if (cellAtCell(world, gx, gy) !== CELL.water) continue;
+      const qx = Math.max(gx * CELL_SIZE, Math.min(body.x, (gx + 1) * CELL_SIZE));
+      const qy = Math.max(gy * CELL_SIZE, Math.min(body.y, (gy + 1) * CELL_SIZE));
+      const dx = body.x - qx;
+      const dy = body.y - qy;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= radius * radius || d2 === 0) continue;
+      const d = Math.sqrt(d2);
+      body.x = qx + (dx / d) * radius;
+      body.y = qy + (dy / d) * radius;
+      moved = true;
+    }
+  }
+  return moved;
+}
+
 // ---- Collision -------------------------------------------------------------------------------------------------
 
 /**
@@ -378,9 +526,13 @@ export function pushOut(world: World, body: { x: number; y: number }, radius: nu
   return moved;
 }
 
-/** A free spot for something placed on the map (a site, an entrance): (x, y) moved out of any obstacle. */
+/**
+ * A free spot for something placed on the map (a site, an entrance): (x, y) moved onto dry floor (never water or
+ * marsh, README §5.5), then out of any obstacle.
+ */
 export function clearSpot(world: World, x: number, y: number, radius: number): { x: number; y: number } {
   const spot = { x, y };
+  if (!dryFloor(cellAt(world, x, y))) Object.assign(spot, nearestCell(world, x, y, dryFloor) ?? spot);
   pushOut(world, spot, radius);
   return spot;
 }
@@ -398,13 +550,18 @@ export function hitsObstacle(world: World, x: number, y: number, radius: number)
 /**
  * Whether an obstacle stands on the straight line between two points: you can't shoot across it (stuck recycling,
  * D47 amendment). shortcut: sampled every 20 px, so a line that only clips the very edge of a circle can slip past;
- * fine for obstacles 30+ px in radius, use a segment test if smaller ones arrive.
+ * fine for obstacles 30+ px in radius, use a segment test if smaller ones arrive. With a traversal flag, deep water
+ * counts too when it stops that mover (a walker's way along a shore); without one, ponds don't block (you shoot
+ * across them).
  */
-export function lineBlocked(world: World, x1: number, y1: number, x2: number, y2: number, radius = 0): boolean {
+export function lineBlocked(world: World, x1: number, y1: number, x2: number, y2: number, radius = 0, flag?: Traversal): boolean {
+  const water = flag !== undefined && waterBlocks(flag);
   const n = Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 20);
   for (let i = 1; i < n; i++) {
     const t = i / n;
-    if (hitsObstacle(world, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, radius)) return true;
+    const x = x1 + (x2 - x1) * t;
+    const y = y1 + (y2 - y1) * t;
+    if (hitsObstacle(world, x, y, radius) || (water && cellAt(world, x, y) === CELL.water)) return true;
   }
   return false;
 }
@@ -418,11 +575,15 @@ export function collideWithMap(world: World, dt: number): void {
   if (world.arena || world.map.density <= 0) return;
   const { player } = world;
   pushOut(world, player, player.radius);
+  pushOutOfWater(world, player, player.radius, playerTraversal(world));
   const { progress } = MAP_TUNING.stuck;
   for (const enemy of world.enemies) {
-    const pushed = pushOut(world, enemy, enemy.radius);
+    const flag = enemyTraversal(enemy);
+    // Both always run: a mover on a shore next to a rock is pushed out of each.
+    const hitRock = pushOut(world, enemy, enemy.radius);
+    const pushed = pushOutOfWater(world, enemy, enemy.radius, flag) || hitRock;
     if (pushed) {
-      wallNormal(world, enemy);
+      wallNormal(world, enemy, flag);
       if (enemy.followSign !== 0) enemy.followLeft = MAP_TUNING.follow.hold;
     }
     const moved = Math.hypot(enemy.x - enemy.prevX, enemy.y - enemy.prevY);
@@ -433,8 +594,11 @@ export function collideWithMap(world: World, dt: number): void {
   }
 }
 
-/** Sum of the outward directions of every obstacle the enemy touches: between two trees it points out of the gap. */
-function wallNormal(world: World, enemy: Enemy): void {
+/**
+ * Sum of the outward directions of every obstacle the enemy touches: between two trees it points out of the gap. A
+ * shore counts as one more touch, whatever the number of water cells along it (they line up into one edge).
+ */
+function wallNormal(world: World, enemy: Enemy, flag: Traversal): void {
   let nx = 0;
   let ny = 0;
   let touches = 0;
@@ -448,6 +612,28 @@ function wallNormal(world: World, enemy: Enemy): void {
     nx += dx / d;
     ny += dy / d;
     touches++;
+  }
+  if (waterBlocks(flag)) {
+    const r = enemy.radius + 1;
+    let wx = 0;
+    let wy = 0;
+    for (let gy = Math.floor((enemy.y - r) / CELL_SIZE); gy <= Math.floor((enemy.y + r) / CELL_SIZE); gy++) {
+      for (let gx = Math.floor((enemy.x - r) / CELL_SIZE); gx <= Math.floor((enemy.x + r) / CELL_SIZE); gx++) {
+        if (cellAtCell(world, gx, gy) !== CELL.water) continue;
+        const dx = enemy.x - Math.max(gx * CELL_SIZE, Math.min(enemy.x, (gx + 1) * CELL_SIZE));
+        const dy = enemy.y - Math.max(gy * CELL_SIZE, Math.min(enemy.y, (gy + 1) * CELL_SIZE));
+        const d = Math.hypot(dx, dy);
+        if (d > r || d === 0) continue;
+        wx += dx / d;
+        wy += dy / d;
+      }
+    }
+    const w = Math.hypot(wx, wy);
+    if (w > 0) {
+      nx += wx / w;
+      ny += wy / w;
+      touches++;
+    }
   }
   const n = Math.hypot(nx, ny);
   if (n === 0) return;

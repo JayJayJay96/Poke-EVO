@@ -1,19 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { POKEMON, TUNING } from '../data/content';
-import { BIOME_IDS, BIOMES, MAP_TUNING, SET_PIECES, type BiomeId } from '../data/map';
-import { MAX_ENEMY_RADIUS } from './combat';
+import { BIOME_IDS, BIOMES, CELL, MAP_TUNING, SET_PIECES, type BiomeId } from '../data/map';
+import { MAX_ENEMY_RADIUS, dropGem } from './combat';
 import { updateEnemyAttacks } from './enemyAttacks';
 import { createProjectile, updateProjectiles } from './forms/projectile';
-import { biomeAt, chunkKey, entranceSlot, generateChunk, hitsObstacle, mapChunk, obstaclesAt, transformTiles } from './map';
+import { biomeAt, cellAt, cellsOf, chunkKey, clearSpot, entranceSlot, generateChunk, hitsObstacle, mapChunk, obstaclesAt, transformTiles } from './map';
 import { createSeededRng } from './rng';
 import { updateSites } from './sites';
 import type { MapChunk, Obstacle, World } from './types';
-import { createWorld, spawnEnemy, step } from './world';
+import { createWorld, spawnEnemy, step, swimTilt } from './world';
 
 // The main map (D47, docs/map/README.md): M1 obstacle core, M2 biomes and set pieces.
 
 const DT = TUNING.stepSeconds;
 const IDLE = { moveX: 0, moveY: 0 };
+const OPEN_ROWS = [...SET_PIECES.open!.rows];
 const { chunkSize, tileSize, cellSize, startClear, laneMargin } = MAP_TUNING;
 
 function makeWorld(mapSeed = 1): World {
@@ -32,6 +33,8 @@ function place(world: World, ...obstacles: Obstacle[]): void {
     own: obstacles,
     near: obstacles,
     slots: [],
+    cells: cellsOf(SET_PIECES.open!.rows),
+    water: false,
   };
   world.map.chunks.set(chunkKey(0, 0), chunk);
 }
@@ -399,5 +402,177 @@ describe('map obstacles: shots (M1)', () => {
     expect(hitsObstacle(world, 300, 0, 5)).toBe(true);
     world.arena = {} as World['arena'];
     expect(hitsObstacle(world, 300, 0, 5)).toBe(false);
+  });
+});
+
+describe('map terrain: water and marsh (M3)', () => {
+  /** Chunk 0 (−500…500) with hand-drawn tiles; column c spans x −500 + 100c … −400 + 100c. */
+  function tiles(world: World, rows: string[]): void {
+    place(world);
+    const chunk = world.map.chunks.get(chunkKey(0, 0))!;
+    world.map.chunks.set(chunkKey(0, 0), { ...chunk, tiles: rows, cells: cellsOf(rows), water: rows.some((r) => r.includes('w')) });
+  }
+  const column = (ch: string, from: number): string[] => Array.from({ length: 10 }, () => '.'.repeat(from) + ch.repeat(10 - from));
+  /** Water from x = 200 to the chunk edge. */
+  const lakeEast = column('w', 7);
+  /** Marsh from x = −100 to the chunk edge. */
+  const marshEast = column('m', 4);
+  const RIGHT = { moveX: 1, moveY: 0 };
+
+  function player(pokemonId: 'squirtle' | 'lapras' | 'charmander' = 'squirtle'): World {
+    const world = createWorld({ rng: createSeededRng(1), spawnEnabled: false, mapSeed: 1, obstacleDensity: 1, pokemonId });
+    world.player.invulnLeft = 999;
+    world.moves = [];
+    return world;
+  }
+
+  /** px the player covers in `seconds` holding right from x. */
+  function run(world: World, x: number, seconds: number): number {
+    world.player.x = x;
+    world.player.y = 0;
+    for (let i = 0; i < seconds / DT; i++) step(world, RIGHT, DT);
+    return world.player.x - x;
+  }
+
+  it('cells come from the tiles: 2 × 2 cells per tile', () => {
+    const cells = cellsOf(SET_PIECES['lakes.pond']!.rows);
+    expect(cells[4 * 20 + 4]).toBe(CELL.water); // tile (2, 2) is `w`
+    expect(cells[2 * 20 + 4]).toBe(CELL.slow); // tile (1, 2) is `m`
+    expect(cells[0]).toBe(CELL.open);
+  });
+
+  it('deep water stops a walker at the shore', () => {
+    const world = player('charmander');
+    tiles(world, lakeEast);
+    run(world, 0, 3);
+    expect(world.player.x).toBeLessThanOrEqual(200 - world.player.radius + 0.01);
+  });
+
+  it('the Squirtle line swims at ×0.85, Lapras at ×1.0 (D47 15-2)', () => {
+    for (const [id, factor] of [['squirtle', 0.85], ['lapras', 1]] as const) {
+      const land = run(player(id), -400, 1);
+      const water = player(id);
+      tiles(water, lakeEast);
+      const swum = run(water, 210, 1);
+      expect(swum / land).toBeCloseTo(factor, 2);
+      expect(water.player.swimFor).toBeGreaterThan(0.9);
+    }
+  });
+
+  it('Charizard flies over water and marsh at full speed', () => {
+    const land = player('charmander');
+    land.player.stage = 2;
+    const free = run(land, -400, 1);
+    for (const rows of [lakeEast, marshEast]) {
+      const world = player('charmander');
+      world.player.stage = 2;
+      tiles(world, rows);
+      expect(run(world, -50, 1) / free).toBeCloseTo(1, 2);
+    }
+  });
+
+  it('marsh slows walkers by 30%, not swimmers', () => {
+    const land = run(player('charmander'), -400, 1);
+    const walker = player('charmander');
+    tiles(walker, marshEast);
+    expect(run(walker, 0, 1) / land).toBeCloseTo(0.7, 2);
+    const swimLand = run(player(), -400, 1);
+    const sw = player();
+    tiles(sw, marshEast);
+    expect(run(sw, 0, 1) / swimLand).toBeCloseTo(1, 2);
+  });
+
+  it('enemies: walkers and a levitator stop at water, flyers cross it', () => {
+    const world = player('charmander');
+    world.player.x = 460; // on the far bank: water x 200…400, dry 400…500
+    tiles(world, column('w', 7).map((row) => row.slice(0, 9) + '.'));
+    const rattata = spawnEnemy(world, 'rattata', 0, 0);
+    const pidgey = spawnEnemy(world, 'pidgey', 0, 40);
+    const gastly = spawnEnemy(world, 'gastly', 0, -40);
+    gastly.elite = true;
+    for (let i = 0; i < 6 / DT; i++) step(world, IDLE, DT);
+    expect(rattata.x).toBeLessThan(200);
+    expect(gastly.x).toBeLessThan(200);
+    expect(pidgey.x).toBeGreaterThan(200);
+  });
+
+  it('an enemy in marsh moves 30% slower; a flyer and a levitator do not', () => {
+    const speedIn = (kind: 'rattata' | 'pidgey' | 'gastly', rows: string[]): number => {
+      const world = player('charmander');
+      world.player.x = -450;
+      tiles(world, rows);
+      const e = spawnEnemy(world, kind, 300, 0);
+      e.elite = kind === 'gastly';
+      step(world, IDLE, DT);
+      const x = e.x;
+      for (let i = 0; i < 30; i++) step(world, IDLE, DT);
+      return x - e.x;
+    };
+    const all = column('m', 0);
+    expect(speedIn('rattata', all) / speedIn('rattata', OPEN_ROWS)).toBeCloseTo(0.7, 2);
+    expect(speedIn('pidgey', all) / speedIn('pidgey', OPEN_ROWS)).toBeCloseTo(1, 2);
+    expect(speedIn('gastly', all) / speedIn('gastly', OPEN_ROWS)).toBeCloseTo(1, 2);
+  });
+
+  it('no rest regen while swimming', () => {
+    const world = player();
+    tiles(world, lakeEast);
+    world.player.x = 350;
+    world.player.hp = 50;
+    world.player.calmFor = 999;
+    for (let i = 0; i < 1 / DT; i++) step(world, IDLE, DT);
+    expect(world.player.hp).toBe(50);
+    world.player.x = -300;
+    for (let i = 0; i < 1 / DT; i++) step(world, IDLE, DT);
+    expect(world.player.hp).toBeGreaterThan(50);
+  });
+
+  it('after 3 s of swimming, Flying species weigh double until you leave', () => {
+    const world = player();
+    const weights = { rattata: 3, pidgey: 1, spearow: 2 };
+    world.player.swimFor = MAP_TUNING.swim.flyerTiltAfter - 0.1;
+    expect(swimTilt(world, weights)).toBe(weights);
+    world.player.swimFor = MAP_TUNING.swim.flyerTiltAfter;
+    expect(swimTilt(world, weights)).toEqual({ rattata: 3, pidgey: 2, spearow: 4 });
+  });
+
+  it('pickups dropped in water rest on the shore', () => {
+    const world = makeWorld();
+    tiles(world, lakeEast);
+    dropGem(world, 400, 0, 1);
+    const gem = world.gems.at(-1)!;
+    expect(cellAt(world, gem.x, gem.y)).not.toBe(CELL.water);
+    expect(Math.abs(gem.x - 400)).toBeLessThanOrEqual(MAP_TUNING.cellSize * 3); // the nearest bank, not just anywhere
+  });
+
+  it('a placed spot (site, entrance) never lands in water or marsh', () => {
+    const world = makeWorld();
+    tiles(world, column('w', 3).map((row) => row.slice(0, 7) + 'mmm'));
+    for (const x of [100, 400]) {
+      const spot = clearSpot(world, x, 0, 55);
+      expect([CELL.open, CELL.grass]).toContain(cellAt(world, spot.x, spot.y));
+    }
+  });
+
+  it('an enemy spawned in water is lifted to dry ground', () => {
+    const world = player('charmander');
+    tiles(world, lakeEast);
+    const e = spawnEnemy(world, 'rattata', 350, 0);
+    step(world, IDLE, DT);
+    expect(cellAt(world, e.x, e.y)).not.toBe(CELL.water);
+  });
+
+  it('a walker behind a stream walks round it to you (wall-follow along the shore)', () => {
+    const world = player('charmander');
+    world.player.x = -300;
+    // Water x −100…100, y −300…300.
+    tiles(world, ['..........', '..........', '....ww....', '....ww....', '....ww....', '....ww....', '....ww....', '....ww....', '..........', '..........']);
+    const e = spawnEnemy(world, 'rattata', 300, 0);
+    let closest = Infinity;
+    for (let i = 0; i < 25 / DT; i++) {
+      step(world, IDLE, DT);
+      closest = Math.min(closest, Math.hypot(e.x - world.player.x, e.y - world.player.y));
+    }
+    expect(closest).toBeLessThan(e.radius + world.player.radius + 5);
   });
 });

@@ -34,8 +34,8 @@ import { applyPlayerStatus, emptyPlayerStatus, playerStatusSlow, updatePlayerSta
 import { gainXp, makeOffer } from './progression';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
-import { collideWithMap, lineBlocked } from './map';
-import { MAP_TUNING } from '../data/map';
+import { cellAt, collideWithMap, enemyTraversal, lineBlocked, playerSwimSpeed, playerTraversal, terrainSpeed } from './map';
+import { CELL, MAP_TUNING } from '../data/map';
 import { updateSites } from './sites';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
 import { boonMoveSpeedMult, chargeBeamMult, emptyBoonState, gluttonyMult, mistBlocks, onBoonCast, restAfterSeconds, updateBoons } from './boons';
@@ -97,6 +97,7 @@ export function createWorld({
       blockReadyLeft: 0,
       movingFor: 0,
       calmFor: 0,
+      swimFor: 0,
       stillFor: 0,
       faceX: 1,
       vx: 0,
@@ -394,7 +395,9 @@ function tickTimers(world: World, dt: number): void {
   // Rest regen (D44): out of combat long enough, a share of max HP comes back.
   p.calmFor += dt;
   const rest = TUNING.restRegen;
-  if (p.calmFor >= restAfterSeconds(world, rest.afterSeconds) && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);
+  // Swimming (D47, docs/map/README.md §7.2): no rest regen in deep water, so a lake isn't a safe room.
+  p.swimFor = cellAt(world, p.x, p.y) === CELL.water ? p.swimFor + dt : 0;
+  if (p.swimFor === 0 && p.calmFor >= restAfterSeconds(world, rest.afterSeconds) && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);
   // Solar Power's drain never takes the last HP point.
   const drain = ABILITIES[p.ability].hpDrainPerSec ?? 0;
   if (drain > 0 && p.hp > 1) p.hp = Math.max(1, p.hp - drain * dt);
@@ -430,7 +433,8 @@ function movePlayer(world: World, input: InputState, dt: number): void {
   // Snorlax's Yawn cloud slows the player (D28, B2).
   // Slows don't stack: the strongest of a boss's (Yawn) and the player's statuses (D36) wins.
   const slow = Math.max(world.arena?.playerSlow ?? 0, playerStatusSlow(world), webSlow(world));
-  const speed = p.speed * mutationMoveSpeedMult(world) * boonMoveSpeedMult(world) * rampageSpeedMult(world) * (1 - slow);
+  const ground = terrainSpeed(world, p.x, p.y, playerTraversal(world), playerSwimSpeed(world)); // marsh, water (D47)
+  const speed = p.speed * mutationMoveSpeedMult(world) * boonMoveSpeedMult(world) * rampageSpeedMult(world) * (1 - slow) * ground;
   p.vx = mx * speed;
   p.vy = my * speed;
   p.x += p.vx * dt;
@@ -467,6 +471,18 @@ function recycleStragglers(world: World): void {
   }
 }
 
+/**
+ * Swimming counter (D47, docs/map/README.md §7.2): after a while in deep water, Flying species are weighted up until
+ * the player leaves, so a lake isn't a permanent safe room.
+ */
+export function swimTilt(world: World, weights: WaveKeyframe['weights']): WaveKeyframe['weights'] {
+  const { flyerTiltAfter, flyerTiltWeight } = MAP_TUNING.swim;
+  if (world.player.swimFor < flyerTiltAfter) return weights;
+  const tilted: Partial<Record<EnemyId, number>> = { ...weights };
+  for (const kind of ENEMY_IDS) if (ENEMIES[kind].types.includes('Flying') && tilted[kind]) tilted[kind] = tilted[kind] * flyerTiltWeight;
+  return tilted;
+}
+
 function updateSpawner(world: World, dt: number): void {
   recycleStragglers(world);
   updateHordes(world, dt);
@@ -479,7 +495,7 @@ function updateSpawner(world: World, dt: number): void {
     const angle = nextSpawnAngle(world);
     const enemy = spawnEnemy(
       world,
-      pickEnemyKind(wave.weights, world.rng),
+      pickEnemyKind(swimTilt(world, wave.weights), world.rng),
       world.player.x + Math.cos(angle) * world.spawnRadius,
       world.player.y + Math.sin(angle) * world.spawnRadius,
       wave.hpScale,
@@ -523,7 +539,7 @@ function moveEnemies(world: World, dt: number): void {
     // Run Away sprints; Swift Swim (Elite Psyduck, D37) is fast in a puddle.
     const swim = eliteAbility(enemy) === 'swiftSwim' && world.puddles.some((p) => (p.x - enemy.x) ** 2 + (p.y - enemy.y) ** 2 <= p.radius ** 2);
     const sprint = (enemy.fleeLeft > 0 ? ABILITY_TUNING.runAway.speedMult : 1) * (swim ? ABILITY_TUNING.swiftSwim.speedMult : 1);
-    const speed = enemy.speed * enemySpeedFactor(enemy) * sprint;
+    const speed = enemy.speed * enemySpeedFactor(enemy) * sprint * terrainSpeed(world, enemy.x, enemy.y, enemyTraversal(enemy));
     let vx = attack && !fleeing ? attack.vx : (dx / dist) * speed;
     let vy = attack && !fleeing ? attack.vy : (dy / dist) * speed;
     // Wall-follow (D47 amendment): a plain chase (or flight) stuck on an obstacle walks along it instead.
@@ -587,7 +603,7 @@ function followWall(world: World, enemy: Enemy, dirX: number, dirY: number, dist
   }
   if (!into) {
     const look = Math.min(dist, MAP_TUNING.follow.look);
-    if (!lineBlocked(world, enemy.x, enemy.y, enemy.x + dirX * look, enemy.y + dirY * look, enemy.radius)) return false;
+    if (!lineBlocked(world, enemy.x, enemy.y, enemy.x + dirX * look, enemy.y + dirY * look, enemy.radius, enemyTraversal(enemy))) return false;
   }
   // Leaning in keeps it on a round trunk; in a seam it would only wedge it deeper.
   const lean = enemy.wallTouches > 1 ? 0 : hug;

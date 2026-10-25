@@ -591,9 +591,24 @@ can't leave, and since trees block shots (D41), a mob stuck there near you could
 - **Spawns, recycled enemies, sites and entrances:** enemies are pushed clear by the same end-of-step pass that keeps
   them out of obstacles; sites use their S slot or are nudged clear (`clearSpot`); entrances use a matching-biome E slot
   or are nudged clear.
-- **Tiles with no rules yet** (grass, water, marsh, ledges, rocky floor, berry trees, item balls) are laid out and
-  counted by the lane check and caps, but have no effect and aren't drawn until M3/M4. A lakes chunk looks empty
-  until M3.
+- **Tiles with no rules yet** (ledges, rocky floor, berry trees, item balls) are laid out and counted by the lane
+  check and caps, but have no effect and aren't drawn until M4. Tall grass is drawn but has no rules until M3b.
+- **M3 is built in two steps.** **M3a** (built 2026-10-25): cells, traversal flags, water and marsh (below).
+  **M3b** (next): tall grass rules and the six reactions (§8), with the ice bridge.
+- **M3a as built:**
+  - Each chunk stores its 20 × 20 cells (`MapChunk.cells`, one `CELL` byte each) from its tiles, plus a `water` flag;
+    `cellAt` is one chunk lookup and an array read.
+  - Traversal: the player's flag comes from the stage (`EvolutionStage.traversal`: Charizard `fly`, the Squirtle line
+    and Lapras `swim`); enemies are `fly` if Flying-typed, `levitate` if an Elite Gastly, else `ground`.
+  - Water push-out: a mover's circle is pushed out of every overlapping water cell (closest point on the cell, so
+    movers slide along shores); a centre that lands in water (a spawn, a recycle) is lifted to the nearest dry cell.
+    Shores feed the wall-follow normal as one wall, and a walker's follow look-ahead counts water; stuck recycling
+    still ignores ponds (you can shoot across).
+  - A mover wholly inside a chunk with no water skips the water test (it cost ~0.8 ms/step at 500 enemies without).
+  - Pickups dropped in water, and sites and entrances, are moved to the nearest dry cell (sites and entrances also off
+    marsh) with `nearestCell`, searching up to 12 cells out.
+  - Not built yet: the swimming HUD chip and first-swim notice (M5 notices), and the spec's "try 4 more spawn angles"
+    (spawns in water are lifted out instead).
 - **Entrance slots are rare within 800 px**: in a unit-test sample, 3 of 24 tries found a matching-biome slot; the rest
   fell back to today's placement. **Owner 2026-10-25: keep 800 px**; most entrances use today's placement for now.
 - **Off by default in the sim** (`obstacleDensity: 0`), so existing tests and the balance bot are unchanged; the game

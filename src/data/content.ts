@@ -1,4 +1,5 @@
 // Game content as typed data. Every number here is provisional tuning (PROJECT.md).
+import type { Traversal } from './map';
 import type { MoveId } from './moves';
 
 export type PokemonType =
@@ -100,6 +101,8 @@ export interface EvolutionStage {
   readonly abilityChoices?: readonly AbilityId[];
   /** Evolved ability tier this stage grants automatically (before any trait choice). */
   readonly ability?: AbilityId;
+  /** How this stage crosses map terrain (D47, docs/map/README.md §4.2); `ground` when unset. */
+  readonly traversal?: Traversal;
 }
 
 /** Non-evolver signature tier (§4): replaces the signature at this level, keeping its augments. */
@@ -318,6 +321,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         damageMult: 1.35,
         signatureMove: 'blastBurn',
         abilityChoices: ['blazePlus', 'solarPower'],
+        traversal: 'fly', // D47 15-2: the evolution opens the map
       },
     ],
     ability: 'blaze',
@@ -348,6 +352,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         radius: 12,
         damageMult: 0.95,
         signatureMove: 'bubble',
+        traversal: 'swim',
       },
       {
         name: 'Wartortle',
@@ -359,6 +364,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         radius: 15,
         damageMult: 1.1,
         signatureMove: 'waterPulse',
+        traversal: 'swim',
       },
       {
         name: 'Blastoise',
@@ -370,6 +376,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         damageMult: 1.8, // D19: 3-stage final forms out-damage Raichu and Lapras (1.3 → 1.7 → 1.8, 2026-10-23 pass)
         signatureMove: 'hydroCannon',
         abilityChoices: ['torrentPlus', 'rainDish'],
+        traversal: 'swim',
       },
     ],
     ability: 'shell',
@@ -582,6 +589,7 @@ export const POKEMON: Readonly<Record<PokemonId, PokemonDef>> = {
         radius: 18,
         damageMult: 1.4, // D19: the non-evolver leads at 5 min (1.2 → 1.4, 2026-10-23 pass)
         signatureMove: 'iceShard',
+        traversal: 'swim',
       },
     ],
     ability: 'shellArmor',

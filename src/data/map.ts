@@ -9,6 +9,20 @@ export type BiomeId = 'meadow' | 'woods' | 'lakes' | 'canyon';
 export type SlotKind = 'site' | 'entrance' | 'berry' | 'item';
 
 /**
+ * Who can go where (README §4.2). `ground` is blocked by deep water and slowed by marsh; `swim` moves in water at its
+ * line's speed and isn't slowed by marsh; `fly` ignores both; `levitate` ignores marsh but can't cross deep water.
+ * Tall obstacles stop everyone.
+ */
+export type Traversal = 'ground' | 'swim' | 'fly' | 'levitate';
+
+/** What a 50 px cell holds (README §4.3); one byte per cell. */
+export const CELL = { open: 0, grass: 1, slow: 2, water: 3 } as const;
+export type CellClass = (typeof CELL)[keyof typeof CELL];
+
+/** Set-piece tile → cell class (every other tile is open floor). */
+export const CELL_OF_TILE: Readonly<Record<string, CellClass>> = { g: CELL.grass, m: CELL.slow, w: CELL.water };
+
+/**
  * A chunk layout on a 10 × 10 grid of 100 px tiles (README §9). Legend: `.` open · `g` tall grass · `w` deep water ·
  * `m` marsh · `T` tree · `o` boulder · `v` ledge on the tile's south edge · `r` rocky floor · `B` berry tree ·
  * `I` item ball · `S` site · `E` arena entrance. Every edge keeps its doors (tiles 2–3 and 6–7) passable.
@@ -288,4 +302,13 @@ export const MAP_TUNING = {
    * `hold` s. Stuck while following (two followers meeting head-on), it turns round every `flip` s.
    */
   follow: { after: 0.3, hold: 0.6, hug: 0.3, look: 150, flip: 1 },
+  /**
+   * Swimming (README §7.2, D47 15-2): speed in water by line, and the swimming counter: after `flyerTiltAfter` s in
+   * water, the spawner weights Flying species ×`flyerTiltWeight` until you leave. No rest regen while swimming.
+   */
+  swim: { speed: { lapras: 1, squirtle: 0.85 }, flyerTiltAfter: 3, flyerTiltWeight: 2 },
+  /** Marsh (README §7.4): `ground` movers lose this share of their speed in it. */
+  marsh: { slow: 0.3 },
+  /** How many cells out to look for dry ground when something lands in water (pickups, a mover, a site). */
+  shoreSearch: 12,
 } as const;

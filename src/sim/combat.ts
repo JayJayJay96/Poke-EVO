@@ -7,6 +7,7 @@ import { TECHNIQUE_TUNING } from '../data/techniques';
 import { effectiveness } from '../data/typeChart';
 import { CRIT_MULTIPLIER } from '../data/upgrades';
 import { blazeFaked, emit, healPlayer, hooksOf, mutationLeechBonus } from './hooks';
+import { shore } from './map';
 import { applyPlayerStatus } from './playerStatus';
 import { onRageHitDealt, ragePowerMult, rampageDamageMult } from './rage';
 import { statusMult, type StatusId } from './statusResist';
@@ -592,14 +593,14 @@ export function maybeDropBerry(world: World, x: number, y: number, chance: numbe
   if (chance <= 0 || dropsOnGround(world, 'oran') >= TUNING.heal.maxBerries) return;
   if (world.rng.next() >= chance * gluttonyMult(world, 'drop')) return;
   const expiresAt = world.time + TUNING.heal.dropLifetimeSeconds;
-  world.berries.push({ id: world.nextId++, kind: 'oran', x, y, collected: false, expiresAt });
+  world.berries.push({ id: world.nextId++, kind: 'oran', ...shore(world, x, y), collected: false, expiresAt });
 }
 
 /** Rare Magnet drop, with its own cap (2026-10-24: berries filling a shared budget stopped magnets late game). */
 export function maybeDropMagnet(world: World, x: number, y: number): void {
   if (dropsOnGround(world, 'magnet') >= TUNING.magnet.maxMagnets || world.rng.next() >= TUNING.magnet.dropChance) return;
   const expiresAt = world.time + TUNING.heal.dropLifetimeSeconds;
-  world.berries.push({ id: world.nextId++, kind: 'magnet', x, y, collected: false, expiresAt });
+  world.berries.push({ id: world.nextId++, kind: 'magnet', ...shore(world, x, y), collected: false, expiresAt });
 }
 
 export function dropGem(world: World, x: number, y: number, value: number): void {
@@ -609,6 +610,7 @@ export function dropGem(world: World, x: number, y: number, value: number): void
     return;
   }
   const expiresAt = world.time + TUNING.xp.gemLifetimeSeconds;
-  const gem: Gem = { id: world.nextId++, x, y, value, magnetized: false, collected: false, expiresAt };
+  // Pickups that fall in deep water rest on the nearest shore, so a non-swimmer can always collect them (D47).
+  const gem: Gem = { id: world.nextId++, ...shore(world, x, y), value, magnetized: false, collected: false, expiresAt };
   world.gems.push(gem);
 }

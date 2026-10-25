@@ -40,8 +40,8 @@ import {
   socketsUsed,
 } from '../sim/mutations';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
-import { chunkOf, mapChunk } from '../sim/map';
-import { MAP_TUNING, type BiomeId } from '../data/map';
+import { cellAt, chunkOf, mapChunk } from '../sim/map';
+import { CELL, MAP_TUNING, type BiomeId } from '../data/map';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
@@ -61,6 +61,11 @@ const COLORS = {
   boulderRim: 0x4a4740,
   tree: 0x1f4a24,
   treeRim: 0x14301a,
+  // Low terrain: docs/map/INDEX.md §5 (map.terrain.*). Muted, no danger colours (R3).
+  tallGrass: 0x4f7a35,
+  deepWater: 0x2f6f9f,
+  waterFoam: 0xd8eef7,
+  marsh: 0x4a5a3a,
   player: 0xff7a2f,
   flash: 0xffffff,
   projectile: 0xffb347,
@@ -1062,6 +1067,30 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Water, marsh and tall grass cells in view (D47 M3), flat fills under everything else. Every shore gets the 3 px
+   * foam edge so the boundary is unmistakable (docs/map/README.md §7.2).
+   */
+  private drawCells(g: Phaser.GameObjects.Graphics, left: number, top: number, width: number, height: number): void {
+    const s = MAP_TUNING.cellSize;
+    const fill: Partial<Record<number, number>> = { [CELL.grass]: COLORS.tallGrass, [CELL.slow]: COLORS.marsh, [CELL.water]: COLORS.deepWater };
+    for (let y = Math.floor(top / s) * s; y < top + height; y += s) {
+      for (let x = Math.floor(left / s) * s; x < left + width; x += s) {
+        const cell = cellAt(this.world, x + s / 2, y + s / 2);
+        const color = fill[cell];
+        if (color === undefined) continue;
+        g.fillStyle(color, cell === CELL.grass ? 0.6 : 1);
+        g.fillRect(x, y, s, s);
+        if (cell !== CELL.water) continue;
+        g.fillStyle(COLORS.waterFoam, 0.9);
+        if (cellAt(this.world, x + s / 2, y - s / 2) !== CELL.water) g.fillRect(x, y, s, 3);
+        if (cellAt(this.world, x + s / 2, y + s * 1.5) !== CELL.water) g.fillRect(x, y + s - 3, s, 3);
+        if (cellAt(this.world, x - s / 2, y + s / 2) !== CELL.water) g.fillRect(x, y, 3, s);
+        if (cellAt(this.world, x + s * 1.5, y + s / 2) !== CELL.water) g.fillRect(x + s - 3, y, 3, s);
+      }
+    }
+  }
+
   /** Every obstacle placed in the chunks the view overlaps. */
   private drawObstacles(g: Phaser.GameObjects.Graphics, left: number, top: number, width: number, height: number): void {
     for (let cy = chunkOf(top); cy <= chunkOf(top + height); cy++) {
@@ -1102,7 +1131,8 @@ export class RunScene extends Phaser.Scene {
       g.lineBetween(left, y, left + cam.width, y);
     }
 
-    // Map boulders and trees (D47, grey boxes).
+    // Map terrain, then boulders and trees (D47, grey boxes).
+    if (onMap) this.drawCells(g, left, top, cam.width, cam.height);
     if (onMap) this.drawObstacles(g, left, top, cam.width, cam.height);
 
     // Zones on the ground, fading out at the end: craters orange; status zones by their effect.

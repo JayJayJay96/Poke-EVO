@@ -126,6 +126,37 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-25 — Map M3a: water, marsh, traversal flags (D47)
+**Owner:** "lets continue with the map". **Status:** built, tested, browser-checked; **not committed**. Not playtested by the owner. M3 is split into **M3a** (this: cells, traversal, water, marsh, swimming) and **M3b** (next: tall grass rules and the six reactions, with the ice bridge). D47 15-3 approved M3 as a whole, so the split is internal.
+
+- **What it does:**
+  - Every chunk stores 20 × 20 cells of 50 px (water, marsh, tall grass, open) from its tiles. Lakes chunks now have real ponds, streams and marsh, all drawn as grey boxes: blue water with a foam edge, dark marsh, translucent grass.
+  - **Traversal flags (D47 15-2):** Charizard flies; the Squirtle line swims at ×0.85 and Lapras at ×1.0; Flying enemies fly; Elite Gastly levitates (marsh doesn't slow it, water still stops it); everything else walks.
+  - **Water** stops walkers and levitators: they slide along the shore and wall-follow round it. A mover dropped in water (spawn, recycle) is lifted to the nearest dry cell.
+  - **Marsh** slows walkers by 30% (player and enemies alike); swimmers, flyers and levitators aren't slowed.
+  - **Swimming counters:** no rest regen while in water; after 3 s of swimming, the spawner weights Flying species ×2 until you leave.
+  - **Pickups** that fall in water rest on the nearest shore. **Sites and entrances** are never placed in water or marsh.
+- **Changed:**
+  - `src/data/map.ts`: `Traversal`, `CELL`, `CELL_OF_TILE`, `MAP_TUNING.swim`/`marsh`/`shoreSearch`, all provisional
+  - `src/data/content.ts`: `EvolutionStage.traversal`, set on Charizard, Squirtle, Wartortle, Blastoise and Lapras
+  - `src/sim/map.ts`: `cellsOf`, `cellAt`, `playerTraversal`, `enemyTraversal`, `terrainSpeed`, `playerSwimSpeed`, `nearestCell`, `shore`, `pushOutOfWater`; water in `collideWithMap`, `wallNormal`, `clearSpot` and `lineBlocked` (optional flag)
+  - `src/sim/world.ts`: terrain speed for the player and enemies, `swimFor` and rest regen, `swimTilt` in the spawner
+  - `src/sim/combat.ts`: gems, berries and magnets use `shore`
+  - `src/sim/types.ts`: `MapChunk.cells`/`water`, `Player.swimFor`
+  - `src/scenes/RunScene.ts`: `drawCells`
+  - `src/sim/map.test.ts`: 13 new tests
+  - `docs/map/README.md` §11.4a
+- **Commands (observed):**
+  - `tsc --noEmit` clean
+  - `vitest run` **681/681** (includes other sessions' tests)
+  - `npm run build` passed
+  - stress bench (`--dir src`): empty map **1.37 ms/step**, every chunk woods **1.97 ms**. That's up from 1.40 ms: it was 2.33 ms before the dry-chunk fast path, and the rest is one cell lookup per enemy for marsh speed. Under the 4 ms aim.
+- **Browser (port 5181, pane hidden, so I stepped the sim by hand):** found a `lakes.pond` chunk and put Squirtle in the water. The pond draws with its foam edge and marsh ring; `swimFor` climbed past 3 s; a Pidgey flew straight across onto Squirtle; a Rattata stayed on the marsh bank (never entered water). No console errors.
+- **Not checked:** balance (the bot runs on an empty map, so swimming never comes up for it); a full run through lakes; the "try 4 more spawn angles" rule (spawns in water are lifted out instead); no HUD swim chip or first-swim notice yet (M5).
+- **Next:** **M3b**: tall grass rules (Grass-type rest 2 s, burning), the six reactions (§8) with trigger points (§8.1), ice bridges.
+- **Build runs:** yes.
+
+
 ### 2026-10-25 — Mankey and Abra built (D56)
 **Owner:** "Build the Mankey line ... Then Abra." **Status:** built, tested, browser-checked (both lines, normal run and `?stress=` build); committed. Not playtested by the owner. Built in a worktree branch (`new-lines`) to stay clear of the map session, then fast-forwarded onto `main`.
 

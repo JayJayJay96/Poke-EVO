@@ -42,6 +42,8 @@ export interface Player {
   stillFor: number;
   /** Seconds since the player last took damage; rest regen starts past TUNING.restRegen.afterSeconds (D44). */
   calmFor: number;
+  /** Seconds in deep water without leaving (0 on land): no rest regen, and Flying spawns tilt after a while (D47). */
+  swimFor: number;
   /** Last movement direction (unit vector), for moves aimed with your feet. */
   faceX: number;
   faceY: number;
@@ -697,6 +699,10 @@ export interface MapChunk {
   readonly own: readonly Obstacle[];
   /** `own` plus neighbours' obstacles within `MAP_TUNING.reach` of this chunk: what collision looks up. */
   near: readonly Obstacle[] | null;
+  /** 20 × 20 cells of 50 px, row by row: each a `CELL` class (water, marsh, tall grass, open) from the tiles (M3). */
+  readonly cells: Uint8Array;
+  /** Any deep water in `cells`: a mover wholly inside a dry chunk skips the water test. */
+  readonly water: boolean;
   readonly slots: readonly MapSlot[];
 }
 
