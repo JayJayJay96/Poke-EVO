@@ -1,7 +1,57 @@
 # PROJECT_STATUS — PokeSurvivorEVO
 
 ## Current state
-- **Phase:** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **P4f done** (P4f-1 to P4f-8, 2026-10-18): all **110 of 110** Mutations built and tested; Charmander has its 8-move learnset; D19 holds on the balance bot (narrowly for Charizard); the maxed-Mutation stress builds stay far under budget. **Next:** ~~the Mutation map sites~~ **done as P4g (2026-10-18, D23)**; the owner tested sites and asked for a separate Mutation track with ranks: **D24 approved (2026-10-19)**, built as **P4h**. **P4h-1 done** (2026-10-19). **P4h-2 approved** (owner, 2026-10-19: "RANKS.md approved as written"). **P4h done** (P4h-1…9: Mutation slot and ranks for every line, favoured augments, site-bot balance; D25 recorded). **Next: the P4 gate playtest** (owner). Open owner questions are listed in the P4f-8 entry and the P4 gate playtest. Owner said "continue" after P4f-3 without feel-check notes; the rule-4 utility question is still open.
+*Handover note, 2026-10-25. Read this, then `AGENTS.md` and `PROJECT.md` (§13 decisions D1–D49), then the newest **Session log** entries below (newest first). The older history below this block is kept as written.*
+
+### Where the game is
+- **Phases:** P0–P3 done and owner-passed. **P4** (5 starter lines: Charmander, Squirtle, Bulbasaur, Pikachu, Lapras; 110 Mutations) is built; its **gate playtest is still pending**.
+  - Much P5 work is already in: arena boss events, enemy archetypes and statuses, hordes and elites, the type chart.
+  - Some P6/P7 presentation was pulled forward with the owner's OK (D46).
+- **Run:** 15 min, with 2 arena boss events (~6:30 tier 1: Snorlax or Machamp; ~12:30 tier 2: Zapdos or Articuno). Arena time is off the run clock (D33).
+- **Level-ups:**
+  - banked behind a badge: Space or click opens them, they auto-open at 3 or after 30 s (D39)
+  - every 3rd level is an augment level
+  - normal levels offer learnset moves, **Techniques** (5 slots, ranks I–III) or **Natures** (D40)
+- **Growth (D44):** level growth (+2 max HP, +1% damage per level) and rest regen (1% max HP/s after 5 s unhit).
+- **Boss reward (D49):** **Legendary Boons**, 3 per boss with a ★ horde-clearer always offered, then a reward pick. This **replaced the skill combine (D28)**.
+- **Drops:** berries and magnets have their own caps and expire after 60 s; picking up a magnet also pulls in berries (fix 2026-10-24).
+- **UI (D46):**
+  - the Esc pause screen and the Pokémon select screen are HTML overlays (`src/ui/`)
+  - the in-run HUD is a slim card top-left, the clock top centre, and big gold event notices
+- **Map (D47):** "Kanto Route" (biomes, set pieces) is being built by another session (`docs/map/`).
+
+### Open tasks (in priority order)
+1. **Owner playtests, not done yet:**
+   - D40 Techniques/Natures
+   - D44 regen/growth
+   - D46 pause and select screens; test Esc in a **real browser**, because the in-app browser pane swallows Esc
+   - the HUD pass
+   - D49 boons: do boss wins feel worth it, and do the ★ boons fix hordes?
+2. **Remove the dead combo code (D49 follow-up):**
+   - `src/sim/combo.ts`, `world.combo`, the `'combine'` offer, `chooseCombine`/`skipCombine`, the combo branch in `updateMoves`, the combine card UI in `RunScene`, the combo tests in `arena.test.ts`, the snapshot `combo` field (bump the version), and the `learnsetSlotsUsed` freed-slot logic
+   - wait until the Articuno work (below) is committed, because it touches the same files
+3. **Balance pass:**
+   - `npm run balance` (about 20 min; writes the gitignored `balance-report.md`)
+   - D44's +1% damage per level and D49's boons both add late-game power; with D44, 15:00 site DPS was up a lot (see the D40/D44 status entry)
+   - retune enemy HP or `TUNING.levelGrowth.damagePct` if late runs feel too easy
+4. **Articuno (D45, tier 2 boss):** built by another session but **uncommitted in the working tree** when this note was written (`src/sim/articuno.ts` plus edits in arena, bosses, RunScene, types, world, combat, `arena.test.ts`). Let that session finish and commit; don't commit it yourself.
+
+### Session quirks (read before editing)
+- **Several Claude sessions share this folder at once.**
+  - Before committing, run `git status` and `git diff` and commit **only your own changes**.
+  - When a file also holds someone else's uncommitted edits, stage your hunks only. Zero-context `git apply --unidiff-zero` mis-placed hunks here; staging HEAD plus text-anchored edits, then checking the staged snapshot in a scratch folder, worked.
+  - Decision numbers have collided (D42/D43): check the highest D in both `PROJECT.md` and `git show HEAD:PROJECT.md` before taking one.
+- **GateGuard hook:** before the first Bash command, and before the first Edit/Write of each file in a session, it asks you to state facts (the request, importers, what's affected, the user's words), then retry. Blocked edits are **not applied**, so always check that they landed.
+- **Line endings:** `core.autocrlf` is on; Git's "LF will be replaced by CRLF" warnings are harmless. Some files are CRLF on disk: edit them with tools that keep the endings.
+- **Browser checks:**
+  - `preview_start` with `pokesurvivor-dev` (port 5180, or 5181 if the owner's own dev server holds 5180)
+  - the pane is often hidden or throttled: step the sim from the page with `await import('/src/sim/world.ts')` and `window.__world` (dev only)
+  - Phaser ignores synthetic and tool key presses; DOM overlays accept dispatched `keydown`
+- **Checks to run:** `npx tsc --noEmit -p .`, `npx vitest run` (fast, ~3 s), `npm run build`. Never claim a check you didn't run (`AGENTS.md`).
+- **Commits** end with the Co-Authored-By trailer. Push only when the owner asks. The remote is GitHub `JayJayJay96/Poke-EVO`, branch `main`.
+
+### Older history
+- **Phase (history):** P0, P1 and **P2 done**. The owner playtested P2 on 2026-10-17 and reported "i think is ok" (gate accepted; no tuning changes requested, and the individual checks for keys/Esc panel/build variety were not itemised). **P3a done** (2026-10-17): Charmander → Charmeleon → Charizard stages, auto evolution with cinematic + summary card, Blaze. **P3b done** (2026-10-17): Flame Burst / Blast Burn signature tiers, zone system, Wide Blast / Linger, Blaze Core / Mega Flare. **P3c done** (2026-10-17): on-hit pipeline + statuses; Pierce, Homing, Return, Knockback, Burn, Lifesteal. **P3 gate playtest (owner, 2026-10-17): "quite fun"** → revisions D11, built as **P3d**: 5 s skippable cinematic, crater once per projectile, augment replacement, guaranteed behaviour card, stage types + Flying moves + STAB, Charizard trait choice. Behaviour augments never appeared in the playtest (pool dilution: 17 options, 3 per window), which the guaranteed card fixes. **P3d done** (2026-10-17). **P3 re-playtest → D12, built as P3e** (2026-10-17): Return −30% damage, Back to move selection (cards kept per move), Oran Berry heal drops, visible Glass penalty + player damage numbers. Owner noted late-game damage is strong but acceptable until the difficulty ramp (P5). **P3 gate passed** (owner, 2026-10-17: "P3 is good"). **P4a done** (2026-10-17): multi-line engine + starter select. **P4b done** (2026-10-17): Squirtle line playable. **P4b rework** (2026-10-18, D14): kit rules, Squirtle redesign, knockback → stagger, type chart + weight resistance. **P4c done** (2026-10-18): Bulbasaur line (Leech Seed status, Frenzy Plant root field, Solar Beam Venusaur-only). **P4d done** (2026-10-18): Pikachu → Raichu and Lapras (level-based signature tiers) playable; first gamble balance pass with a headless `npm run balance` report. Mutation skill trees designed and approved (D15–D21). **P4e is folded into P4f** (D21). **P4f done** (P4f-1 to P4f-8, 2026-10-18): all **110 of 110** Mutations built and tested; Charmander has its 8-move learnset; D19 holds on the balance bot (narrowly for Charizard); the maxed-Mutation stress builds stay far under budget. **Next:** ~~the Mutation map sites~~ **done as P4g (2026-10-18, D23)**; the owner tested sites and asked for a separate Mutation track with ranks: **D24 approved (2026-10-19)**, built as **P4h**. **P4h-1 done** (2026-10-19). **P4h-2 approved** (owner, 2026-10-19: "RANKS.md approved as written"). **P4h done** (P4h-1…9: Mutation slot and ranks for every line, favoured augments, site-bot balance; D25 recorded). **Next: the P4 gate playtest** (owner). Open owner questions are listed in the P4f-8 entry and the P4 gate playtest. Owner said "continue" after P4f-3 without feel-check notes; the rule-4 utility question is still open.
 
 ## P4 plan (owner-approved 2026-10-17, D13)
 **Gate:** do the starters feel truly different? Is picking a tier (3-stage / 2-stage / no evolution) a real gamble?
