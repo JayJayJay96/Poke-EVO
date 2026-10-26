@@ -9,6 +9,7 @@ import {
 import { POKEMON, TUNING } from '../data/content';
 import { MOVES } from '../data/moves';
 import { MUTATION_RANKS, MUTATIONS, type MutationDef } from '../data/mutations';
+import { SITE_TUNING } from '../data/sites';
 import {
   BOOST_IDS,
   BOOSTS,
@@ -32,7 +33,8 @@ export function xpToNext(level: number): number {
 }
 
 export function gainXp(world: World, amount: number): void {
-  world.xp += amount;
+  // The site surge boosts XP gain while it lasts (D59).
+  world.xp += world.surgeLeft > 0 ? amount * (1 + SITE_TUNING.surge.xpPct) : amount;
   const before = world.level;
   while (world.xp >= xpToNext(world.level)) {
     world.xp -= xpToNext(world.level);

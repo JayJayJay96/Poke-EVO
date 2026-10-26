@@ -1937,13 +1937,13 @@ function describeCard(world: World, card: Card): CardView {
   }
 }
 
-/** A site's fallback card (D25): a heal and a timed Power Surge. */
+/** A site's fallback card (D25): a heal and a timed Power Surge that also boosts XP (D59). */
 function describeSurge(): CardView {
-  const { heal, damagePct, seconds } = SITE_TUNING.surge;
+  const { heal, damagePct, xpPct, seconds } = SITE_TUNING.surge;
   return {
     heading: 'NOTHING LEFT HERE',
     title: `Heal + ${BIG_BOOST.name}`,
-    body: `Heal ${heal} HP\n+${Math.round(damagePct * 100)}% damage for ${seconds} s`,
+    body: `Heal ${heal} HP\n+${Math.round(damagePct * 100)}% damage, +${Math.round(xpPct * 100)}% XP for ${seconds} s`,
     color: COLORS.augment,
   };
 }

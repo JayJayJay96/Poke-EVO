@@ -5,6 +5,7 @@ import { SITE_TUNING } from '../data/sites';
 import { ITEM_IDS, MAX_ITEMS, MAX_LEARNSET_SLOTS } from '../data/upgrades';
 import { restoreBuild, snapshotBuild } from './buildSnapshot';
 import { isBuilt } from './mutations';
+import { gainXp } from './progression';
 import { createSeededRng } from './rng';
 import { chooseSiteCard, isBoundCard, rollSiteCards, skipSite, updateSites } from './sites';
 import { createSlot, refreshStats } from './stats';
@@ -171,7 +172,7 @@ describe('Mutation Sites: cards (D23)', () => {
     for (let i = 0; i < 10; i++) expect(rollSiteCards(world).some((c) => c.kind === 'item')).toBe(false);
   });
 
-  it('falls back to a heal and a timed Power Surge when nothing is eligible (D25)', () => {
+  it('falls back to a heal and a timed Power Surge with an XP boost when nothing is eligible (D25, D59)', () => {
     const world = makeWorld();
     const mutationFor = (move: string, signature: boolean) =>
       MUTATION_IDS.find((id) => {
@@ -190,7 +191,7 @@ describe('Mutation Sites: cards (D23)', () => {
     world.items = ITEM_IDS.slice(0, MAX_ITEMS);
     refreshStats(world);
     expect(rollSiteCards(world)).toEqual([{ kind: 'surge' }]);
-    // Taking it: heal, +15% damage for 30 s, a second one refreshes rather than stacks; then it wears off.
+    // Taking it: heal, +15% damage and +50% XP for 30 s, a second one refreshes rather than stacks; then it wears off.
     world.player.hp = 10;
     const base = world.mods.damageMult;
     const surge = SITE_TUNING.surge;
@@ -201,10 +202,16 @@ describe('Mutation Sites: cards (D23)', () => {
     }
     expect(world.player.hp).toBe(10 + 2 * surge.heal);
     expect(world.bigBoosts).toBe(0);
+    world.xp = 0;
+    gainXp(world, 2);
+    expect(world.xp).toBeCloseTo(2 * (1 + surge.xpPct));
     world.spawnEnabled = false;
     for (let t = 0; t < surge.seconds + 0.1; t += TUNING.stepSeconds) step(world, { moveX: 0, moveY: 0 }, TUNING.stepSeconds);
     expect(world.surgeLeft).toBe(0);
     expect(world.mods.damageMult).toBeCloseTo(base);
+    world.xp = 0;
+    gainXp(world, 2);
+    expect(world.xp).toBe(2);
   });
 
   it('a learn card teaches the move with its Mutation; an item card fills a slot', () => {

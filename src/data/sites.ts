@@ -24,8 +24,8 @@ export const SITE_TUNING = {
   /** px: the HUD points at sites within this distance when they're off-screen. */
   arrowRange: 1500,
   /**
-   * Fallback when nothing is eligible (D25): a heal plus a timed Power Surge. Provisional: a new one
-   * refreshes the timer instead of stacking.
+   * Fallback when nothing is eligible (D25): a heal plus a timed Power Surge, which also boosts XP gain (D59).
+   * Provisional: a new one refreshes the timer instead of stacking.
    */
-  surge: { heal: 30, damagePct: 0.15, seconds: 30 },
+  surge: { heal: 30, damagePct: 0.15, xpPct: 0.5, seconds: 30 },
 } as const;

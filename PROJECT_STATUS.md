@@ -126,6 +126,12 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-27 — Site surge XP boost (D59)
+- **Objective:** owner asked that the site fallback (nothing left to augment) also boost XP.
+- **Changed:** `src/data/sites.ts` (`SITE_TUNING.surge.xpPct: 0.5`), `src/sim/progression.ts` (`gainXp` scales XP while `world.surgeLeft > 0`), `src/scenes/RunScene.ts` (card text), `src/ui/pauseOverlay.ts` (pause screen surge label), `src/sim/sites.test.ts` (fallback test checks +50% XP during, normal XP after). Arena reward XP also goes through `gainXp`, so it is boosted too during a surge.
+- **Checks:** `npx tsc --noEmit -p .`, `npx vitest run`, `npm run build` passed. Not browser-checked.
+- **Next:** owner playtest of the 50% value.
+
 ### 2026-10-26 — Map M4 + M5 (D47, pulled forward from P6)
 **Owner:** "continue with m4 m5". Recorded in PROJECT.md D47 as a pull-forward from P6. **Status:** built, tested, browser-checked; ledges were committed as `8755a4d` by another session, which picked up my work in progress. The rest is **not committed**. Not playtested by the owner.
 

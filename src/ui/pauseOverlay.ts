@@ -191,7 +191,7 @@ function buildColumn(world: World): HTMLElement {
     return h('div', { class: 'ui-card', style: 'border-left-color:#5ad1ff' }, h('h4', {}, def.name, h('small', {}, count)), h('p', {}, def.description));
   });
   if (world.surgeLeft > 0) {
-    natures.push(h('div', { class: 'ui-card' }, h('h4', {}, 'Site surge', h('small', {}, `${Math.ceil(world.surgeLeft)} s left`))));
+    natures.push(h('div', { class: 'ui-card' }, h('h4', {}, 'Site surge', h('small', {}, `damage + XP, ${Math.ceil(world.surgeLeft)} s left`))));
   }
   if (world.bigBoosts > 0) {
     natures.push(h('div', { class: 'ui-card' }, h('h4', {}, BIG_BOOST.name, h('small', {}, `×${world.bigBoosts}`)), h('p', {}, BIG_BOOST.description)));
