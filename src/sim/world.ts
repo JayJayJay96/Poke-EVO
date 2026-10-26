@@ -34,7 +34,7 @@ import { applyPlayerStatus, emptyPlayerStatus, playerStatusSlow, updatePlayerSta
 import { gainXp, makeOffer } from './progression';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
-import { cellAt, collideWithMap, enemyTraversal, ledgeDropped, ledgeFactor, lineBlocked, playerSwimSpeed, playerTraversal, terrainSpeed } from './map';
+import { cellAt, collideWithMap, enemyTraversal, ledgeDropped, ledgeFactor, lineBlocked, mapNotice, playerSwimSpeed, playerTraversal, terrainSpeed } from './map';
 import { CELL, MAP_TUNING } from '../data/map';
 import { updateSites } from './sites';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
@@ -51,6 +51,7 @@ import {
 import type { Enemy, InputState, MoveSlot, World } from './types';
 import { updateTerrain } from './terrain';
 import { restsInGrass, updateMapReactions } from './mapReactions';
+import { updateMapFeatures } from './mapFeatures';
 import { updateZones } from './zones';
 
 const ENEMY_IDS = Object.keys(ENEMIES) as EnemyId[];
@@ -144,7 +145,7 @@ export function createWorld({
     sites: [],
     siteChunks: new Set(),
     mapSeed,
-    map: { density: obstacleDensity, forceBiome: null, chunks: new Map(), patches: new Map(), bridges: [], tickLeft: 0, activeUntil: -Infinity },
+    map: { density: obstacleDensity, forceBiome: null, chunks: new Map(), patches: new Map(), bridges: [], tickLeft: 0, activeUntil: -Infinity, berryTrees: new Map(), balls: new Map(), notices: [], noticesSeen: new Set() },
     arenaSchedule: arenaSchedule(mapSeed),
     arenaEventsDone: 0,
     arenaBossesUsed: [],
@@ -187,6 +188,7 @@ export function createWorld({
     lullLeft: 0,
     nextHordeAt: HORDE.firstAt,
     hordeWarning: null,
+    foreshadow: null,
     hordes: [],
     enemyShots: [],
     webs: [],
@@ -244,6 +246,7 @@ export function step(world: World, input: InputState, dt: number): void {
   resolveArena(world);
   upgradeSignatureByLevel(world);
   if (!world.arena) updateSites(world, dt);
+  updateMapFeatures(world, dt);
   if (runClock(world) >= TUNING.runSeconds) world.status = 'survived';
   // A captured site opens first; then evolution (never mid arena fight), whose summary card hands over to
   // the banked level-ups; otherwise the bank decides.
@@ -403,7 +406,10 @@ function tickTimers(world: World, dt: number): void {
   const rest = TUNING.restRegen;
   // Swimming (D47, docs/map/README.md §7.2): no rest regen in deep water, so a lake isn't a safe room.
   p.swimFor = cellAt(world, p.x, p.y) === CELL.water ? p.swimFor + dt : 0;
-  if (p.swimFor === 0 && p.calmFor >= restAfterSeconds(world, restsInGrass(world) ? MAP_TUNING.grass.restDelayGrassType : rest.afterSeconds) && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);
+  if (p.swimFor > 0) mapNotice(world, 'swimming');
+  const grassRest = restsInGrass(world);
+  if (grassRest) mapNotice(world, 'grassRest');
+  if (p.swimFor === 0 && p.calmFor >= restAfterSeconds(world, grassRest ? MAP_TUNING.grass.restDelayGrassType : rest.afterSeconds) && p.hp > 0 && p.hp < p.maxHp) healPlayer(world, p.maxHp * rest.maxHpPctPerSec * dt);
   // Solar Power's drain never takes the last HP point.
   const drain = ABILITIES[p.ability].hpDrainPerSec ?? 0;
   if (drain > 0 && p.hp > 1) p.hp = Math.max(1, p.hp - drain * dt);
@@ -451,7 +457,9 @@ function movePlayer(world: World, input: InputState, dt: number): void {
   }
   const flag = playerTraversal(world);
   // Marsh and water (D47), and climbing a ledge against its drop.
-  const ground = terrainSpeed(world, p.x, p.y, flag, playerSwimSpeed(world)) * ledgeFactor(world, p.x, p.y, mx, my, flag);
+  const climb = ledgeFactor(world, p.x, p.y, mx, my, flag);
+  if (climb < 1) mapNotice(world, 'ledgeClimb');
+  const ground = terrainSpeed(world, p.x, p.y, flag, playerSwimSpeed(world)) * climb;
   const speed = p.speed * mutationMoveSpeedMult(world) * boonMoveSpeedMult(world) * rampageSpeedMult(world) * (1 - slow) * ground;
   p.vx = mx * speed;
   p.vy = my * speed;

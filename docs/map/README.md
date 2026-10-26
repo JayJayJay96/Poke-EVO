@@ -584,6 +584,31 @@ can't leave, and since trees block shots (D41), a mob stuck there near you could
   (`lineBlocked`): you can't fight it across trees or boulders. Ponds (M3) don't block that line.
 
 ### 11.4a What M1–M2 built differently, on purpose
+- **M4 as built (2026-10-26, pulled forward from P6 by the owner):**
+  - **Ledges:** lips merge from `v` / `<` / `>` tiles (`ledgesOf`), looked up per chunk plus neighbours near its edges.
+    The player hops 60 px over 0.35 s when walking off (input locked, no invulnerability; drawn as a 12 px arc over a
+    ground shadow); everyone on the ground or swimming climbs at 30% inside the 20 px band below the lip; flyers and
+    levitators ignore ledges. Lips draw with chevrons every 40 px pointing to the drop.
+  - **Berry trees:** the `B` trunk is now a real tall obstacle (radius 30). Standing in its 70 px ring for 2 s
+    (progress drains outside) shakes down 1–2 Oran Berries within the berry cap; then it's bare for 90 s. Drawn with
+    3 blue berries while ripe and a green capture arc.
+  - **Item balls:** half the `I` slots hold one (seeded with the chunk). Walking over one gives an XP cluster (8
+    gems), an Oran Berry or a Magnet (60/25/15). From 3:00 while Voltorb is in season, 25% are an Ambusher: the roll
+    happens when you first come within 160 px, it wobbles 0.6 s (the same sprite, the only tell), then wakes as a
+    Voltorb scaled to the wave.
+  - **Floor dressing:** rocky canyon floor (`r` tiles) and a sand band on open cells next to water. Flowers and dirt
+    paths aren't drawn (pure decoration, left for the art pass).
+  - **Not built:** Roller bounce and burrower hooks; no rolling or burrowing enemy exists yet.
+- **M5 as built (2026-10-26):**
+  - **Notices** (`mapNotice`): grassRest, grassBurning, swimming, iceBridge and ledgeClimb show once a run;
+    hordeEmerge and foreshadow.<entrance> show every time. The HUD shows them in the gold event banner.
+  - **Foreshadowing:** on the map, the next arena entrance's boss and spot are picked 15 s before it opens
+    (`world.foreshadow`) and marked with a soft circle growing to 300 px, one colour per entrance; it then opens there.
+    Off the map (sim tests), entrances are picked when they open, exactly as before.
+  - **Hordes from grass:** when a horde warning starts on the map, the pack's side is searched for living tall grass
+    between 250 px and the spawn ring (±0.45 rad); if found, the horde spawns there and that patch shimmers white for
+    the 3 s warning. Otherwise it spawns on the ring as before.
+  - **Mewtwo's dome** stays deferred until Mewtwo exists.
 - **Far sites (D47 15-1, built 2026-10-26).** `MAP_TUNING.farSites`: a site whose centre is ≥ 3000 px from the
   start rolls its cards with bound (Bond / signature) and rank-up cards weighted ×1.5; a near site rolls exactly as
   before. At a fresh Charmander start, bound cards go from 26% to 33% of the cards shown (2000 rolls).

@@ -40,9 +40,10 @@ import {
   socketsUsed,
 } from '../sim/mutations';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
-import { cellKey, chunkOf, groundAt, ledgesNear, mapChunk } from '../sim/map';
+import { cellCentre, cellKey, chunkOf, groundAt, ledgesNear, mapChunk, patchAt, patchCells } from '../sim/map';
 import { grassPhase, marshFrozen, patchCharged } from '../sim/mapReactions';
-import { CELL, MAP_TUNING, type BiomeId } from '../data/map';
+import { berryTreeState, itemBallState } from '../sim/mapFeatures';
+import { CELL, MAP_TUNING, type BiomeId, type MapNoticeId } from '../data/map';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
 import { currentStage } from '../sim/stats';
 import { setupMutationStress, setupStress, topUpStress } from '../sim/stress';
@@ -50,6 +51,30 @@ import type { ArenaFight, ArticunoState, AugmentCard, Card, Enemy, EvolutionStat
 import { createWorld, runClock, step } from '../sim/world';
 import { PauseOverlay } from '../ui/pauseOverlay';
 import { TYPE_COLORS, augmentLabel, mutationLabel } from '../ui/labels';
+
+/** Map notices: docs/map/INDEX.md §8 (ui.map.notice.*). */
+const MAP_NOTICES: Readonly<Record<MapNoticeId, string>> = {
+  grassRest: 'Resting in tall grass: regen starts sooner',
+  grassBurning: 'The grass is burning!',
+  swimming: 'Swimming! No rest regen, and flyers notice you',
+  iceBridge: 'Ice bridge! It melts in 6 s',
+  ledgeClimb: 'Climbing a ledge is slow (enemies too)',
+  hordeEmerge: 'Something is rustling in the grass…',
+  'foreshadow.mountainHole': 'The ground is shaking…',
+  'foreshadow.dojo': 'Drums echo from somewhere…',
+  'foreshadow.whirlwind': 'The air crackles…',
+  'foreshadow.iceCave': 'Frost creeps across the ground…',
+  'foreshadow.pool': 'The water starts to ripple…',
+};
+
+/** Foreshadow marks (README §10.1): soft colours per entrance, never red (R3). */
+const FORESHADOW_COLORS: Readonly<Record<ArenaEntranceKind, number>> = {
+  mountainHole: 0x8a6a4a,
+  dojo: 0xd9a066,
+  whirlwind: 0xffe14d,
+  iceCave: 0xbfe3f2,
+  pool: 0x3f8fd0,
+};
 
 /** Biome floors: docs/map/INDEX.md §5 (map.floor.*). */
 const FLOOR_COLORS: Readonly<Record<BiomeId, number>> = { meadow: 0x2b3a24, woods: 0x22301e, lakes: 0x2a3a33, canyon: 0x3a3328 };
@@ -74,6 +99,14 @@ const COLORS = {
   ice: 0xbfe3f2,
   // Ledge lip and its chevrons (map.terrain.ledgeLip), pointing to the drop.
   ledgeLip: 0xc9c2a8,
+  // M4: berry trees (map.tall.berryTree, ui.map.color.interact), item balls, floor dressing (map.floor.*).
+  berryCanopy: 0x2f5a2a,
+  berryFruit: 0x3d8bff,
+  interact: 0x8fd16a,
+  ballTop: 0xe04848,
+  ballBottom: 0xf2f2f2,
+  rocky: 0x4d463d,
+  sand: 0x8a7d5a,
   player: 0xff7a2f,
   flash: 0xffffff,
   projectile: 0xffb347,
@@ -508,6 +541,7 @@ export class RunScene extends Phaser.Scene {
 
     this.trackPlayerDamage(deltaMs);
     this.announceBoundSites();
+    this.announceMapNotices();
     this.announceArena();
     this.showSignatureTierUp(time);
     this.syncOverlay(time);
@@ -604,6 +638,45 @@ export class RunScene extends Phaser.Scene {
       freezeOver: `${boss} froze over! Sheer Cold armour: break it with super-effective hits`,
     }[notice.kind];
     this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}\n${message}` : message;
+  }
+
+  /** D47 M5: map tips the first time (swimming, burning grass…) and the horde / foreshadow warnings every time. */
+  private announceMapNotices(): void {
+    const queue = this.world.map.notices;
+    for (const id of queue) this.pendingNotice = this.pendingNotice ? `${this.pendingNotice}
+${MAP_NOTICES[id]}` : MAP_NOTICES[id];
+    queue.length = 0;
+  }
+
+  /**
+   * M5 telegraphs on the ground: the grass a horde will come out of shimmers for its warning (README §7.1), and the
+   * next arena entrance's spot is marked as it nears (§10.1). Presentation only.
+   */
+  private drawMapTells(g: Phaser.GameObjects.Graphics): void {
+    const w = this.world;
+    const pulse = 0.5 + 0.5 * Math.sin(w.time * 8);
+    const from = w.hordeWarning?.from;
+    if (from) {
+      const { index, chunk } = patchAt(w, from.x, from.y);
+      if (chunk) {
+        g.fillStyle(0xffffff, 0.12 + 0.18 * pulse);
+        const s = MAP_TUNING.cellSize;
+        for (const i of patchCells(chunk, index)) {
+          const c = cellCentre(chunk, i);
+          g.fillRect(c.x - s / 2, c.y - s / 2, s, s);
+        }
+      }
+    }
+    const fs = w.foreshadow;
+    if (fs) {
+      const { seconds, radius } = MAP_TUNING.foreshadow;
+      const r = 60 + (radius - 60) * Math.min(1, (w.time - fs.startsAt) / seconds);
+      const color = FORESHADOW_COLORS[ARENA_BOSSES[fs.bossId].entrance];
+      g.fillStyle(color, 0.1 + 0.08 * pulse);
+      g.fillCircle(fs.x, fs.y, r);
+      g.lineStyle(2, color, 0.5);
+      g.strokeCircle(fs.x, fs.y, r);
+    }
   }
 
   /** D23: stepping into a site whose roll holds a Bond or signature Mutation says so (and why it takes longer). */
@@ -1090,7 +1163,17 @@ export class RunScene extends Phaser.Scene {
         const cx = x + s / 2;
         const cy = y + s / 2;
         const cell = groundAt(w, cx, cy);
-        if (cell === CELL.open) continue;
+        if (cell === CELL.open) {
+          // Floor dressing (M4): rocky canyon floor, and a sand band along every shore.
+          const chunk = mapChunk(w, chunkOf(cx), chunkOf(cy));
+          const tile = chunk.tiles[Math.floor((cy - (chunk.cy - 0.5) * MAP_TUNING.chunkSize) / MAP_TUNING.tileSize)]?.[Math.floor((cx - (chunk.cx - 0.5) * MAP_TUNING.chunkSize) / MAP_TUNING.tileSize)];
+          const shore = chunk.water && [[0, -s], [0, s], [-s, 0], [s, 0]].some(([ox, oy]) => groundAt(w, cx + ox!, cy + oy!) === CELL.water);
+          if (shore || tile === 'r') {
+            g.fillStyle(shore ? COLORS.sand : COLORS.rocky, 1);
+            g.fillRect(x, y, s, s);
+          }
+          continue;
+        }
         if (cell === CELL.grass) {
           const phase = grassPhase(w, cx, cy);
           if (phase === 'ash') g.fillStyle(COLORS.ash, 1);
@@ -1161,7 +1244,42 @@ export class RunScene extends Phaser.Scene {
   private drawObstacles(g: Phaser.GameObjects.Graphics, left: number, top: number, width: number, height: number): void {
     for (let cy = chunkOf(top); cy <= chunkOf(top + height); cy++) {
       for (let cx = chunkOf(left); cx <= chunkOf(left + width); cx++) {
-        for (const o of mapChunk(this.world, cx, cy).own) {
+        const chunk = mapChunk(this.world, cx, cy);
+        for (const ball of chunk.itemBalls) {
+          const st = itemBallState(this.world, ball);
+          if (st?.taken) continue;
+          // An Ambusher's wobble is its only tell (README §7.9); the ball looks the same otherwise.
+          const wob = st && st.wobbleLeft >= 0 ? Math.sin(this.world.time * 40) * 3 : 0;
+          const r = MAP_TUNING.itemBall.radius;
+          g.fillStyle(COLORS.ballBottom, 1);
+          g.fillCircle(ball.x + wob, ball.y, r);
+          g.fillStyle(COLORS.ballTop, 1);
+          g.slice(ball.x + wob, ball.y, r, Math.PI, Math.PI * 2, false);
+          g.fillPath();
+        }
+        for (const o of chunk.own) {
+          if (o.kind === 'berryTree') {
+            const st = berryTreeState(this.world, o);
+            const t = this.world.time;
+            const shake = st && t < st.shakeUntil ? Math.sin(t * 60) * 3 : 0;
+            g.fillStyle(COLORS.berryCanopy, 1);
+            g.fillCircle(o.x + shake, o.y, o.radius);
+            if (!st || t >= st.bareUntil) {
+              g.fillStyle(COLORS.berryFruit, 1);
+              for (let k = 0; k < 3; k++) g.fillCircle(o.x + shake + Math.cos(k * 2.1) * o.radius * 0.5, o.y + Math.sin(k * 2.1) * o.radius * 0.5, 4);
+            }
+            // The capture arc on its ring, like a site's, in the interact colour.
+            const ring = MAP_TUNING.berryTree.ring;
+            g.lineStyle(2, COLORS.interact, 0.35);
+            g.strokeCircle(o.x, o.y, ring);
+            if (st && st.progress > 0) {
+              g.lineStyle(4, COLORS.interact, 1);
+              g.beginPath();
+              g.arc(o.x, o.y, ring, -Math.PI / 2, -Math.PI / 2 + (st.progress / MAP_TUNING.berryTree.capture) * Math.PI * 2);
+              g.strokePath();
+            }
+            continue;
+          }
           const tree = o.kind === 'tree';
           g.fillStyle(tree ? COLORS.tree : COLORS.boulder, 1);
           g.fillCircle(o.x, o.y, o.radius);
@@ -1199,6 +1317,7 @@ export class RunScene extends Phaser.Scene {
 
     // Map terrain, then boulders and trees (D47, grey boxes).
     if (onMap) this.drawCells(g, left, top, cam.width, cam.height);
+    if (onMap) this.drawMapTells(g);
     if (onMap) this.drawLedges(g);
     if (onMap) this.drawObstacles(g, left, top, cam.width, cam.height);
 

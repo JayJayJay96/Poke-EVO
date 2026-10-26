@@ -1,5 +1,8 @@
 import { ENEMIES, TUNING, type EnemyId } from '../data/content';
 import { ABILITY_TUNING, ELITE, ELITE_ABILITY, HORDE, HORDE_FOLLOWERS, PACING, type EliteAbility } from '../data/hordes';
+import { MAP_TUNING } from '../data/map';
+import { mapNotice } from './map';
+import { grassPhase } from './mapReactions';
 import type { Enemy, World } from './types';
 import { pickEnemyKind, runClock, spawnEnemy, waveAt } from './world';
 
@@ -61,12 +64,30 @@ export function eliteContactMult(world: World, enemy: Enemy): number {
 }
 
 /** A horde leader of `leader`'s species: who follows it, spawned around it, all at the slowest member's speed. */
-function spawnHorde(world: World, angle: number, leader: EnemyId): void {
+/**
+ * Tall grass the horde can come out of (D47 M5, README §10.2): living grass on the pack's side, between
+ * `horde.minDistance` px and the spawn ring, nearest the ring first. Null off the map or when there's none.
+ */
+function grassOnSide(world: World, angle: number): { x: number; y: number } | null {
+  if (world.map.density <= 0) return null;
+  const { minDistance, arc } = MAP_TUNING.horde;
+  const { x, y } = world.player;
+  for (let r = world.spawnRadius; r >= minDistance; r -= MAP_TUNING.cellSize) {
+    for (const da of [0, arc / 3, -arc / 3, (2 * arc) / 3, (-2 * arc) / 3, arc, -arc]) {
+      const px = x + Math.cos(angle + da) * r;
+      const py = y + Math.sin(angle + da) * r;
+      if (grassPhase(world, px, py) === 'grass') return { x: px, y: py };
+    }
+  }
+  return null;
+}
+
+function spawnHorde(world: World, angle: number, leader: EnemyId, from: { x: number; y: number } | null = null): void {
   const { player, rng } = world;
   const t = runClock(world);
   const wave = waveAt(t);
-  const cx = player.x + Math.cos(angle) * world.spawnRadius;
-  const cy = player.y + Math.sin(angle) * world.spawnRadius;
+  const cx = from?.x ?? player.x + Math.cos(angle) * world.spawnRadius;
+  const cy = from?.y ?? player.y + Math.sin(angle) * world.spawnRadius;
   const scaled = (e: Enemy): Enemy => {
     e.contactDamage *= wave.damageScale;
     e.speed *= wave.speedScale;
@@ -105,13 +126,16 @@ export function updateHordes(world: World, dt: number): void {
     const weights = waveAt(t).weights;
     const eligible = Object.fromEntries(Object.entries(weights).filter(([kind]) => HORDE_FOLLOWERS[kind as EnemyId]));
     if (Object.keys(eligible).length > 0) {
-      world.hordeWarning = { angle: world.rng.next() * Math.PI * 2, left: HORDE.warning, leader: pickEnemyKind(eligible, world.rng) };
+      const angle = world.rng.next() * Math.PI * 2;
+      const from = grassOnSide(world, angle);
+      world.hordeWarning = { angle, left: HORDE.warning, leader: pickEnemyKind(eligible, world.rng), from };
+      if (from) mapNotice(world, 'hordeEmerge', true);
     }
   }
   if (world.hordeWarning) {
     world.hordeWarning.left -= dt;
     if (world.hordeWarning.left <= 0) {
-      spawnHorde(world, world.hordeWarning.angle, world.hordeWarning.leader);
+      spawnHorde(world, world.hordeWarning.angle, world.hordeWarning.leader, world.hordeWarning.from);
       world.hordeWarning = null;
     }
   }

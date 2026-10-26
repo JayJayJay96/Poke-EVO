@@ -586,7 +586,7 @@ export function updateStatuses(world: World, dt: number): void {
   }
 }
 
-function dropsOnGround(world: World, kind: Berry['kind']): number {
+export function dropsOnGround(world: World, kind: Berry['kind']): number {
   let n = 0;
   for (const b of world.berries) if (b.kind === kind && !b.collected) n++;
   return n;

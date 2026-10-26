@@ -38,6 +38,7 @@ function place(world: World, ...obstacles: Obstacle[]): void {
     patches: null,
     ledges: [],
     nearLedges: null,
+    itemBalls: [],
   };
   world.map.chunks.set(chunkKey(0, 0), chunk);
 }
@@ -151,7 +152,6 @@ describe('map: generation (M2)', () => {
           const start = Math.abs(cx) <= 1 && Math.abs(cy) <= 1;
           let area = 0;
           for (const o of chunk.own) area += Math.PI * o.radius ** 2;
-          for (const s of chunk.slots) if (s.kind === 'berry') area += Math.PI * MAP_TUNING.berryTreeRadius ** 2;
           for (const row of chunk.tiles) for (const ch of row) if (ch === 'w') area += tileSize ** 2;
           const cap = start ? MAP_TUNING.startMaxBlocking : BIOMES[chunk.biome].maxBlocking;
           expect(area / chunkSize ** 2).toBeLessThanOrEqual(cap + 1e-9);
@@ -213,7 +213,7 @@ describe('map: obstacle groups (D47 amendment 2026-10-26)', () => {
       for (let cx = 2; cx < 22; cx++) {
         for (let cy = 2; cy < 12; cy++) {
           const chunk = generateChunk(7, cx, cy, biome);
-          const circles = [...chunk.own, ...chunk.slots.filter((s) => s.kind === 'berry').map((s) => ({ ...s, radius: MAP_TUNING.berryTreeRadius }))];
+          const circles = chunk.own; // berry trunks included (M4)
           const group = circles.map((_, i) => i);
           const root = (i: number): number => (group[i] === i ? i : (group[i] = root(group[i]!)));
           circles.forEach((a, i) =>

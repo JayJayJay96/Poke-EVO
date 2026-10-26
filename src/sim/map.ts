@@ -8,9 +8,10 @@ import {
   ENTRANCE_BIOME,
   MAP_TUNING,
   SET_PIECES,
+  type BiomeDef,
   type BiomeId,
   type CellClass,
-  type ObstacleKind,
+  type MapNoticeId,
   type SlotKind,
   type Traversal,
 } from '../data/map';
@@ -136,8 +137,6 @@ export function thinTall(rows: readonly string[]): string[] {
 
 interface Stamped {
   own: Obstacle[];
-  /** Tall things with no rules yet (berry tree trunks, M4) that the lane check and caps already count. */
-  future: Circle[];
   slots: MapSlot[];
 }
 
@@ -156,7 +155,7 @@ function stamp(tiles: readonly string[], cx: number, cy: number, rng: Rng): Stam
   const { chunkSize, tileSize, tree, boulder, berryTreeRadius } = MAP_TUNING;
   const left = (cx - 0.5) * chunkSize;
   const top = (cy - 0.5) * chunkSize;
-  const out: Stamped = { own: [], future: [], slots: [] };
+  const out: Stamped = { own: [], slots: [] };
   for (let r = 0; r < N; r++) {
     for (let c = 0; c < N; c++) {
       const ch = tiles[r]![c]!;
@@ -167,7 +166,7 @@ function stamp(tiles: readonly string[], cx: number, cy: number, rng: Rng): Stam
         out.own.push({ x: x + jitter(rng, boulder.jitter), y: y + jitter(rng, boulder.jitter), radius: between(rng, boulder.radius), kind: 'boulder' });
       } else if (SLOT_OF[ch]) {
         out.slots.push({ kind: SLOT_OF[ch]!, x, y });
-        if (ch === 'B') out.future.push({ x, y, radius: berryTreeRadius });
+        if (ch === 'B') out.own.push({ x, y, radius: berryTreeRadius, kind: 'berryTree' });
       }
     }
   }
@@ -288,11 +287,29 @@ export function generateChunk(mapSeed: number, cx: number, cy: number, forceBiom
       if (tiles.some((row) => row.includes('^'))) continue;
       const placed = stamp(tiles, cx, cy, rng);
       if (start) placed.own = placed.own.filter((o) => Math.hypot(o.x, o.y) >= MAP_TUNING.startClear + o.radius);
-      const circles = [...placed.own, ...placed.future];
+      const circles = placed.own;
       if (blocking(tiles, circles) > cap || !lanesOpen(tiles, circles, cx, cy)) continue;
       const own = [...placed.own, ...fillers(rng, tiles, circles, cap, def.filler, cx, cy, start)];
       const cells = cellsOf(tiles);
-      return { cx, cy, biome, piece, transform, tiles, own, near: null, slots: placed.slots, cells, water: cells.includes(CELL.water), patches: null, ledges: ledgesOf(tiles, cx, cy), nearLedges: null };
+      // Drawn last, so the layout above is the same as before item balls existed.
+      const itemBalls = placed.slots.filter((s) => s.kind === 'item' && rng.next() < MAP_TUNING.itemBall.chance);
+      return {
+        cx,
+        cy,
+        biome,
+        piece,
+        transform,
+        tiles,
+        own,
+        near: null,
+        slots: placed.slots,
+        cells,
+        water: cells.includes(CELL.water),
+        patches: null,
+        ledges: ledgesOf(tiles, cx, cy),
+        nearLedges: null,
+        itemBalls,
+      };
     }
   }
   throw new Error(`map: no layout fits chunk ${cx},${cy}`); // `open` always fits, so this can't happen
@@ -313,7 +330,7 @@ function fillers(
   tiles: readonly string[],
   circles: readonly Circle[],
   cap: number,
-  filler: { readonly kind: ObstacleKind; readonly max: number } | null,
+  filler: BiomeDef['filler'],
   cx: number,
   cy: number,
   start: boolean,
@@ -624,6 +641,20 @@ export function pushOutOfWater(world: World, body: { x: number; y: number }, rad
     }
   }
   return moved;
+}
+
+// ---- Notices (M5) -----------------------------------------------------------------------------------------------
+
+/**
+ * Queues a map notice for the HUD (docs/map/INDEX.md §8). First-time tips show once per run; `everyTime` notices (the
+ * horde and foreshadow warnings) show whenever they happen.
+ */
+export function mapNotice(world: World, id: MapNoticeId, everyTime = false): void {
+  if (!everyTime) {
+    if (world.map.noticesSeen.has(id)) return;
+    world.map.noticesSeen.add(id);
+  }
+  world.map.notices.push(id);
 }
 
 // ---- Ledges (M4) ------------------------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import { POKEMON, TUNING, type PokemonType } from '../data/content';
 import { CELL, MAP_TUNING } from '../data/map';
 import { applyBurn, applyNewStun, canTrap, damageEnemy, procHit } from './combat';
-import { cellKey, enemyTraversal, groundAt, patchAt } from './map';
+import { cellKey, enemyTraversal, groundAt, mapNotice, patchAt } from './map';
 import type { IceBridge, MapChunk, PatchState, World } from './types';
 
 // Map reactions (D47, docs/map/README.md §7–§8), build step M3b. A player move hit landing on terrain can react:
@@ -100,6 +100,7 @@ function ignite(world: World, st: PatchState, chunk: MapChunk, index: number, da
   st.maxDist = maxDist;
   st.burnDps = damage * MAP_TUNING.grass.burnFraction;
   world.map.activeUntil = Math.max(world.map.activeUntil, burnEnd(st));
+  mapNotice(world, 'grassBurning');
 }
 
 // ---- Marsh -----------------------------------------------------------------------------------------------------
@@ -146,6 +147,7 @@ function buildBridge(world: World, st: PatchState, x: number, y: number, dirX: n
   if (cells.size === 0) return;
   if (world.map.bridges.length >= max) melt(world, world.map.bridges.shift()!);
   world.map.bridges.push({ cells, frozenLeft: seconds, crackLeft: crack });
+  mapNotice(world, 'iceBridge');
 }
 
 /** A bridge turns back into water: grounded enemies on it are stunned (the shore push happens in collision). */

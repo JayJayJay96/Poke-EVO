@@ -5,7 +5,8 @@ import { startArticuno } from './articuno';
 import { ENEMIES } from '../data/content';
 import { effectiveness } from '../data/typeChart';
 import { boonOffer, learnBoon } from './boons';
-import { clearSpot, entranceSlot } from './map';
+import { MAP_TUNING } from '../data/map';
+import { clearSpot, entranceSlot, mapNotice } from './map';
 import { applyAugmentCard, applyCard, augmentPool, buildCardPool, gainXp, needsReplace } from './progression';
 import { createSeededRng, type Rng } from './rng';
 import { applySiteCard, rollSiteCards } from './sites';
@@ -42,7 +43,8 @@ export function arenaBossChoices(world: World): ArenaBossId[] {
   return pool;
 }
 
-function openEntrance(world: World): void {
+/** The next entrance's boss and spot (D28, D47 15-4); picked when it opens, or 15 s early on the map (M5). */
+function pickEntrance(world: World): { bossId: ArenaBossId; x: number; y: number } {
   const { rng, player } = world;
   const choices = arenaBossChoices(world);
   const bossId = choices[Math.floor(rng.next() * choices.length)]!;
@@ -53,6 +55,12 @@ function openEntrance(world: World): void {
   const { x, y } =
     entranceSlot(world, ARENA_BOSSES[bossId].entrance) ??
     clearSpot(world, player.x + Math.cos(angle) * dist, player.y + Math.sin(angle) * dist, ARENA_TUNING.entranceRadius);
+  return { bossId, x, y };
+}
+
+function openEntrance(world: World): void {
+  const { bossId, x, y } = world.foreshadow ?? pickEntrance(world);
+  world.foreshadow = null;
   world.entrance = {
     bossId,
     x,
@@ -224,6 +232,11 @@ export function updateArena(world: World, dt: number): void {
     return;
   }
   const next = world.arenaSchedule[world.arenaEventsDone];
+  // Foreshadowing (D47 M5, README §10.1): on the map, the spot is picked and marked 15 s before it opens.
+  if (world.spawnEnabled && next !== undefined && world.map.density > 0 && !world.foreshadow && runClock(world) >= next - MAP_TUNING.foreshadow.seconds) {
+    world.foreshadow = { ...pickEntrance(world), startsAt: world.time };
+    mapNotice(world, `foreshadow.${ARENA_BOSSES[world.foreshadow.bossId].entrance}`, true);
+  }
   if (world.spawnEnabled && next !== undefined && runClock(world) >= next) openEntrance(world);
 }
 

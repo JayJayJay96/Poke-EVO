@@ -1,7 +1,7 @@
 import type { ArenaBossId } from '../data/arena';
 import type { AugmentId } from '../data/augments';
 import type { AbilityId, EnemyId, PokemonId, PokemonType } from '../data/content';
-import type { BiomeId, ObstacleKind, SlotKind } from '../data/map';
+import type { BiomeId, MapNoticeId, ObstacleKind, SlotKind } from '../data/map';
 import type { MoveId, StunKind } from '../data/moves';
 import type { MutationId } from '../data/mutations';
 import type { PlayerStatusId } from '../data/playerStatus';
@@ -724,6 +724,8 @@ export interface MapChunk {
   readonly water: boolean;
   /** Patch label per cell (0 = open floor): 4-connected cells of one class in this chunk; built on first use (M3b). */
   patches: Uint16Array | null;
+  /** Item-ball slots that hold a ball this run (M4: ≈ half of the `I` slots, seeded by the map). */
+  readonly itemBalls: readonly MapSlot[];
   /** Ledge lips laid by the set piece (M4), and those of this chunk and its neighbours within reach (built on use). */
   readonly ledges: readonly Ledge[];
   nearLedges: readonly Ledge[] | null;
@@ -744,6 +746,24 @@ export interface PatchState {
   frozenUntil: number;
   /** Earliest time each reaction kind may fire again on this patch. */
   readonly readyAt: Map<string, number>;
+}
+
+/** A berry tree's harvest state (README §7.8). Times are `world.time` seconds. */
+export interface BerryTreeState {
+  /** Seconds stood in the ring toward a harvest. */
+  progress: number;
+  /** Bare (no fruit) until then; shaking until `shakeUntil`. */
+  bareUntil: number;
+  shakeUntil: number;
+}
+
+/** An item ball's state (README §7.9): taken, or an Ambusher wobbling before it wakes. */
+export interface ItemBallState {
+  taken: boolean;
+  /** Whether the Ambusher roll has been made (on first coming within wake range). */
+  rolled: boolean;
+  /** Seconds left wobbling; −1 when not an Ambusher. */
+  wobbleLeft: number;
 }
 
 /** An ice bridge over deep water (README §7.3): walkable cells that crack, then melt back into water. */
@@ -770,6 +790,13 @@ export interface MapState {
   tickLeft: number;
   /** Until when any patch is burning or frozen, so the effect pass can skip quiet maps. */
   activeUntil: number;
+  /** Berry trees (M4) that have been stood at, by `cellKey` of the trunk. */
+  readonly berryTrees: Map<number, BerryTreeState>;
+  /** Item balls (M4) the player has come near, by `cellKey` of the ball. */
+  readonly balls: Map<number, ItemBallState>;
+  /** Map notices waiting for the HUD (M5), and the first-time ones already shown. */
+  readonly notices: MapNoticeId[];
+  readonly noticesSeen: Set<MapNoticeId>;
 }
 
 export interface ArenaEntrance {
@@ -1175,7 +1202,15 @@ export interface World {
   lullLeft: number;
   /** Horde events (D34): when the next one is due (run clock), the warning in progress, the hordes alive. */
   nextHordeAt: number;
-  hordeWarning: { readonly angle: number; left: number; readonly leader: EnemyId } | null;
+  hordeWarning: {
+    readonly angle: number;
+    left: number;
+    readonly leader: EnemyId;
+    /** Tall grass on the pack's side it will come out of (D47 M5), which rustles meanwhile; null = the spawn ring. */
+    readonly from: { readonly x: number; readonly y: number } | null;
+  } | null;
+  /** The next arena entrance, picked early so its spot can be foreshadowed (D47 M5); main map only. */
+  foreshadow: { readonly bossId: ArenaBossId; readonly x: number; readonly y: number; readonly startsAt: number } | null;
   hordes: { readonly id: number; readonly leaderId: number }[];
   /** Darts from ranged enemies in flight (D35), capped. */
   enemyShots: EnemyShot[];

@@ -4,7 +4,7 @@ import type { ArenaEntranceKind } from './arena';
 // have rules so far; water, marsh and tall grass get theirs in M3, ledges, berry trees and item balls in M4 (their
 // tiles are already laid out, so the lane check and coverage caps count them now). Every number is provisional.
 
-export type ObstacleKind = 'boulder' | 'tree';
+export type ObstacleKind = 'boulder' | 'tree' | 'berryTree';
 export type BiomeId = 'meadow' | 'woods' | 'lakes' | 'canyon';
 export type SlotKind = 'site' | 'entrance' | 'berry' | 'item';
 
@@ -14,6 +14,9 @@ export type SlotKind = 'site' | 'entrance' | 'berry' | 'item';
  * Tall obstacles stop everyone.
  */
 export type Traversal = 'ground' | 'swim' | 'fly' | 'levitate';
+
+/** Map notices (docs/map/INDEX.md §8, M5): first-time tips, plus the horde and foreshadow warnings every time. */
+export type MapNoticeId = 'grassRest' | 'grassBurning' | 'swimming' | 'iceBridge' | 'ledgeClimb' | 'hordeEmerge' | `foreshadow.${ArenaEntranceKind}`;
 
 /** What a 50 px cell holds (README §4.3); one byte per cell. */
 export const CELL = { open: 0, grass: 1, slow: 2, water: 3 } as const;
@@ -42,7 +45,7 @@ export interface BiomeDef {
   readonly maxBlocking: number;
   readonly pieces: readonly { readonly id: string; readonly weight: number }[];
   /** Lone obstacles scattered into empty tiles after the piece, up to `max` and the coverage cap. */
-  readonly filler: { readonly kind: ObstacleKind; readonly max: number } | null;
+  readonly filler: { readonly kind: Exclude<ObstacleKind, 'berryTree'>; readonly max: number } | null;
 }
 
 const OPEN = ['..........', '..........', '..........', '..........', '..........', '..........', '..........', '..........', '..........', '..........'];
@@ -349,4 +352,24 @@ export const MAP_TUNING = {
    * climb at `climbFactor` speed, for everyone on the ground or swimming. Flyers and levitators ignore ledges.
    */
   ledge: { hopSeconds: 0.35, hopDistance: 60, climbFactor: 0.3, band: 20 },
+  /**
+   * Berry trees (README §7.8, M4): stand within `ring` px for `capture` s (progress drains `drain`/s outside) and the
+   * tree shakes `shake` s and drops 1–2 Oran Berries `dropOut` px past its trunk, within the berry cap; then it's bare
+   * for `regrow` s.
+   */
+  berryTree: { ring: 70, capture: 2, drain: 1, shake: 0.4, regrow: 90, berries: [1, 2], dropOut: 40 },
+  /**
+   * Item balls (README §7.9, M4): each `I` slot holds one with `chance` (≈ 1 per 2 chunks). Walking over one gives an
+   * XP cluster (`xpGems` gems), an Oran Berry or a Magnet by `loot` weight. From `ambusherFrom` s of run clock, while
+   * Voltorb is in season, `ambusherChance` of them are a Voltorb: it wobbles `wobble` s once you come within
+   * `wakeRange` px, then wakes.
+   */
+  /**
+   * M5 (README §10.1–§10.2): an arena entrance's spot is marked `foreshadow.seconds` before it opens, the mark
+   * growing to `foreshadow.radius` px. A horde whose side has living tall grass between `horde.minDistance` px and the
+   * spawn ring comes out of that grass, which rustles for the warning.
+   */
+  foreshadow: { seconds: 15, radius: 300 },
+  horde: { minDistance: 250, arc: 0.45 },
+  itemBall: { chance: 0.5, radius: 10, xpGems: 8, loot: { xp: 0.6, berry: 0.25, magnet: 0.15 }, ambusherFrom: 180, ambusherChance: 0.25, wakeRange: 160, wobble: 0.6 },
 } as const;

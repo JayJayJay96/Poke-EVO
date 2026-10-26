@@ -126,6 +126,49 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-26 — Map M4 + M5 (D47, pulled forward from P6)
+**Owner:** "continue with m4 m5". Recorded in PROJECT.md D47 as a pull-forward from P6. **Status:** built, tested, browser-checked; ledges were committed as `8755a4d` by another session, which picked up my work in progress. The rest is **not committed**. Not playtested by the owner.
+
+- **M4:**
+  - **Ledges:** walking off is a 60 px hop over 0.35 s (input locked, no invulnerability); climbing back is 30% speed for the player and enemies; Charizard and levitators ignore them. Drawn as lips with chevrons.
+  - **Berry trees:** the trunk now blocks like a tree. Stand in the 70 px ring for 2 s to shake down 1–2 Oran Berries (berry cap respected); then bare for 90 s.
+  - **Item balls:** half the `I` slots hold one. Loot: 8 XP gems, an Oran Berry or a Magnet (60/25/15). From 3:00, while Voltorb is in season, 25% are a Voltorb Ambusher that wobbles 0.6 s, then wakes.
+  - **Floor dressing:** rocky canyon floor and a sand band along shores. Flowers and dirt paths are left for the art pass.
+- **M5:**
+  - **Map notices** (INDEX §8): swimming, burning grass, ice bridge, ledge climb and Grass-type rest show once; the horde-from-grass and foreshadow warnings show every time, in the gold banner.
+  - **Foreshadowing:** 15 s before an arena entrance opens, its spot is marked with a growing soft circle (one colour per entrance) and a notice; it opens exactly there. Main map only.
+  - **Hordes from grass:** a horde whose side has living tall grass between 250 px and the spawn ring comes out of it, and the patch shimmers for the 3 s warning.
+- **Skipped (no enemy to hook):** roller bounce and burrower hooks; Mewtwo's dome stays deferred.
+- **Changed:**
+  - `src/sim/mapFeatures.ts` (new)
+  - `src/data/map.ts` (`ObstacleKind` berryTree, `MapNoticeId`, `MAP_TUNING.ledge` / `berryTree` / `itemBall` / `foreshadow` / `horde`, all provisional)
+  - `src/sim/map.ts` (ledges, berry trunks, item-ball slots, `mapNotice`)
+  - `src/sim/types.ts`, `src/sim/world.ts` (hop, climb, notices, feature tick)
+  - `src/sim/combat.ts` (`dropsOnGround` exported)
+  - `src/sim/mapReactions.ts` (notices)
+  - `src/sim/hordes.ts` (grass origin)
+  - `src/sim/arena.ts` (`pickEntrance`, foreshadow)
+  - `src/scenes/RunScene.ts` (ledges, hop arc, berry trees, item balls, floor dressing, notices, foreshadow, rustle)
+  - tests: `mapFeatures.test.ts` (16 new: ledges 5, berry trees 4, item balls 3, M5 4); `map.test.ts` fixes
+  - `docs/map/README.md` §11.4a
+- **Commands (observed):**
+  - `tsc --noEmit` clean
+  - `vitest run` **721/721**
+  - `npm run build` passed
+  - stress bench: empty map **1.38 ms/step**, every chunk woods **2.02 ms** (was 1.56: one ledge lookup per mover per step); under the 4 ms aim
+- **Browser (port 5180, sim stepped by hand):** in a `meadow.ledgeSteps` chunk:
+  - Standing at the berry tree dropped a berry and left it bare.
+  - A climb moved 4.59 px in 6 steps against 15 on flat ground; walking off a lip hopped 63 px despite holding back.
+  - The ledgeClimb notice fired; jumping the clock to 6:15 foreshadowed Snorlax's spot ("The ground is shaking…" plus a brown circle).
+  - An item ball and east-facing ledges were drawn. No console errors.
+- **Not checked:**
+  - a horde coming out of grass in the browser (unit-tested only)
+  - an Ambusher waking in the browser (unit-tested only)
+  - balance with item balls and berry trees (they add XP and healing)
+- **Next:** owner playtest of the whole map (M1–M5), then the D47 gate question (README §1.1).
+- **Build runs:** yes.
+
+
 ### 2026-10-26 — Map: far sites; balance bot on the map (D47)
 **Owner:** "whats the map progress now, anything left? lets continue". Two approved M1–M3 items were still unbuilt: far sites (D47 15-1) and the balance bot on the map (README §13). **Status:** built, tested; **not committed**. Not browser-checked (no visible change).
 
