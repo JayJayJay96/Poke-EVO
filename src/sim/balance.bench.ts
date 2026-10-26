@@ -18,7 +18,7 @@ const SITE_SEEDS = Array.from({ length: 24 }, (_, i) => i + 1);
 /** Just before 15:00: the run ends at 900 s. */
 const CHECKPOINTS = [300, 540, 890];
 
-test('early-vs-late gamble', { timeout: 30 * 60_000 }, () => {
+test('early-vs-late gamble', { timeout: 120 * 60_000 }, () => {
   const rows: Record<string, string | number>[] = [];
   for (const id of Object.keys(POKEMON) as PokemonId[]) {
     const runs = SEEDS.map((seed) => playLine(id, seed, CHECKPOINTS));

@@ -338,4 +338,9 @@ export const MAP_TUNING = {
   trigger: { projectile: 4, zoneCells: 8, beamSamples: 8, orbitEvery: 0.5 },
   /** How many cells out to look for dry ground when something lands in water (pickups, a mover, a site). */
   shoreSearch: 12,
+  /**
+   * Far sites (D47 15-1, README §5.5): a Mutation Site at least `fromStart` px from the start rolls bound (Bond or
+   * signature) cards ×`boundWeight` and rank-up cards ×`rankUpWeight` as often, so exploring pays.
+   */
+  farSites: { fromStart: 3000, boundWeight: 1.5, rankUpWeight: 1.5 },
 } as const;

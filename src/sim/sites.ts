@@ -1,5 +1,6 @@
 import { POKEMON } from '../data/content';
 import { MUTATION_IDS, MUTATIONS, type MutationDef } from '../data/mutations';
+import { MAP_TUNING } from '../data/map';
 import { SITE_TUNING } from '../data/sites';
 import { ITEM_IDS, MAX_ITEMS, MAX_LEARNSET_SLOTS } from '../data/upgrades';
 import { grantMutation, isBuilt, mutationOffers, mutationRankUps, requirementMet, type GrantResult } from './mutations';
@@ -88,6 +89,24 @@ function learnableMutations(world: World): SiteCard[] {
   return cards;
 }
 
+/** Far sites (D47 15-1): how much more often a card is drawn at a site far from the start. */
+function farWeight(card: SiteCard): number {
+  const { boundWeight, rankUpWeight } = MAP_TUNING.farSites;
+  return Math.max(isBoundCard(card) ? boundWeight : 1, card.kind === 'mutationRank' ? rankUpWeight : 1);
+}
+
+/** Like `take`, but each draw picks entries in proportion to `weight`. */
+function takeWeighted(rng: Rng, pool: SiteCard[], count: number, weight: (card: SiteCard) => number): SiteCard[] {
+  const picked: SiteCard[] = [];
+  while (picked.length < count && pool.length > 0) {
+    let roll = rng.next() * pool.reduce((sum, card) => sum + weight(card), 0);
+    let i = 0;
+    while (i < pool.length - 1 && (roll -= weight(pool[i]!)) >= 0) i++;
+    picked.push(pool.splice(i, 1)[0]!);
+  }
+  return picked;
+}
+
 /** Up to `count` distinct random entries, removed from `pool`. */
 function take<T>(rng: Rng, pool: T[], count: number): T[] {
   const picked: T[] = [];
@@ -98,9 +117,10 @@ function take<T>(rng: Rng, pool: T[], count: number): T[] {
 /**
  * A site's cards: Mutations for owned moves, rank-ups for the Mutations held (D24), Mutations that
  * teach a learnset move, and held items not owned. At least one Mutation and one item when available;
- * a heal and a timed Power Surge if nothing is eligible (D25).
+ * a heal and a timed Power Surge if nothing is eligible (D25). A `far` site (D47 15-1) draws bound and rank-up
+ * cards more often; a near one rolls exactly as before.
  */
-export function rollSiteCards(world: World): SiteCard[] {
+export function rollSiteCards(world: World, far = false): SiteCard[] {
   const { rng } = world;
   const mutations: SiteCard[] = [
     ...mutationOffers(world).map((mutationId): SiteCard => ({ kind: 'mutation', mutationId, learn: false })),
@@ -111,8 +131,9 @@ export function rollSiteCards(world: World): SiteCard[] {
     world.items.length < MAX_ITEMS
       ? ITEM_IDS.filter((id) => !world.items.includes(id)).map((itemId): SiteCard => ({ kind: 'item', itemId }))
       : [];
-  const cards = [...take(rng, mutations, 1), ...take(rng, items, 1)];
-  cards.push(...take(rng, [...mutations, ...items], SITE_TUNING.cards - cards.length));
+  const draw = (pool: SiteCard[], count: number): SiteCard[] => (far ? takeWeighted(rng, pool, count, farWeight) : take(rng, pool, count));
+  const cards = [...draw(mutations, 1), ...take(rng, items, 1)];
+  cards.push(...draw([...mutations, ...items], SITE_TUNING.cards - cards.length));
   if (cards.length === 0) return [{ kind: 'surge' }];
   return take(rng, cards, cards.length); // shuffle so the guaranteed cards aren't always first
 }
@@ -140,7 +161,7 @@ export function updateSites(world: World, dt: number): void {
       continue;
     }
     if (!site.cards) {
-      site.cards = rollSiteCards(world);
+      site.cards = rollSiteCards(world, Math.hypot(site.x, site.y) >= MAP_TUNING.farSites.fromStart);
       site.bound = site.cards.some(isBoundCard);
       site.required = SITE_TUNING.captureSeconds + (site.bound ? SITE_TUNING.boundExtraSeconds : 0);
     }

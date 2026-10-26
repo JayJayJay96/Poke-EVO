@@ -5,6 +5,7 @@ import { chooseEvolutionTrait, dismissEvolution, finishEvolutionCinematic } from
 import { chooseAugment, chooseCard, chooseReplace, chooseSkill } from './progression';
 import { createSeededRng, type Rng } from './rng';
 import { chooseArenaReward, chooseBoon, chooseCombine } from './arena';
+import { lineBlocked, playerTraversal } from './map';
 import { chooseSiteCard } from './sites';
 import { currentStage } from './stats';
 import type { World } from './types';
@@ -21,6 +22,39 @@ const DUMMY_HP = 1e9;
 const MEASURE_SECONDS = 10;
 /** Site-taking bot: seconds per roaming leg. */
 const ROAM_SECONDS = 8;
+/** Steering (D47 map): how far ahead the bot looks, and the turns it tries (degrees) when that way is blocked. */
+const STEER_LOOK = 80;
+const STEER_TURNS = [30, 60, 90, 120, 150];
+
+/**
+ * Turns a wanted direction into one the bot can walk on the map, like a player steering round a pond or a pair of
+ * trees: straight if the next `STEER_LOOK` px are clear, else the smallest turn that is, keeping to the side it
+ * first turned to so it follows the same shore. Side 0 means it isn't steering. Map off: unchanged.
+ */
+export function steer(world: World, dx: number, dy: number, state: { side: number }): [number, number] {
+  const { x, y, radius } = world.player;
+  const flag = playerTraversal(world);
+  const clear = (ax: number, ay: number): boolean => !lineBlocked(world, x, y, x + ax * STEER_LOOK, y + ay * STEER_LOOK, radius, flag);
+  if ((dx === 0 && dy === 0) || world.map.density <= 0 || clear(dx, dy)) {
+    state.side = 0;
+    return [dx, dy];
+  }
+  // Not steering yet: the smallest turn either way. Already steering: every turn on that side before the other,
+  // or it flip-flops along a shore.
+  const tries: [number, number][] = state.side
+    ? [...STEER_TURNS.map((deg): [number, number] => [deg, state.side]), ...STEER_TURNS.map((deg): [number, number] => [deg, -state.side])]
+    : STEER_TURNS.flatMap((deg): [number, number][] => [[deg, 1], [deg, -1]]);
+  for (const [deg, side] of tries) {
+    const a = (deg * Math.PI * side) / 180;
+    const ax = dx * Math.cos(a) - dy * Math.sin(a);
+    const ay = dx * Math.sin(a) + dy * Math.cos(a);
+    if (clear(ax, ay)) {
+      state.side = side;
+      return [ax, ay];
+    }
+  }
+  return [dx, dy]; // boxed in: push on and let the slide sort it out
+}
 
 export interface Checkpoint {
   /** Run time in seconds. */
@@ -110,7 +144,9 @@ const BALANCE_RING: DummyRing = { innerDist: 60, count: DUMMY_COUNT, rings: 4, s
  * which used to read as near-zero DPS for that seed.
  */
 export function measureDps(world: World, ring: DummyRing = BALANCE_RING, resolve?: () => void): number {
-  const saved = { enemies: world.enemies, time: world.time, spawnEnabled: world.spawnEnabled };
+  const saved = { enemies: world.enemies, time: world.time, spawnEnabled: world.spawnEnabled, density: world.map.density };
+  // Measured on an empty field: the map's rocks and ponds would only add noise to a DPS number (D47).
+  world.map.density = 0;
   world.enemies = [];
   world.zones = [];
   world.projectiles = [];
@@ -141,6 +177,7 @@ export function measureDps(world: World, ring: DummyRing = BALANCE_RING, resolve
   world.projectiles = [];
   world.time = saved.time;
   world.spawnEnabled = saved.spawnEnabled;
+  world.map.density = saved.density;
   return dealt / MEASURE_SECONDS;
 }
 
@@ -166,7 +203,8 @@ export function playLine(
   checkpoints: readonly number[],
   options: PlayOptions = {},
 ): Checkpoint[] {
-  const world = createWorld({ rng: createSeededRng(seed), pokemonId, spawnRadius: 600 });
+  // On the real map (README §13): the bot slides round obstacles and swims like a player; DPS is measured off it.
+  const world = createWorld({ rng: createSeededRng(seed), pokemonId, spawnRadius: 600, obstacleDensity: 1 });
   const picks = createSeededRng(seed + 7919);
   const results: Checkpoint[] = [];
   let frame = 0;
@@ -175,6 +213,11 @@ export function playLine(
   const roam = createSeededRng(seed + 31337);
   let heading = roam.next() * Math.PI * 2;
   let legLeft = ROAM_SECONDS;
+  const steering = { side: 0 };
+  const walk = (dx: number, dy: number): void => {
+    const [mx, my] = steer(world, dx, dy, steering);
+    step(world, { moveX: mx, moveY: my }, TUNING.stepSeconds);
+  };
   for (const time of checkpoints) {
     while (runClock(world) < time && world.status === 'running') {
       world.player.invulnLeft = Infinity;
@@ -188,18 +231,18 @@ export function playLine(
       }
       const site = options.sites ? towardSite(world) : null;
       if (site) {
-        step(world, { moveX: site[0], moveY: site[1] }, TUNING.stepSeconds);
+        walk(site[0], site[1]);
         continue;
       }
       if (options.sites) {
         legLeft -= TUNING.stepSeconds;
         if (legLeft <= 0) [heading, legLeft] = [roam.next() * Math.PI * 2, ROAM_SECONDS];
-        step(world, { moveX: Math.cos(heading), moveY: Math.sin(heading) }, TUNING.stepSeconds);
+        walk(Math.cos(heading), Math.sin(heading));
         continue;
       }
       // Walk a slow circle so gems keep getting collected.
       const a = (frame++ / 600) * Math.PI * 2;
-      step(world, { moveX: Math.cos(a), moveY: Math.sin(a) }, TUNING.stepSeconds);
+      walk(Math.cos(a), Math.sin(a));
     }
     while (world.offer || world.evolution) autoPick(world, picks);
     results.push({

@@ -149,6 +149,22 @@ describe('Mutation Sites: cards (D23)', () => {
     }
   });
 
+  it('a far site (3000 px or more from the start) draws bound cards more often (D47 15-1)', () => {
+    const boundShare = (far: boolean): number => {
+      let bound = 0;
+      let all = 0;
+      for (let seed = 1; seed <= 400; seed++) {
+        const cards = rollSiteCards(makeWorld(1, seed), far);
+        bound += cards.filter(isBoundCard).length;
+        all += cards.length;
+      }
+      return bound / all;
+    };
+    const near = boundShare(false);
+    expect(near).toBeGreaterThan(0);
+    expect(boundShare(true)).toBeGreaterThan(near * 1.15);
+  });
+
   it('no item cards once all 3 item slots are full', () => {
     const world = makeWorld();
     world.items = ITEM_IDS.slice(0, MAX_ITEMS);

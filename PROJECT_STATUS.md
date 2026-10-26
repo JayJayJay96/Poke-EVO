@@ -126,6 +126,37 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 
 ## Session log
 
+### 2026-10-26 — Map: far sites; balance bot on the map (D47)
+**Owner:** "whats the map progress now, anything left? lets continue". Two approved M1–M3 items were still unbuilt: far sites (D47 15-1) and the balance bot on the map (README §13). **Status:** built, tested; **not committed**. Not browser-checked (no visible change).
+
+- **Far sites:** a site ≥ 3000 px from the start draws bound (Bond / signature) and rank-up cards ×1.5 (`MAP_TUNING.farSites`, provisional); a near site rolls exactly as before. At a fresh Charmander start, bound cards go from 26.1% to 32.8% of the cards shown (2000 rolls).
+- **Balance bot:** `playLine` plays on the generated map; `measureDps` switches the map off while it measures.
+- **Changed:**
+  - `src/data/map.ts`: `MAP_TUNING.farSites`
+  - `src/sim/sites.ts`: `rollSiteCards(world, far)`, weighted draw
+  - `src/sim/sites.test.ts`: 1 new test
+  - `src/sim/balance.ts`
+  - `docs/map/README.md` §11.4a
+- **Commands (observed):** `tsc --noEmit` clean; `vitest run` **704/704**. Balance: two runs on isolated snapshots of the same code, map on and map off. Both hit the bench's 30-min timeout (7 lines now, run in parallel) but wrote complete reports.
+- **Balance at 15:00 (site DPS, 24 seeds; map off → map on):**
+  - Charizard 1768 → 1042, Blastoise 1754 → 1314, Venusaur 1662 → 1130
+  - Raichu 1441 → 1009, Lapras 1245 → 994
+  - Alakazam 1461 → 1430, Annihilape/Primeape 4308 → 3538
+  - Sites opened by 15:00 fall from ~32–39 to ~12–17 (Alakazam 39 → 30)
+- **Reading:**
+  - D19 still holds on the map (all three 3-stage finals above Raichu and Lapras), but Charizard and Venusaur now sit inside Raichu's error bar.
+  - The big drop is mostly the bot, not the map. It walks straight at sites and only slides, so ponds and obstacle pairs cost it many sites; Abra (Teleport) barely loses any.
+  - Real players steer round water, so these map-on numbers understate a human run.
+  - Off-map: the Mankey line is ~2.5–3× everyone at 15:00 (another session's D56/D57 area; flagged, not touched).
+- **Follow-up (owner: "give the balance bot wall-follow steering round obstacles and water, rerun balance with the map on"):**
+  - **Steering:** `steer` in `src/sim/balance.ts`. It probes 80 px ahead; when the way is blocked it takes the smallest clear turn (30°–150°) and keeps to that side so it follows a shore. A test in `balance.test.ts` shows a straight walker stuck behind a stream and tree pair while the steered bot reaches the goal. The bench timeout went from 30 to 120 min (7 lines).
+  - **Rerun (map on, steering bot; HEAD 9f9a808 + this work; 40 min, passed):** sites opened by 15:00 are back to 34–40 (map off: 32–39).
+  - **15:00 site DPS, map off → map on with steering:** Charizard 1768 → 1654, Blastoise 1754 → 1812, Venusaur 1662 → 1553, Raichu 1441 → 1365, Lapras 1245 → 1249, Alakazam 1461 → 1571, Annihilape/Primeape 4308 → 4935.
+  - All within about one standard error of the map-off numbers. **D19 holds on the map:** all three 3-stage finals (1654 / 1812 / 1553) are above Raichu (1365 ± 105) and Lapras (1249 ± 60). The Mankey line is still ~3× everyone (flagged for its owner session).
+- **Next:** owner review, then commit.
+- **Build runs:** yes.
+
+
 ### 2026-10-26 — Abra nerf (D57)
 **Owner:** playtested Abra: "much easier to play compared to others cuz of the confusion mechanic, and late game the area was so big". **Status:** built, tested; committed. Not playtested after the change; no balance run.
 

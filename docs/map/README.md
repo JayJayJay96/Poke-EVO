@@ -584,6 +584,11 @@ can't leave, and since trees block shots (D41), a mob stuck there near you could
   (`lineBlocked`): you can't fight it across trees or boulders. Ponds (M3) don't block that line.
 
 ### 11.4a What M1–M2 built differently, on purpose
+- **Far sites (D47 15-1, built 2026-10-26).** `MAP_TUNING.farSites`: a site whose centre is ≥ 3000 px from the
+  start rolls its cards with bound (Bond / signature) and rank-up cards weighted ×1.5; a near site rolls exactly as
+  before. At a fresh Charmander start, bound cards go from 26% to 33% of the cards shown (2000 rolls).
+- **Balance bot on the map (§13, built 2026-10-26).** `playLine` now plays on the generated map (it slides round
+  obstacles and swims like a player); `measureDps` switches the map off while it measures, so DPS stays comparable.
 - **Obstacles in pairs at most (D47 amendment 2026-10-26).** After a set piece is turned or mirrored, `thinTall`
   walks its tiles: berry trunks first, then trees and boulders in reading order. A tall tile is kept if it touches no
   kept tall tile (8 neighbours), or exactly one that has no other partner yet; otherwise it becomes open floor. Lone
