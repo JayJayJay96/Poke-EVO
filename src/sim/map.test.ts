@@ -4,7 +4,7 @@ import { BIOME_IDS, BIOMES, CELL, MAP_TUNING, SET_PIECES, type BiomeId } from '.
 import { MAX_ENEMY_RADIUS, dropGem } from './combat';
 import { updateEnemyAttacks } from './enemyAttacks';
 import { createProjectile, updateProjectiles } from './forms/projectile';
-import { biomeAt, cellAt, cellsOf, chunkKey, clearSpot, entranceSlot, generateChunk, hitsObstacle, mapChunk, obstaclesAt, thinTall, transformTiles } from './map';
+import { biomeAt, cellAt, cellsOf, ledgesOf, chunkKey, clearSpot, entranceSlot, generateChunk, hitsObstacle, mapChunk, obstaclesAt, thinTall, transformTiles } from './map';
 import { createSeededRng } from './rng';
 import { updateSites } from './sites';
 import type { MapChunk, Obstacle, World } from './types';
@@ -36,6 +36,8 @@ function place(world: World, ...obstacles: Obstacle[]): void {
     cells: cellsOf(SET_PIECES.open!.rows),
     water: false,
     patches: null,
+    ledges: [],
+    nearLedges: null,
   };
   world.map.chunks.set(chunkKey(0, 0), chunk);
 }
@@ -445,7 +447,7 @@ describe('map terrain: water and marsh (M3)', () => {
   function tiles(world: World, rows: string[]): void {
     place(world);
     const chunk = world.map.chunks.get(chunkKey(0, 0))!;
-    world.map.chunks.set(chunkKey(0, 0), { ...chunk, tiles: rows, cells: cellsOf(rows), water: rows.some((r) => r.includes('w')), patches: null });
+    world.map.chunks.set(chunkKey(0, 0), { ...chunk, tiles: rows, cells: cellsOf(rows), water: rows.some((r) => r.includes('w')), patches: null, ledges: ledgesOf(rows, 0, 0), nearLedges: null });
   }
   const column = (ch: string, from: number): string[] => Array.from({ length: 10 }, () => '.'.repeat(from) + ch.repeat(10 - from));
   /** Water from x = 200 to the chunk edge. */
@@ -458,6 +460,7 @@ describe('map terrain: water and marsh (M3)', () => {
     const world = createWorld({ rng: createSeededRng(1), spawnEnabled: false, mapSeed: 1, obstacleDensity: 1, pokemonId });
     world.player.invulnLeft = 999;
     world.moves = [];
+    tiles(world, OPEN_ROWS); // flat ground, so a generated ledge can't skew the land baselines
     return world;
   }
 

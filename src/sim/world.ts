@@ -34,7 +34,7 @@ import { applyPlayerStatus, emptyPlayerStatus, playerStatusSlow, updatePlayerSta
 import { gainXp, makeOffer } from './progression';
 import type { Rng } from './rng';
 import { SpatialHash } from './spatialHash';
-import { cellAt, collideWithMap, enemyTraversal, lineBlocked, playerSwimSpeed, playerTraversal, terrainSpeed } from './map';
+import { cellAt, collideWithMap, enemyTraversal, ledgeDropped, ledgeFactor, lineBlocked, playerSwimSpeed, playerTraversal, terrainSpeed } from './map';
 import { CELL, MAP_TUNING } from '../data/map';
 import { updateSites } from './sites';
 import { createSlot, emptyModifiers, refreshStats } from './stats';
@@ -99,6 +99,9 @@ export function createWorld({
       movingFor: 0,
       calmFor: 0,
       swimFor: 0,
+      hopLeft: 0,
+      hopX: 0,
+      hopY: 0,
       stillFor: 0,
       faceX: 1,
       vx: 0,
@@ -436,12 +439,32 @@ function movePlayer(world: World, input: InputState, dt: number): void {
   // Snorlax's Yawn cloud slows the player (D28, B2).
   // Slows don't stack: the strongest of a boss's (Yawn) and the player's statuses (D36) wins.
   const slow = Math.max(world.arena?.playerSlow ?? 0, playerStatusSlow(world), webSlow(world));
-  const ground = terrainSpeed(world, p.x, p.y, playerTraversal(world), playerSwimSpeed(world)); // marsh, water (D47)
+  // Ledge hop (D47 M4, docs/map/README.md §7.5): a fixed arc down the drop, input locked, no invulnerability.
+  if (p.hopLeft > 0) {
+    p.hopLeft -= dt;
+    const { hopSeconds, hopDistance } = MAP_TUNING.ledge;
+    p.vx = (p.hopX * hopDistance) / hopSeconds;
+    p.vy = (p.hopY * hopDistance) / hopSeconds;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    return;
+  }
+  const flag = playerTraversal(world);
+  // Marsh and water (D47), and climbing a ledge against its drop.
+  const ground = terrainSpeed(world, p.x, p.y, flag, playerSwimSpeed(world)) * ledgeFactor(world, p.x, p.y, mx, my, flag);
   const speed = p.speed * mutationMoveSpeedMult(world) * boonMoveSpeedMult(world) * rampageSpeedMult(world) * (1 - slow) * ground;
   p.vx = mx * speed;
   p.vy = my * speed;
+  const x0 = p.x;
+  const y0 = p.y;
   p.x += p.vx * dt;
   p.y += p.vy * dt;
+  const ledge = ledgeDropped(world, x0, y0, p.x, p.y, flag);
+  if (ledge) {
+    p.hopLeft = MAP_TUNING.ledge.hopSeconds;
+    p.hopX = ledge.nx;
+    p.hopY = ledge.ny;
+  }
   // Pikachu's Charge fills with distance run.
   if (len2 > 0) addCharge(world, Math.min(1, len2) * speed * dt * chargePerPx(world));
 }
@@ -542,7 +565,10 @@ function moveEnemies(world: World, dt: number): void {
     // Run Away sprints; Swift Swim (Elite Psyduck, D37) is fast in a puddle.
     const swim = eliteAbility(enemy) === 'swiftSwim' && world.puddles.some((p) => (p.x - enemy.x) ** 2 + (p.y - enemy.y) ** 2 <= p.radius ** 2);
     const sprint = (enemy.fleeLeft > 0 ? ABILITY_TUNING.runAway.speedMult : 1) * (swim ? ABILITY_TUNING.swiftSwim.speedMult : 1);
-    const speed = enemy.speed * enemySpeedFactor(enemy) * sprint * terrainSpeed(world, enemy.x, enemy.y, enemyTraversal(enemy));
+    const flag = enemyTraversal(enemy);
+    // Marsh slows walkers; climbing a ledge against its drop is slow for enemies too (D47).
+    const ground = terrainSpeed(world, enemy.x, enemy.y, flag) * ledgeFactor(world, enemy.x, enemy.y, dx / dist, dy / dist, flag);
+    const speed = enemy.speed * enemySpeedFactor(enemy) * sprint * ground;
     let vx = attack && !fleeing ? attack.vx : (dx / dist) * speed;
     let vy = attack && !fleeing ? attack.vy : (dy / dist) * speed;
     // Wall-follow (D47 amendment): a plain chase (or flight) stuck on an obstacle walks along it instead.

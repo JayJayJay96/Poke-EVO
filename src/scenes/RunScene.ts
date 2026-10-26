@@ -40,7 +40,7 @@ import {
   socketsUsed,
 } from '../sim/mutations';
 import { createRandomSeed, createSeededRng } from '../sim/rng';
-import { cellKey, chunkOf, groundAt, mapChunk } from '../sim/map';
+import { cellKey, chunkOf, groundAt, ledgesNear, mapChunk } from '../sim/map';
 import { grassPhase, marshFrozen, patchCharged } from '../sim/mapReactions';
 import { CELL, MAP_TUNING, type BiomeId } from '../data/map';
 import { chooseSiteCard, isBoundCard, skipSite } from '../sim/sites';
@@ -72,6 +72,8 @@ const COLORS = {
   burning: 0xe8833a,
   charged: 0xe8d86a,
   ice: 0xbfe3f2,
+  // Ledge lip and its chevrons (map.terrain.ledgeLip), pointing to the drop.
+  ledgeLip: 0xc9c2a8,
   player: 0xff7a2f,
   flash: 0xffffff,
   projectile: 0xffb347,
@@ -1128,6 +1130,33 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Ledge lips near the player (D47 M4): a light line with chevrons every 40 px pointing to the drop, readable from a
+   * screen away (docs/map/README.md §7.5). Lips farther than a chunk off-screen aren't drawn.
+   */
+  private drawLedges(g: Phaser.GameObjects.Graphics): void {
+    const { x, y } = this.world.player;
+    const seen = new Set<object>();
+    for (const [ox, oy] of [[0, 0], [-500, -500], [500, -500], [-500, 500], [500, 500]] as const) {
+      for (const l of ledgesNear(this.world, x + ox, y + oy)) {
+        if (seen.has(l)) continue;
+        seen.add(l);
+        g.lineStyle(4, COLORS.ledgeLip, 1);
+        g.lineBetween(l.x1, l.y1, l.x2, l.y2);
+        const len = Math.hypot(l.x2 - l.x1, l.y2 - l.y1);
+        const ux = (l.x2 - l.x1) / len;
+        const uy = (l.y2 - l.y1) / len;
+        g.lineStyle(2, COLORS.ledgeLip, 0.8);
+        for (let d = 20; d < len; d += 40) {
+          const cx = l.x1 + ux * d + l.nx * 8;
+          const cy = l.y1 + uy * d + l.ny * 8;
+          g.lineBetween(cx - ux * 6, cy - uy * 6, cx + l.nx * 6, cy + l.ny * 6);
+          g.lineBetween(cx + ux * 6, cy + uy * 6, cx + l.nx * 6, cy + l.ny * 6);
+        }
+      }
+    }
+  }
+
   /** Every obstacle placed in the chunks the view overlaps. */
   private drawObstacles(g: Phaser.GameObjects.Graphics, left: number, top: number, width: number, height: number): void {
     for (let cy = chunkOf(top); cy <= chunkOf(top + height); cy++) {
@@ -1170,6 +1199,7 @@ export class RunScene extends Phaser.Scene {
 
     // Map terrain, then boulders and trees (D47, grey boxes).
     if (onMap) this.drawCells(g, left, top, cam.width, cam.height);
+    if (onMap) this.drawLedges(g);
     if (onMap) this.drawObstacles(g, left, top, cam.width, cam.height);
 
     // Zones on the ground, fading out at the end: craters orange; status zones by their effect.
@@ -1569,10 +1599,16 @@ export class RunScene extends Phaser.Scene {
 
     // Blink while invulnerable.
     const blinkOff = player.invulnLeft > 0 && Math.floor(this.world.time * 20) % 2 === 0;
+    // A ledge hop (D47 M4) arcs the body 12 px up while its shadow stays on the ground.
+    const hop = player.hopLeft > 0 ? Math.sin(Math.PI * (1 - player.hopLeft / MAP_TUNING.ledge.hopSeconds)) * 12 : 0;
+    if (hop > 0) {
+      g.fillStyle(0x000000, 0.3);
+      g.fillEllipse(player.x, player.y + player.radius, player.radius * 2, player.radius * 0.8);
+    }
     if (!blinkOff) {
       const bodyColor = TYPE_COLORS[currentStage(this.world).types[0] ?? 'Normal'];
       g.fillStyle(player.hurtFlashLeft > 0 ? COLORS.flash : bodyColor, 1);
-      g.fillRect(player.x - player.radius, player.y - player.radius, player.radius * 2, player.radius * 2);
+      g.fillRect(player.x - player.radius, player.y - player.radius - hop, player.radius * 2, player.radius * 2);
     }
 
     // Charge (Pikachu line): two red cheek dots glowing brighter as it fills.

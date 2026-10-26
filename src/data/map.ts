@@ -343,4 +343,10 @@ export const MAP_TUNING = {
    * signature) cards ×`boundWeight` and rank-up cards ×`rankUpWeight` as often, so exploring pays.
    */
   farSites: { fromStart: 3000, boundWeight: 1.5, rankUpWeight: 1.5 },
+  /**
+   * Ledges (README §7.5, M4): crossing toward the drop is a hop for the player (`hopSeconds`, `hopDistance` px, input
+   * locked, no invulnerability); enemies just step down. Moving against the drop within `band` px of the lip is a
+   * climb at `climbFactor` speed, for everyone on the ground or swimming. Flyers and levitators ignore ledges.
+   */
+  ledge: { hopSeconds: 0.35, hopDistance: 60, climbFactor: 0.3, band: 20 },
 } as const;

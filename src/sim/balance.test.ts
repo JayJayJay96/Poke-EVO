@@ -36,7 +36,7 @@ it('the bot steers round water and obstacle pairs to reach where it is heading (
     const chunk = generateChunk(1, 0, 0);
     const cells = cellsOf(rows);
     const own = [{ x: -150, y: -50, radius: 45, kind: 'tree' as const }, { x: -150, y: 50, radius: 45, kind: 'tree' as const }];
-    w.map.chunks.set(chunkKey(0, 0), { ...chunk, tiles: rows, own, near: own, slots: [], cells, water: true, patches: null });
+    w.map.chunks.set(chunkKey(0, 0), { ...chunk, tiles: rows, own, near: own, slots: [], cells, water: true, patches: null, ledges: [], nearLedges: null });
     w.player.x = -350;
     w.player.y = 0;
     const goal = { x: 350, y: 0 };

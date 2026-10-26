@@ -24,7 +24,7 @@ function world(rows: string[], pokemonId: PokemonId = 'charmander'): World {
   w.moves = [];
   const chunk = generateChunk(1, 0, 0);
   const cells = cellsOf(rows);
-  w.map.chunks.set(chunkKey(0, 0), { ...chunk, tiles: rows, own: [], near: [], slots: [], cells, water: cells.includes(CELL.water), patches: null });
+  w.map.chunks.set(chunkKey(0, 0), { ...chunk, tiles: rows, own: [], near: [], slots: [], cells, water: cells.includes(CELL.water), patches: null, ledges: [], nearLedges: null });
   return w;
 }
 

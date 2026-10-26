@@ -44,6 +44,10 @@ export interface Player {
   calmFor: number;
   /** Seconds in deep water without leaving (0 on land): no rest regen, and Flying spawns tilt after a while (D47). */
   swimFor: number;
+  /** A ledge hop in progress (README §7.5): seconds left and its direction; input is locked meanwhile. */
+  hopLeft: number;
+  hopX: number;
+  hopY: number;
   /** Last movement direction (unit vector), for moves aimed with your feet. */
   faceX: number;
   faceY: number;
@@ -691,6 +695,16 @@ export interface MapSlot {
 }
 
 /** One generated 1000 px chunk (D47, README §5): its biome, set piece and what it holds. */
+/** A ledge lip (README §7.5): an axis-aligned segment, with (nx, ny) pointing to the side it drops to. */
+export interface Ledge {
+  readonly x1: number;
+  readonly y1: number;
+  readonly x2: number;
+  readonly y2: number;
+  readonly nx: number;
+  readonly ny: number;
+}
+
 export interface MapChunk {
   readonly cx: number;
   readonly cy: number;
@@ -710,6 +724,9 @@ export interface MapChunk {
   readonly water: boolean;
   /** Patch label per cell (0 = open floor): 4-connected cells of one class in this chunk; built on first use (M3b). */
   patches: Uint16Array | null;
+  /** Ledge lips laid by the set piece (M4), and those of this chunk and its neighbours within reach (built on use). */
+  readonly ledges: readonly Ledge[];
+  nearLedges: readonly Ledge[] | null;
   readonly slots: readonly MapSlot[];
 }
 

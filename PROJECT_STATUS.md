@@ -156,7 +156,6 @@ Architecture: `src/data/{moves,augments,items,waves}.ts`; `src/sim/{stats,progre
 - **Next:** owner review, then commit.
 - **Build runs:** yes.
 
-
 ### 2026-10-26 — Abra nerf (D57)
 **Owner:** playtested Abra: "much easier to play compared to others cuz of the confusion mechanic, and late game the area was so big". **Status:** built, tested; committed. Not playtested after the change; no balance run.
 

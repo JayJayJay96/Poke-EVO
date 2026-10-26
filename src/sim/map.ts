@@ -17,7 +17,7 @@ import {
 import { ELITE_ABILITY } from '../data/hordes';
 import { marshFrozen } from './mapReactions';
 import { createSeededRng, type Rng } from './rng';
-import type { Enemy, MapChunk, MapSlot, Obstacle, World } from './types';
+import type { Enemy, Ledge, MapChunk, MapSlot, Obstacle, World } from './types';
 
 // Main map (D47, docs/map/README.md), build step M2. Each 1000 px chunk gets a biome from seeded noise, then one
 // hand-made set piece (rotated or mirrored) plus a few lone fillers. A layout is kept only if it passes the lane
@@ -292,7 +292,7 @@ export function generateChunk(mapSeed: number, cx: number, cy: number, forceBiom
       if (blocking(tiles, circles) > cap || !lanesOpen(tiles, circles, cx, cy)) continue;
       const own = [...placed.own, ...fillers(rng, tiles, circles, cap, def.filler, cx, cy, start)];
       const cells = cellsOf(tiles);
-      return { cx, cy, biome, piece, transform, tiles, own, near: null, slots: placed.slots, cells, water: cells.includes(CELL.water), patches: null };
+      return { cx, cy, biome, piece, transform, tiles, own, near: null, slots: placed.slots, cells, water: cells.includes(CELL.water), patches: null, ledges: ledgesOf(tiles, cx, cy), nearLedges: null };
     }
   }
   throw new Error(`map: no layout fits chunk ${cx},${cy}`); // `open` always fits, so this can't happen
@@ -624,6 +624,95 @@ export function pushOutOfWater(world: World, body: { x: number; y: number }, rad
     }
   }
   return moved;
+}
+
+// ---- Ledges (M4) ------------------------------------------------------------------------------------------------
+
+/**
+ * Ledge lips from the tiles (README §7.5): `v` drops south (lip on the tile's south edge), `<` west and `>` east (lip
+ * on that edge). Neighbouring ledge tiles in a line merge into one segment.
+ */
+export function ledgesOf(tiles: readonly string[], cx: number, cy: number): Ledge[] {
+  const { chunkSize, tileSize: t } = MAP_TUNING;
+  const left = (cx - 0.5) * chunkSize;
+  const top = (cy - 0.5) * chunkSize;
+  const out: Ledge[] = [];
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (tiles[r]![c] !== 'v' || (c > 0 && tiles[r]![c - 1] === 'v')) continue;
+      let end = c;
+      while (end + 1 < N && tiles[r]![end + 1] === 'v') end++;
+      out.push({ x1: left + c * t, y1: top + (r + 1) * t, x2: left + (end + 1) * t, y2: top + (r + 1) * t, nx: 0, ny: 1 });
+    }
+  }
+  for (const [ch, nx, edge] of [['<', -1, 0], ['>', 1, 1]] as const) {
+    for (let c = 0; c < N; c++) {
+      for (let r = 0; r < N; r++) {
+        if (tiles[r]![c] !== ch || (r > 0 && tiles[r - 1]![c] === ch)) continue;
+        let end = r;
+        while (end + 1 < N && tiles[end + 1]![c] === ch) end++;
+        const x = left + (c + edge) * t;
+        out.push({ x1: x, y1: top + r * t, x2: x, y2: top + (end + 1) * t, nx, ny: 0 });
+      }
+    }
+  }
+  return out;
+}
+
+/** Ledges a mover in the chunk holding (x, y) could touch: its chunk's own and its neighbours' near the edges. */
+export function ledgesNear(world: World, x: number, y: number): readonly Ledge[] {
+  if (world.arena || world.map.density <= 0) return EMPTY_LEDGES;
+  const chunk = mapChunk(world, chunkOf(x), chunkOf(y));
+  if (!chunk.nearLedges) {
+    const { chunkSize, reach } = MAP_TUNING;
+    const left = (chunk.cx - 0.5) * chunkSize - reach;
+    const top = (chunk.cy - 0.5) * chunkSize - reach;
+    const size = chunkSize + 2 * reach;
+    const list: Ledge[] = [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        for (const l of mapChunk(world, chunk.cx + dx, chunk.cy + dy).ledges) {
+          if (Math.max(l.x1, l.x2) >= left && Math.min(l.x1, l.x2) <= left + size && Math.max(l.y1, l.y2) >= top && Math.min(l.y1, l.y2) <= top + size) list.push(l);
+        }
+      }
+    }
+    chunk.nearLedges = list;
+  }
+  return chunk.nearLedges;
+}
+const EMPTY_LEDGES: readonly Ledge[] = [];
+
+/** (x, y) lies beside the lip's length (its extent along the segment). */
+function alongside(l: Ledge, x: number, y: number): boolean {
+  return l.ny !== 0 ? x >= Math.min(l.x1, l.x2) && x <= Math.max(l.x1, l.x2) : y >= Math.min(l.y1, l.y2) && y <= Math.max(l.y1, l.y2);
+}
+
+/** Signed distance of (x, y) from the lip: positive on the side it drops to. */
+function side(l: Ledge, x: number, y: number): number {
+  return (x - l.x1) * l.nx + (y - l.y1) * l.ny;
+}
+
+/**
+ * Speed factor for climbing (README §7.5): a mover on the ground or swimming, heading against a ledge's drop within
+ * `band` px below its lip, climbs at `climbFactor`. Everything else: 1.
+ */
+export function ledgeFactor(world: World, x: number, y: number, dirX: number, dirY: number, flag: Traversal): number {
+  if (flag === 'fly' || flag === 'levitate' || (dirX === 0 && dirY === 0)) return 1;
+  const { band, climbFactor } = MAP_TUNING.ledge;
+  for (const l of ledgesNear(world, x, y)) {
+    const s = side(l, x, y);
+    if (s >= 0 && s <= band && dirX * l.nx + dirY * l.ny < 0 && alongside(l, x, y)) return climbFactor;
+  }
+  return 1;
+}
+
+/** The ledge a mover went over the edge of, moving from (x0, y0) to (x1, y1) toward its drop; null if none. */
+export function ledgeDropped(world: World, x0: number, y0: number, x1: number, y1: number, flag: Traversal): Ledge | null {
+  if (flag === 'fly' || flag === 'levitate') return null;
+  for (const l of ledgesNear(world, x1, y1)) {
+    if (side(l, x0, y0) < 0 && side(l, x1, y1) >= 0 && alongside(l, x1, y1)) return l;
+  }
+  return null;
 }
 
 // ---- Collision -------------------------------------------------------------------------------------------------
